@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, Theme } from '../lib/types';
+import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, Theme, PredicateType } from '../lib/types';
 import { parseExplainPlan } from '../lib/parser';
 
 interface PlanState {
@@ -31,6 +31,7 @@ const initialFilters: FilterState = {
   maxCost: Infinity,
   searchText: '',
   showPredicates: true,
+  predicateTypes: [],
 };
 
 const getInitialTheme = (): Theme => {
@@ -190,7 +191,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     if (!state.parsedPlan) return [];
 
     return state.parsedPlan.allNodes.filter((node) => {
-      const { operationTypes, minCost, maxCost, searchText } = state.filters;
+      const { operationTypes, minCost, maxCost, searchText, predicateTypes } = state.filters;
 
       // Filter by operation type
       if (operationTypes.length > 0) {
@@ -203,6 +204,21 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       // Filter by cost
       const nodeCost = node.cost || 0;
       if (nodeCost < minCost || nodeCost > maxCost) return false;
+
+      // Filter by predicate type
+      if (predicateTypes.length > 0) {
+        const hasAccess = !!node.accessPredicates;
+        const hasFilter = !!node.filterPredicates;
+        const hasNone = !hasAccess && !hasFilter;
+
+        const matchesPredicate = predicateTypes.some((type: PredicateType) => {
+          if (type === 'access') return hasAccess;
+          if (type === 'filter') return hasFilter;
+          if (type === 'none') return hasNone;
+          return false;
+        });
+        if (!matchesPredicate) return false;
+      }
 
       // Filter by search text
       if (searchText) {
