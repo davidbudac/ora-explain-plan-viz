@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { OPERATION_CATEGORIES, getOperationCategory } from '../lib/types';
+import type { PredicateType } from '../lib/types';
 
 export function FilterPanel() {
   const { parsedPlan, filters, setFilters, getFilteredNodes } = usePlan();
@@ -14,6 +15,20 @@ export function FilterPanel() {
       stats.set(category, (stats.get(category) || 0) + 1);
     }
     return stats;
+  }, [parsedPlan]);
+
+  const predicateStats = useMemo(() => {
+    if (!parsedPlan) return { access: 0, filter: 0, none: 0 };
+
+    let access = 0;
+    let filter = 0;
+    let none = 0;
+    for (const node of parsedPlan.allNodes) {
+      if (node.accessPredicates) access++;
+      if (node.filterPredicates) filter++;
+      if (!node.accessPredicates && !node.filterPredicates) none++;
+    }
+    return { access, filter, none };
   }, [parsedPlan]);
 
   const maxCost = useMemo(() => {
@@ -47,12 +62,27 @@ export function FilterPanel() {
     return operations.some((op) => filters.operationTypes.includes(op));
   };
 
+  const handlePredicateTypeToggle = (predicateType: PredicateType) => {
+    const currentTypes = new Set(filters.predicateTypes);
+    if (currentTypes.has(predicateType)) {
+      currentTypes.delete(predicateType);
+    } else {
+      currentTypes.add(predicateType);
+    }
+    setFilters({ predicateTypes: Array.from(currentTypes) });
+  };
+
+  const isPredicateTypeActive = (predicateType: PredicateType) => {
+    return filters.predicateTypes.includes(predicateType);
+  };
+
   const clearFilters = () => {
     setFilters({
       operationTypes: [],
       minCost: 0,
       maxCost: Infinity,
       searchText: '',
+      predicateTypes: [],
     });
   };
 
@@ -105,6 +135,43 @@ export function FilterPanel() {
         <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
           <span>0</span>
           <span>{maxCost}</span>
+        </div>
+      </div>
+
+      {/* Predicate Types */}
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+          Predicate Types
+        </label>
+        <div className="space-y-2">
+          {([
+            { type: 'access' as PredicateType, label: 'Access Predicate', count: predicateStats.access },
+            { type: 'filter' as PredicateType, label: 'Filter Predicate', count: predicateStats.filter },
+            { type: 'none' as PredicateType, label: 'No Predicate', count: predicateStats.none },
+          ]).map(({ type, label, count }) => {
+            if (count === 0) return null;
+            const isActive = isPredicateTypeActive(type);
+
+            return (
+              <button
+                key={type}
+                onClick={() => handlePredicateTypeToggle(type)}
+                className={`
+                  w-full flex items-center justify-between px-3 py-2 text-sm rounded-md transition-colors
+                  ${
+                    isActive
+                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700'
+                      : 'bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }
+                `}
+              >
+                <span className="truncate">{label}</span>
+                <span className="ml-2 px-2 py-0.5 bg-white dark:bg-gray-800 rounded text-xs">
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
