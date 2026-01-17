@@ -24,12 +24,15 @@ export interface ParsedPlan {
   maxRows: number;
 }
 
+export type PredicateType = 'access' | 'filter' | 'none';
+
 export interface FilterState {
   operationTypes: string[];
   minCost: number;
   maxCost: number;
   searchText: string;
   showPredicates: boolean;
+  predicateTypes: PredicateType[];
 }
 
 export type ViewMode = 'hierarchical' | 'force' | 'sankey';
