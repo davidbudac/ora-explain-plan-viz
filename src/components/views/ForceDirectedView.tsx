@@ -3,7 +3,6 @@ import {
   ReactFlow,
   Background,
   Controls,
-  MiniMap,
   useNodesState,
   useEdgesState,
   BackgroundVariant,
@@ -15,6 +14,7 @@ import '@xyflow/react/dist/style.css';
 
 import { usePlan } from '../../hooks/usePlanContext';
 import { PlanNodeMemo } from '../nodes/PlanNode';
+import { CollapsibleMiniMap } from '../CollapsibleMiniMap';
 import type { PlanNode } from '../../lib/types';
 
 const nodeTypes: NodeTypes = {
@@ -211,7 +211,7 @@ export function ForceDirectedView() {
           color={theme === 'dark' ? '#374151' : '#e5e7eb'}
         />
         <Controls className="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-700" />
-        <MiniMap
+        <CollapsibleMiniMap
           nodeColor={(node) => {
             const isFiltered = filteredNodeIds.has(parseInt(node.id));
             return isFiltered ? '#6366f1' : '#d1d5db';
