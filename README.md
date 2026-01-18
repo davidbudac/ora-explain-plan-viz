@@ -1,73 +1,106 @@
-# React + TypeScript + Vite
+# Oracle Execution Plan Visualizer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A client-side web application that parses Oracle DBMS_XPLAN output and renders interactive visualizations. No backend required - everything runs in your browser.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Three Visualization Modes**
+  - **Hierarchical Tree**: Traditional tree layout showing parent-child relationships
+  - **Force-Directed Graph**: Physics-based layout for exploring complex plans
+  - **Sankey Diagram**: Flow visualization showing data movement through operations
 
-## React Compiler
+- **Interactive Filtering**
+  - Filter by operation type (Table Access, Index Operations, Joins, etc.)
+  - Filter by predicate type (Access, Filter, or No Predicate)
+  - Filter by minimum cost threshold
+  - Text search across operations, objects, and predicates
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Node Details Panel**: Click any node to see full attributes including predicates, cost, rows, and bytes
 
-## Expanding the ESLint configuration
+- **Dark/Light Mode**: Toggle between themes with localStorage persistence
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Collapsible Minimap**: Navigate large plans with an expandable overview map
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- **Fully Client-Side**: No data leaves your browser - paste your plan and visualize instantly
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Installation
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Clone the repository
+git clone https://github.com/davidbudac/ora-explain-plan-viz.git
+cd ora-explain-plan-viz
+
+# Install dependencies
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Usage
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Development
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Start the development server
+npm run dev
 ```
+
+Then open http://localhost:5173/ora-explain-plan-viz/ in your browser.
+
+### Production Build
+
+```bash
+# Build for production
+npm run build
+
+# Preview the production build locally
+npm run preview
+```
+
+## How to Use
+
+1. Generate an execution plan in Oracle using `DBMS_XPLAN.DISPLAY`:
+   ```sql
+   EXPLAIN PLAN FOR
+   SELECT * FROM employees WHERE department_id = 10;
+
+   SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+   ```
+
+2. Copy the output (including the table and predicate information)
+
+3. Paste into the input panel and click "Parse Plan"
+
+4. Explore the visualization using the three different view modes
+
+### Supported Input Format
+
+Standard Oracle DBMS_XPLAN.DISPLAY output:
+
+```
+Plan hash value: 1234567890
+
+--------------------------------------------------------------------------------
+| Id  | Operation                    | Name       | Rows  | Bytes | Cost (%CPU)|
+--------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT             |            |     1 |    10 |     5   (0)|
+|   1 |  NESTED LOOPS                |            |     1 |    10 |     5   (0)|
+|*  2 |   INDEX RANGE SCAN           | EMP_IDX    |     1 |       |     2   (0)|
+|   3 |   TABLE ACCESS BY INDEX ROWID| EMPLOYEES  |     1 |    10 |     3   (0)|
+--------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+   2 - access("DEPARTMENT_ID"=10)
+```
+
+## Tech Stack
+
+- **React 18** + **TypeScript**
+- **Vite** - Build tool
+- **React Flow** (@xyflow/react) - Graph visualization
+- **D3-sankey** - Sankey diagram
+- **Dagre** - Hierarchical layout algorithm
+- **Tailwind CSS** - Styling
+
+## License
+
+MIT
