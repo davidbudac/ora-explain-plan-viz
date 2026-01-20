@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   ReactFlow,
   Background,
   Controls,
   useNodesState,
   useEdgesState,
+  useReactFlow,
+  ReactFlowProvider,
   BackgroundVariant,
 } from '@xyflow/react';
 import type { Node, Edge, NodeTypes } from '@xyflow/react';
@@ -56,8 +58,10 @@ function getLayoutedElements(
   return { nodes: layoutedNodes, edges };
 }
 
-export function HierarchicalView() {
+function HierarchicalViewContent() {
   const { parsedPlan, selectedNodeId, selectNode, getFilteredNodes, theme } = usePlan();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { fitView } = useReactFlow();
 
   const filteredNodeIds = useMemo(() => {
     return new Set(getFilteredNodes().map((n) => n.id));
@@ -140,6 +144,20 @@ export function HierarchicalView() {
     selectNode(null);
   }, [selectNode]);
 
+  // Handle container resize
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      // Small delay to let the layout settle
+      setTimeout(() => fitView({ padding: 0.2 }), 50);
+    });
+
+    resizeObserver.observe(container);
+    return () => resizeObserver.disconnect();
+  }, [fitView]);
+
   if (!parsedPlan?.rootNode) {
     return (
       <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
@@ -149,7 +167,7 @@ export function HierarchicalView() {
   }
 
   return (
-    <div className="w-full h-full" style={{ minHeight: '400px' }}>
+    <div ref={containerRef} className="w-full h-full" style={{ minHeight: '400px' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -180,5 +198,13 @@ export function HierarchicalView() {
         />
       </ReactFlow>
     </div>
+  );
+}
+
+export function HierarchicalView() {
+  return (
+    <ReactFlowProvider>
+      <HierarchicalViewContent />
+    </ReactFlowProvider>
   );
 }
