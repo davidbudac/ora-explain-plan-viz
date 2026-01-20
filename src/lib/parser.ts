@@ -36,8 +36,11 @@ export function parseExplainPlan(input: string): ParsedPlan {
   // Parse predicate information
   const predicates = parsePredicates(lines);
 
+  // Parse query block information
+  const queryBlocks = parseQueryBlocks(lines);
+
   // Build tree structure
-  const { rootNode, allNodes } = buildTree(tableData, predicates);
+  const { rootNode, allNodes } = buildTree(tableData, predicates, queryBlocks);
 
   // Calculate totals
   const totalCost = allNodes.reduce((sum, node) => sum + (node.cost || 0), 0);
@@ -360,9 +363,49 @@ function parsePredicates(lines: string[]): Map<number, { access?: string; filter
   return predicates;
 }
 
+function parseQueryBlocks(lines: string[]): Map<number, { queryBlock?: string; objectAlias?: string }> {
+  const queryBlocks = new Map<number, { queryBlock?: string; objectAlias?: string }>();
+
+  // Find Query Block Name / Object Alias section
+  let inQueryBlockSection = false;
+
+  for (const line of lines) {
+    if (/Query Block Name\s*\/\s*Object Alias/i.test(line)) {
+      inQueryBlockSection = true;
+      continue;
+    }
+
+    if (!inQueryBlockSection) {
+      continue;
+    }
+
+    // Skip separator lines
+    if (/^[-]+$/.test(line.trim())) {
+      continue;
+    }
+
+    // Stop at next section header or empty line after data
+    if (line.trim() === '' || (/^[A-Z].*:$/i.test(line.trim()) && !/^\s*\d+\s*-/.test(line))) {
+      break;
+    }
+
+    // Parse lines like "   2 - SEL$1 / E@SEL$1" or "   1 - SEL$1"
+    const match = line.match(/^\s*(\d+)\s*-\s*(\S+)(?:\s*\/\s*(\S+))?/);
+    if (match) {
+      const id = parseInt(match[1], 10);
+      const queryBlock = match[2];
+      const objectAlias = match[3];
+      queryBlocks.set(id, { queryBlock, objectAlias });
+    }
+  }
+
+  return queryBlocks;
+}
+
 function buildTree(
   rows: RawPlanRow[],
-  predicates: Map<number, { access?: string; filter?: string }>
+  predicates: Map<number, { access?: string; filter?: string }>,
+  queryBlocks: Map<number, { queryBlock?: string; objectAlias?: string }>
 ): { rootNode: PlanNode | null; allNodes: PlanNode[] } {
   if (rows.length === 0) {
     return { rootNode: null, allNodes: [] };
@@ -374,6 +417,7 @@ function buildTree(
 
   for (const row of rows) {
     const preds = predicates.get(row.id);
+    const qb = queryBlocks.get(row.id);
     const node: PlanNode = {
       id: row.id,
       depth: row.depth,
@@ -387,6 +431,8 @@ function buildTree(
       time: row.time,
       accessPredicates: preds?.access,
       filterPredicates: preds?.filter,
+      queryBlock: qb?.queryBlock,
+      objectAlias: qb?.objectAlias,
       children: [],
     };
 
@@ -433,6 +479,16 @@ export const SAMPLE_PLAN = `Plan hash value: 1234567890
 |   7 |   TABLE ACCESS FULL          | DEPARTMENTS|    27 |   540 |    12   (0)|
 --------------------------------------------------------------------------------
 
+Query Block Name / Object Alias (identified by operation id):
+-------------------------------------------------------------
+   1 - SEL$1
+   2 - SEL$1
+   3 - SEL$1 / E@SEL$1
+   4 - SEL$1 / E@SEL$1
+   5 - SEL$1 / J@SEL$1
+   6 - SEL$1 / J@SEL$1
+   7 - SEL$1 / D@SEL$1
+
 Predicate Information (identified by operation id):
 ---------------------------------------------------
    4 - access("E"."DEPARTMENT_ID"=:dept_id)
@@ -461,6 +517,25 @@ export const COMPLEX_SAMPLE_PLAN = `Plan hash value: 3456789012
 |  15 |        TABLE ACCESS FULL       | COUNTRIES       |    25 |   175 |       |     3  (0)| 00:00:01 |
 |* 16 |        TABLE ACCESS FULL       | ORDERS          |500000 |  3906K|       |  7420  (2)| 00:01:29 |
 -------------------------------------------------------------------------------------------------------
+
+Query Block Name / Object Alias (identified by operation id):
+-------------------------------------------------------------
+   1 - SEL$1
+   2 - SEL$1
+   3 - SEL$2 / VW_NSO_1@SEL$1
+   4 - SEL$2
+   5 - SEL$2
+   6 - SEL$2 / C@SEL$2
+   7 - SEL$2
+   8 - SEL$2 / P@SEL$2
+   9 - SEL$2 / OI@SEL$2
+  10 - SEL$3 / VW_NSO_2@SEL$1
+  11 - SEL$3
+  12 - SEL$3
+  13 - SEL$3 / R@SEL$3
+  14 - SEL$3
+  15 - SEL$3 / CO@SEL$3
+  16 - SEL$3 / O@SEL$3
 
 Predicate Information (identified by operation id):
 ---------------------------------------------------

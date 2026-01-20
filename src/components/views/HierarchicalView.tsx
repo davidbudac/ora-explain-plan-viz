@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, memo } from 'react';
 import {
   ReactFlow,
   Background,
@@ -18,8 +18,30 @@ import { PlanNodeMemo } from '../nodes/PlanNode';
 import { CollapsibleMiniMap } from '../CollapsibleMiniMap';
 import type { PlanNode } from '../../lib/types';
 
+// Query block group component
+interface QueryBlockGroupData extends Record<string, unknown> {
+  label: string;
+  width: number;
+  height: number;
+}
+
+const QueryBlockGroupNode = memo(({ data }: { data: QueryBlockGroupData }) => {
+  return (
+    <div
+      className="border-2 border-dashed border-violet-400 dark:border-violet-500 rounded-lg bg-violet-50/30 dark:bg-violet-900/10"
+      style={{ width: data.width, height: data.height }}
+    >
+      <div className="absolute -top-3 left-3 px-2 bg-white dark:bg-gray-900 text-violet-600 dark:text-violet-400 text-xs font-mono">
+        {data.label}
+      </div>
+    </div>
+  );
+});
+QueryBlockGroupNode.displayName = 'QueryBlockGroupNode';
+
 const nodeTypes: NodeTypes = {
   planNode: PlanNodeMemo as unknown as NodeTypes['planNode'],
+  queryBlockGroup: QueryBlockGroupNode as unknown as NodeTypes['queryBlockGroup'],
 };
 
 const nodeWidth = 240;
@@ -72,11 +94,12 @@ function HierarchicalViewContent() {
       return { nodes: [] as Node[], edges: [] as Edge[] };
     }
 
-    const nodes: Node[] = [];
+    const planNodes: Node[] = [];
     const edges: Edge[] = [];
+    const nodeQueryBlocks: Map<string, string> = new Map();
 
     function traverse(node: PlanNode) {
-      nodes.push({
+      planNodes.push({
         id: node.id.toString(),
         type: 'planNode',
         position: { x: 0, y: 0 },
@@ -89,6 +112,10 @@ function HierarchicalViewContent() {
           displayOptions: filters.nodeDisplayOptions,
         },
       });
+
+      if (node.queryBlock) {
+        nodeQueryBlocks.set(node.id.toString(), node.queryBlock);
+      }
 
       for (const child of node.children) {
         edges.push({
@@ -107,22 +134,80 @@ function HierarchicalViewContent() {
 
     traverse(parsedPlan.rootNode);
 
-    return getLayoutedElements(nodes, edges);
+    // Apply layout to plan nodes
+    const layoutedResult = getLayoutedElements(planNodes, edges);
+
+    // Create query block groups if enabled
+    const groupNodes: Node[] = [];
+    if (filters.nodeDisplayOptions.showQueryBlockGrouping && nodeQueryBlocks.size > 0) {
+      // Group nodes by query block
+      const queryBlockGroups = new Map<string, Node[]>();
+      for (const node of layoutedResult.nodes) {
+        const qb = nodeQueryBlocks.get(node.id);
+        if (qb) {
+          if (!queryBlockGroups.has(qb)) {
+            queryBlockGroups.set(qb, []);
+          }
+          queryBlockGroups.get(qb)!.push(node);
+        }
+      }
+
+      // Create group nodes with bounding boxes
+      const padding = 20;
+      queryBlockGroups.forEach((groupedNodes, queryBlock) => {
+        if (groupedNodes.length === 0) return;
+
+        // Calculate bounding box
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const node of groupedNodes) {
+          minX = Math.min(minX, node.position.x);
+          minY = Math.min(minY, node.position.y);
+          maxX = Math.max(maxX, node.position.x + nodeWidth);
+          maxY = Math.max(maxY, node.position.y + nodeHeight);
+        }
+
+        groupNodes.push({
+          id: `group-${queryBlock}`,
+          type: 'queryBlockGroup',
+          position: { x: minX - padding, y: minY - padding },
+          data: {
+            label: queryBlock,
+            width: maxX - minX + padding * 2,
+            height: maxY - minY + padding * 2,
+          },
+          selectable: false,
+          draggable: false,
+          zIndex: -1,
+        });
+      });
+    }
+
+    // Group nodes should be rendered first (behind plan nodes)
+    return {
+      nodes: [...groupNodes, ...layoutedResult.nodes],
+      edges: layoutedResult.edges,
+    };
   }, [parsedPlan, selectedNodeId, filteredNodeIds, filters.animateEdges, filters.nodeDisplayOptions]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutData.edges);
 
   useEffect(() => {
-    const updatedNodes = layoutData.nodes.map((node: Node) => ({
-      ...node,
-      data: {
-        ...node.data,
-        isSelected: parseInt(node.id) === selectedNodeId,
-        isFiltered: filteredNodeIds.has(parseInt(node.id)),
-        displayOptions: filters.nodeDisplayOptions,
-      },
-    }));
+    const updatedNodes = layoutData.nodes.map((node: Node) => {
+      // Group nodes don't need the same data updates
+      if (node.type === 'queryBlockGroup') {
+        return node;
+      }
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          isSelected: parseInt(node.id) === selectedNodeId,
+          isFiltered: filteredNodeIds.has(parseInt(node.id)),
+          displayOptions: filters.nodeDisplayOptions,
+        },
+      };
+    });
     setNodes(updatedNodes);
 
     const updatedEdges = layoutData.edges.map((edge: Edge) => ({

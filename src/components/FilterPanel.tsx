@@ -232,6 +232,28 @@ export function FilterPanel() {
                 />
                 <span className="text-sm text-gray-700 dark:text-gray-300">Predicate details</span>
               </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.nodeDisplayOptions.showQueryBlockBadge}
+                  onChange={(e) => setFilters({
+                    nodeDisplayOptions: { ...filters.nodeDisplayOptions, showQueryBlockBadge: e.target.checked }
+                  })}
+                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Query block badge</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.nodeDisplayOptions.showQueryBlockGrouping}
+                  onChange={(e) => setFilters({
+                    nodeDisplayOptions: { ...filters.nodeDisplayOptions, showQueryBlockGrouping: e.target.checked }
+                  })}
+                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Query block grouping</span>
+              </label>
             </div>
           </div>
         </div>
