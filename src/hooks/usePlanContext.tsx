@@ -39,6 +39,7 @@ const initialFilters: FilterState = {
     showBytes: true,
     showObjectName: true,
     showPredicateIndicators: true,
+    showPredicateDetails: false,
   },
 };
 

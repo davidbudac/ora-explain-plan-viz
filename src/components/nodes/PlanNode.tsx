@@ -31,6 +31,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     showBytes: true,
     showObjectName: true,
     showPredicateIndicators: true,
+    showPredicateDetails: false,
   };
 
   return (
@@ -101,6 +102,24 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
               <span className="px-1.5 py-0.5 bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 text-xs rounded">
                 Filter
               </span>
+            )}
+          </div>
+        )}
+
+        {/* Predicate details */}
+        {options.showPredicateDetails && (node.accessPredicates || node.filterPredicates) && (
+          <div className="mt-2 space-y-1">
+            {node.accessPredicates && (
+              <div className="text-xs">
+                <span className="text-green-700 dark:text-green-300 font-medium">A: </span>
+                <code className="text-gray-600 dark:text-gray-400 break-all">{node.accessPredicates}</code>
+              </div>
+            )}
+            {node.filterPredicates && (
+              <div className="text-xs">
+                <span className="text-amber-700 dark:text-amber-300 font-medium">F: </span>
+                <code className="text-gray-600 dark:text-gray-400 break-all">{node.filterPredicates}</code>
+              </div>
             )}
           </div>
         )}
