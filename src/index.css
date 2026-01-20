@@ -44,3 +44,8 @@
 .dark .react-flow__controls button:hover {
   background-color: #4b5563;
 }
+
+/* Reverse animation direction for edges (data flows from children to parent) */
+.react-flow__edge.animated path {
+  animation-direction: reverse;
+}
