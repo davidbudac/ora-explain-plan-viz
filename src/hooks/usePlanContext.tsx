@@ -33,6 +33,13 @@ const initialFilters: FilterState = {
   showPredicates: true,
   predicateTypes: [],
   animateEdges: false,
+  nodeDisplayOptions: {
+    showRows: true,
+    showCost: true,
+    showBytes: true,
+    showObjectName: true,
+    showPredicateIndicators: true,
+  },
 };
 
 const getInitialTheme = (): Theme => {
