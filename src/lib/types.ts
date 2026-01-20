@@ -12,6 +12,8 @@ export interface PlanNode {
   tempSpace?: number;
   accessPredicates?: string;
   filterPredicates?: string;
+  queryBlock?: string;
+  objectAlias?: string;
   parentId?: number;
   children: PlanNode[];
 }
@@ -33,6 +35,8 @@ export interface NodeDisplayOptions {
   showObjectName: boolean;
   showPredicateIndicators: boolean;
   showPredicateDetails: boolean;
+  showQueryBlockBadge: boolean;
+  showQueryBlockGrouping: boolean;
 }
 
 export interface FilterState {

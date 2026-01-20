@@ -40,6 +40,8 @@ const initialFilters: FilterState = {
     showObjectName: true,
     showPredicateIndicators: true,
     showPredicateDetails: false,
+    showQueryBlockBadge: true,
+    showQueryBlockGrouping: true,
   },
 };
 

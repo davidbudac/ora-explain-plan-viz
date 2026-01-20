@@ -32,6 +32,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     showObjectName: true,
     showPredicateIndicators: true,
     showPredicateDetails: false,
+    showQueryBlockBadge: true,
+    showQueryBlockGrouping: true,
   };
 
   return (
@@ -68,6 +70,20 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         {options.showObjectName && node.objectName && (
           <div className="text-xs text-gray-600 dark:text-gray-400 font-mono mb-2 truncate">
             {node.objectName}
+          </div>
+        )}
+
+        {/* Query block badge */}
+        {options.showQueryBlockBadge && node.queryBlock && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            <span className="px-1.5 py-0.5 bg-violet-200 dark:bg-violet-800 text-violet-800 dark:text-violet-200 text-xs rounded font-mono">
+              {node.queryBlock}
+            </span>
+            {node.objectAlias && (
+              <span className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs rounded font-mono">
+                {node.objectAlias}
+              </span>
+            )}
           </div>
         )}
 
