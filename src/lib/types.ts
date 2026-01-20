@@ -32,6 +32,7 @@ export interface NodeDisplayOptions {
   showBytes: boolean;
   showObjectName: boolean;
   showPredicateIndicators: boolean;
+  showPredicateDetails: boolean;
 }
 
 export interface FilterState {
