@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { OPERATION_CATEGORIES, getOperationCategory } from '../lib/types';
 import type { PredicateType } from '../lib/types';
 
 export function FilterPanel() {
   const { parsedPlan, filters, setFilters, getFilteredNodes } = usePlan();
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const operationStats = useMemo(() => {
     if (!parsedPlan) return new Map<string, number>();
@@ -88,11 +89,39 @@ export function FilterPanel() {
 
   if (!parsedPlan) return null;
 
+  if (isCollapsed) {
+    return (
+      <div className="bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col items-center py-4">
+        <button
+          onClick={() => setIsCollapsed(false)}
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+          title="Show filters"
+        >
+          <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+        </button>
+        <span className="text-xs text-gray-500 dark:text-gray-400 mt-2 writing-mode-vertical">Filters</span>
+      </div>
+    );
+  }
+
   return (
     <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100">Filters</h3>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsCollapsed(true)}
+              className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+              title="Collapse panel"
+            >
+              <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+              </svg>
+            </button>
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Filters</h3>
+          </div>
           <button
             onClick={clearFilters}
             className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
