@@ -59,7 +59,7 @@ function getLayoutedElements(
 }
 
 function HierarchicalViewContent() {
-  const { parsedPlan, selectedNodeId, selectNode, getFilteredNodes, theme } = usePlan();
+  const { parsedPlan, selectedNodeId, selectNode, getFilteredNodes, theme, filters } = usePlan();
   const containerRef = useRef<HTMLDivElement>(null);
   const { fitView } = useReactFlow();
 
@@ -94,7 +94,7 @@ function HierarchicalViewContent() {
           id: `e${node.id}-${child.id}`,
           source: node.id.toString(),
           target: child.id.toString(),
-          animated: false,
+          animated: filters.animateEdges,
           style: {
             stroke: filteredNodeIds.has(child.id) ? '#6366f1' : '#d1d5db',
             strokeWidth: 2,
@@ -107,7 +107,7 @@ function HierarchicalViewContent() {
     traverse(parsedPlan.rootNode);
 
     return getLayoutedElements(nodes, edges);
-  }, [parsedPlan, selectedNodeId, filteredNodeIds]);
+  }, [parsedPlan, selectedNodeId, filteredNodeIds, filters.animateEdges]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutData.edges);
@@ -125,13 +125,14 @@ function HierarchicalViewContent() {
 
     const updatedEdges = layoutData.edges.map((edge: Edge) => ({
       ...edge,
+      animated: filters.animateEdges,
       style: {
         ...edge.style,
         stroke: filteredNodeIds.has(parseInt(edge.target)) ? '#6366f1' : '#d1d5db',
       },
     }));
     setEdges(updatedEdges);
-  }, [layoutData, selectedNodeId, filteredNodeIds, setNodes, setEdges]);
+  }, [layoutData, selectedNodeId, filteredNodeIds, filters.animateEdges, setNodes, setEdges]);
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {

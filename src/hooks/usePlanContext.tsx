@@ -32,6 +32,7 @@ const initialFilters: FilterState = {
   searchText: '',
   showPredicates: true,
   predicateTypes: [],
+  animateEdges: false,
 };
 
 const getInitialTheme = (): Theme => {

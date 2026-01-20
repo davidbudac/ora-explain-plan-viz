@@ -1,7 +1,6 @@
 import { usePlan } from '../hooks/usePlanContext';
 import type { ViewMode } from '../lib/types';
 import { HierarchicalView } from './views/HierarchicalView';
-import { ForceDirectedView } from './views/ForceDirectedView';
 import { SankeyView } from './views/SankeyView';
 
 const tabs: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
@@ -11,15 +10,6 @@ const tabs: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'force',
-    label: 'Force-Directed',
-    icon: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
       </svg>
     ),
   },
@@ -102,7 +92,6 @@ export function VisualizationTabs() {
       {/* Visualization area */}
       <div className="flex-1 min-h-0 h-full">
         {viewMode === 'hierarchical' && <HierarchicalView />}
-        {viewMode === 'force' && <ForceDirectedView />}
         {viewMode === 'sankey' && <SankeyView />}
       </div>
     </div>
