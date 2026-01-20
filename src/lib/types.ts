@@ -33,9 +33,10 @@ export interface FilterState {
   searchText: string;
   showPredicates: boolean;
   predicateTypes: PredicateType[];
+  animateEdges: boolean;
 }
 
-export type ViewMode = 'hierarchical' | 'force' | 'sankey';
+export type ViewMode = 'hierarchical' | 'sankey';
 export type SankeyMetric = 'rows' | 'cost';
 export type Theme = 'light' | 'dark';
 

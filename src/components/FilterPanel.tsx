@@ -119,6 +119,22 @@ export function FilterPanel() {
         />
       </div>
 
+      {/* Display Options */}
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+          Display Options
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={filters.animateEdges}
+            onChange={(e) => setFilters({ animateEdges: e.target.checked })}
+            className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+          />
+          <span className="text-sm text-gray-700 dark:text-gray-300">Animate edges</span>
+        </label>
+      </div>
+
       {/* Cost Range */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
