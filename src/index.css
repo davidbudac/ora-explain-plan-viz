@@ -49,3 +49,9 @@
 .react-flow__edge.animated path {
   animation-direction: reverse;
 }
+
+/* Vertical text for collapsed panels */
+.writing-mode-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
