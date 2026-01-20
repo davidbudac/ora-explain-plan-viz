@@ -167,7 +167,7 @@ function HierarchicalViewContent() {
   }
 
   return (
-    <div ref={containerRef} className="w-full h-full" style={{ minHeight: '400px' }}>
+    <div ref={containerRef} className="w-full h-full">
       <ReactFlow
         nodes={nodes}
         edges={edges}

@@ -100,7 +100,7 @@ export function VisualizationTabs() {
       </div>
 
       {/* Visualization area */}
-      <div className="flex-1 min-h-0" style={{ height: 'calc(100vh - 300px)', minHeight: '400px' }}>
+      <div className="flex-1 min-h-0 h-full">
         {viewMode === 'hierarchical' && <HierarchicalView />}
         {viewMode === 'force' && <ForceDirectedView />}
         {viewMode === 'sankey' && <SankeyView />}
