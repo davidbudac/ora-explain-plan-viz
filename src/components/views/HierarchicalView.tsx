@@ -86,6 +86,7 @@ function HierarchicalViewContent() {
           totalCost: parsedPlan!.totalCost,
           isSelected: node.id === selectedNodeId,
           isFiltered: filteredNodeIds.has(node.id),
+          displayOptions: filters.nodeDisplayOptions,
         },
       });
 
@@ -107,7 +108,7 @@ function HierarchicalViewContent() {
     traverse(parsedPlan.rootNode);
 
     return getLayoutedElements(nodes, edges);
-  }, [parsedPlan, selectedNodeId, filteredNodeIds, filters.animateEdges]);
+  }, [parsedPlan, selectedNodeId, filteredNodeIds, filters.animateEdges, filters.nodeDisplayOptions]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutData.edges);
@@ -119,6 +120,7 @@ function HierarchicalViewContent() {
         ...node.data,
         isSelected: parseInt(node.id) === selectedNodeId,
         isFiltered: filteredNodeIds.has(parseInt(node.id)),
+        displayOptions: filters.nodeDisplayOptions,
       },
     }));
     setNodes(updatedNodes);
@@ -132,7 +134,7 @@ function HierarchicalViewContent() {
       },
     }));
     setEdges(updatedEdges);
-  }, [layoutData, selectedNodeId, filteredNodeIds, filters.animateEdges, setNodes, setEdges]);
+  }, [layoutData, selectedNodeId, filteredNodeIds, filters.animateEdges, filters.nodeDisplayOptions, setNodes, setEdges]);
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {

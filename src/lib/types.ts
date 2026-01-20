@@ -26,6 +26,14 @@ export interface ParsedPlan {
 
 export type PredicateType = 'access' | 'filter' | 'none';
 
+export interface NodeDisplayOptions {
+  showRows: boolean;
+  showCost: boolean;
+  showBytes: boolean;
+  showObjectName: boolean;
+  showPredicateIndicators: boolean;
+}
+
 export interface FilterState {
   operationTypes: string[];
   minCost: number;
@@ -34,6 +42,7 @@ export interface FilterState {
   showPredicates: boolean;
   predicateTypes: PredicateType[];
   animateEdges: boolean;
+  nodeDisplayOptions: NodeDisplayOptions;
 }
 
 export type ViewMode = 'hierarchical' | 'sankey';

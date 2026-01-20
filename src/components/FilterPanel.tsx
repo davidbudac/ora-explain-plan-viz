@@ -153,15 +153,77 @@ export function FilterPanel() {
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
           Display Options
         </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={filters.animateEdges}
-            onChange={(e) => setFilters({ animateEdges: e.target.checked })}
-            className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-          />
-          <span className="text-sm text-gray-700 dark:text-gray-300">Animate edges</span>
-        </label>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={filters.animateEdges}
+              onChange={(e) => setFilters({ animateEdges: e.target.checked })}
+              className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700 dark:text-gray-300">Animate edges</span>
+          </label>
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+            <span className="text-xs text-gray-500 dark:text-gray-400 mb-2 block">Node Properties</span>
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.nodeDisplayOptions.showObjectName}
+                  onChange={(e) => setFilters({
+                    nodeDisplayOptions: { ...filters.nodeDisplayOptions, showObjectName: e.target.checked }
+                  })}
+                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Object name</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.nodeDisplayOptions.showRows}
+                  onChange={(e) => setFilters({
+                    nodeDisplayOptions: { ...filters.nodeDisplayOptions, showRows: e.target.checked }
+                  })}
+                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Rows</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.nodeDisplayOptions.showCost}
+                  onChange={(e) => setFilters({
+                    nodeDisplayOptions: { ...filters.nodeDisplayOptions, showCost: e.target.checked }
+                  })}
+                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Cost</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.nodeDisplayOptions.showBytes}
+                  onChange={(e) => setFilters({
+                    nodeDisplayOptions: { ...filters.nodeDisplayOptions, showBytes: e.target.checked }
+                  })}
+                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Bytes</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.nodeDisplayOptions.showPredicateIndicators}
+                  onChange={(e) => setFilters({
+                    nodeDisplayOptions: { ...filters.nodeDisplayOptions, showPredicateIndicators: e.target.checked }
+                  })}
+                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Predicate indicators</span>
+              </label>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Cost Range */}
