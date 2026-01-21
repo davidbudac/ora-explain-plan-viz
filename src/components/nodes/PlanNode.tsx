@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { getOperationCategory, CATEGORY_COLORS, getCostColor } from '../../lib/types';
-import type { PlanNode as PlanNodeType } from '../../lib/types';
+import type { PlanNode as PlanNodeType, NodeDisplayOptions } from '../../lib/types';
 
 export interface PlanNodeData extends Record<string, unknown> {
   label: string;
@@ -9,6 +9,7 @@ export interface PlanNodeData extends Record<string, unknown> {
   totalCost: number;
   isSelected: boolean;
   isFiltered: boolean;
+  displayOptions?: NodeDisplayOptions;
 }
 
 interface PlanNodeProps {
@@ -16,12 +17,24 @@ interface PlanNodeProps {
 }
 
 function PlanNodeComponent({ data }: PlanNodeProps) {
-  const { node, totalCost, isSelected, isFiltered } = data;
+  const { node, totalCost, isSelected, isFiltered, displayOptions } = data;
   const category = getOperationCategory(node.operation);
   const colors = CATEGORY_COLORS[category];
   const costColor = getCostColor(node.cost || 0, totalCost);
 
   const costPercentage = totalCost > 0 ? ((node.cost || 0) / totalCost * 100).toFixed(1) : '0';
+
+  // Default display options if not provided
+  const options = displayOptions || {
+    showRows: true,
+    showCost: true,
+    showBytes: true,
+    showObjectName: true,
+    showPredicateIndicators: true,
+    showPredicateDetails: false,
+    showQueryBlockBadge: true,
+    showQueryBlockGrouping: true,
+  };
 
   return (
     <div
@@ -54,25 +67,39 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         </div>
 
         {/* Object name if present */}
-        {node.objectName && (
+        {options.showObjectName && node.objectName && (
           <div className="text-xs text-gray-600 dark:text-gray-400 font-mono mb-2 truncate">
             {node.objectName}
           </div>
         )}
 
+        {/* Query block badge */}
+        {options.showQueryBlockBadge && node.queryBlock && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            <span className="px-1.5 py-0.5 bg-violet-200 dark:bg-violet-800 text-violet-800 dark:text-violet-200 text-xs rounded font-mono">
+              {node.queryBlock}
+            </span>
+            {node.objectAlias && (
+              <span className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs rounded font-mono">
+                {node.objectAlias}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Stats row */}
         <div className="flex flex-wrap gap-2 text-xs">
-          {node.rows !== undefined && (
+          {options.showRows && node.rows !== undefined && (
             <span className="px-1.5 py-0.5 bg-white/50 dark:bg-black/20 rounded text-gray-700 dark:text-gray-300">
               Rows: {formatNumber(node.rows)}
             </span>
           )}
-          {node.cost !== undefined && (
+          {options.showCost && node.cost !== undefined && (
             <span className="px-1.5 py-0.5 bg-white/50 dark:bg-black/20 rounded text-gray-700 dark:text-gray-300">
               Cost: {node.cost} ({costPercentage}%)
             </span>
           )}
-          {node.bytes !== undefined && (
+          {options.showBytes && node.bytes !== undefined && (
             <span className="px-1.5 py-0.5 bg-white/50 dark:bg-black/20 rounded text-gray-700 dark:text-gray-300">
               {formatBytes(node.bytes)}
             </span>
@@ -80,7 +107,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         </div>
 
         {/* Predicate indicators */}
-        {(node.accessPredicates || node.filterPredicates) && (
+        {options.showPredicateIndicators && (node.accessPredicates || node.filterPredicates) && (
           <div className="flex gap-1 mt-2">
             {node.accessPredicates && (
               <span className="px-1.5 py-0.5 bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200 text-xs rounded">
@@ -91,6 +118,24 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
               <span className="px-1.5 py-0.5 bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 text-xs rounded">
                 Filter
               </span>
+            )}
+          </div>
+        )}
+
+        {/* Predicate details */}
+        {options.showPredicateDetails && (node.accessPredicates || node.filterPredicates) && (
+          <div className="mt-2 space-y-1">
+            {node.accessPredicates && (
+              <div className="text-xs">
+                <span className="text-green-700 dark:text-green-300 font-medium">A: </span>
+                <code className="text-gray-600 dark:text-gray-400 break-all">{node.accessPredicates}</code>
+              </div>
+            )}
+            {node.filterPredicates && (
+              <div className="text-xs">
+                <span className="text-amber-700 dark:text-amber-300 font-medium">F: </span>
+                <code className="text-gray-600 dark:text-gray-400 break-all">{node.filterPredicates}</code>
+              </div>
             )}
           </div>
         )}

@@ -32,6 +32,17 @@ const initialFilters: FilterState = {
   searchText: '',
   showPredicates: true,
   predicateTypes: [],
+  animateEdges: false,
+  nodeDisplayOptions: {
+    showRows: true,
+    showCost: true,
+    showBytes: true,
+    showObjectName: true,
+    showPredicateIndicators: true,
+    showPredicateDetails: false,
+    showQueryBlockBadge: true,
+    showQueryBlockGrouping: true,
+  },
 };
 
 const getInitialTheme = (): Theme => {
