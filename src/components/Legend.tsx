@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { CATEGORY_COLORS } from '../lib/types';
 
 export function Legend() {
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, setIsVisible] = useState(false);
 
   return (
     <div className="absolute bottom-4 left-4 z-10">

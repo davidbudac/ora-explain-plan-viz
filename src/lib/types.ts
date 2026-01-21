@@ -12,6 +12,8 @@ export interface PlanNode {
   tempSpace?: number;
   accessPredicates?: string;
   filterPredicates?: string;
+  queryBlock?: string;
+  objectAlias?: string;
   parentId?: number;
   children: PlanNode[];
 }
@@ -26,6 +28,17 @@ export interface ParsedPlan {
 
 export type PredicateType = 'access' | 'filter' | 'none';
 
+export interface NodeDisplayOptions {
+  showRows: boolean;
+  showCost: boolean;
+  showBytes: boolean;
+  showObjectName: boolean;
+  showPredicateIndicators: boolean;
+  showPredicateDetails: boolean;
+  showQueryBlockBadge: boolean;
+  showQueryBlockGrouping: boolean;
+}
+
 export interface FilterState {
   operationTypes: string[];
   minCost: number;
@@ -33,9 +46,11 @@ export interface FilterState {
   searchText: string;
   showPredicates: boolean;
   predicateTypes: PredicateType[];
+  animateEdges: boolean;
+  nodeDisplayOptions: NodeDisplayOptions;
 }
 
-export type ViewMode = 'hierarchical' | 'force' | 'sankey';
+export type ViewMode = 'hierarchical' | 'sankey';
 export type SankeyMetric = 'rows' | 'cost';
 export type Theme = 'light' | 'dark';
 

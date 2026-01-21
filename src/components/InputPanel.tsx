@@ -1,14 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { SAMPLE_PLAN, COMPLEX_SAMPLE_PLAN } from '../lib/parser';
 
 export function InputPanel() {
   const { rawInput, setInput, parsePlan, clearPlan, error, parsedPlan } = usePlan();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const wasParsingRef = useRef(false);
 
   const handleParse = () => {
+    wasParsingRef.current = true;
     parsePlan();
   };
+
+  // Collapse panel when parsing succeeds
+  useEffect(() => {
+    if (wasParsingRef.current && parsedPlan && !error) {
+      setIsCollapsed(true);
+      wasParsingRef.current = false;
+    }
+  }, [parsedPlan, error]);
 
   const handleLoadSample = () => {
     setInput(SAMPLE_PLAN);
