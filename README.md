@@ -2,11 +2,12 @@
 
 A client-side web application that parses Oracle DBMS_XPLAN output and renders interactive visualizations. No backend required - everything runs in your browser.
 
+**Live Demo:** https://davidbudac.github.io/ora-explain-plan-viz/
+
 ## Features
 
-- **Three Visualization Modes**
-  - **Hierarchical Tree**: Traditional tree layout showing parent-child relationships
-  - **Force-Directed Graph**: Physics-based layout for exploring complex plans
+- **Two Visualization Modes**
+  - **Hierarchical Tree**: Traditional tree layout showing parent-child relationships with optional animated edges
   - **Sankey Diagram**: Flow visualization showing data movement through operations
 
 - **Interactive Filtering**
@@ -16,6 +17,10 @@ A client-side web application that parses Oracle DBMS_XPLAN output and renders i
   - Text search across operations, objects, and predicates
 
 - **Node Details Panel**: Click any node to see full attributes including predicates, cost, rows, and bytes
+
+- **Query Block Visualization**: Visual grouping of nodes by query block with optional badges
+
+- **Customizable Display**: Toggle visibility of rows, cost, bytes, predicates, and query block info
 
 - **Dark/Light Mode**: Toggle between themes with localStorage persistence
 
