@@ -63,7 +63,7 @@ export function Header() {
 
         {/* GitHub link */}
         <a
-          href="https://github.com"
+          href="https://github.com/davidbudac/ora-explain-plan-viz"
           target="_blank"
           rel="noopener noreferrer"
           className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
