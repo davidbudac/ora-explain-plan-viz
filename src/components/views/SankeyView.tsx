@@ -27,6 +27,7 @@ const categoryColors: Record<string, string> = {
   'Sort Operations': '#eab308',
   'Filter/View': '#06b6d4',
   'Partition': '#6366f1',
+  'Parallelism': '#f43f5e',
   'Other': '#6b7280',
 };
 

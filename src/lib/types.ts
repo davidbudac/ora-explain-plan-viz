@@ -147,6 +147,19 @@ export const OPERATION_CATEGORIES: Record<string, string[]> = {
     'PARTITION LIST ALL',
     'PARTITION LIST SINGLE',
   ],
+  'Parallelism': [
+    'PX COORDINATOR',
+    'PX SEND',
+    'PX RECEIVE',
+    'PX BLOCK ITERATOR',
+    'PX SELECTOR',
+    'PX SEND QC',
+    'PX SEND HASH',
+    'PX SEND BROADCAST',
+    'PX SEND RANGE',
+    'PX SEND ROUND-ROBIN',
+    'PX PARTITION',
+  ],
   'Other': [
     'SELECT STATEMENT',
     'UPDATE STATEMENT',
@@ -175,6 +188,7 @@ export const CATEGORY_COLORS: Record<string, { bg: string; border: string; text:
   'Sort Operations': { bg: 'bg-yellow-100 dark:bg-yellow-900/30', border: 'border-yellow-400', text: 'text-yellow-700 dark:text-yellow-300' },
   'Filter/View': { bg: 'bg-cyan-100 dark:bg-cyan-900/30', border: 'border-cyan-400', text: 'text-cyan-700 dark:text-cyan-300' },
   'Partition': { bg: 'bg-indigo-100 dark:bg-indigo-900/30', border: 'border-indigo-400', text: 'text-indigo-700 dark:text-indigo-300' },
+  'Parallelism': { bg: 'bg-rose-100 dark:bg-rose-900/30', border: 'border-rose-400', text: 'text-rose-700 dark:text-rose-300' },
   'Other': { bg: 'bg-gray-100 dark:bg-gray-800', border: 'border-gray-400', text: 'text-gray-700 dark:text-gray-300' },
 };
 
