@@ -69,7 +69,7 @@ export function VisualizationTabs() {
                   }
                 `}
               >
-                Rows
+                {parsedPlan.hasActualStats ? 'E-Rows' : 'Rows'}
               </button>
               <button
                 onClick={() => setSankeyMetric('cost')}
@@ -84,6 +84,36 @@ export function VisualizationTabs() {
               >
                 Cost
               </button>
+              {parsedPlan.hasActualStats && (
+                <>
+                  <button
+                    onClick={() => setSankeyMetric('actualRows')}
+                    className={`
+                      px-3 py-1 text-sm rounded transition-colors
+                      ${
+                        sankeyMetric === 'actualRows'
+                          ? 'bg-blue-500 text-white shadow-sm'
+                          : 'text-gray-600 dark:text-gray-400'
+                      }
+                    `}
+                  >
+                    A-Rows
+                  </button>
+                  <button
+                    onClick={() => setSankeyMetric('actualTime')}
+                    className={`
+                      px-3 py-1 text-sm rounded transition-colors
+                      ${
+                        sankeyMetric === 'actualTime'
+                          ? 'bg-purple-500 text-white shadow-sm'
+                          : 'text-gray-600 dark:text-gray-400'
+                      }
+                    `}
+                  >
+                    A-Time
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}

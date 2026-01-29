@@ -88,10 +88,24 @@ export function SankeyView() {
     function createLinks(node: PlanNode) {
       for (const child of node.children) {
         let value: number;
-        if (sankeyMetric === 'rows') {
-          value = Math.max(child.rows || 1, 1);
-        } else {
-          value = Math.max(child.cost || 1, 1);
+        switch (sankeyMetric) {
+          case 'rows':
+            value = Math.max(child.rows || 1, 1);
+            break;
+          case 'cost':
+            value = Math.max(child.cost || 1, 1);
+            break;
+          case 'actualRows':
+            // A-Rows multiplied by Starts for total data volume
+            const actualRows = child.actualRows || child.rows || 1;
+            const starts = child.starts || 1;
+            value = Math.max(actualRows * starts, 1);
+            break;
+          case 'actualTime':
+            value = Math.max(child.actualTime || 1, 1);
+            break;
+          default:
+            value = Math.max(child.rows || 1, 1);
         }
 
         links.push({
