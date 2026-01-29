@@ -62,6 +62,10 @@ export interface NodeDisplayOptions {
   showPredicateDetails: boolean;
   showQueryBlockBadge: boolean;
   showQueryBlockGrouping: boolean;
+  // SQL Monitor actual statistics
+  showActualRows: boolean;
+  showActualTime: boolean;
+  showStarts: boolean;
 }
 
 export interface FilterState {
@@ -73,6 +77,11 @@ export interface FilterState {
   predicateTypes: PredicateType[];
   animateEdges: boolean;
   nodeDisplayOptions: NodeDisplayOptions;
+  // SQL Monitor actual statistics filters
+  minActualRows: number;
+  maxActualRows: number;
+  minActualTime: number;
+  maxActualTime: number;
 }
 
 export type ViewMode = 'hierarchical' | 'sankey';

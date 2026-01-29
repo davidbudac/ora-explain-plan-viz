@@ -110,6 +110,7 @@ function HierarchicalViewContent() {
           isSelected: node.id === selectedNodeId,
           isFiltered: filteredNodeIds.has(node.id),
           displayOptions: filters.nodeDisplayOptions,
+          hasActualStats: parsedPlan!.hasActualStats,
         },
       });
 
@@ -205,6 +206,7 @@ function HierarchicalViewContent() {
           isSelected: parseInt(node.id) === selectedNodeId,
           isFiltered: filteredNodeIds.has(parseInt(node.id)),
           displayOptions: filters.nodeDisplayOptions,
+          hasActualStats: parsedPlan?.hasActualStats,
         },
       };
     });
@@ -219,7 +221,7 @@ function HierarchicalViewContent() {
       },
     }));
     setEdges(updatedEdges);
-  }, [layoutData, selectedNodeId, filteredNodeIds, filters.animateEdges, filters.nodeDisplayOptions, setNodes, setEdges]);
+  }, [layoutData, selectedNodeId, filteredNodeIds, filters.animateEdges, filters.nodeDisplayOptions, parsedPlan?.hasActualStats, setNodes, setEdges]);
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
