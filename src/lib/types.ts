@@ -85,7 +85,7 @@ export interface FilterState {
 }
 
 export type ViewMode = 'hierarchical' | 'sankey';
-export type SankeyMetric = 'rows' | 'cost';
+export type SankeyMetric = 'rows' | 'cost' | 'actualRows' | 'actualTime';
 export type Theme = 'light' | 'dark';
 
 export const OPERATION_CATEGORIES: Record<string, string[]> = {
