@@ -42,7 +42,16 @@ const initialFilters: FilterState = {
     showPredicateDetails: false,
     showQueryBlockBadge: true,
     showQueryBlockGrouping: true,
+    // SQL Monitor actual statistics (shown by default when available)
+    showActualRows: true,
+    showActualTime: true,
+    showStarts: true,
   },
+  // SQL Monitor actual statistics filters
+  minActualRows: 0,
+  maxActualRows: Infinity,
+  minActualTime: 0,
+  maxActualTime: Infinity,
 };
 
 const getInitialTheme = (): Theme => {
@@ -202,7 +211,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     if (!state.parsedPlan) return [];
 
     return state.parsedPlan.allNodes.filter((node) => {
-      const { operationTypes, minCost, maxCost, searchText, predicateTypes } = state.filters;
+      const {
+        operationTypes, minCost, maxCost, searchText, predicateTypes,
+        minActualRows, maxActualRows, minActualTime, maxActualTime
+      } = state.filters;
 
       // Filter by operation type
       if (operationTypes.length > 0) {
@@ -215,6 +227,16 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       // Filter by cost
       const nodeCost = node.cost || 0;
       if (nodeCost < minCost || nodeCost > maxCost) return false;
+
+      // Filter by actual rows (SQL Monitor)
+      if (state.parsedPlan?.hasActualStats && node.actualRows !== undefined) {
+        if (node.actualRows < minActualRows || node.actualRows > maxActualRows) return false;
+      }
+
+      // Filter by actual time (SQL Monitor)
+      if (state.parsedPlan?.hasActualStats && node.actualTime !== undefined) {
+        if (node.actualTime < minActualTime || node.actualTime > maxActualTime) return false;
+      }
 
       // Filter by predicate type
       if (predicateTypes.length > 0) {
