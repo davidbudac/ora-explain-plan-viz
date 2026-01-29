@@ -4,12 +4,26 @@ export interface PlanNode {
   operation: string;
   objectName?: string;
   alias?: string;
+
+  // Estimated statistics (from optimizer)
   rows?: number;
   bytes?: number;
   cost?: number;
   cpuPercent?: number;
   time?: string;
   tempSpace?: number;
+
+  // Actual runtime statistics (from SQL Monitor)
+  actualRows?: number;
+  actualTime?: number;       // milliseconds
+  starts?: number;           // number of execution starts
+  memoryUsed?: number;       // bytes
+  tempUsed?: number;         // actual temp space in bytes
+  physicalReads?: number;
+  logicalReads?: number;
+  activityPercent?: number;  // percentage of total execution time
+
+  // Predicates and metadata
   accessPredicates?: string;
   filterPredicates?: string;
   queryBlock?: string;
@@ -18,12 +32,23 @@ export interface PlanNode {
   children: PlanNode[];
 }
 
+export type PlanSource = 'dbms_xplan' | 'sql_monitor_text' | 'sql_monitor_xml';
+
 export interface ParsedPlan {
   planHashValue?: string;
   rootNode: PlanNode | null;
   allNodes: PlanNode[];
   totalCost: number;
   maxRows: number;
+
+  // Source metadata
+  source: PlanSource;
+  hasActualStats: boolean;
+
+  // Additional SQL Monitor metadata
+  sqlId?: string;
+  sqlText?: string;
+  totalElapsedTime?: number;  // total execution time in milliseconds
 }
 
 export type PredicateType = 'access' | 'filter' | 'none';
