@@ -126,7 +126,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                 A-Time: {formatTime(node.actualTime)}
               </span>
             )}
-            {options.showStarts && node.starts !== undefined && node.starts > 1 && (
+            {options.showStarts && node.starts !== undefined && (
               <span className="px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/40 rounded text-orange-700 dark:text-orange-300 font-medium">
                 Starts: {formatNumber(node.starts)}
               </span>
