@@ -110,6 +110,7 @@ function HierarchicalViewContent() {
           isSelected: node.id === selectedNodeId,
           isFiltered: filteredNodeIds.has(node.id),
           displayOptions: filters.nodeDisplayOptions,
+          hasActualStats: parsedPlan!.hasActualStats,
         },
       });
 
@@ -118,11 +119,23 @@ function HierarchicalViewContent() {
       }
 
       for (const child of node.children) {
+        // Calculate row flow for edge thickness
+        let rowFlow: number;
+        if (parsedPlan!.hasActualStats && child.actualRows !== undefined) {
+          // Use actual rows * starts for SQL Monitor plans
+          const starts = child.starts || 1;
+          rowFlow = child.actualRows * starts;
+        } else {
+          // Fall back to estimated rows
+          rowFlow = child.rows || 1;
+        }
+
         edges.push({
           id: `e${node.id}-${child.id}`,
           source: node.id.toString(),
           target: child.id.toString(),
           animated: filters.animateEdges,
+          data: { rowFlow },
           style: {
             stroke: filteredNodeIds.has(child.id) ? '#6366f1' : '#d1d5db',
             strokeWidth: 2,
@@ -134,8 +147,26 @@ function HierarchicalViewContent() {
 
     traverse(parsedPlan.rootNode);
 
+    // Calculate max row flow for edge thickness normalization
+    const maxRowFlow = Math.max(...edges.map(e => (e.data as { rowFlow: number })?.rowFlow || 1), 1);
+
     // Apply layout to plan nodes
     const layoutedResult = getLayoutedElements(planNodes, edges);
+
+    // Update edge stroke widths based on row flow
+    const edgesWithThickness = layoutedResult.edges.map(edge => {
+      const rowFlow = (edge.data as { rowFlow: number })?.rowFlow || 1;
+      // Scale stroke width: min 1px, max 12px, logarithmic scale for better visualization
+      const normalizedFlow = Math.log(rowFlow + 1) / Math.log(maxRowFlow + 1);
+      const strokeWidth = Math.max(1, Math.min(12, 1 + normalizedFlow * 11));
+      return {
+        ...edge,
+        style: {
+          ...edge.style,
+          strokeWidth,
+        },
+      };
+    });
 
     // Create query block groups if enabled
     const groupNodes: Node[] = [];
@@ -185,7 +216,7 @@ function HierarchicalViewContent() {
     // Group nodes should be rendered first (behind plan nodes)
     return {
       nodes: [...groupNodes, ...layoutedResult.nodes],
-      edges: layoutedResult.edges,
+      edges: edgesWithThickness,
     };
   }, [parsedPlan, selectedNodeId, filteredNodeIds, filters.animateEdges, filters.nodeDisplayOptions]);
 
@@ -205,6 +236,7 @@ function HierarchicalViewContent() {
           isSelected: parseInt(node.id) === selectedNodeId,
           isFiltered: filteredNodeIds.has(parseInt(node.id)),
           displayOptions: filters.nodeDisplayOptions,
+          hasActualStats: parsedPlan?.hasActualStats,
         },
       };
     });
@@ -219,7 +251,7 @@ function HierarchicalViewContent() {
       },
     }));
     setEdges(updatedEdges);
-  }, [layoutData, selectedNodeId, filteredNodeIds, filters.animateEdges, filters.nodeDisplayOptions, setNodes, setEdges]);
+  }, [layoutData, selectedNodeId, filteredNodeIds, filters.animateEdges, filters.nodeDisplayOptions, parsedPlan?.hasActualStats, setNodes, setEdges]);
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
