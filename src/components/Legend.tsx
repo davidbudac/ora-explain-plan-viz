@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { usePlan } from '../hooks/usePlanContext';
 import { CATEGORY_COLORS } from '../lib/types';
 
 export function Legend() {
-  const [isVisible, setIsVisible] = useState(false);
+  const { legendVisible: isVisible, setLegendVisible: setIsVisible } = usePlan();
 
   return (
     <div className="absolute bottom-4 left-4 z-10">
