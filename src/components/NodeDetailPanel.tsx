@@ -125,11 +125,28 @@ export function NodeDetailPanel() {
         </div>
       </div>
 
-      {/* Statistics */}
+      {/* Actual Statistics (SQL Monitor) */}
+      {parsedPlan?.hasActualStats && (
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Actual Statistics</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <StatItem label="A-Rows" value={formatNumber(node.actualRows)} highlight="blue" />
+            <StatItem label="A-Time" value={formatTime(node.actualTime)} highlight="purple" />
+            <StatItem label="Starts" value={formatNumber(node.starts)} highlight="orange" />
+            {node.activityPercent !== undefined && (
+              <StatItem label="Activity %" value={`${node.activityPercent.toFixed(1)}%`} />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Estimated Statistics */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Statistics</h4>
+        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+          {parsedPlan?.hasActualStats ? 'Estimated Statistics' : 'Statistics'}
+        </h4>
         <div className="grid grid-cols-2 gap-3">
-          <StatItem label="Rows" value={formatNumber(node.rows)} />
+          <StatItem label={parsedPlan?.hasActualStats ? "E-Rows" : "Rows"} value={formatNumber(node.rows)} />
           <StatItem label="Bytes" value={formatBytes(node.bytes)} />
           <StatItem label="Cost" value={node.cost?.toString()} />
           <StatItem label="CPU %" value={node.cpuPercent ? `${node.cpuPercent}%` : undefined} />
@@ -184,13 +201,25 @@ export function NodeDetailPanel() {
   );
 }
 
-function StatItem({ label, value }: { label: string; value?: string }) {
+function StatItem({ label, value, highlight }: { label: string; value?: string; highlight?: 'blue' | 'purple' | 'orange' }) {
   if (!value) return null;
 
+  const highlightStyles = {
+    blue: 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800',
+    purple: 'bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800',
+    orange: 'bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800',
+  };
+
+  const valueStyles = {
+    blue: 'text-blue-700 dark:text-blue-300',
+    purple: 'text-purple-700 dark:text-purple-300',
+    orange: 'text-orange-700 dark:text-orange-300',
+  };
+
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 rounded p-2">
+    <div className={`rounded p-2 ${highlight ? highlightStyles[highlight] : 'bg-gray-50 dark:bg-gray-900'}`}>
       <div className="text-xs text-gray-500 dark:text-gray-400">{label}</div>
-      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{value}</div>
+      <div className={`text-sm font-medium ${highlight ? valueStyles[highlight] : 'text-gray-900 dark:text-gray-100'}`}>{value}</div>
     </div>
   );
 }
@@ -218,4 +247,20 @@ function formatBytes(bytes?: number): string | undefined {
     return (bytes / 1024).toFixed(1) + ' KB';
   }
   return bytes + ' B';
+}
+
+function formatTime(ms?: number): string | undefined {
+  if (ms === undefined) return undefined;
+  if (ms >= 60000) {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = ((ms % 60000) / 1000).toFixed(1);
+    return `${minutes}m ${seconds}s`;
+  }
+  if (ms >= 1000) {
+    return (ms / 1000).toFixed(2) + 's';
+  }
+  if (ms >= 1) {
+    return ms.toFixed(1) + 'ms';
+  }
+  return (ms * 1000).toFixed(0) + 'μs';
 }
