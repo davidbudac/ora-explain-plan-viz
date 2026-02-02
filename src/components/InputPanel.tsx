@@ -24,7 +24,7 @@ const SAMPLE_PLANS: SamplePlan[] = [
 ];
 
 export function InputPanel() {
-  const { rawInput, setInput, parsePlan, clearPlan, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed } = usePlan();
+  const { rawInput, setInput, parsePlan, loadAndParsePlan, clearPlan, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed } = usePlan();
   const [showSampleMenu, setShowSampleMenu] = useState(false);
   const wasParsingRef = useRef(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -54,7 +54,8 @@ export function InputPanel() {
   }, []);
 
   const handleLoadSample = (sample: SamplePlan) => {
-    setInput(sample.data);
+    wasParsingRef.current = true;
+    loadAndParsePlan(sample.data);
     setShowSampleMenu(false);
   };
 
