@@ -147,6 +147,7 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
 interface PlanContextValue extends PlanState {
   setInput: (input: string) => void;
   parsePlan: () => void;
+  loadAndParsePlan: (input: string) => void;
   selectNode: (id: number | null) => void;
   setViewMode: (mode: ViewMode) => void;
   setSankeyMetric: (metric: SankeyMetric) => void;
@@ -232,6 +233,26 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       });
     }
   }, [state.rawInput]);
+
+  const loadAndParsePlan = useCallback((input: string) => {
+    dispatch({ type: 'SET_INPUT', payload: input });
+    try {
+      const parsed = parseExplainPlan(input);
+      if (!parsed.rootNode) {
+        dispatch({
+          type: 'SET_ERROR',
+          payload: 'Could not parse the execution plan. Please check the format.',
+        });
+        return;
+      }
+      dispatch({ type: 'SET_PARSED_PLAN', payload: parsed });
+    } catch (err) {
+      dispatch({
+        type: 'SET_ERROR',
+        payload: `Parse error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      });
+    }
+  }, []);
 
   const selectNode = useCallback((id: number | null) => {
     dispatch({ type: 'SELECT_NODE', payload: id });
@@ -343,6 +364,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     ...state,
     setInput,
     parsePlan,
+    loadAndParsePlan,
     selectNode,
     setViewMode,
     setSankeyMetric,
