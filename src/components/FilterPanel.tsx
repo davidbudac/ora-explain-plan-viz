@@ -1,11 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { OPERATION_CATEGORIES, getOperationCategory } from '../lib/types';
 import type { PredicateType } from '../lib/types';
 
 export function FilterPanel() {
-  const { parsedPlan, filters, setFilters, getFilteredNodes } = usePlan();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const { parsedPlan, filters, setFilters, getFilteredNodes, filterPanelCollapsed: isCollapsed, setFilterPanelCollapsed: setIsCollapsed } = usePlan();
 
   const operationStats = useMemo(() => {
     if (!parsedPlan) return new Map<string, number>();
@@ -35,6 +34,16 @@ export function FilterPanel() {
   const maxCost = useMemo(() => {
     if (!parsedPlan) return 100;
     return Math.max(...parsedPlan.allNodes.map((n) => n.cost || 0), 100);
+  }, [parsedPlan]);
+
+  const maxActualRows = useMemo(() => {
+    if (!parsedPlan || !parsedPlan.hasActualStats) return 0;
+    return Math.max(...parsedPlan.allNodes.map((n) => n.actualRows || 0), 0);
+  }, [parsedPlan]);
+
+  const maxActualTime = useMemo(() => {
+    if (!parsedPlan || !parsedPlan.hasActualStats) return 0;
+    return Math.max(...parsedPlan.allNodes.map((n) => n.actualTime || 0), 0);
   }, [parsedPlan]);
 
   const filteredCount = getFilteredNodes().length;
@@ -84,6 +93,10 @@ export function FilterPanel() {
       maxCost: Infinity,
       searchText: '',
       predicateTypes: [],
+      minActualRows: 0,
+      maxActualRows: Infinity,
+      minActualTime: 0,
+      maxActualTime: Infinity,
     });
   };
 
@@ -186,7 +199,9 @@ export function FilterPanel() {
                   })}
                   className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-700 dark:text-gray-300">Rows</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  {parsedPlan?.hasActualStats ? 'E-Rows' : 'Rows'}
+                </span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -255,6 +270,47 @@ export function FilterPanel() {
                 <span className="text-sm text-gray-700 dark:text-gray-300">Query block grouping</span>
               </label>
             </div>
+            {/* SQL Monitor actual statistics options */}
+            {parsedPlan?.hasActualStats && (
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+                <span className="text-xs text-gray-500 dark:text-gray-400 mb-2 block">Runtime Statistics</span>
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={filters.nodeDisplayOptions.showActualRows}
+                      onChange={(e) => setFilters({
+                        nodeDisplayOptions: { ...filters.nodeDisplayOptions, showActualRows: e.target.checked }
+                      })}
+                      className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">A-Rows</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={filters.nodeDisplayOptions.showActualTime}
+                      onChange={(e) => setFilters({
+                        nodeDisplayOptions: { ...filters.nodeDisplayOptions, showActualTime: e.target.checked }
+                      })}
+                      className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">A-Time</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={filters.nodeDisplayOptions.showStarts}
+                      onChange={(e) => setFilters({
+                        nodeDisplayOptions: { ...filters.nodeDisplayOptions, showStarts: e.target.checked }
+                      })}
+                      className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Starts</span>
+                  </label>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -277,6 +333,48 @@ export function FilterPanel() {
           <span>{maxCost}</span>
         </div>
       </div>
+
+      {/* SQL Monitor: Actual Rows Range */}
+      {parsedPlan?.hasActualStats && maxActualRows > 0 && (
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Minimum A-Rows: {formatNumber(filters.minActualRows)}
+          </label>
+          <input
+            type="range"
+            min={0}
+            max={maxActualRows}
+            value={filters.minActualRows === Infinity ? maxActualRows : filters.minActualRows}
+            onChange={(e) => setFilters({ minActualRows: parseInt(e.target.value) })}
+            className="w-full accent-blue-600"
+          />
+          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <span>0</span>
+            <span>{formatNumber(maxActualRows)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* SQL Monitor: Actual Time Range */}
+      {parsedPlan?.hasActualStats && maxActualTime > 0 && (
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Minimum A-Time: {formatTime(filters.minActualTime)}
+          </label>
+          <input
+            type="range"
+            min={0}
+            max={maxActualTime}
+            value={filters.minActualTime === Infinity ? maxActualTime : filters.minActualTime}
+            onChange={(e) => setFilters({ minActualTime: parseInt(e.target.value) })}
+            className="w-full accent-blue-600"
+          />
+          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <span>0</span>
+            <span>{formatTime(maxActualTime)}</span>
+          </div>
+        </div>
+      )}
 
       {/* Predicate Types */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
@@ -351,4 +449,28 @@ export function FilterPanel() {
       </div>
     </div>
   );
+}
+
+function formatNumber(num: number): string {
+  if (num === Infinity) return '∞';
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(1) + 'M';
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'K';
+  }
+  return num.toString();
+}
+
+function formatTime(ms: number): string {
+  if (ms === Infinity) return '∞';
+  if (ms >= 60000) {
+    const mins = Math.floor(ms / 60000);
+    const secs = ((ms % 60000) / 1000).toFixed(1);
+    return `${mins}m ${secs}s`;
+  }
+  if (ms >= 1000) {
+    return (ms / 1000).toFixed(2) + 's';
+  }
+  return ms.toFixed(0) + 'ms';
 }

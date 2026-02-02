@@ -28,7 +28,7 @@ export function Header() {
             Oracle Execution Plan Visualizer
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Parse and visualize DBMS_XPLAN output
+            Visualize DBMS_XPLAN and SQL Monitor output (more sources coming soon).
           </p>
         </div>
       </div>

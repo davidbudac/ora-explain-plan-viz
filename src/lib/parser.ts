@@ -1,468 +1,10 @@
-import type { PlanNode, ParsedPlan } from './types';
-
-interface RawPlanRow {
-  id: number;
-  operation: string;
-  objectName?: string;
-  alias?: string;
-  rows?: number;
-  bytes?: number;
-  cost?: number;
-  cpuPercent?: number;
-  time?: string;
-  depth: number;
-  hasStarPrefix: boolean;
-}
-
-export function parseExplainPlan(input: string): ParsedPlan {
-  const lines = input.split('\n');
-
-  // Extract plan hash value if present
-  const planHashValue = extractPlanHashValue(lines);
-
-  // Find and parse the table section
-  const tableData = parseTableSection(lines);
-
-  if (tableData.length === 0) {
-    return {
-      planHashValue,
-      rootNode: null,
-      allNodes: [],
-      totalCost: 0,
-      maxRows: 0,
-    };
-  }
-
-  // Parse predicate information
-  const predicates = parsePredicates(lines);
-
-  // Parse query block information
-  const queryBlocks = parseQueryBlocks(lines);
-
-  // Build tree structure
-  const { rootNode, allNodes } = buildTree(tableData, predicates, queryBlocks);
-
-  // Calculate totals
-  const totalCost = allNodes.reduce((sum, node) => sum + (node.cost || 0), 0);
-  const maxRows = Math.max(...allNodes.map(node => node.rows || 0));
-
-  return {
-    planHashValue,
-    rootNode,
-    allNodes,
-    totalCost,
-    maxRows,
-  };
-}
-
-function extractPlanHashValue(lines: string[]): string | undefined {
-  for (const line of lines) {
-    const match = line.match(/Plan hash value:\s*(\d+)/i);
-    if (match) {
-      return match[1];
-    }
-  }
-  return undefined;
-}
-
-function parseTableSection(lines: string[]): RawPlanRow[] {
-  const rows: RawPlanRow[] = [];
-
-  // Find the header line to determine column positions
-  let headerLineIndex = -1;
-  let headerLine = '';
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    // Look for the header row containing "Id" and "Operation"
-    if (/\|\s*Id\s*\|.*Operation/i.test(line)) {
-      headerLineIndex = i;
-      headerLine = line;
-      break;
-    }
-  }
-
-  if (headerLineIndex === -1) {
-    return rows;
-  }
-
-  // Parse column positions from header
-  const columns = parseColumnPositions(headerLine);
-
-  // Parse data rows (after header, skip separator line)
-  for (let i = headerLineIndex + 1; i < lines.length; i++) {
-    const line = lines[i];
-
-    // Stop at separator line or empty content
-    if (/^[-|]+$/.test(line.trim()) || line.trim() === '') {
-      // Check if this is the end separator
-      if (/^[-|]+$/.test(line.trim())) {
-        // Look for more data rows after separator (multi-line format)
-        let foundMoreData = false;
-        for (let j = i + 1; j < lines.length; j++) {
-          if (/^\|.*\d+.*\|/.test(lines[j])) {
-            foundMoreData = true;
-            break;
-          }
-          if (/^[-|]+$/.test(lines[j].trim())) {
-            break;
-          }
-        }
-        if (!foundMoreData) {
-          break;
-        }
-      }
-      continue;
-    }
-
-    // Parse data row if it looks like a plan row
-    if (/^\|/.test(line)) {
-      const row = parseDataRow(line, columns);
-      if (row) {
-        rows.push(row);
-      }
-    }
-  }
-
-  return rows;
-}
-
-interface ColumnPositions {
-  id: { start: number; end: number };
-  operation: { start: number; end: number };
-  name: { start: number; end: number };
-  rows?: { start: number; end: number };
-  bytes?: { start: number; end: number };
-  cost?: { start: number; end: number };
-  time?: { start: number; end: number };
-}
-
-function parseColumnPositions(headerLine: string): ColumnPositions {
-  const cols: ColumnPositions = {
-    id: { start: 0, end: 0 },
-    operation: { start: 0, end: 0 },
-    name: { start: 0, end: 0 },
-  };
-
-  // Find column boundaries by looking for | characters
-  const pipePositions: number[] = [];
-  for (let i = 0; i < headerLine.length; i++) {
-    if (headerLine[i] === '|') {
-      pipePositions.push(i);
-    }
-  }
-
-  // Match column names to positions
-  const headerLower = headerLine.toLowerCase();
-
-  for (let i = 0; i < pipePositions.length - 1; i++) {
-    const start = pipePositions[i] + 1;
-    const end = pipePositions[i + 1];
-    const segment = headerLower.substring(start, end).trim();
-
-    if (segment === 'id') {
-      cols.id = { start, end };
-    } else if (segment === 'operation') {
-      cols.operation = { start, end };
-    } else if (segment === 'name' || segment === 'object name') {
-      cols.name = { start, end };
-    } else if (segment === 'rows' || segment === 'e-rows') {
-      cols.rows = { start, end };
-    } else if (segment === 'bytes' || segment === 'e-bytes') {
-      cols.bytes = { start, end };
-    } else if (segment.includes('cost')) {
-      cols.cost = { start, end };
-    } else if (segment === 'time' || segment === 'e-time') {
-      cols.time = { start, end };
-    }
-  }
-
-  return cols;
-}
-
-function parseDataRow(line: string, columns: ColumnPositions): RawPlanRow | null {
-  // Extract ID column
-  const idStr = line.substring(columns.id.start, columns.id.end).trim();
-
-  // Check for star prefix (indicates predicate info)
-  const hasStarPrefix = idStr.startsWith('*');
-  const idMatch = idStr.match(/\*?\s*(\d+)/);
-  if (!idMatch) {
-    return null;
-  }
-
-  const id = parseInt(idMatch[1], 10);
-
-  // Extract operation - preserve leading spaces for depth calculation
-  const operationRaw = line.substring(columns.operation.start, columns.operation.end);
-  const depth = calculateDepth(operationRaw);
-  const operation = operationRaw.trim();
-
-  if (!operation) {
-    return null;
-  }
-
-  // Extract object name
-  const objectName = line.substring(columns.name.start, columns.name.end).trim() || undefined;
-
-  // Extract optional numeric columns
-  let rows: number | undefined;
-  let bytes: number | undefined;
-  let cost: number | undefined;
-  let cpuPercent: number | undefined;
-  let time: string | undefined;
-
-  if (columns.rows) {
-    const rowsStr = line.substring(columns.rows.start, columns.rows.end).trim();
-    const rowsVal = parseNumericValue(rowsStr);
-    if (rowsVal !== null) rows = rowsVal;
-  }
-
-  if (columns.bytes) {
-    const bytesStr = line.substring(columns.bytes.start, columns.bytes.end).trim();
-    const bytesVal = parseNumericValue(bytesStr);
-    if (bytesVal !== null) bytes = bytesVal;
-  }
-
-  if (columns.cost) {
-    const costStr = line.substring(columns.cost.start, columns.cost.end).trim();
-    // Cost might be in format "123 (5)" where 5 is CPU%
-    const costMatch = costStr.match(/(\d+)\s*(?:\((\d+)\))?/);
-    if (costMatch) {
-      cost = parseInt(costMatch[1], 10);
-      if (costMatch[2]) {
-        cpuPercent = parseInt(costMatch[2], 10);
-      }
-    }
-  }
-
-  if (columns.time) {
-    time = line.substring(columns.time.start, columns.time.end).trim() || undefined;
-  }
-
-  return {
-    id,
-    operation,
-    objectName,
-    rows,
-    bytes,
-    cost,
-    cpuPercent,
-    time,
-    depth,
-    hasStarPrefix,
-  };
-}
-
-function calculateDepth(operationStr: string): number {
-  // Count leading spaces to determine nesting level
-  let spaces = 0;
-  for (const char of operationStr) {
-    if (char === ' ') {
-      spaces++;
-    } else {
-      break;
-    }
-  }
-  // Typically each level is 1-2 spaces of indentation
-  return Math.floor(spaces / 1);
-}
-
-function parseNumericValue(str: string): number | null {
-  // Handle K/M/G suffixes and remove commas
-  const cleaned = str.replace(/,/g, '').trim();
-
-  if (!cleaned || cleaned === '') {
-    return null;
-  }
-
-  const suffixMatch = cleaned.match(/^([\d.]+)\s*([KMG])?$/i);
-  if (suffixMatch) {
-    let value = parseFloat(suffixMatch[1]);
-    const suffix = (suffixMatch[2] || '').toUpperCase();
-
-    if (suffix === 'K') value *= 1000;
-    else if (suffix === 'M') value *= 1000000;
-    else if (suffix === 'G') value *= 1000000000;
-
-    return Math.round(value);
-  }
-
-  const num = parseInt(cleaned, 10);
-  return isNaN(num) ? null : num;
-}
-
-function parsePredicates(lines: string[]): Map<number, { access?: string; filter?: string }> {
-  const predicates = new Map<number, { access?: string; filter?: string }>();
-
-  // Find predicate section
-  let inPredicateSection = false;
-  let currentId: number | null = null;
-  let currentType: 'access' | 'filter' | null = null;
-  let currentText = '';
-
-  for (const line of lines) {
-    if (/Predicate Information/i.test(line)) {
-      inPredicateSection = true;
-      continue;
-    }
-
-    if (!inPredicateSection) {
-      continue;
-    }
-
-    // Stop at next section or empty lines after predicates
-    if (/^[A-Z].*:$/i.test(line.trim()) && !/^\s*\d+\s*-/.test(line)) {
-      break;
-    }
-
-    // Parse predicate lines like "3 - access(...)" or "3 - filter(...)"
-    const predicateMatch = line.match(/^\s*(\d+)\s*-\s*(access|filter)\s*\((.+)\)?\s*$/i);
-    if (predicateMatch) {
-      // Save previous predicate if any
-      if (currentId !== null && currentType && currentText) {
-        const existing = predicates.get(currentId) || {};
-        existing[currentType] = currentText;
-        predicates.set(currentId, existing);
-      }
-
-      currentId = parseInt(predicateMatch[1], 10);
-      currentType = predicateMatch[2].toLowerCase() as 'access' | 'filter';
-      currentText = predicateMatch[3] || '';
-
-      // Handle case where predicate text is complete on this line
-      if (currentText.endsWith(')') || !line.includes('(')) {
-        const existing = predicates.get(currentId) || {};
-        existing[currentType] = currentText.replace(/\)$/, '');
-        predicates.set(currentId, existing);
-        currentId = null;
-        currentType = null;
-        currentText = '';
-      }
-    } else if (currentId !== null && currentType && line.trim()) {
-      // Continuation of multi-line predicate
-      currentText += ' ' + line.trim();
-      if (line.trim().endsWith(')')) {
-        const existing = predicates.get(currentId) || {};
-        existing[currentType] = currentText.replace(/\)$/, '');
-        predicates.set(currentId, existing);
-        currentId = null;
-        currentType = null;
-        currentText = '';
-      }
-    }
-  }
-
-  // Save any remaining predicate
-  if (currentId !== null && currentType && currentText) {
-    const existing = predicates.get(currentId) || {};
-    existing[currentType] = currentText.replace(/\)$/, '');
-    predicates.set(currentId, existing);
-  }
-
-  return predicates;
-}
-
-function parseQueryBlocks(lines: string[]): Map<number, { queryBlock?: string; objectAlias?: string }> {
-  const queryBlocks = new Map<number, { queryBlock?: string; objectAlias?: string }>();
-
-  // Find Query Block Name / Object Alias section
-  let inQueryBlockSection = false;
-
-  for (const line of lines) {
-    if (/Query Block Name\s*\/\s*Object Alias/i.test(line)) {
-      inQueryBlockSection = true;
-      continue;
-    }
-
-    if (!inQueryBlockSection) {
-      continue;
-    }
-
-    // Skip separator lines
-    if (/^[-]+$/.test(line.trim())) {
-      continue;
-    }
-
-    // Stop at next section header or empty line after data
-    if (line.trim() === '' || (/^[A-Z].*:$/i.test(line.trim()) && !/^\s*\d+\s*-/.test(line))) {
-      break;
-    }
-
-    // Parse lines like "   2 - SEL$1 / E@SEL$1" or "   1 - SEL$1"
-    const match = line.match(/^\s*(\d+)\s*-\s*(\S+)(?:\s*\/\s*(\S+))?/);
-    if (match) {
-      const id = parseInt(match[1], 10);
-      const queryBlock = match[2];
-      const objectAlias = match[3];
-      queryBlocks.set(id, { queryBlock, objectAlias });
-    }
-  }
-
-  return queryBlocks;
-}
-
-function buildTree(
-  rows: RawPlanRow[],
-  predicates: Map<number, { access?: string; filter?: string }>,
-  queryBlocks: Map<number, { queryBlock?: string; objectAlias?: string }>
-): { rootNode: PlanNode | null; allNodes: PlanNode[] } {
-  if (rows.length === 0) {
-    return { rootNode: null, allNodes: [] };
-  }
-
-  // Create all nodes first
-  const nodeMap = new Map<number, PlanNode>();
-  const allNodes: PlanNode[] = [];
-
-  for (const row of rows) {
-    const preds = predicates.get(row.id);
-    const qb = queryBlocks.get(row.id);
-    const node: PlanNode = {
-      id: row.id,
-      depth: row.depth,
-      operation: row.operation,
-      objectName: row.objectName,
-      alias: row.alias,
-      rows: row.rows,
-      bytes: row.bytes,
-      cost: row.cost,
-      cpuPercent: row.cpuPercent,
-      time: row.time,
-      accessPredicates: preds?.access,
-      filterPredicates: preds?.filter,
-      queryBlock: qb?.queryBlock,
-      objectAlias: qb?.objectAlias,
-      children: [],
-    };
-
-    nodeMap.set(row.id, node);
-    allNodes.push(node);
-  }
-
-  // Build parent-child relationships based on depth
-  // In Oracle plans, a node's parent is the nearest preceding node with lower depth
-  for (let i = 1; i < rows.length; i++) {
-    const currentRow = rows[i];
-    const currentNode = nodeMap.get(currentRow.id)!;
-
-    // Look backwards for parent
-    for (let j = i - 1; j >= 0; j--) {
-      const potentialParentRow = rows[j];
-      if (potentialParentRow.depth < currentRow.depth) {
-        const parentNode = nodeMap.get(potentialParentRow.id)!;
-        parentNode.children.push(currentNode);
-        currentNode.parentId = parentNode.id;
-        break;
-      }
-    }
-  }
-
-  // Root is typically id 0 or the first node
-  const rootNode = nodeMap.get(0) || allNodes[0] || null;
-
-  return { rootNode, allNodes };
-}
+/**
+ * Re-export from the new parser module for backward compatibility.
+ * The parsePlan function now supports multiple input formats with auto-detection.
+ */
+export { parsePlan as parseExplainPlan, parsePlan, detectFormat, hasRuntimeStats, getSourceDisplayName } from './parser/index';
+
+// Sample plans for demonstration
 
 export const SAMPLE_PLAN = `Plan hash value: 1234567890
 
@@ -546,3 +88,164 @@ Predicate Information (identified by operation id):
   12 - access("R"."REGION_ID"="O"."REGION_ID")
   14 - access("CO"."COUNTRY_ID"="O"."COUNTRY_ID")
   16 - filter("O"."ORDER_STATUS"='COMPLETED')`;
+
+// Sample SQL Monitor plan with actual runtime statistics
+export const SAMPLE_SQL_MONITOR_PLAN = `SQL Monitoring Report
+
+SQL Text
+------------------------------
+SELECT e.employee_name, d.department_name, SUM(s.amount)
+FROM employees e
+JOIN departments d ON e.dept_id = d.dept_id
+JOIN sales s ON e.emp_id = s.emp_id
+WHERE s.sale_date >= DATE '2024-01-01'
+GROUP BY e.employee_name, d.department_name
+
+Global Information
+------------------------------
+ Status              :  DONE
+ SQL ID              :  abc123def456
+ Plan Hash           :  987654321
+ Execution Started   :  01/15/2024 10:30:45
+ First Refresh       :  01/15/2024 10:30:46
+ Last Refresh        :  01/15/2024 10:31:02
+
+Global Stats
+===========================================
+| Elapsed |   Cpu   |  IO    | Buffer Gets |
+|  Time   |  Time   | Waits  |             |
+===========================================
+|   17s   |   12s   |   5s   |     125000  |
+===========================================
+
+SQL Plan Monitoring Details
+==========================================================================================================
+| Id | Operation                     | Name        | E-Rows | Cost | A-Rows |   A-Time   | Starts | Activity |
+==========================================================================================================
+|  0 | SELECT STATEMENT              |             |        |  850 |    500 | 00:00:17.2 |      1 |          |
+|  1 |  HASH GROUP BY                |             |    500 |  850 |    500 | 00:00:02.1 |      1 |    12%   |
+|* 2 |   HASH JOIN                   |             |  10000 |  800 |  15000 | 00:00:08.5 |      1 |    50%   |
+|  3 |    TABLE ACCESS FULL          | DEPARTMENTS |     50 |   10 |     50 | 00:00:00.1 |      1 |     1%   |
+|* 4 |    HASH JOIN                  |             |  10000 |  780 |  15000 | 00:00:06.2 |      1 |    36%   |
+|  5 |     TABLE ACCESS FULL         | EMPLOYEES   |   1000 |   50 |   1000 | 00:00:00.5 |      1 |     3%   |
+|* 6 |     TABLE ACCESS FULL         | SALES       | 100000 |  700 |  85000 | 00:00:05.5 |      1 |    32%   |
+==========================================================================================================
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+   2 - access("E"."DEPT_ID"="D"."DEPT_ID")
+   4 - access("E"."EMP_ID"="S"."EMP_ID")
+   6 - filter("S"."SALE_DATE">=TO_DATE('2024-01-01','YYYY-MM-DD'))`;
+
+// Complex SQL Monitor plan showing cardinality misestimates and parallel execution
+export const COMPLEX_SQL_MONITOR_PLAN = `SQL Monitoring Report
+
+SQL Text
+------------------------------
+SELECT /*+ PARALLEL(4) */
+       c.customer_name, p.product_name,
+       SUM(oi.quantity * oi.unit_price) as total_value
+FROM customers c
+JOIN orders o ON c.customer_id = o.customer_id
+JOIN order_items oi ON o.order_id = oi.order_id
+JOIN products p ON oi.product_id = p.product_id
+WHERE o.order_date BETWEEN DATE '2023-01-01' AND DATE '2024-12-31'
+  AND c.region = 'EMEA'
+GROUP BY c.customer_name, p.product_name
+HAVING SUM(oi.quantity * oi.unit_price) > 10000
+ORDER BY total_value DESC
+
+Global Information
+------------------------------
+ Status              :  DONE (ALL ROWS)
+ SQL ID              :  g8h2k4m6n9p1q3
+ Plan Hash           :  2847561039
+ Execution Started   :  01/20/2024 14:22:10
+ First Refresh       :  01/20/2024 14:22:11
+ Last Refresh        :  01/20/2024 14:25:48
+ Duration            :  218s
+ Degree of Parallel  :  4
+
+Global Stats
+================================================================
+| Elapsed |   Cpu   |  IO    |  Other  | Buffer Gets | Read Reqs |
+|  Time   |  Time   | Waits  |  Waits  |             |           |
+================================================================
+|   218s  |   142s  |   68s  |    8s   |    2850000  |    45000  |
+================================================================
+
+SQL Plan Monitoring Details
+====================================================================================================================================
+| Id | Operation                          | Name         | E-Rows |  Cost  | A-Rows |   A-Time   | Starts |  Reads  | Activity |
+====================================================================================================================================
+|  0 | SELECT STATEMENT                   |              |        |  25840 |   2500 | 00:03:38.2 |      1 |         |          |
+|  1 |  PX COORDINATOR                    |              |        |        |   2500 | 00:03:38.1 |      1 |         |      1%  |
+|  2 |   PX SEND QC (ORDER)               | :TQ10003     |   1500 |        |  10000 | 00:03:35.0 |      4 |         |          |
+|  3 |    SORT ORDER BY                   |              |   1500 |  25840 |  10000 | 00:03:32.5 |      4 |    8500 |      8%  |
+|* 4 |     FILTER                         |              |        |        |  10000 | 00:03:28.2 |      4 |         |          |
+|  5 |      HASH GROUP BY                 |              |   1500 |  25820 |  35000 | 00:03:25.1 |      4 |   12000 |     12%  |
+|  6 |       PX RECEIVE                   |              |   1500 |        | 280000 | 00:02:58.4 |      4 |         |          |
+|  7 |        PX SEND HASH                | :TQ10002     |   1500 |        | 280000 | 00:02:55.2 |      4 |         |      2%  |
+|  8 |         HASH GROUP BY              |              |   1500 |  25820 | 280000 | 00:02:48.6 |      4 |   15000 |     15%  |
+|* 9 |          HASH JOIN                 |              | 150000 |  24200 | 850000 | 00:02:15.3 |      4 |   18000 |     22%  |
+| 10 |           PX RECEIVE               |              |   5000 |        |  20000 | 00:00:02.1 |      4 |         |          |
+| 11 |            PX SEND BROADCAST       | :TQ10000     |   5000 |        |  20000 | 00:00:01.8 |      4 |         |          |
+| 12 |             PX BLOCK ITERATOR      |              |   5000 |     85 |   5000 | 00:00:01.2 |      4 |     250 |          |
+|*13 |              TABLE ACCESS FULL     | CUSTOMERS    |   5000 |     85 |   5000 | 00:00:00.9 |     16 |     250 |      1%  |
+|*14 |           HASH JOIN                |              | 150000 |  24100 | 850000 | 00:02:08.5 |      4 |   17500 |     18%  |
+| 15 |            PX RECEIVE              |              |  10000 |        |  40000 | 00:00:08.2 |      4 |         |          |
+| 16 |             PX SEND BROADCAST      | :TQ10001     |  10000 |        |  40000 | 00:00:07.5 |      4 |         |          |
+| 17 |              PX BLOCK ITERATOR     |              |  10000 |    420 |  10000 | 00:00:05.8 |      4 |     800 |      1%  |
+| 18 |               TABLE ACCESS FULL    | PRODUCTS     |  10000 |    420 |  10000 | 00:00:04.2 |     16 |     800 |      1%  |
+|*19 |            HASH JOIN               |              | 500000 |  23650 |1200000 | 00:01:55.2 |      4 |   16500 |     16%  |
+| 20 |             PX BLOCK ITERATOR      |              | 200000 |   8500 | 180000 | 00:00:45.3 |      4 |    6200 |      8%  |
+|*21 |              TABLE ACCESS FULL     | ORDERS       | 200000 |   8500 | 180000 | 00:00:42.1 |     16 |    6200 |      7%  |
+| 22 |             PX BLOCK ITERATOR      |              |2500000 |  15000 |2800000 | 00:01:02.5 |      4 |   10000 |     12%  |
+| 23 |              TABLE ACCESS FULL     | ORDER_ITEMS  |2500000 |  15000 |2800000 | 00:00:58.2 |     16 |   10000 |     10%  |
+====================================================================================================================================
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+   4 - filter(SUM("OI"."QUANTITY"*"OI"."UNIT_PRICE")>10000)
+   9 - access("C"."CUSTOMER_ID"="O"."CUSTOMER_ID")
+  13 - filter("C"."REGION"='EMEA')
+  14 - access("OI"."PRODUCT_ID"="P"."PRODUCT_ID")
+  19 - access("O"."ORDER_ID"="OI"."ORDER_ID")
+  21 - filter("O"."ORDER_DATE">=TO_DATE('2023-01-01','YYYY-MM-DD')
+              AND "O"."ORDER_DATE"<=TO_DATE('2024-12-31','YYYY-MM-DD'))
+
+Note
+-----
+   - Degree of Parallelism is 4 because of hint`;
+
+// Sample SQL Monitor XML format (simplified structure)
+export const SAMPLE_SQL_MONITOR_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<report>
+  <sql_monitor>
+    <sql_id>xyz789abc123</sql_id>
+    <sql_text>SELECT * FROM employees WHERE department_id = 10</sql_text>
+    <plan_hash>1357924680</plan_hash>
+    <status>DONE</status>
+    <elapsed_time>5200</elapsed_time>
+    <cpu_time>4800</cpu_time>
+    <buffer_gets>15000</buffer_gets>
+
+    <plan_operations>
+      <operation id="0" name="SELECT STATEMENT" depth="0"
+                 cost="125" cardinality="50"
+                 output_rows="45" elapsed_time="5200" starts="1">
+      </operation>
+      <operation id="1" parent_id="0" name="TABLE ACCESS BY INDEX ROWID BATCHED" depth="1"
+                 object_name="EMPLOYEES" cost="125" cardinality="50"
+                 output_rows="45" elapsed_time="3100" starts="1"
+                 buffer_gets="890" physical_reads="12">
+      </operation>
+      <operation id="2" parent_id="1" name="INDEX RANGE SCAN" depth="2"
+                 object_name="EMP_DEPT_IX" cost="2" cardinality="50"
+                 output_rows="45" elapsed_time="850" starts="1"
+                 buffer_gets="3" physical_reads="1"
+                 access_predicates="DEPARTMENT_ID=10">
+      </operation>
+    </plan_operations>
+  </sql_monitor>
+</report>`;

@@ -10,6 +10,7 @@ export interface PlanNodeData extends Record<string, unknown> {
   isSelected: boolean;
   isFiltered: boolean;
   displayOptions?: NodeDisplayOptions;
+  hasActualStats?: boolean;
 }
 
 interface PlanNodeProps {
@@ -17,7 +18,7 @@ interface PlanNodeProps {
 }
 
 function PlanNodeComponent({ data }: PlanNodeProps) {
-  const { node, totalCost, isSelected, isFiltered, displayOptions } = data;
+  const { node, totalCost, isSelected, isFiltered, displayOptions, hasActualStats } = data;
   const category = getOperationCategory(node.operation);
   const colors = CATEGORY_COLORS[category];
   const costColor = getCostColor(node.cost || 0, totalCost);
@@ -34,7 +35,13 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     showPredicateDetails: false,
     showQueryBlockBadge: true,
     showQueryBlockGrouping: true,
+    showActualRows: true,
+    showActualTime: true,
+    showStarts: true,
   };
+
+  // Label for rows depends on whether we have actual stats
+  const rowsLabel = hasActualStats ? 'E-Rows' : 'Rows';
 
   return (
     <div
@@ -87,11 +94,11 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           </div>
         )}
 
-        {/* Stats row */}
+        {/* Stats row - Estimated statistics */}
         <div className="flex flex-wrap gap-2 text-xs">
           {options.showRows && node.rows !== undefined && (
             <span className="px-1.5 py-0.5 bg-white/50 dark:bg-black/20 rounded text-gray-700 dark:text-gray-300">
-              Rows: {formatNumber(node.rows)}
+              {rowsLabel}: {formatNumber(node.rows)}
             </span>
           )}
           {options.showCost && node.cost !== undefined && (
@@ -105,6 +112,27 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             </span>
           )}
         </div>
+
+        {/* Actual runtime statistics (SQL Monitor) */}
+        {hasActualStats && (
+          <div className="flex flex-wrap gap-2 text-xs mt-1">
+            {options.showActualRows && node.actualRows !== undefined && (
+              <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/40 rounded text-blue-700 dark:text-blue-300 font-medium">
+                A-Rows: {formatNumber(node.actualRows)}
+              </span>
+            )}
+            {options.showActualTime && node.actualTime !== undefined && (
+              <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/40 rounded text-purple-700 dark:text-purple-300 font-medium">
+                A-Time: {formatTime(node.actualTime)}
+              </span>
+            )}
+            {options.showStarts && node.starts !== undefined && (
+              <span className="px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/40 rounded text-orange-700 dark:text-orange-300 font-medium">
+                Starts: {formatNumber(node.starts)}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Predicate indicators */}
         {options.showPredicateIndicators && (node.accessPredicates || node.filterPredicates) && (
@@ -154,6 +182,18 @@ function formatNumber(num: number): string {
     return (num / 1000).toFixed(1) + 'K';
   }
   return num.toString();
+}
+
+function formatTime(ms: number): string {
+  if (ms >= 60000) {
+    const mins = Math.floor(ms / 60000);
+    const secs = ((ms % 60000) / 1000).toFixed(1);
+    return `${mins}m ${secs}s`;
+  }
+  if (ms >= 1000) {
+    return (ms / 1000).toFixed(2) + 's';
+  }
+  return ms.toFixed(0) + 'ms';
 }
 
 function formatBytes(bytes: number): string {
