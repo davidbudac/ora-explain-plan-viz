@@ -1,11 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { OPERATION_CATEGORIES, getOperationCategory } from '../lib/types';
 import type { PredicateType } from '../lib/types';
 
 export function FilterPanel() {
-  const { parsedPlan, filters, setFilters, getFilteredNodes } = usePlan();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const { parsedPlan, filters, setFilters, getFilteredNodes, filterPanelCollapsed: isCollapsed, setFilterPanelCollapsed: setIsCollapsed } = usePlan();
 
   const operationStats = useMemo(() => {
     if (!parsedPlan) return new Map<string, number>();

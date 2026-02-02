@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import {
   SAMPLE_PLAN,
@@ -24,8 +24,7 @@ const SAMPLE_PLANS: SamplePlan[] = [
 ];
 
 export function InputPanel() {
-  const { rawInput, setInput, parsePlan, clearPlan, error, parsedPlan } = usePlan();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const { rawInput, setInput, parsePlan, clearPlan, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed } = usePlan();
   const [showSampleMenu, setShowSampleMenu] = useState(false);
   const wasParsingRef = useRef(false);
   const menuRef = useRef<HTMLDivElement>(null);
