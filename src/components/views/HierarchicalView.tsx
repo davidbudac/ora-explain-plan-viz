@@ -16,6 +16,7 @@ import '@xyflow/react/dist/style.css';
 import { usePlan } from '../../hooks/usePlanContext';
 import { PlanNodeMemo } from '../nodes/PlanNode';
 import { CollapsibleMiniMap } from '../CollapsibleMiniMap';
+import { formatNumber } from '../../lib/types';
 import type { PlanNode } from '../../lib/types';
 
 // Query block group component
@@ -153,14 +154,22 @@ function HierarchicalViewContent() {
     // Apply layout to plan nodes
     const layoutedResult = getLayoutedElements(planNodes, edges);
 
-    // Update edge stroke widths based on row flow
+    // Update edge stroke widths based on row flow and add labels
     const edgesWithThickness = layoutedResult.edges.map(edge => {
       const rowFlow = (edge.data as { rowFlow: number })?.rowFlow || 1;
       // Scale stroke width: min 1px, max 12px, logarithmic scale for better visualization
       const normalizedFlow = Math.log(rowFlow + 1) / Math.log(maxRowFlow + 1);
       const strokeWidth = Math.max(1, Math.min(12, 1 + normalizedFlow * 11));
+      // Format row flow in human-readable format (e.g., 1.2M, 3.5K)
+      const formattedRowFlow = formatNumber(rowFlow);
+      const isDark = theme === 'dark';
       return {
         ...edge,
+        label: formattedRowFlow,
+        labelStyle: { fill: isDark ? '#9ca3af' : '#6b7280', fontSize: 10, fontWeight: 500 },
+        labelBgStyle: { fill: isDark ? '#1f2937' : 'white', fillOpacity: 0.9 },
+        labelBgPadding: [4, 2] as [number, number],
+        labelBgBorderRadius: 4,
         style: {
           ...edge.style,
           strokeWidth,
@@ -218,7 +227,7 @@ function HierarchicalViewContent() {
       nodes: [...groupNodes, ...layoutedResult.nodes],
       edges: edgesWithThickness,
     };
-  }, [parsedPlan, selectedNodeId, filteredNodeIds, filters.animateEdges, filters.nodeDisplayOptions]);
+  }, [parsedPlan, selectedNodeId, filteredNodeIds, filters.animateEdges, filters.nodeDisplayOptions, theme]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutData.edges);
