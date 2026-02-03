@@ -45,8 +45,14 @@ const nodeTypes: NodeTypes = {
   queryBlockGroup: QueryBlockGroupNode as unknown as NodeTypes['queryBlockGroup'],
 };
 
+// Layout dimensions for dagre algorithm (approximate node size for positioning)
 const nodeWidth = 240;
 const nodeHeight = 120;
+
+// Bounding box dimensions for query block groups (larger to accommodate dynamic content)
+// PlanNode has min-w-[200px] max-w-[280px] and variable height based on content
+const nodeBoundingWidth = 280;
+const nodeBoundingHeight = 200;
 
 function getLayoutedElements(
   nodes: Node[],
@@ -197,13 +203,13 @@ function HierarchicalViewContent() {
       queryBlockGroups.forEach((groupedNodes, queryBlock) => {
         if (groupedNodes.length === 0) return;
 
-        // Calculate bounding box
+        // Calculate bounding box using larger dimensions to accommodate dynamic node content
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         for (const node of groupedNodes) {
           minX = Math.min(minX, node.position.x);
           minY = Math.min(minY, node.position.y);
-          maxX = Math.max(maxX, node.position.x + nodeWidth);
-          maxY = Math.max(maxY, node.position.y + nodeHeight);
+          maxX = Math.max(maxX, node.position.x + nodeBoundingWidth);
+          maxY = Math.max(maxY, node.position.y + nodeBoundingHeight);
         }
 
         groupNodes.push({
