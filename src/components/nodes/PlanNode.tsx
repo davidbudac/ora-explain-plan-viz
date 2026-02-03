@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { getOperationCategory, CATEGORY_COLORS, getCostColor } from '../../lib/types';
+import { getOperationCategory, CATEGORY_COLORS, getCostColor, formatNumber } from '../../lib/types';
 import type { PlanNode as PlanNodeType, NodeDisplayOptions } from '../../lib/types';
 
 export interface PlanNodeData extends Record<string, unknown> {
@@ -172,16 +172,6 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
       <Handle type="source" position={Position.Bottom} className="!bg-gray-400 !w-3 !h-3" />
     </div>
   );
-}
-
-function formatNumber(num: number): string {
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M';
-  }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K';
-  }
-  return num.toString();
 }
 
 function formatTime(ms: number): string {

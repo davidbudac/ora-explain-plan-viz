@@ -200,3 +200,13 @@ export function getCostColor(cost: number, totalCost: number): string {
   if (ratio >= 0.1) return 'bg-yellow-500';
   return 'bg-green-500';
 }
+
+export function formatNumber(num: number): string {
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(1) + 'M';
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'K';
+  }
+  return num.toString();
+}
