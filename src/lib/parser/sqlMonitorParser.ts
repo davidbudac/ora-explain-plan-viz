@@ -38,8 +38,11 @@ export const sqlMonitorTextParser: PlanParser = {
       };
     }
 
+    // Parse predicate information (same format as DBMS_XPLAN)
+    const predicates = parsePredicates(lines);
+
     // Build tree structure
-    const { rootNode, allNodes } = buildTree(tableData);
+    const { rootNode, allNodes } = buildTree(tableData, predicates);
 
     // Calculate totals
     const totalCost = allNodes.reduce((sum, node) => sum + (node.cost || 0), 0);
@@ -457,7 +460,81 @@ function parseMemoryValue(str: string): number | null {
   return parseNumericValue(str);
 }
 
-function buildTree(rows: RawSqlMonitorRow[]): { rootNode: PlanNode | null; allNodes: PlanNode[] } {
+function parsePredicates(lines: string[]): Map<number, { access?: string; filter?: string }> {
+  const predicates = new Map<number, { access?: string; filter?: string }>();
+
+  // Find predicate section
+  let inPredicateSection = false;
+  let currentId: number | null = null;
+  let currentType: 'access' | 'filter' | null = null;
+  let currentText = '';
+
+  for (const line of lines) {
+    if (/Predicate Information/i.test(line)) {
+      inPredicateSection = true;
+      continue;
+    }
+
+    if (!inPredicateSection) {
+      continue;
+    }
+
+    // Stop at next section or empty lines after predicates
+    if (/^[A-Z].*:$/i.test(line.trim()) && !/^\s*\d+\s*-/.test(line)) {
+      break;
+    }
+
+    // Parse predicate lines like "3 - access(...)" or "3 - filter(...)"
+    const predicateMatch = line.match(/^\s*(\d+)\s*-\s*(access|filter)\s*\((.+)\)?\s*$/i);
+    if (predicateMatch) {
+      // Save previous predicate if any
+      if (currentId !== null && currentType && currentText) {
+        const existing = predicates.get(currentId) || {};
+        existing[currentType] = currentText;
+        predicates.set(currentId, existing);
+      }
+
+      currentId = parseInt(predicateMatch[1], 10);
+      currentType = predicateMatch[2].toLowerCase() as 'access' | 'filter';
+      currentText = predicateMatch[3] || '';
+
+      // Handle case where predicate text is complete on this line
+      if (currentText.endsWith(')') || !line.includes('(')) {
+        const existing = predicates.get(currentId) || {};
+        existing[currentType] = currentText.replace(/\)$/, '');
+        predicates.set(currentId, existing);
+        currentId = null;
+        currentType = null;
+        currentText = '';
+      }
+    } else if (currentId !== null && currentType && line.trim()) {
+      // Continuation of multi-line predicate
+      currentText += ' ' + line.trim();
+      if (line.trim().endsWith(')')) {
+        const existing = predicates.get(currentId) || {};
+        existing[currentType] = currentText.replace(/\)$/, '');
+        predicates.set(currentId, existing);
+        currentId = null;
+        currentType = null;
+        currentText = '';
+      }
+    }
+  }
+
+  // Save any remaining predicate
+  if (currentId !== null && currentType && currentText) {
+    const existing = predicates.get(currentId) || {};
+    existing[currentType] = currentText.replace(/\)$/, '');
+    predicates.set(currentId, existing);
+  }
+
+  return predicates;
+}
+
+function buildTree(
+  rows: RawSqlMonitorRow[],
+  predicates: Map<number, { access?: string; filter?: string }>
+): { rootNode: PlanNode | null; allNodes: PlanNode[] } {
   if (rows.length === 0) {
     return { rootNode: null, allNodes: [] };
   }
@@ -466,6 +543,7 @@ function buildTree(rows: RawSqlMonitorRow[]): { rootNode: PlanNode | null; allNo
   const allNodes: PlanNode[] = [];
 
   for (const row of rows) {
+    const preds = predicates.get(row.id);
     const node: PlanNode = {
       id: row.id,
       depth: row.depth,
@@ -480,6 +558,8 @@ function buildTree(rows: RawSqlMonitorRow[]): { rootNode: PlanNode | null; allNo
       tempUsed: row.tempUsed,
       physicalReads: row.physicalReads,
       activityPercent: row.activityPercent,
+      accessPredicates: preds?.access,
+      filterPredicates: preds?.filter,
       children: [],
     };
 
