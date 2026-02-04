@@ -149,7 +149,7 @@ function HierarchicalViewContent() {
 
   const filteredNodeIds = useMemo(() => {
     return new Set(getFilteredNodes().map((n) => n.id));
-  }, [getFilteredNodes]);
+  }, [getFilteredNodes, filters.minCost, filters.maxCost, filters.minActualRows, filters.maxActualRows, filters.minActualTime, filters.maxActualTime, filters.operationTypes, filters.predicateTypes, filters.searchText]);
 
   const layoutData = useMemo(() => {
     if (!parsedPlan?.rootNode) {
