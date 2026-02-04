@@ -1,6 +1,6 @@
-import { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { getOperationCategory, CATEGORY_COLORS, getCostColor, formatNumber } from '../../lib/types';
+import { usePlan } from '../../hooks/usePlanContext';
 import type { PlanNode as PlanNodeType, NodeDisplayOptions } from '../../lib/types';
 
 export interface PlanNodeData extends Record<string, unknown> {
@@ -18,7 +18,12 @@ interface PlanNodeProps {
 }
 
 function PlanNodeComponent({ data }: PlanNodeProps) {
-  const { node, totalCost, isSelected, isFiltered, displayOptions, hasActualStats } = data;
+  const { node, totalCost, isSelected, displayOptions, hasActualStats } = data;
+  const { getFilteredNodes } = usePlan();
+
+  // Compute isFiltered directly from context to ensure reactivity
+  const filteredIds = new Set(getFilteredNodes().map(n => n.id));
+  const isFiltered = filteredIds.has(node.id);
   const category = getOperationCategory(node.operation);
   const colors = CATEGORY_COLORS[category];
   const costColor = getCostColor(node.cost || 0, totalCost);
@@ -199,19 +204,5 @@ function formatBytes(bytes: number): string {
   return bytes + ' B';
 }
 
-// Custom comparison to ensure isFiltered changes trigger re-renders
-export const PlanNodeMemo = memo(PlanNodeComponent, (prevProps, nextProps) => {
-  const prevData = prevProps.data;
-  const nextData = nextProps.data;
-
-  // Always re-render if isFiltered or isSelected changed
-  if (prevData.isFiltered !== nextData.isFiltered) return false;
-  if (prevData.isSelected !== nextData.isSelected) return false;
-
-  // Check other important properties
-  if (prevData.node?.id !== nextData.node?.id) return false;
-  if (prevData.displayOptions !== nextData.displayOptions) return false;
-  if (prevData.hasActualStats !== nextData.hasActualStats) return false;
-
-  return true; // Props are equal, don't re-render
-});
+// No memo - we need to re-render when context changes (for filter state)
+export const PlanNodeMemo = PlanNodeComponent;
