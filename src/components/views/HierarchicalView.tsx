@@ -361,35 +361,46 @@ function HierarchicalViewContent() {
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutData.edges);
 
+  // Sync nodes with layout when layout changes
   useEffect(() => {
-    const updatedNodes = layoutData.nodes.map((node: Node) => {
-      // Group nodes don't need the same data updates
-      if (node.type === 'queryBlockGroup') {
-        return node;
-      }
-      return {
-        ...node,
-        data: {
-          ...node.data,
-          isSelected: parseInt(node.id) === selectedNodeId,
-          isFiltered: filteredNodeIds.has(parseInt(node.id)),
-          displayOptions: filters.nodeDisplayOptions,
-          hasActualStats: parsedPlan?.hasActualStats,
-        },
-      };
-    });
-    setNodes(updatedNodes);
+    setNodes(layoutData.nodes);
+    setEdges(layoutData.edges);
+  }, [layoutData, setNodes, setEdges]);
 
-    const updatedEdges = layoutData.edges.map((edge: Edge) => ({
-      ...edge,
-      animated: filters.animateEdges,
-      style: {
-        ...edge.style,
-        stroke: filteredNodeIds.has(parseInt(edge.target)) ? '#6366f1' : '#d1d5db',
-      },
-    }));
-    setEdges(updatedEdges);
-  }, [layoutData, selectedNodeId, filteredNodeIds, filters.animateEdges, filters.nodeDisplayOptions, parsedPlan?.hasActualStats, setNodes, setEdges]);
+  // Update node data properties separately (selection, filtering, display options)
+  useEffect(() => {
+    setNodes((currentNodes) =>
+      currentNodes.map((node) => {
+        if (node.type === 'queryBlockGroup') {
+          return node;
+        }
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            isSelected: parseInt(node.id) === selectedNodeId,
+            isFiltered: filteredNodeIds.has(parseInt(node.id)),
+            displayOptions: filters.nodeDisplayOptions,
+            hasActualStats: parsedPlan?.hasActualStats,
+          },
+        };
+      })
+    );
+  }, [selectedNodeId, filteredNodeIds, filters.nodeDisplayOptions, parsedPlan?.hasActualStats, setNodes]);
+
+  // Update edge styles separately
+  useEffect(() => {
+    setEdges((currentEdges) =>
+      currentEdges.map((edge) => ({
+        ...edge,
+        animated: filters.animateEdges,
+        style: {
+          ...edge.style,
+          stroke: filteredNodeIds.has(parseInt(edge.target)) ? '#6366f1' : '#d1d5db',
+        },
+      }))
+    );
+  }, [filteredNodeIds, filters.animateEdges, setEdges]);
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
