@@ -415,18 +415,25 @@ function HierarchicalViewContent() {
 
     traverse(parsedPlan.rootNode);
 
-    // Calculate max row flow for edge thickness normalization
-    const maxRowFlow = Math.max(...edges.map(e => (e.data as { rowFlow: number })?.rowFlow || 1), 1);
+    // Calculate min and max row flow for edge thickness normalization
+    const rowFlows = edges.map(e => (e.data as { rowFlow: number })?.rowFlow || 1);
+    const minRowFlow = Math.min(...rowFlows);
+    const maxRowFlow = Math.max(...rowFlows);
+    const rowFlowRange = maxRowFlow - minRowFlow;
 
     // Apply layout to plan nodes with dynamic dimensions
     const layoutedResult = getLayoutedElements(planNodes, edges, nodeDimensions);
 
+    // Edge thickness range
+    const MIN_STROKE_WIDTH = 2;
+    const MAX_STROKE_WIDTH = 16;
+
     // Update edge stroke widths based on row flow and add labels
     const edgesWithThickness = layoutedResult.edges.map(edge => {
       const rowFlow = (edge.data as { rowFlow: number })?.rowFlow || 1;
-      // Scale stroke width: min 1px, max 24px, logarithmic scale for better visualization
-      const normalizedFlow = Math.log(rowFlow + 1) / Math.log(maxRowFlow + 1);
-      const strokeWidth = Math.max(1, Math.min(24, 1 + normalizedFlow * 23));
+      // Linear scale between min and max stroke width
+      const normalizedFlow = rowFlowRange > 0 ? (rowFlow - minRowFlow) / rowFlowRange : 0.5;
+      const strokeWidth = MIN_STROKE_WIDTH + normalizedFlow * (MAX_STROKE_WIDTH - MIN_STROKE_WIDTH);
       // Format row flow in human-readable format (e.g., 1.2M, 3.5K)
       const formattedRowFlow = formatNumber(rowFlow);
       const isDark = theme === 'dark';
