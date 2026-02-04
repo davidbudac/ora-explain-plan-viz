@@ -186,7 +186,16 @@ function getLayoutedElements(
     // Position children
     if (children.length > 0) {
       const childY = y + dims.height + NODE_V_SPACING;
-      let childX = xStart;
+
+      // Calculate total width needed for all children
+      let totalChildrenWidth = 0;
+      for (const childId of children) {
+        totalChildrenWidth += subtreeWidths.get(childId) || NODE_WIDTH;
+      }
+      totalChildrenWidth += (children.length - 1) * NODE_H_SPACING;
+
+      // Center children group under the parent's subtree
+      let childX = xStart + (subtreeWidth - totalChildrenWidth) / 2;
 
       for (const childId of children) {
         const childSubtreeWidth = subtreeWidths.get(childId) || NODE_WIDTH;
@@ -399,9 +408,9 @@ function HierarchicalViewContent() {
     // Update edge stroke widths based on row flow and add labels
     const edgesWithThickness = layoutedResult.edges.map(edge => {
       const rowFlow = (edge.data as { rowFlow: number })?.rowFlow || 1;
-      // Scale stroke width: min 1px, max 12px, logarithmic scale for better visualization
+      // Scale stroke width: min 1px, max 24px, logarithmic scale for better visualization
       const normalizedFlow = Math.log(rowFlow + 1) / Math.log(maxRowFlow + 1);
-      const strokeWidth = Math.max(1, Math.min(12, 1 + normalizedFlow * 11));
+      const strokeWidth = Math.max(1, Math.min(24, 1 + normalizedFlow * 23));
       // Format row flow in human-readable format (e.g., 1.2M, 3.5K)
       const formattedRowFlow = formatNumber(rowFlow);
       const isDark = theme === 'dark';
