@@ -183,27 +183,39 @@ function getLayoutedElements(
     const nodeX = xStart + (subtreeWidth - dims.width) / 2;
     positions.set(nodeId, { x: nodeX, y });
 
-    // Position children centered under this node
+    // Position children
     if (children.length > 0) {
       const childY = y + dims.height + NODE_V_SPACING;
 
-      // Calculate total width needed for all children subtrees
-      let totalChildrenWidth = 0;
-      for (const childId of children) {
-        totalChildrenWidth += subtreeWidths.get(childId) || NODE_WIDTH;
-      }
-      totalChildrenWidth += (children.length - 1) * NODE_H_SPACING;
-
-      // Calculate parent's center position
-      const parentCenterX = nodeX + dims.width / 2;
-
-      // Start children such that their combined center aligns with parent's center
-      let childX = parentCenterX - totalChildrenWidth / 2;
-
-      for (const childId of children) {
+      if (children.length === 1) {
+        // Single child: align directly under parent (same X position)
+        const childId = children[0];
+        const childDims = nodeDimensions.get(childId) || { width: NODE_WIDTH, height: NODE_BASE_HEIGHT };
+        // Calculate xStart such that child node ends up at same X as parent
+        // childNodeX = childXStart + (childSubtreeWidth - childWidth) / 2 = nodeX
+        // childXStart = nodeX - (childSubtreeWidth - childWidth) / 2
         const childSubtreeWidth = subtreeWidths.get(childId) || NODE_WIDTH;
-        positionNode(childId, childX, childY);
-        childX += childSubtreeWidth + NODE_H_SPACING;
+        const childXStart = nodeX - (childSubtreeWidth - childDims.width) / 2;
+        positionNode(childId, childXStart, childY);
+      } else {
+        // Multiple children: center the group under the parent
+        let totalChildrenWidth = 0;
+        for (const childId of children) {
+          totalChildrenWidth += subtreeWidths.get(childId) || NODE_WIDTH;
+        }
+        totalChildrenWidth += (children.length - 1) * NODE_H_SPACING;
+
+        // Calculate parent's center position
+        const parentCenterX = nodeX + dims.width / 2;
+
+        // Start children such that their combined center aligns with parent's center
+        let childX = parentCenterX - totalChildrenWidth / 2;
+
+        for (const childId of children) {
+          const childSubtreeWidth = subtreeWidths.get(childId) || NODE_WIDTH;
+          positionNode(childId, childX, childY);
+          childX += childSubtreeWidth + NODE_H_SPACING;
+        }
       }
     }
   }
