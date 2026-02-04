@@ -46,7 +46,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   return (
     <div
       className={`
-        relative min-w-[200px] max-w-[280px] rounded-lg border-2 shadow-md transition-all duration-200
+        relative min-w-[200px] max-w-[280px] rounded-lg border-2 shadow-md
         ${colors.bg} ${colors.border}
         ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900 scale-105' : ''}
         ${isFiltered ? 'opacity-100' : 'opacity-40'}
