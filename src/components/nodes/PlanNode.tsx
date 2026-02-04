@@ -75,7 +75,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
         {/* Object name if present */}
         {options.showObjectName && node.objectName && (
-          <div className="text-sm font-semibold font-mono text-slate-700 dark:text-slate-200 mb-2 truncate">
+          <div className={`font-semibold text-sm leading-tight mb-2 truncate ${colors.text}`}>
             {node.objectName}
           </div>
         )}
