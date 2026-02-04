@@ -8,7 +8,7 @@ A client-side web application that parses Oracle execution plan output and rende
 - **Build Tool**: Vite
 - **Graph Visualization**: React Flow (@xyflow/react)
 - **Sankey Diagram**: D3-sankey
-- **Layout Algorithm**: Dagre (for hierarchical layout)
+- **Layout Algorithm**: Custom tree layout (with Dagre fallback)
 - **Styling**: Tailwind CSS
 
 ## Project Structure
@@ -37,7 +37,7 @@ src/
 │   ├── nodes/
 │   │   └── PlanNode.tsx     # Custom React Flow node component
 │   └── views/
-│       ├── HierarchicalView.tsx   # Tree layout (React Flow + Dagre)
+│       ├── HierarchicalView.tsx   # Tree layout (React Flow + custom algorithm)
 │       └── SankeyView.tsx         # Sankey diagram (D3)
 ├── App.tsx
 ├── main.tsx
