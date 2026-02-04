@@ -183,19 +183,22 @@ function getLayoutedElements(
     const nodeX = xStart + (subtreeWidth - dims.width) / 2;
     positions.set(nodeId, { x: nodeX, y });
 
-    // Position children
+    // Position children centered under this node
     if (children.length > 0) {
       const childY = y + dims.height + NODE_V_SPACING;
 
-      // Calculate total width needed for all children
+      // Calculate total width needed for all children subtrees
       let totalChildrenWidth = 0;
       for (const childId of children) {
         totalChildrenWidth += subtreeWidths.get(childId) || NODE_WIDTH;
       }
       totalChildrenWidth += (children.length - 1) * NODE_H_SPACING;
 
-      // Center children group under the parent's subtree
-      let childX = xStart + (subtreeWidth - totalChildrenWidth) / 2;
+      // Calculate parent's center position
+      const parentCenterX = nodeX + dims.width / 2;
+
+      // Start children such that their combined center aligns with parent's center
+      let childX = parentCenterX - totalChildrenWidth / 2;
 
       for (const childId of children) {
         const childSubtreeWidth = subtreeWidths.get(childId) || NODE_WIDTH;
