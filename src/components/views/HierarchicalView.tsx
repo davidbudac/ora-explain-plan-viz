@@ -274,7 +274,7 @@ function fallbackDagreLayout(
 }
 
 function HierarchicalViewContent() {
-  const { parsedPlan, selectedNodeId, selectNode, theme, filters } = usePlan();
+  const { parsedPlan, selectedNodeId, selectNode, theme, filters, colorScheme } = usePlan();
   const containerRef = useRef<HTMLDivElement>(null);
   const { fitView, setNodes: rfSetNodes } = useReactFlow();
 
@@ -378,6 +378,7 @@ function HierarchicalViewContent() {
           isFiltered: filteredNodeIds.has(node.id),
           displayOptions: filters.nodeDisplayOptions,
           hasActualStats: parsedPlan!.hasActualStats,
+          colorScheme,
         },
       });
 
@@ -494,7 +495,7 @@ function HierarchicalViewContent() {
       nodes: [...groupNodes, ...layoutedResult.nodes],
       edges: edgesWithThickness,
     };
-  }, [parsedPlan, filteredNodeIds, filters.animateEdges, filters.nodeDisplayOptions, theme]);
+  }, [parsedPlan, filteredNodeIds, filters.animateEdges, filters.nodeDisplayOptions, theme, colorScheme]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutData.edges);
@@ -521,12 +522,13 @@ function HierarchicalViewContent() {
             isFiltered: filteredNodeIds.has(parseInt(node.id)),
             displayOptions: filters.nodeDisplayOptions,
             hasActualStats: parsedPlan?.hasActualStats,
+            colorScheme,
             filterKey, // Include filterKey to force React Flow to detect changes
           },
         };
       })
     );
-  }, [selectedNodeId, filteredNodeIds, filters.nodeDisplayOptions, parsedPlan?.hasActualStats, rfSetNodes, filterKey]);
+  }, [selectedNodeId, filteredNodeIds, filters.nodeDisplayOptions, parsedPlan?.hasActualStats, colorScheme, rfSetNodes, filterKey]);
 
   // Update edge styles separately - only create new objects when values change
   useEffect(() => {
