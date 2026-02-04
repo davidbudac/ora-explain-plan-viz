@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<report>
+  <sql_monitor>
+    <sql_id>xyz789abc123</sql_id>
+    <sql_text>SELECT * FROM employees WHERE department_id = 10</sql_text>
+    <plan_hash>1357924680</plan_hash>
+    <status>DONE</status>
+    <elapsed_time>5200</elapsed_time>
+    <cpu_time>4800</cpu_time>
+    <buffer_gets>15000</buffer_gets>
+
+    <plan_operations>
+      <operation id="0" name="SELECT STATEMENT" depth="0"
+                 cost="125" cardinality="50"
+                 output_rows="45" elapsed_time="5200" starts="1">
+      </operation>
+      <operation id="1" parent_id="0" name="TABLE ACCESS BY INDEX ROWID BATCHED" depth="1"
+                 object_name="EMPLOYEES" cost="125" cardinality="50"
+                 output_rows="45" elapsed_time="3100" starts="1"
+                 buffer_gets="890" physical_reads="12">
+      </operation>
+      <operation id="2" parent_id="1" name="INDEX RANGE SCAN" depth="2"
+                 object_name="EMP_DEPT_IX" cost="2" cardinality="50"
+                 output_rows="45" elapsed_time="850" starts="1"
+                 buffer_gets="3" physical_reads="1"
+                 access_predicates="DEPARTMENT_ID=10">
+      </operation>
+    </plan_operations>
+  </sql_monitor>
+</report>

@@ -1,0 +1,29 @@
+Plan hash value: 1234567890
+
+--------------------------------------------------------------------------------
+| Id  | Operation                    | Name       | Rows  | Bytes | Cost (%CPU)|
+--------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT             |            |    10 |   500 |    25   (4)|
+|   1 |  HASH JOIN                   |            |    10 |   500 |    25   (4)|
+|   2 |   NESTED LOOPS               |            |     5 |   150 |    12   (0)|
+|   3 |    TABLE ACCESS BY INDEX ROWID| EMPLOYEES |     5 |   100 |     7   (0)|
+|*  4 |     INDEX RANGE SCAN         | EMP_DEPT_IX|     5 |       |     2   (0)|
+|   5 |    TABLE ACCESS BY INDEX ROWID| JOBS      |     1 |    10 |     1   (0)|
+|*  6 |     INDEX UNIQUE SCAN        | JOB_ID_PK  |     1 |       |     0   (0)|
+|   7 |   TABLE ACCESS FULL          | DEPARTMENTS|    27 |   540 |    12   (0)|
+--------------------------------------------------------------------------------
+
+Query Block Name / Object Alias (identified by operation id):
+-------------------------------------------------------------
+   1 - SEL$1
+   2 - SEL$1
+   3 - SEL$1 / E@SEL$1
+   4 - SEL$1 / E@SEL$1
+   5 - SEL$1 / J@SEL$1
+   6 - SEL$1 / J@SEL$1
+   7 - SEL$1 / D@SEL$1
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+   4 - access("E"."DEPARTMENT_ID"=:dept_id)
+   6 - access("E"."JOB_ID"="J"."JOB_ID")
