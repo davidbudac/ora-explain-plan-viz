@@ -397,17 +397,28 @@ function HierarchicalViewContent() {
     );
   }, [selectedNodeId, filteredNodeIds, filters.nodeDisplayOptions, parsedPlan?.hasActualStats, rfSetNodes, filterKey]);
 
-  // Update edge styles separately
+  // Update edge styles separately - only create new objects when values change
   useEffect(() => {
     setEdges((currentEdges) =>
-      currentEdges.map((edge) => ({
-        ...edge,
-        animated: filters.animateEdges,
-        style: {
-          ...edge.style,
-          stroke: filteredNodeIds.has(parseInt(edge.target)) ? '#6366f1' : '#d1d5db',
-        },
-      }))
+      currentEdges.map((edge) => {
+        const newStroke = filteredNodeIds.has(parseInt(edge.target)) ? '#6366f1' : '#d1d5db';
+        const currentStroke = edge.style?.stroke;
+        const currentAnimated = edge.animated;
+
+        // Only create new edge object if something changed
+        if (currentStroke === newStroke && currentAnimated === filters.animateEdges) {
+          return edge;
+        }
+
+        return {
+          ...edge,
+          animated: filters.animateEdges,
+          style: {
+            ...edge.style,
+            stroke: newStroke,
+          },
+        };
+      })
     );
   }, [filteredNodeIds, filters.animateEdges, setEdges]);
 
