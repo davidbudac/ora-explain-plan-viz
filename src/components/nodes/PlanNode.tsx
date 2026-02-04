@@ -1,6 +1,5 @@
 import { Handle, Position } from '@xyflow/react';
 import { getOperationCategory, CATEGORY_COLORS, getCostColor, formatNumber } from '../../lib/types';
-import { usePlan } from '../../hooks/usePlanContext';
 import type { PlanNode as PlanNodeType, NodeDisplayOptions } from '../../lib/types';
 
 export interface PlanNodeData extends Record<string, unknown> {
@@ -11,6 +10,7 @@ export interface PlanNodeData extends Record<string, unknown> {
   isFiltered: boolean;
   displayOptions?: NodeDisplayOptions;
   hasActualStats?: boolean;
+  filterKey?: string; // Used to force re-renders when filters change
 }
 
 interface PlanNodeProps {
@@ -18,12 +18,7 @@ interface PlanNodeProps {
 }
 
 function PlanNodeComponent({ data }: PlanNodeProps) {
-  const { node, totalCost, isSelected, displayOptions, hasActualStats } = data;
-  const { getFilteredNodes } = usePlan();
-
-  // Compute isFiltered directly from context to ensure reactivity
-  const filteredIds = new Set(getFilteredNodes().map(n => n.id));
-  const isFiltered = filteredIds.has(node.id);
+  const { node, totalCost, isSelected, isFiltered, displayOptions, hasActualStats } = data;
   const category = getOperationCategory(node.operation);
   const colors = CATEGORY_COLORS[category];
   const costColor = getCostColor(node.cost || 0, totalCost);
