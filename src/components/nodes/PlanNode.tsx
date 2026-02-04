@@ -199,4 +199,19 @@ function formatBytes(bytes: number): string {
   return bytes + ' B';
 }
 
-export const PlanNodeMemo = memo(PlanNodeComponent);
+// Custom comparison to ensure isFiltered changes trigger re-renders
+export const PlanNodeMemo = memo(PlanNodeComponent, (prevProps, nextProps) => {
+  const prevData = prevProps.data;
+  const nextData = nextProps.data;
+
+  // Always re-render if isFiltered or isSelected changed
+  if (prevData.isFiltered !== nextData.isFiltered) return false;
+  if (prevData.isSelected !== nextData.isSelected) return false;
+
+  // Check other important properties
+  if (prevData.node?.id !== nextData.node?.id) return false;
+  if (prevData.displayOptions !== nextData.displayOptions) return false;
+  if (prevData.hasActualStats !== nextData.hasActualStats) return false;
+
+  return true; // Props are equal, don't re-render
+});
