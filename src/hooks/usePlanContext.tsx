@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, Theme, PredicateType } from '../lib/types';
 import { parseExplainPlan } from '../lib/parser';
 import { loadSettings, saveSettings, extractFilterSettings, applySettingsToFilters } from '../lib/settings';
+import { SAMPLE_PLANS } from '../examples';
 
 interface PlanState {
   rawInput: string;
@@ -177,6 +178,28 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     }
     localStorage.setItem('theme', state.theme);
   }, [state.theme]);
+
+  // Load default example on first mount
+  const hasLoadedDefaultRef = useRef(false);
+  useEffect(() => {
+    if (hasLoadedDefaultRef.current) return;
+    hasLoadedDefaultRef.current = true;
+
+    // Find the "SQL Monitor" example and load it
+    const defaultExample = SAMPLE_PLANS.find((p) => p.name === 'SQL Monitor');
+    if (defaultExample) {
+      dispatch({ type: 'SET_INPUT', payload: defaultExample.data });
+      try {
+        const parsed = parseExplainPlan(defaultExample.data);
+        if (parsed.rootNode) {
+          dispatch({ type: 'SET_PARSED_PLAN', payload: parsed });
+          dispatch({ type: 'SET_INPUT_PANEL_COLLAPSED', payload: true });
+        }
+      } catch {
+        // Silently fail - user can load manually
+      }
+    }
+  }, []);
 
   // Persist settings when they change (debounced)
   useEffect(() => {
