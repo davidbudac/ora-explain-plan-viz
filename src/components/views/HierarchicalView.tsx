@@ -174,7 +174,7 @@ function HierarchicalViewContent() {
           label: node.operation,
           node,
           totalCost: parsedPlan!.totalCost,
-          isSelected: node.id === selectedNodeId,
+          isSelected: false, // Updated by useEffect when selectedNodeId changes
           isFiltered: filteredNodeIds.has(node.id),
           displayOptions: filters.nodeDisplayOptions,
           hasActualStats: parsedPlan!.hasActualStats,
@@ -294,7 +294,7 @@ function HierarchicalViewContent() {
       nodes: [...groupNodes, ...layoutedResult.nodes],
       edges: edgesWithThickness,
     };
-  }, [parsedPlan, selectedNodeId, filteredNodeIds, filters.animateEdges, filters.nodeDisplayOptions, theme]);
+  }, [parsedPlan, filteredNodeIds, filters.animateEdges, filters.nodeDisplayOptions, theme]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutData.edges);
