@@ -147,14 +147,15 @@ function HierarchicalViewContent() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { fitView } = useReactFlow();
 
-  // Compute filtered node IDs directly to avoid stale closure issues with getFilteredNodes
+  // Destructure filter values for explicit dependency tracking
+  const {
+    operationTypes, minCost, maxCost, searchText, predicateTypes,
+    minActualRows, maxActualRows, minActualTime, maxActualTime
+  } = filters;
+
+  // Compute filtered node IDs with explicit primitive dependencies
   const filteredNodeIds = useMemo(() => {
     if (!parsedPlan) return new Set<number>();
-
-    const {
-      operationTypes, minCost, maxCost, searchText, predicateTypes,
-      minActualRows, maxActualRows, minActualTime, maxActualTime
-    } = filters;
 
     const filtered = parsedPlan.allNodes.filter((node) => {
       // Filter by operation type
@@ -211,7 +212,7 @@ function HierarchicalViewContent() {
     });
 
     return new Set(filtered.map((n) => n.id));
-  }, [parsedPlan, filters]);
+  }, [parsedPlan, operationTypes, minCost, maxCost, searchText, predicateTypes, minActualRows, maxActualRows, minActualTime, maxActualTime]);
 
   const layoutData = useMemo(() => {
     if (!parsedPlan?.rootNode) {
