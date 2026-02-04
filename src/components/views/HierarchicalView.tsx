@@ -145,13 +145,19 @@ function getLayoutedElements(
 function HierarchicalViewContent() {
   const { parsedPlan, selectedNodeId, selectNode, theme, filters } = usePlan();
   const containerRef = useRef<HTMLDivElement>(null);
-  const { fitView } = useReactFlow();
+  const { fitView, setNodes: rfSetNodes } = useReactFlow();
 
   // Destructure filter values for explicit dependency tracking
   const {
     operationTypes, minCost, maxCost, searchText, predicateTypes,
     minActualRows, maxActualRows, minActualTime, maxActualTime
   } = filters;
+
+  // Create a filter key that changes when any filter value changes
+  const filterKey = useMemo(() =>
+    JSON.stringify({ operationTypes, minCost, maxCost, searchText, predicateTypes, minActualRows, maxActualRows, minActualTime, maxActualTime }),
+    [operationTypes, minCost, maxCost, searchText, predicateTypes, minActualRows, maxActualRows, minActualTime, maxActualTime]
+  );
 
   // Compute filtered node IDs with explicit primitive dependencies
   const filteredNodeIds = useMemo(() => {
@@ -369,8 +375,9 @@ function HierarchicalViewContent() {
   }, [layoutData, setNodes, setEdges]);
 
   // Update node data properties separately (selection, filtering, display options)
+  // Use rfSetNodes from useReactFlow to ensure React Flow detects the change
   useEffect(() => {
-    setNodes((currentNodes) =>
+    rfSetNodes((currentNodes) =>
       currentNodes.map((node) => {
         if (node.type === 'queryBlockGroup') {
           return node;
@@ -383,11 +390,12 @@ function HierarchicalViewContent() {
             isFiltered: filteredNodeIds.has(parseInt(node.id)),
             displayOptions: filters.nodeDisplayOptions,
             hasActualStats: parsedPlan?.hasActualStats,
+            filterKey, // Include filterKey to force React Flow to detect changes
           },
         };
       })
     );
-  }, [selectedNodeId, filteredNodeIds, filters.nodeDisplayOptions, parsedPlan?.hasActualStats, setNodes]);
+  }, [selectedNodeId, filteredNodeIds, filters.nodeDisplayOptions, parsedPlan?.hasActualStats, rfSetNodes, filterKey]);
 
   // Update edge styles separately
   useEffect(() => {
