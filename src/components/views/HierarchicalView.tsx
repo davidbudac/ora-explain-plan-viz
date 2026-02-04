@@ -17,7 +17,7 @@ import { usePlan } from '../../hooks/usePlanContext';
 import { PlanNodeMemo } from '../nodes/PlanNode';
 import { CollapsibleMiniMap } from '../CollapsibleMiniMap';
 import { formatNumber } from '../../lib/types';
-import type { PlanNode, NodeDisplayOptions } from '../../lib/types';
+import type { PlanNode, NodeDisplayOptions, PredicateType } from '../../lib/types';
 
 // Query block group component
 interface QueryBlockGroupData extends Record<string, unknown> {
@@ -143,13 +143,75 @@ function getLayoutedElements(
 }
 
 function HierarchicalViewContent() {
-  const { parsedPlan, selectedNodeId, selectNode, getFilteredNodes, theme, filters } = usePlan();
+  const { parsedPlan, selectedNodeId, selectNode, theme, filters } = usePlan();
   const containerRef = useRef<HTMLDivElement>(null);
   const { fitView } = useReactFlow();
 
+  // Compute filtered node IDs directly to avoid stale closure issues with getFilteredNodes
   const filteredNodeIds = useMemo(() => {
-    return new Set(getFilteredNodes().map((n) => n.id));
-  }, [getFilteredNodes, filters.minCost, filters.maxCost, filters.minActualRows, filters.maxActualRows, filters.minActualTime, filters.maxActualTime, filters.operationTypes, filters.predicateTypes, filters.searchText]);
+    if (!parsedPlan) return new Set<number>();
+
+    const {
+      operationTypes, minCost, maxCost, searchText, predicateTypes,
+      minActualRows, maxActualRows, minActualTime, maxActualTime
+    } = filters;
+
+    const filtered = parsedPlan.allNodes.filter((node) => {
+      // Filter by operation type
+      if (operationTypes.length > 0) {
+        const matches = operationTypes.some((type) =>
+          node.operation.toUpperCase().includes(type.toUpperCase())
+        );
+        if (!matches) return false;
+      }
+
+      // Filter by cost
+      const nodeCost = node.cost || 0;
+      if (nodeCost < minCost || nodeCost > maxCost) return false;
+
+      // Filter by actual rows (SQL Monitor)
+      if (parsedPlan.hasActualStats && node.actualRows !== undefined) {
+        if (node.actualRows < minActualRows || node.actualRows > maxActualRows) return false;
+      }
+
+      // Filter by actual time (SQL Monitor)
+      if (parsedPlan.hasActualStats && node.actualTime !== undefined) {
+        if (node.actualTime < minActualTime || node.actualTime > maxActualTime) return false;
+      }
+
+      // Filter by predicate type
+      if (predicateTypes.length > 0) {
+        const hasAccess = !!node.accessPredicates;
+        const hasFilter = !!node.filterPredicates;
+        const hasNone = !hasAccess && !hasFilter;
+
+        const matchesPredicate = predicateTypes.some((type: PredicateType) => {
+          if (type === 'access') return hasAccess;
+          if (type === 'filter') return hasFilter;
+          if (type === 'none') return hasNone;
+          return false;
+        });
+        if (!matchesPredicate) return false;
+      }
+
+      // Filter by search text
+      if (searchText) {
+        const searchLower = searchText.toLowerCase();
+        const matchesOperation = node.operation.toLowerCase().includes(searchLower);
+        const matchesObject = node.objectName?.toLowerCase().includes(searchLower);
+        const matchesPredicates =
+          node.accessPredicates?.toLowerCase().includes(searchLower) ||
+          node.filterPredicates?.toLowerCase().includes(searchLower);
+        if (!matchesOperation && !matchesObject && !matchesPredicates) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    return new Set(filtered.map((n) => n.id));
+  }, [parsedPlan, filters]);
 
   const layoutData = useMemo(() => {
     if (!parsedPlan?.rootNode) {
