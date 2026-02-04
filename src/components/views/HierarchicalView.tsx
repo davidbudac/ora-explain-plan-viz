@@ -106,14 +106,121 @@ function calculateNodeHeight(
 }
 
 
+// Horizontal and vertical spacing between nodes
+// Extra padding to ensure query block groups don't overlap
+const NODE_H_SPACING = 80;
+const NODE_V_SPACING = 80;
+
+// Custom tree layout that ensures subtrees never overlap
+// Each subtree gets its own horizontal region based on its total width
 function getLayoutedElements(
   nodes: Node[],
   edges: Edge[],
   nodeDimensions: Map<string, { width: number; height: number }>,
-  direction: 'TB' | 'LR' = 'TB'
+  _direction: 'TB' | 'LR' = 'TB'
+): { nodes: Node[]; edges: Edge[] } {
+  if (nodes.length === 0) {
+    return { nodes: [], edges };
+  }
+
+  // Build adjacency map: parent -> children
+  const childrenMap = new Map<string, string[]>();
+  const parentMap = new Map<string, string>();
+
+  for (const edge of edges) {
+    if (!childrenMap.has(edge.source)) {
+      childrenMap.set(edge.source, []);
+    }
+    childrenMap.get(edge.source)!.push(edge.target);
+    parentMap.set(edge.target, edge.source);
+  }
+
+  // Find root node (node with no parent)
+  const rootId = nodes.find(n => !parentMap.has(n.id))?.id;
+  if (!rootId) {
+    // Fallback to dagre if we can't find root
+    return fallbackDagreLayout(nodes, edges, nodeDimensions);
+  }
+
+  // Calculate subtree width for each node (width needed to display all descendants)
+  const subtreeWidths = new Map<string, number>();
+
+  function calculateSubtreeWidth(nodeId: string): number {
+    const dims = nodeDimensions.get(nodeId) || { width: NODE_WIDTH, height: NODE_BASE_HEIGHT };
+    const children = childrenMap.get(nodeId) || [];
+
+    if (children.length === 0) {
+      // Leaf node: width is just the node width
+      const width = dims.width;
+      subtreeWidths.set(nodeId, width);
+      return width;
+    }
+
+    // Sum of children subtree widths plus spacing between them
+    let totalChildrenWidth = 0;
+    for (const childId of children) {
+      totalChildrenWidth += calculateSubtreeWidth(childId);
+    }
+    totalChildrenWidth += (children.length - 1) * NODE_H_SPACING;
+
+    // Subtree width is max of node width and total children width
+    const width = Math.max(dims.width, totalChildrenWidth);
+    subtreeWidths.set(nodeId, width);
+    return width;
+  }
+
+  calculateSubtreeWidth(rootId);
+
+  // Position nodes: each node is centered over its subtree
+  const positions = new Map<string, { x: number; y: number }>();
+
+  function positionNode(nodeId: string, xStart: number, y: number): void {
+    const dims = nodeDimensions.get(nodeId) || { width: NODE_WIDTH, height: NODE_BASE_HEIGHT };
+    const subtreeWidth = subtreeWidths.get(nodeId) || dims.width;
+    const children = childrenMap.get(nodeId) || [];
+
+    // Center the node within its allocated subtree width
+    const nodeX = xStart + (subtreeWidth - dims.width) / 2;
+    positions.set(nodeId, { x: nodeX, y });
+
+    // Position children
+    if (children.length > 0) {
+      const childY = y + dims.height + NODE_V_SPACING;
+      let childX = xStart;
+
+      for (const childId of children) {
+        const childSubtreeWidth = subtreeWidths.get(childId) || NODE_WIDTH;
+        positionNode(childId, childX, childY);
+        childX += childSubtreeWidth + NODE_H_SPACING;
+      }
+    }
+  }
+
+  positionNode(rootId, 0, 0);
+
+  // Apply positions to nodes
+  const layoutedNodes = nodes.map((node) => {
+    const pos = positions.get(node.id);
+    if (pos) {
+      return {
+        ...node,
+        position: { x: pos.x, y: pos.y },
+      };
+    }
+    return node;
+  });
+
+  return { nodes: layoutedNodes, edges };
+}
+
+// Fallback to dagre layout for non-tree graphs
+function fallbackDagreLayout(
+  nodes: Node[],
+  edges: Edge[],
+  nodeDimensions: Map<string, { width: number; height: number }>
 ): { nodes: Node[]; edges: Edge[] } {
   const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: direction, nodesep: 60, ranksep: 100 });
+  g.setGraph({ rankdir: 'TB', nodesep: 120, ranksep: 120 });
   g.setDefaultEdgeLabel(() => ({}));
 
   nodes.forEach((node) => {
@@ -491,8 +598,16 @@ function HierarchicalViewContent() {
 }
 
 export function HierarchicalView() {
+  const { parsedPlan } = usePlan();
+
+  // Create a unique key that changes when the plan changes to force complete remount
+  // This ensures useNodesState/useEdgesState hooks are reset with fresh state
+  const planKey = parsedPlan
+    ? `${parsedPlan.planHashValue ?? 'nohash'}-${parsedPlan.allNodes.length}-${parsedPlan.rootNode?.operation ?? ''}`
+    : 'no-plan';
+
   return (
-    <ReactFlowProvider>
+    <ReactFlowProvider key={planKey}>
       <HierarchicalViewContent />
     </ReactFlowProvider>
   );
