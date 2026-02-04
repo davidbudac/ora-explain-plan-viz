@@ -1,7 +1,15 @@
 import { usePlan } from '../hooks/usePlanContext';
+import type { ColorScheme } from '../lib/types';
+
+const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
+  vibrant: 'Vibrant',
+  muted: 'Muted',
+  professional: 'Professional',
+  monochrome: 'Monochrome',
+};
 
 export function Header() {
-  const { theme, setTheme } = usePlan();
+  const { theme, setTheme, colorScheme, setColorScheme } = usePlan();
 
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
@@ -34,6 +42,20 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Color scheme selector */}
+        <select
+          value={colorScheme}
+          onChange={(e) => setColorScheme(e.target.value as ColorScheme)}
+          className="px-3 py-2 text-sm rounded-lg bg-gray-100 dark:bg-gray-700 border-0 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          title="Color scheme"
+        >
+          {Object.entries(COLOR_SCHEME_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}

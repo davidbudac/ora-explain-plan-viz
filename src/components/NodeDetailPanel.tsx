@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
-import { getOperationCategory, CATEGORY_COLORS, getCostColor } from '../lib/types';
+import { getOperationCategory, COLOR_SCHEMES, getCostColor } from '../lib/types';
 
 export function NodeDetailPanel() {
-  const { getSelectedNode, parsedPlan, selectNode } = usePlan();
+  const { getSelectedNode, parsedPlan, selectNode, colorScheme } = usePlan();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const node = getSelectedNode();
 
@@ -59,7 +59,8 @@ export function NodeDetailPanel() {
   }
 
   const category = getOperationCategory(node.operation);
-  const colors = CATEGORY_COLORS[category];
+  const schemeColors = COLOR_SCHEMES[colorScheme];
+  const colors = schemeColors[category] || schemeColors['Other'];
   const totalCost = parsedPlan?.totalCost || 0;
   const costPercentage = totalCost > 0 ? ((node.cost || 0) / totalCost * 100).toFixed(1) : '0';
   const costColor = getCostColor(node.cost || 0, totalCost);

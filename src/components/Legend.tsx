@@ -1,8 +1,9 @@
 import { usePlan } from '../hooks/usePlanContext';
-import { CATEGORY_COLORS } from '../lib/types';
+import { COLOR_SCHEMES } from '../lib/types';
 
 export function Legend() {
-  const { legendVisible: isVisible, setLegendVisible: setIsVisible } = usePlan();
+  const { legendVisible: isVisible, setLegendVisible: setIsVisible, colorScheme } = usePlan();
+  const categoryColors = COLOR_SCHEMES[colorScheme];
 
   return (
     <div className="absolute bottom-4 left-4 z-10">
@@ -21,7 +22,7 @@ export function Legend() {
             </button>
           </div>
           <div className="grid grid-cols-3 gap-x-4 gap-y-1">
-            {Object.entries(CATEGORY_COLORS).map(([category, colors]) => (
+            {Object.entries(categoryColors).map(([category, colors]) => (
               <div key={category} className="flex items-center gap-1.5">
                 <div className={`w-3 h-3 rounded ${colors.bg} ${colors.border} border`} />
                 <span className="text-xs text-gray-600 dark:text-gray-400 truncate">{category}</span>

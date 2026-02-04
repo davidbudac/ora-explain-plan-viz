@@ -1,6 +1,6 @@
 import { Handle, Position } from '@xyflow/react';
-import { getOperationCategory, CATEGORY_COLORS, getCostColor, formatNumber } from '../../lib/types';
-import type { PlanNode as PlanNodeType, NodeDisplayOptions } from '../../lib/types';
+import { getOperationCategory, COLOR_SCHEMES, getCostColor, formatNumber } from '../../lib/types';
+import type { PlanNode as PlanNodeType, NodeDisplayOptions, ColorScheme } from '../../lib/types';
 
 export interface PlanNodeData extends Record<string, unknown> {
   label: string;
@@ -10,6 +10,7 @@ export interface PlanNodeData extends Record<string, unknown> {
   isFiltered: boolean;
   displayOptions?: NodeDisplayOptions;
   hasActualStats?: boolean;
+  colorScheme?: ColorScheme;
   filterKey?: string; // Used to force re-renders when filters change
 }
 
@@ -18,9 +19,10 @@ interface PlanNodeProps {
 }
 
 function PlanNodeComponent({ data }: PlanNodeProps) {
-  const { node, totalCost, isSelected, isFiltered, displayOptions, hasActualStats } = data;
+  const { node, totalCost, isSelected, isFiltered, displayOptions, hasActualStats, colorScheme = 'muted' } = data;
   const category = getOperationCategory(node.operation);
-  const colors = CATEGORY_COLORS[category];
+  const schemeColors = COLOR_SCHEMES[colorScheme];
+  const colors = schemeColors[category] || schemeColors['Other'];
   const costColor = getCostColor(node.cost || 0, totalCost);
 
   const costPercentage = totalCost > 0 ? ((node.cost || 0) / totalCost * 100).toFixed(1) : '0';

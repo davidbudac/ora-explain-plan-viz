@@ -179,7 +179,10 @@ export function getOperationCategory(operation: string): string {
   return 'Other';
 }
 
-export const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+export type ColorScheme = 'vibrant' | 'muted' | 'professional' | 'monochrome';
+
+// Current vibrant colors (original)
+const COLORS_VIBRANT: Record<string, { bg: string; border: string; text: string }> = {
   'Table Access': { bg: 'bg-orange-100 dark:bg-orange-900/30', border: 'border-orange-400', text: 'text-orange-700 dark:text-orange-300' },
   'Index Operations': { bg: 'bg-green-100 dark:bg-green-900/30', border: 'border-green-400', text: 'text-green-700 dark:text-green-300' },
   'Join Operations': { bg: 'bg-blue-100 dark:bg-blue-900/30', border: 'border-blue-400', text: 'text-blue-700 dark:text-blue-300' },
@@ -191,6 +194,58 @@ export const CATEGORY_COLORS: Record<string, { bg: string; border: string; text:
   'Parallelism': { bg: 'bg-rose-100 dark:bg-rose-900/30', border: 'border-rose-400', text: 'text-rose-700 dark:text-rose-300' },
   'Other': { bg: 'bg-gray-100 dark:bg-gray-800', border: 'border-gray-400', text: 'text-gray-700 dark:text-gray-300' },
 };
+
+// Option A: Muted pastels - softer, less saturated colors
+const COLORS_MUTED: Record<string, { bg: string; border: string; text: string }> = {
+  'Table Access': { bg: 'bg-amber-50 dark:bg-amber-950/40', border: 'border-amber-300 dark:border-amber-700', text: 'text-amber-800 dark:text-amber-200' },
+  'Index Operations': { bg: 'bg-emerald-50 dark:bg-emerald-950/40', border: 'border-emerald-300 dark:border-emerald-700', text: 'text-emerald-800 dark:text-emerald-200' },
+  'Join Operations': { bg: 'bg-sky-50 dark:bg-sky-950/40', border: 'border-sky-300 dark:border-sky-700', text: 'text-sky-800 dark:text-sky-200' },
+  'Set Operations': { bg: 'bg-violet-50 dark:bg-violet-950/40', border: 'border-violet-300 dark:border-violet-700', text: 'text-violet-800 dark:text-violet-200' },
+  'Aggregation': { bg: 'bg-fuchsia-50 dark:bg-fuchsia-950/40', border: 'border-fuchsia-300 dark:border-fuchsia-700', text: 'text-fuchsia-800 dark:text-fuchsia-200' },
+  'Sort Operations': { bg: 'bg-lime-50 dark:bg-lime-950/40', border: 'border-lime-300 dark:border-lime-700', text: 'text-lime-800 dark:text-lime-200' },
+  'Filter/View': { bg: 'bg-teal-50 dark:bg-teal-950/40', border: 'border-teal-300 dark:border-teal-700', text: 'text-teal-800 dark:text-teal-200' },
+  'Partition': { bg: 'bg-indigo-50 dark:bg-indigo-950/40', border: 'border-indigo-300 dark:border-indigo-700', text: 'text-indigo-800 dark:text-indigo-200' },
+  'Parallelism': { bg: 'bg-rose-50 dark:bg-rose-950/40', border: 'border-rose-300 dark:border-rose-700', text: 'text-rose-800 dark:text-rose-200' },
+  'Other': { bg: 'bg-slate-50 dark:bg-slate-900', border: 'border-slate-300 dark:border-slate-600', text: 'text-slate-700 dark:text-slate-300' },
+};
+
+// Option B: Professional - slate backgrounds with subtle colored accents
+const COLORS_PROFESSIONAL: Record<string, { bg: string; border: string; text: string }> = {
+  'Table Access': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-amber-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
+  'Index Operations': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-emerald-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
+  'Join Operations': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-blue-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
+  'Set Operations': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-violet-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
+  'Aggregation': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-pink-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
+  'Sort Operations': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-yellow-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
+  'Filter/View': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-cyan-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
+  'Partition': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-indigo-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
+  'Parallelism': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-rose-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
+  'Other': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-slate-400 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
+};
+
+// Option C: Monochrome - grayscale with very subtle tints
+const COLORS_MONOCHROME: Record<string, { bg: string; border: string; text: string }> = {
+  'Table Access': { bg: 'bg-stone-100 dark:bg-stone-800/60', border: 'border-stone-400 dark:border-stone-500', text: 'text-stone-700 dark:text-stone-200' },
+  'Index Operations': { bg: 'bg-zinc-100 dark:bg-zinc-800/60', border: 'border-zinc-400 dark:border-zinc-500', text: 'text-zinc-700 dark:text-zinc-200' },
+  'Join Operations': { bg: 'bg-slate-100 dark:bg-slate-800/60', border: 'border-slate-400 dark:border-slate-500', text: 'text-slate-700 dark:text-slate-200' },
+  'Set Operations': { bg: 'bg-gray-100 dark:bg-gray-800/60', border: 'border-gray-400 dark:border-gray-500', text: 'text-gray-700 dark:text-gray-200' },
+  'Aggregation': { bg: 'bg-neutral-100 dark:bg-neutral-800/60', border: 'border-neutral-400 dark:border-neutral-500', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Sort Operations': { bg: 'bg-stone-100 dark:bg-stone-800/60', border: 'border-stone-400 dark:border-stone-500', text: 'text-stone-700 dark:text-stone-200' },
+  'Filter/View': { bg: 'bg-zinc-100 dark:bg-zinc-800/60', border: 'border-zinc-400 dark:border-zinc-500', text: 'text-zinc-700 dark:text-zinc-200' },
+  'Partition': { bg: 'bg-slate-100 dark:bg-slate-800/60', border: 'border-slate-400 dark:border-slate-500', text: 'text-slate-700 dark:text-slate-200' },
+  'Parallelism': { bg: 'bg-gray-100 dark:bg-gray-800/60', border: 'border-gray-400 dark:border-gray-500', text: 'text-gray-700 dark:text-gray-200' },
+  'Other': { bg: 'bg-neutral-100 dark:bg-neutral-800/60', border: 'border-neutral-400 dark:border-neutral-500', text: 'text-neutral-700 dark:text-neutral-200' },
+};
+
+export const COLOR_SCHEMES: Record<ColorScheme, Record<string, { bg: string; border: string; text: string }>> = {
+  vibrant: COLORS_VIBRANT,
+  muted: COLORS_MUTED,
+  professional: COLORS_PROFESSIONAL,
+  monochrome: COLORS_MONOCHROME,
+};
+
+// Default export for backward compatibility
+export const CATEGORY_COLORS = COLORS_VIBRANT;
 
 export function getCostColor(cost: number, totalCost: number): string {
   if (totalCost === 0) return 'bg-gray-200 dark:bg-gray-700';
