@@ -17,7 +17,7 @@ import { usePlan } from '../../hooks/usePlanContext';
 import { PlanNodeMemo } from '../nodes/PlanNode';
 import { CollapsibleMiniMap } from '../CollapsibleMiniMap';
 import { formatNumber } from '../../lib/types';
-import type { PlanNode } from '../../lib/types';
+import type { PlanNode, NodeDisplayOptions } from '../../lib/types';
 
 // Query block group component
 interface QueryBlockGroupData extends Record<string, unknown> {
@@ -45,26 +45,80 @@ const nodeTypes: NodeTypes = {
   queryBlockGroup: QueryBlockGroupNode as unknown as NodeTypes['queryBlockGroup'],
 };
 
-// Layout dimensions for dagre algorithm (approximate node size for positioning)
-const nodeWidth = 240;
-const nodeHeight = 120;
+// Layout dimensions for dagre algorithm
+const NODE_WIDTH = 260;
+const NODE_BASE_HEIGHT = 60; // Base: operation name + ID badge + cost bar
 
-// Bounding box dimensions for query block groups (larger to accommodate dynamic content)
-// PlanNode has min-w-[200px] max-w-[280px] and variable height based on content
-const nodeBoundingWidth = 280;
-const nodeBoundingHeight = 200;
+// Calculate dynamic node height based on display options and node content
+function calculateNodeHeight(
+  node: PlanNode,
+  displayOptions: NodeDisplayOptions,
+  hasActualStats: boolean
+): number {
+  let height = NODE_BASE_HEIGHT;
+
+  // Object name row
+  if (displayOptions.showObjectName && node.objectName) {
+    height += 20;
+  }
+
+  // Query block badge row
+  if (displayOptions.showQueryBlockBadge && node.queryBlock) {
+    height += 24;
+  }
+
+  // Estimated stats row (rows, cost, bytes)
+  const hasEstimatedStats =
+    (displayOptions.showRows && node.rows !== undefined) ||
+    (displayOptions.showCost && node.cost !== undefined) ||
+    (displayOptions.showBytes && node.bytes !== undefined);
+  if (hasEstimatedStats) {
+    height += 26;
+  }
+
+  // Actual stats row (A-Rows, A-Time, Starts)
+  if (hasActualStats) {
+    const hasActualStatsToShow =
+      (displayOptions.showActualRows && node.actualRows !== undefined) ||
+      (displayOptions.showActualTime && node.actualTime !== undefined) ||
+      (displayOptions.showStarts && node.starts !== undefined);
+    if (hasActualStatsToShow) {
+      height += 26;
+    }
+  }
+
+  // Predicate indicators row
+  if (displayOptions.showPredicateIndicators && (node.accessPredicates || node.filterPredicates)) {
+    height += 28;
+  }
+
+  // Predicate details (can be multiple lines)
+  if (displayOptions.showPredicateDetails && (node.accessPredicates || node.filterPredicates)) {
+    if (node.accessPredicates) {
+      height += 24 + Math.min(60, Math.ceil(node.accessPredicates.length / 35) * 16);
+    }
+    if (node.filterPredicates) {
+      height += 24 + Math.min(60, Math.ceil(node.filterPredicates.length / 35) * 16);
+    }
+  }
+
+  return height;
+}
+
 
 function getLayoutedElements(
   nodes: Node[],
   edges: Edge[],
+  nodeDimensions: Map<string, { width: number; height: number }>,
   direction: 'TB' | 'LR' = 'TB'
 ): { nodes: Node[]; edges: Edge[] } {
   const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: direction, nodesep: 50, ranksep: 80 });
+  g.setGraph({ rankdir: direction, nodesep: 60, ranksep: 100 });
   g.setDefaultEdgeLabel(() => ({}));
 
   nodes.forEach((node) => {
-    g.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+    const dims = nodeDimensions.get(node.id) || { width: NODE_WIDTH, height: NODE_BASE_HEIGHT };
+    g.setNode(node.id, { width: dims.width, height: dims.height });
   });
 
   edges.forEach((edge) => {
@@ -75,11 +129,12 @@ function getLayoutedElements(
 
   const layoutedNodes = nodes.map((node) => {
     const nodeWithPosition = g.node(node.id);
+    const dims = nodeDimensions.get(node.id) || { width: NODE_WIDTH, height: NODE_BASE_HEIGHT };
     return {
       ...node,
       position: {
-        x: nodeWithPosition.x - nodeWidth / 2,
-        y: nodeWithPosition.y - nodeHeight / 2,
+        x: nodeWithPosition.x - dims.width / 2,
+        y: nodeWithPosition.y - dims.height / 2,
       },
     };
   });
@@ -104,8 +159,13 @@ function HierarchicalViewContent() {
     const planNodes: Node[] = [];
     const edges: Edge[] = [];
     const nodeQueryBlocks: Map<string, string> = new Map();
+    const nodeDimensions: Map<string, { width: number; height: number }> = new Map();
 
     function traverse(node: PlanNode) {
+      // Calculate dynamic height for this node
+      const height = calculateNodeHeight(node, filters.nodeDisplayOptions, parsedPlan!.hasActualStats || false);
+      nodeDimensions.set(node.id.toString(), { width: NODE_WIDTH, height });
+
       planNodes.push({
         id: node.id.toString(),
         type: 'planNode',
@@ -157,8 +217,8 @@ function HierarchicalViewContent() {
     // Calculate max row flow for edge thickness normalization
     const maxRowFlow = Math.max(...edges.map(e => (e.data as { rowFlow: number })?.rowFlow || 1), 1);
 
-    // Apply layout to plan nodes
-    const layoutedResult = getLayoutedElements(planNodes, edges);
+    // Apply layout to plan nodes with dynamic dimensions
+    const layoutedResult = getLayoutedElements(planNodes, edges, nodeDimensions);
 
     // Update edge stroke widths based on row flow and add labels
     const edgesWithThickness = layoutedResult.edges.map(edge => {
@@ -203,13 +263,14 @@ function HierarchicalViewContent() {
       queryBlockGroups.forEach((groupedNodes, queryBlock) => {
         if (groupedNodes.length === 0) return;
 
-        // Calculate bounding box using larger dimensions to accommodate dynamic node content
+        // Calculate bounding box using actual node dimensions
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         for (const node of groupedNodes) {
+          const dims = nodeDimensions.get(node.id) || { width: NODE_WIDTH, height: NODE_BASE_HEIGHT };
           minX = Math.min(minX, node.position.x);
           minY = Math.min(minY, node.position.y);
-          maxX = Math.max(maxX, node.position.x + nodeBoundingWidth);
-          maxY = Math.max(maxY, node.position.y + nodeBoundingHeight);
+          maxX = Math.max(maxX, node.position.x + dims.width);
+          maxY = Math.max(maxY, node.position.y + dims.height);
         }
 
         groupNodes.push({
