@@ -1,27 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
-import {
-  SAMPLE_PLAN,
-  COMPLEX_SAMPLE_PLAN,
-  SAMPLE_SQL_MONITOR_PLAN,
-  COMPLEX_SQL_MONITOR_PLAN,
-  SAMPLE_SQL_MONITOR_XML,
-  getSourceDisplayName,
-} from '../lib/parser';
-
-interface SamplePlan {
-  name: string;
-  data: string;
-  category: 'dbms_xplan' | 'sql_monitor';
-}
-
-const SAMPLE_PLANS: SamplePlan[] = [
-  { name: 'Simple Plan', data: SAMPLE_PLAN, category: 'dbms_xplan' },
-  { name: 'Complex Plan', data: COMPLEX_SAMPLE_PLAN, category: 'dbms_xplan' },
-  { name: 'SQL Monitor', data: SAMPLE_SQL_MONITOR_PLAN, category: 'sql_monitor' },
-  { name: 'SQL Monitor (Parallel)', data: COMPLEX_SQL_MONITOR_PLAN, category: 'sql_monitor' },
-  { name: 'SQL Monitor (XML)', data: SAMPLE_SQL_MONITOR_XML, category: 'sql_monitor' },
-];
+import { getSourceDisplayName } from '../lib/parser';
+import { SAMPLE_PLANS_BY_CATEGORY, type SamplePlan } from '../examples';
 
 export function InputPanel() {
   const { rawInput, setInput, parsePlan, loadAndParsePlan, clearPlan, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed } = usePlan();
@@ -114,7 +94,7 @@ export function InputPanel() {
                 <div className="px-3 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                   DBMS_XPLAN
                 </div>
-                {SAMPLE_PLANS.filter(s => s.category === 'dbms_xplan').map((sample) => (
+                {SAMPLE_PLANS_BY_CATEGORY.dbms_xplan.map((sample) => (
                   <button
                     key={sample.name}
                     onClick={() => handleLoadSample(sample)}
@@ -127,7 +107,7 @@ export function InputPanel() {
                 <div className="px-3 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                   SQL Monitor
                 </div>
-                {SAMPLE_PLANS.filter(s => s.category === 'sql_monitor').map((sample) => (
+                {SAMPLE_PLANS_BY_CATEGORY.sql_monitor.map((sample) => (
                   <button
                     key={sample.name}
                     onClick={() => handleLoadSample(sample)}

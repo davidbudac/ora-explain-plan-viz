@@ -1,0 +1,52 @@
+Plan hash value: 3456789012
+
+-------------------------------------------------------------------------------------------------------
+| Id  | Operation                      | Name            | Rows  | Bytes |TempSpc| Cost (%CPU)| Time     |
+-------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT               |                 |  1000 | 95000 |       | 15234  (2)| 00:03:03 |
+|   1 |  SORT ORDER BY                 |                 |  1000 | 95000 |   112K| 15234  (2)| 00:03:03 |
+|*  2 |   HASH JOIN                    |                 |  1000 | 95000 |       | 15210  (2)| 00:03:03 |
+|   3 |    VIEW                        | VW_NSO_1        |   500 | 23500 |       |  7600  (2)| 00:01:31 |
+|   4 |     HASH GROUP BY              |                 |   500 | 19500 |       |  7600  (2)| 00:01:31 |
+|*  5 |      HASH JOIN                 |                 | 50000 |  1904K|       |  7580  (2)| 00:01:31 |
+|   6 |       TABLE ACCESS FULL        | CUSTOMERS       |  5000 |   102K|       |   120  (0)| 00:00:02 |
+|*  7 |       HASH JOIN                |                 | 50000 |   878K|       |  7458  (2)| 00:01:30 |
+|   8 |        TABLE ACCESS FULL       | PRODUCTS        |   100 |   900 |       |     3  (0)| 00:00:01 |
+|*  9 |        TABLE ACCESS FULL       | ORDER_ITEMS     |500000 |  4394K|       |  7420  (2)| 00:01:29 |
+|  10 |    VIEW                        | VW_NSO_2        |   200 |  4200 |       |  7600  (2)| 00:01:31 |
+|  11 |     HASH GROUP BY              |                 |   200 |  5000 |       |  7600  (2)| 00:01:31 |
+|* 12 |      HASH JOIN                 |                 | 25000 |   610K|       |  7580  (2)| 00:01:31 |
+|  13 |       TABLE ACCESS FULL        | REGIONS         |     5 |    50 |       |     3  (0)| 00:00:01 |
+|* 14 |       HASH JOIN                |                 | 25000 |   366K|       |  7575  (2)| 00:01:31 |
+|  15 |        TABLE ACCESS FULL       | COUNTRIES       |    25 |   175 |       |     3  (0)| 00:00:01 |
+|* 16 |        TABLE ACCESS FULL       | ORDERS          |500000 |  3906K|       |  7420  (2)| 00:01:29 |
+-------------------------------------------------------------------------------------------------------
+
+Query Block Name / Object Alias (identified by operation id):
+-------------------------------------------------------------
+   1 - SEL$1
+   2 - SEL$1
+   3 - SEL$2 / VW_NSO_1@SEL$1
+   4 - SEL$2
+   5 - SEL$2
+   6 - SEL$2 / C@SEL$2
+   7 - SEL$2
+   8 - SEL$2 / P@SEL$2
+   9 - SEL$2 / OI@SEL$2
+  10 - SEL$3 / VW_NSO_2@SEL$1
+  11 - SEL$3
+  12 - SEL$3
+  13 - SEL$3 / R@SEL$3
+  14 - SEL$3
+  15 - SEL$3 / CO@SEL$3
+  16 - SEL$3 / O@SEL$3
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+   2 - access("V1"."CUSTOMER_ID"="V2"."CUSTOMER_ID")
+   5 - access("C"."CUSTOMER_ID"="OI"."CUSTOMER_ID")
+   7 - access("P"."PRODUCT_ID"="OI"."PRODUCT_ID")
+   9 - filter("OI"."QUANTITY">0)
+  12 - access("R"."REGION_ID"="O"."REGION_ID")
+  14 - access("CO"."COUNTRY_ID"="O"."COUNTRY_ID")
+  16 - filter("O"."ORDER_STATUS"='COMPLETED')
