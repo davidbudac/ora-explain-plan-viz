@@ -2,7 +2,7 @@ import { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import { sankey, sankeyLinkHorizontal } from 'd3-sankey';
 import type { SankeyNode, SankeyLink } from 'd3-sankey';
 import { usePlan } from '../../hooks/usePlanContext';
-import { getOperationCategory } from '../../lib/types';
+import { COLOR_SCHEME_PALETTES, getOperationCategory } from '../../lib/types';
 import type { PlanNode } from '../../lib/types';
 
 interface SankeyNodeExtra {
@@ -18,25 +18,13 @@ interface SankeyLinkExtra {
 type SNode = SankeyNode<SankeyNodeExtra, SankeyLinkExtra>;
 type SLink = SankeyLink<SankeyNodeExtra, SankeyLinkExtra>;
 
-const categoryColors: Record<string, string> = {
-  'Table Access': '#f97316',
-  'Index Operations': '#22c55e',
-  'Join Operations': '#3b82f6',
-  'Set Operations': '#a855f7',
-  'Aggregation': '#ec4899',
-  'Sort Operations': '#eab308',
-  'Filter/View': '#06b6d4',
-  'Partition': '#6366f1',
-  'Parallelism': '#f43f5e',
-  'Other': '#6b7280',
-};
-
 export function SankeyView() {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [error, setError] = useState<string | null>(null);
-  const { parsedPlan, selectedNodeId, selectNode, sankeyMetric, getFilteredNodes, theme } = usePlan();
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; title: string; lines: string[] } | null>(null);
+  const { parsedPlan, selectedNodeId, selectNode, sankeyMetric, getFilteredNodes, theme, colorScheme } = usePlan();
 
   // Update dimensions on mount and resize
   useEffect(() => {
@@ -137,12 +125,14 @@ export function SankeyView() {
     const { width, height } = dimensions;
     if (width < 100 || height < 100) return; // Don't render if too small
 
+    setTooltip(null);
     setError(null);
 
     try {
       const margin = { top: 20, right: 20, bottom: 20, left: 20 };
 
       const svg = svgRef.current;
+      const palette = COLOR_SCHEME_PALETTES[colorScheme];
       svg.innerHTML = '';
       svg.setAttribute('width', width.toString());
       svg.setAttribute('height', height.toString());
@@ -161,7 +151,7 @@ export function SankeyView() {
           rect.setAttribute('y', y.toString());
           rect.setAttribute('width', '20');
           rect.setAttribute('height', nodeHeight.toString());
-          rect.setAttribute('fill', categoryColors[node.category] || '#6b7280');
+          rect.setAttribute('fill', palette[node.category] || '#6b7280');
           rect.setAttribute('rx', '3');
           g.appendChild(rect);
 
@@ -207,15 +197,36 @@ export function SankeyView() {
         const sourceNode = link.source as SNode;
         const targetNode = link.target as SNode;
         const isFiltered = filteredNodeIds.has(sourceNode.planNode.id) && filteredNodeIds.has(targetNode.planNode.id);
+        const linkColor = palette[sourceNode.category] || '#6b7280';
 
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         const d = linkPath(link as SLink);
         if (d) {
           path.setAttribute('d', d);
-          path.setAttribute('stroke', isFiltered ? (categoryColors[sourceNode.category] || '#6b7280') : (isDark ? '#4b5563' : '#d1d5db'));
+          path.setAttribute('stroke', isFiltered ? linkColor : (isDark ? '#4b5563' : '#d1d5db'));
           path.setAttribute('stroke-opacity', isFiltered ? '0.5' : '0.2');
           path.setAttribute('stroke-width', Math.max(1, link.width || 1).toString());
           linkGroup.appendChild(path);
+
+          path.addEventListener('mouseenter', (event) => {
+            const label = getMetricLabel(sankeyMetric, parsedPlan?.hasActualStats ?? false);
+            setTooltip({
+              x: event.clientX,
+              y: event.clientY,
+              title: `${sourceNode.planNode.operation} → ${targetNode.planNode.operation}`,
+              lines: [
+                `${label}: ${formatMetricValue(link.value || 0, sankeyMetric)}`,
+              ],
+            });
+          });
+
+          path.addEventListener('mousemove', (event) => {
+            setTooltip((current) => (current ? { ...current, x: event.clientX, y: event.clientY } : current));
+          });
+
+          path.addEventListener('mouseleave', () => {
+            setTooltip(null);
+          });
         }
       });
 
@@ -238,7 +249,7 @@ export function SankeyView() {
         rect.setAttribute('y', (node.y0 || 0).toString());
         rect.setAttribute('width', nodeWidth.toString());
         rect.setAttribute('height', Math.max(1, nodeHeight).toString());
-        rect.setAttribute('fill', isFiltered ? (categoryColors[sNode.category] || '#6b7280') : (isDark ? '#4b5563' : '#9ca3af'));
+        rect.setAttribute('fill', isFiltered ? (palette[sNode.category] || '#6b7280') : (isDark ? '#4b5563' : '#9ca3af'));
         rect.setAttribute('opacity', isFiltered ? '1' : '0.4');
         rect.setAttribute('rx', '3');
         rect.style.cursor = 'pointer';
@@ -250,6 +261,38 @@ export function SankeyView() {
 
         rect.addEventListener('click', () => {
           handleNodeClick(sNode.planNode.id);
+        });
+
+        rect.addEventListener('mouseenter', (event) => {
+          const nodeLines = [
+            sNode.planNode.objectName ? `Object: ${sNode.planNode.objectName}` : null,
+            `Cost: ${formatNumber(sNode.planNode.cost)}`,
+            sNode.planNode.rows !== undefined ? `E-Rows: ${formatNumber(sNode.planNode.rows)}` : null,
+          ].filter(Boolean) as string[];
+
+          if (parsedPlan?.hasActualStats) {
+            if (sNode.planNode.actualRows !== undefined) {
+              nodeLines.push(`A-Rows: ${formatNumber(sNode.planNode.actualRows)}`);
+            }
+            if (sNode.planNode.actualTime !== undefined) {
+              nodeLines.push(`A-Time: ${formatTime(sNode.planNode.actualTime)}`);
+            }
+          }
+
+          setTooltip({
+            x: event.clientX,
+            y: event.clientY,
+            title: sNode.planNode.operation,
+            lines: nodeLines,
+          });
+        });
+
+        rect.addEventListener('mousemove', (event) => {
+          setTooltip((current) => (current ? { ...current, x: event.clientX, y: event.clientY } : current));
+        });
+
+        rect.addEventListener('mouseleave', () => {
+          setTooltip(null);
         });
 
         nodeGroup.appendChild(rect);
@@ -276,7 +319,7 @@ export function SankeyView() {
       console.error('Sankey rendering error:', err);
       setError(err instanceof Error ? err.message : 'Failed to render Sankey diagram');
     }
-  }, [sankeyData, selectedNodeId, filteredNodeIds, handleNodeClick, theme, dimensions]);
+  }, [sankeyData, selectedNodeId, filteredNodeIds, handleNodeClick, theme, dimensions, colorScheme, sankeyMetric, parsedPlan?.hasActualStats]);
 
   if (!parsedPlan?.rootNode) {
     return (
@@ -295,8 +338,25 @@ export function SankeyView() {
   }
 
   return (
-    <div ref={containerRef} className="w-full h-full overflow-hidden" style={{ minHeight: '400px' }}>
+    <div ref={containerRef} className="relative w-full h-full overflow-hidden" style={{ minHeight: '400px' }}>
       <svg ref={svgRef} className="w-full h-full" />
+      {tooltip && containerRef.current && (
+        <div
+          className="absolute z-10 pointer-events-none bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg px-3 py-2 text-xs text-gray-800 dark:text-gray-100"
+          style={{
+            left: `${tooltip.x - containerRef.current.getBoundingClientRect().left + 12}px`,
+            top: `${tooltip.y - containerRef.current.getBoundingClientRect().top + 12}px`,
+            maxWidth: '280px',
+          }}
+        >
+          <div className="font-semibold mb-1">{tooltip.title}</div>
+          <div className="space-y-0.5">
+            {tooltip.lines.map((line, index) => (
+              <div key={`${line}-${index}`}>{line}</div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -304,4 +364,41 @@ export function SankeyView() {
 function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength - 3) + '...';
+}
+
+function getMetricLabel(metric: string, hasActualStats: boolean): string {
+  switch (metric) {
+    case 'rows':
+      return hasActualStats ? 'E-Rows' : 'Rows';
+    case 'cost':
+      return 'Cost';
+    case 'actualRows':
+      return 'A-Rows';
+    case 'actualTime':
+      return 'A-Time';
+    default:
+      return 'Rows';
+  }
+}
+
+function formatNumber(value?: number): string {
+  if (value === undefined) return '—';
+  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+  return value.toString();
+}
+
+function formatTime(ms: number): string {
+  if (ms >= 60000) {
+    const mins = Math.floor(ms / 60000);
+    const secs = ((ms % 60000) / 1000).toFixed(1);
+    return `${mins}m ${secs}s`;
+  }
+  if (ms >= 1000) return `${(ms / 1000).toFixed(2)}s`;
+  return `${ms.toFixed(0)}ms`;
+}
+
+function formatMetricValue(value: number, metric: string): string {
+  if (metric === 'actualTime') return formatTime(value);
+  return formatNumber(value);
 }

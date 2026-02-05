@@ -23,6 +23,7 @@ export interface UserSettings {
 
   // Filter display options (checkboxes)
   animateEdges: boolean;
+  focusSelection: boolean;
   nodeDisplayOptions: NodeDisplayOptions;
 
   // Predicate type filters
@@ -55,6 +56,7 @@ const defaultSettings: UserSettings = {
   inputPanelCollapsed: false,
   filterPanelCollapsed: false,
   animateEdges: false,
+  focusSelection: false,
   nodeDisplayOptions: defaultNodeDisplayOptions,
   predicateTypes: [],
   operationTypes: [],
@@ -124,9 +126,15 @@ export function saveSettings(settings: Partial<UserSettings>): void {
 /**
  * Extract persistable filter settings from FilterState.
  */
-export function extractFilterSettings(filters: FilterState): Pick<UserSettings, 'animateEdges' | 'nodeDisplayOptions' | 'predicateTypes' | 'operationTypes'> {
+export function extractFilterSettings(
+  filters: FilterState
+): Pick<
+  UserSettings,
+  'animateEdges' | 'focusSelection' | 'nodeDisplayOptions' | 'predicateTypes' | 'operationTypes'
+> {
   return {
     animateEdges: filters.animateEdges,
+    focusSelection: filters.focusSelection,
     nodeDisplayOptions: filters.nodeDisplayOptions,
     predicateTypes: filters.predicateTypes,
     operationTypes: filters.operationTypes,
@@ -143,6 +151,7 @@ export function applySettingsToFilters(
   return {
     ...filters,
     animateEdges: settings.animateEdges,
+    focusSelection: settings.focusSelection,
     nodeDisplayOptions: settings.nodeDisplayOptions,
     predicateTypes: settings.predicateTypes as FilterState['predicateTypes'],
     operationTypes: settings.operationTypes,

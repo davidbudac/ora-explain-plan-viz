@@ -76,6 +76,7 @@ export interface FilterState {
   showPredicates: boolean;
   predicateTypes: PredicateType[];
   animateEdges: boolean;
+  focusSelection: boolean;
   nodeDisplayOptions: NodeDisplayOptions;
   // SQL Monitor actual statistics filters
   minActualRows: number;
@@ -180,6 +181,57 @@ export function getOperationCategory(operation: string): string {
 }
 
 export type ColorScheme = 'vibrant' | 'muted' | 'professional' | 'monochrome';
+
+export const COLOR_SCHEME_PALETTES: Record<ColorScheme, Record<string, string>> = {
+  vibrant: {
+    'Table Access': '#f97316',
+    'Index Operations': '#22c55e',
+    'Join Operations': '#3b82f6',
+    'Set Operations': '#a855f7',
+    'Aggregation': '#ec4899',
+    'Sort Operations': '#eab308',
+    'Filter/View': '#06b6d4',
+    'Partition': '#6366f1',
+    'Parallelism': '#f43f5e',
+    'Other': '#6b7280',
+  },
+  muted: {
+    'Table Access': '#f59e0b',
+    'Index Operations': '#10b981',
+    'Join Operations': '#0ea5e9',
+    'Set Operations': '#8b5cf6',
+    'Aggregation': '#d946ef',
+    'Sort Operations': '#84cc16',
+    'Filter/View': '#14b8a6',
+    'Partition': '#6366f1',
+    'Parallelism': '#f43f5e',
+    'Other': '#94a3b8',
+  },
+  professional: {
+    'Table Access': '#b45309',
+    'Index Operations': '#047857',
+    'Join Operations': '#1d4ed8',
+    'Set Operations': '#6d28d9',
+    'Aggregation': '#be185d',
+    'Sort Operations': '#a16207',
+    'Filter/View': '#0e7490',
+    'Partition': '#4338ca',
+    'Parallelism': '#be123c',
+    'Other': '#64748b',
+  },
+  monochrome: {
+    'Table Access': '#78716c',
+    'Index Operations': '#71717a',
+    'Join Operations': '#64748b',
+    'Set Operations': '#6b7280',
+    'Aggregation': '#737373',
+    'Sort Operations': '#78716c',
+    'Filter/View': '#71717a',
+    'Partition': '#64748b',
+    'Parallelism': '#6b7280',
+    'Other': '#94a3b8',
+  },
+};
 
 // Current vibrant colors (original)
 const COLORS_VIBRANT: Record<string, { bg: string; border: string; text: string }> = {
