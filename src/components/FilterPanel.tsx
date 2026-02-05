@@ -1,10 +1,12 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { OPERATION_CATEGORIES, getOperationCategory } from '../lib/types';
 import type { PredicateType } from '../lib/types';
+import { matchesSearch } from '../lib/filtering';
 
 export function FilterPanel() {
-  const { parsedPlan, filters, setFilters, getFilteredNodes, filterPanelCollapsed: isCollapsed, setFilterPanelCollapsed: setIsCollapsed } = usePlan();
+  const { parsedPlan, filters, setFilters, getFilteredNodes, selectNode, filterPanelCollapsed: isCollapsed, setFilterPanelCollapsed: setIsCollapsed } = usePlan();
+  const [activeMatchIndex, setActiveMatchIndex] = useState(0);
 
   const operationStats = useMemo(() => {
     if (!parsedPlan) return new Map<string, number>();
@@ -48,6 +50,25 @@ export function FilterPanel() {
 
   const filteredCount = getFilteredNodes().length;
   const totalCount = parsedPlan?.allNodes.length || 0;
+
+  const searchMatches = useMemo(() => {
+    if (!parsedPlan) return [];
+    const query = filters.searchText.trim();
+    if (!query) return [];
+    return parsedPlan.allNodes.filter((node) => matchesSearch(node, query)).map((node) => node.id);
+  }, [parsedPlan, filters.searchText]);
+
+  useEffect(() => {
+    setActiveMatchIndex(0);
+  }, [filters.searchText, parsedPlan]);
+
+  const handleMatchNavigate = (direction: 'prev' | 'next') => {
+    if (searchMatches.length === 0) return;
+    const delta = direction === 'next' ? 1 : -1;
+    const nextIndex = (activeMatchIndex + delta + searchMatches.length) % searchMatches.length;
+    setActiveMatchIndex(nextIndex);
+    selectNode(searchMatches[nextIndex]);
+  };
 
   const handleCategoryToggle = (category: string) => {
     const operations = OPERATION_CATEGORIES[category] || [];
@@ -159,6 +180,33 @@ export function FilterPanel() {
           placeholder="Operation, object, predicate..."
           className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+        {filters.searchText.trim() && (
+          <div className="mt-3 flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+            <span>
+              {searchMatches.length === 0
+                ? 'No matches'
+                : `Match ${Math.min(activeMatchIndex + 1, searchMatches.length)} of ${searchMatches.length}`}
+            </span>
+            {searchMatches.length > 0 && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleMatchNavigate('prev')}
+                  className="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  title="Previous match"
+                >
+                  Prev
+                </button>
+                <button
+                  onClick={() => handleMatchNavigate('next')}
+                  className="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  title="Next match"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Display Options */}
@@ -175,6 +223,15 @@ export function FilterPanel() {
               className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
             />
             <span className="text-sm text-gray-700 dark:text-gray-300">Animate edges</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={filters.focusSelection}
+              onChange={(e) => setFilters({ focusSelection: e.target.checked })}
+              className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700 dark:text-gray-300">Focus selection path</span>
           </label>
           <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
             <span className="text-xs text-gray-500 dark:text-gray-400 mb-2 block">Node Properties</span>

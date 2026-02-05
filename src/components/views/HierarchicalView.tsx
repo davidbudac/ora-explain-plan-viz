@@ -17,7 +17,8 @@ import { usePlan } from '../../hooks/usePlanContext';
 import { PlanNodeMemo } from '../nodes/PlanNode';
 import { CollapsibleMiniMap } from '../CollapsibleMiniMap';
 import { formatNumber } from '../../lib/types';
-import type { PlanNode, NodeDisplayOptions, PredicateType } from '../../lib/types';
+import type { PlanNode, NodeDisplayOptions } from '../../lib/types';
+import { matchesFilters } from '../../lib/filtering';
 
 // Query block group component
 interface QueryBlockGroupData extends Record<string, unknown> {
@@ -293,63 +294,58 @@ function HierarchicalViewContent() {
   // Compute filtered node IDs with explicit primitive dependencies
   const filteredNodeIds = useMemo(() => {
     if (!parsedPlan) return new Set<number>();
-
-    const filtered = parsedPlan.allNodes.filter((node) => {
-      // Filter by operation type
-      if (operationTypes.length > 0) {
-        const matches = operationTypes.some((type) =>
-          node.operation.toUpperCase().includes(type.toUpperCase())
-        );
-        if (!matches) return false;
-      }
-
-      // Filter by cost
-      const nodeCost = node.cost || 0;
-      if (nodeCost < minCost || nodeCost > maxCost) return false;
-
-      // Filter by actual rows (SQL Monitor)
-      if (parsedPlan.hasActualStats && node.actualRows !== undefined) {
-        if (node.actualRows < minActualRows || node.actualRows > maxActualRows) return false;
-      }
-
-      // Filter by actual time (SQL Monitor)
-      if (parsedPlan.hasActualStats && node.actualTime !== undefined) {
-        if (node.actualTime < minActualTime || node.actualTime > maxActualTime) return false;
-      }
-
-      // Filter by predicate type
-      if (predicateTypes.length > 0) {
-        const hasAccess = !!node.accessPredicates;
-        const hasFilter = !!node.filterPredicates;
-        const hasNone = !hasAccess && !hasFilter;
-
-        const matchesPredicate = predicateTypes.some((type: PredicateType) => {
-          if (type === 'access') return hasAccess;
-          if (type === 'filter') return hasFilter;
-          if (type === 'none') return hasNone;
-          return false;
-        });
-        if (!matchesPredicate) return false;
-      }
-
-      // Filter by search text
-      if (searchText) {
-        const searchLower = searchText.toLowerCase();
-        const matchesOperation = node.operation.toLowerCase().includes(searchLower);
-        const matchesObject = node.objectName?.toLowerCase().includes(searchLower);
-        const matchesPredicates =
-          node.accessPredicates?.toLowerCase().includes(searchLower) ||
-          node.filterPredicates?.toLowerCase().includes(searchLower);
-        if (!matchesOperation && !matchesObject && !matchesPredicates) {
-          return false;
-        }
-      }
-
-      return true;
-    });
+    const filtered = parsedPlan.allNodes.filter((node) =>
+      matchesFilters(node, filters, parsedPlan.hasActualStats)
+    );
 
     return new Set(filtered.map((n) => n.id));
-  }, [parsedPlan, operationTypes, minCost, maxCost, searchText, predicateTypes, minActualRows, maxActualRows, minActualTime, maxActualTime]);
+  }, [
+    parsedPlan,
+    filters,
+    operationTypes,
+    minCost,
+    maxCost,
+    searchText,
+    predicateTypes,
+    minActualRows,
+    maxActualRows,
+    minActualTime,
+    maxActualTime,
+  ]);
+
+  const selectionSets = useMemo(() => {
+    const empty = {
+      ancestorIds: new Set<number>(),
+      descendantIds: new Set<number>(),
+    };
+
+    if (!parsedPlan || selectedNodeId === null) return empty;
+
+    const nodeMap = new Map<number, PlanNode>();
+    parsedPlan.allNodes.forEach((node) => nodeMap.set(node.id, node));
+    const selected = nodeMap.get(selectedNodeId);
+    if (!selected) return empty;
+
+    const ancestorIds = new Set<number>();
+    let current: PlanNode | undefined = selected;
+    ancestorIds.add(current.id);
+
+    while (current?.parentId !== undefined) {
+      const parent = nodeMap.get(current.parentId);
+      if (!parent) break;
+      ancestorIds.add(parent.id);
+      current = parent;
+    }
+
+    const descendantIds = new Set<number>();
+    const addDescendants = (node: PlanNode) => {
+      descendantIds.add(node.id);
+      node.children.forEach(addDescendants);
+    };
+    addDescendants(selected);
+
+    return { ancestorIds, descendantIds };
+  }, [parsedPlan, selectedNodeId]);
 
   const layoutData = useMemo(() => {
     if (!parsedPlan?.rootNode) {
@@ -379,6 +375,8 @@ function HierarchicalViewContent() {
           displayOptions: filters.nodeDisplayOptions,
           hasActualStats: parsedPlan!.hasActualStats,
           colorScheme,
+          width: NODE_WIDTH,
+          height,
         },
       });
 
@@ -521,21 +519,44 @@ function HierarchicalViewContent() {
         if (node.type === 'queryBlockGroup') {
           return node;
         }
+        const focusEnabled = filters.focusSelection && selectedNodeId !== null;
+
         return {
           ...node,
           data: {
             ...node.data,
             isSelected: parseInt(node.id) === selectedNodeId,
             isFiltered: filteredNodeIds.has(parseInt(node.id)),
+            isInFocusPath:
+              focusEnabled &&
+              (selectionSets.ancestorIds.has(parseInt(node.id)) ||
+                selectionSets.descendantIds.has(parseInt(node.id))),
+            isFocusDimmed:
+              focusEnabled &&
+              !selectionSets.ancestorIds.has(parseInt(node.id)) &&
+              !selectionSets.descendantIds.has(parseInt(node.id)),
             displayOptions: filters.nodeDisplayOptions,
             hasActualStats: parsedPlan?.hasActualStats,
             colorScheme,
+            searchText,
             filterKey, // Include filterKey to force React Flow to detect changes
           },
         };
       })
     );
-  }, [selectedNodeId, filteredNodeIds, filters.nodeDisplayOptions, parsedPlan?.hasActualStats, colorScheme, rfSetNodes, filterKey]);
+  }, [
+    selectedNodeId,
+    filteredNodeIds,
+    filters.nodeDisplayOptions,
+    filters.focusSelection,
+    parsedPlan?.hasActualStats,
+    colorScheme,
+    rfSetNodes,
+    filterKey,
+    selectionSets.ancestorIds,
+    selectionSets.descendantIds,
+    searchText,
+  ]);
 
   // Update edge styles separately - only create new objects when values change
   useEffect(() => {
@@ -544,9 +565,43 @@ function HierarchicalViewContent() {
         const newStroke = filteredNodeIds.has(parseInt(edge.target)) ? '#6366f1' : '#d1d5db';
         const currentStroke = edge.style?.stroke;
         const currentAnimated = edge.animated;
+        const currentStrokeWidth = edge.style?.strokeWidth;
+        const currentStrokeOpacity = edge.style?.strokeOpacity;
+        const focusEnabled = filters.focusSelection && selectedNodeId !== null;
+
+        const sourceId = parseInt(edge.source);
+        const targetId = parseInt(edge.target);
+        const isAncestorEdge = focusEnabled && selectionSets.ancestorIds.has(sourceId) && selectionSets.ancestorIds.has(targetId);
+        const isDescendantEdge = focusEnabled && selectionSets.descendantIds.has(sourceId) && selectionSets.descendantIds.has(targetId);
+
+        let stroke = newStroke;
+        let strokeOpacity: number | undefined = undefined;
+        const baseWidthRaw = edge.style?.strokeWidth ?? 2;
+        const baseWidth = typeof baseWidthRaw === 'number' ? baseWidthRaw : parseFloat(baseWidthRaw.toString()) || 2;
+        let strokeWidth = baseWidth;
+
+        if (focusEnabled) {
+          if (isAncestorEdge) {
+            stroke = '#2563eb';
+            strokeWidth = Math.max(baseWidth, 4);
+            strokeOpacity = 0.95;
+          } else if (isDescendantEdge) {
+            stroke = '#6366f1';
+            strokeWidth = Math.max(baseWidth, 3);
+            strokeOpacity = 0.7;
+          } else {
+            stroke = theme === 'dark' ? '#4b5563' : '#e5e7eb';
+            strokeOpacity = 0.15;
+          }
+        }
 
         // Only create new edge object if something changed
-        if (currentStroke === newStroke && currentAnimated === filters.animateEdges) {
+        if (
+          currentStroke === stroke &&
+          currentAnimated === filters.animateEdges &&
+          currentStrokeWidth === strokeWidth &&
+          currentStrokeOpacity === strokeOpacity
+        ) {
           return edge;
         }
 
@@ -555,12 +610,14 @@ function HierarchicalViewContent() {
           animated: filters.animateEdges,
           style: {
             ...edge.style,
-            stroke: newStroke,
+            stroke,
+            strokeWidth,
+            strokeOpacity,
           },
         };
       })
     );
-  }, [filteredNodeIds, filters.animateEdges, setEdges]);
+  }, [filteredNodeIds, filters.animateEdges, filters.focusSelection, selectedNodeId, selectionSets.ancestorIds, selectionSets.descendantIds, theme, setEdges]);
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {

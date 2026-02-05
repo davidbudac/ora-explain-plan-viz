@@ -1,6 +1,7 @@
 import { Handle, Position } from '@xyflow/react';
 import { getOperationCategory, COLOR_SCHEMES, getCostColor, formatNumber } from '../../lib/types';
 import type { PlanNode as PlanNodeType, NodeDisplayOptions, ColorScheme } from '../../lib/types';
+import { HighlightText } from '../HighlightText';
 
 export interface PlanNodeData extends Record<string, unknown> {
   label: string;
@@ -8,10 +9,15 @@ export interface PlanNodeData extends Record<string, unknown> {
   totalCost: number;
   isSelected: boolean;
   isFiltered: boolean;
+  isInFocusPath?: boolean;
+  isFocusDimmed?: boolean;
   displayOptions?: NodeDisplayOptions;
   hasActualStats?: boolean;
   colorScheme?: ColorScheme;
   filterKey?: string; // Used to force re-renders when filters change
+  searchText?: string;
+  width?: number;
+  height?: number;
 }
 
 interface PlanNodeProps {
@@ -19,7 +25,18 @@ interface PlanNodeProps {
 }
 
 function PlanNodeComponent({ data }: PlanNodeProps) {
-  const { node, totalCost, isSelected, isFiltered, displayOptions, hasActualStats, colorScheme = 'muted' } = data;
+  const {
+    node,
+    totalCost,
+    isSelected,
+    isFiltered,
+    isInFocusPath,
+    isFocusDimmed,
+    displayOptions,
+    hasActualStats,
+    colorScheme = 'muted',
+    searchText,
+  } = data;
   const category = getOperationCategory(node.operation);
   const schemeColors = COLOR_SCHEMES[colorScheme];
   const colors = schemeColors[category] || schemeColors['Other'];
@@ -45,14 +62,23 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   // Label for rows depends on whether we have actual stats
   const rowsLabel = hasActualStats ? 'E-Rows' : 'Rows';
 
+  let opacity = isFiltered ? 1 : 0.35;
+  if (isFocusDimmed) {
+    opacity = Math.min(opacity, 0.15);
+  }
+  if (isSelected) {
+    opacity = 1;
+  }
+
   return (
     <div
       className={`
         relative w-[260px] rounded-lg border-2 shadow-md transition-all duration-200
         ${colors.bg} ${colors.border}
         ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900 scale-105' : ''}
-        ${isFiltered ? 'opacity-100' : 'opacity-40'}
+        ${isInFocusPath ? 'ring-1 ring-blue-300/60' : ''}
       `}
+      style={{ opacity }}
     >
       <Handle type="target" position={Position.Top} className="!bg-gray-400 !w-3 !h-3" />
 
@@ -72,13 +98,13 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
         {/* Operation name */}
         <div className={`font-semibold text-sm leading-tight mb-1 ${colors.text}`}>
-          {node.operation}
+          <HighlightText text={node.operation} query={searchText} />
         </div>
 
         {/* Object name if present */}
         {options.showObjectName && node.objectName && (
           <div className="text-sm font-semibold font-mono text-slate-700 dark:text-slate-200 mb-2 truncate">
-            {node.objectName}
+            <HighlightText text={node.objectName} query={searchText} />
           </div>
         )}
 
@@ -158,13 +184,17 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             {node.accessPredicates && (
               <div className="text-xs">
                 <span className="text-green-700 dark:text-green-300 font-medium">A: </span>
-                <code className="text-gray-600 dark:text-gray-400 break-all">{node.accessPredicates}</code>
+                <code className="text-gray-600 dark:text-gray-400 break-all">
+                  <HighlightText text={node.accessPredicates} query={searchText} />
+                </code>
               </div>
             )}
             {node.filterPredicates && (
               <div className="text-xs">
                 <span className="text-amber-700 dark:text-amber-300 font-medium">F: </span>
-                <code className="text-gray-600 dark:text-gray-400 break-all">{node.filterPredicates}</code>
+                <code className="text-gray-600 dark:text-gray-400 break-all">
+                  <HighlightText text={node.filterPredicates} query={searchText} />
+                </code>
               </div>
             )}
           </div>

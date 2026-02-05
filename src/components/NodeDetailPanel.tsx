@@ -1,11 +1,28 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { getOperationCategory, COLOR_SCHEMES, getCostColor } from '../lib/types';
+import type { PlanNode as PlanNodeType } from '../lib/types';
+import { HighlightText } from './HighlightText';
 
 export function NodeDetailPanel() {
-  const { getSelectedNode, parsedPlan, selectNode, colorScheme } = usePlan();
+  const { getSelectedNode, parsedPlan, selectNode, colorScheme, filters } = usePlan();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const node = getSelectedNode();
+  const searchText = filters.searchText;
+
+  const ancestry = useMemo(() => {
+    if (!parsedPlan || !node) return [];
+    const nodeMap = new Map(parsedPlan.allNodes.map((n) => [n.id, n]));
+    const chain: PlanNodeType[] = [];
+    let current = node;
+    while (current.parentId !== undefined) {
+      const parent = nodeMap.get(current.parentId);
+      if (!parent) break;
+      chain.push(parent);
+      current = parent;
+    }
+    return chain.reverse();
+  }, [node, parsedPlan]);
 
   if (isCollapsed) {
     return (
@@ -79,7 +96,7 @@ export function NodeDetailPanel() {
                 {node.id}
               </span>
               <h3 className="font-semibold text-gray-900 dark:text-gray-100">
-                {node.operation}
+                <HighlightText text={node.operation} query={searchText} />
               </h3>
             </div>
           </div>
@@ -107,7 +124,22 @@ export function NodeDetailPanel() {
 
         {node.objectName && (
           <div className="mt-2 font-mono text-sm text-gray-600 dark:text-gray-400">
-            {node.objectName}
+            <HighlightText text={node.objectName} query={searchText} />
+          </div>
+        )}
+
+        {(node.queryBlock || node.objectAlias) && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {node.queryBlock && (
+              <span className="px-2 py-0.5 rounded text-xs font-medium bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
+                {node.queryBlock}
+              </span>
+            )}
+            {node.objectAlias && (
+              <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
+                {node.objectAlias}
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -169,7 +201,7 @@ export function NodeDetailPanel() {
                 </span>
               </div>
               <code className="block text-xs bg-gray-50 dark:bg-gray-900 p-2 rounded border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 font-mono whitespace-pre-wrap break-all">
-                {node.accessPredicates}
+                <HighlightText text={node.accessPredicates} query={searchText} />
               </code>
             </div>
           )}
@@ -182,10 +214,26 @@ export function NodeDetailPanel() {
                 </span>
               </div>
               <code className="block text-xs bg-gray-50 dark:bg-gray-900 p-2 rounded border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 font-mono whitespace-pre-wrap break-all">
-                {node.filterPredicates}
+                <HighlightText text={node.filterPredicates} query={searchText} />
               </code>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Memory & I/O */}
+      {(node.memoryUsed !== undefined ||
+        node.tempUsed !== undefined ||
+        node.physicalReads !== undefined ||
+        node.logicalReads !== undefined) && (
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Memory & I/O</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <StatItem label="Memory" value={formatBytes(node.memoryUsed)} />
+            <StatItem label="Temp Used" value={formatBytes(node.tempUsed)} />
+            <StatItem label="Phys Reads" value={formatNumber(node.physicalReads)} />
+            <StatItem label="Log Reads" value={formatNumber(node.logicalReads)} />
+          </div>
         </div>
       )}
 
@@ -198,6 +246,24 @@ export function NodeDetailPanel() {
           {node.parentId !== undefined && <div>Parent ID: {node.parentId}</div>}
         </div>
       </div>
+
+      {ancestry.length > 0 && (
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ancestry</h4>
+          <div className="flex flex-wrap gap-2">
+            {ancestry.map((ancestor) => (
+              <button
+                key={ancestor.id}
+                onClick={() => selectNode(ancestor.id)}
+                className="px-2 py-1 rounded text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                title={ancestor.operation}
+              >
+                {ancestor.id}: {ancestor.operation}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

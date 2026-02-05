@@ -1,9 +1,10 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
-import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, Theme, PredicateType, ColorScheme } from '../lib/types';
+import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, Theme, ColorScheme } from '../lib/types';
 import { parseExplainPlan } from '../lib/parser';
 import { loadSettings, saveSettings, extractFilterSettings, applySettingsToFilters } from '../lib/settings';
 import { SAMPLE_PLANS } from '../examples';
+import { matchesFilters } from '../lib/filtering';
 
 interface PlanState {
   rawInput: string;
@@ -44,6 +45,7 @@ const initialFilters: FilterState = {
   showPredicates: true,
   predicateTypes: [],
   animateEdges: false,
+  focusSelection: false,
   nodeDisplayOptions: {
     showRows: true,
     showCost: true,
@@ -238,6 +240,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     state.inputPanelCollapsed,
     state.filterPanelCollapsed,
     state.filters.animateEdges,
+    state.filters.focusSelection,
     state.filters.nodeDisplayOptions,
     state.filters.predicateTypes,
     state.filters.operationTypes,
@@ -336,64 +339,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const getFilteredNodes = useCallback((): PlanNode[] => {
     if (!state.parsedPlan) return [];
 
-    return state.parsedPlan.allNodes.filter((node) => {
-      const {
-        operationTypes, minCost, maxCost, searchText, predicateTypes,
-        minActualRows, maxActualRows, minActualTime, maxActualTime
-      } = state.filters;
-
-      // Filter by operation type
-      if (operationTypes.length > 0) {
-        const matches = operationTypes.some((type) =>
-          node.operation.toUpperCase().includes(type.toUpperCase())
-        );
-        if (!matches) return false;
-      }
-
-      // Filter by cost
-      const nodeCost = node.cost || 0;
-      if (nodeCost < minCost || nodeCost > maxCost) return false;
-
-      // Filter by actual rows (SQL Monitor)
-      if (state.parsedPlan?.hasActualStats && node.actualRows !== undefined) {
-        if (node.actualRows < minActualRows || node.actualRows > maxActualRows) return false;
-      }
-
-      // Filter by actual time (SQL Monitor)
-      if (state.parsedPlan?.hasActualStats && node.actualTime !== undefined) {
-        if (node.actualTime < minActualTime || node.actualTime > maxActualTime) return false;
-      }
-
-      // Filter by predicate type
-      if (predicateTypes.length > 0) {
-        const hasAccess = !!node.accessPredicates;
-        const hasFilter = !!node.filterPredicates;
-        const hasNone = !hasAccess && !hasFilter;
-
-        const matchesPredicate = predicateTypes.some((type: PredicateType) => {
-          if (type === 'access') return hasAccess;
-          if (type === 'filter') return hasFilter;
-          if (type === 'none') return hasNone;
-          return false;
-        });
-        if (!matchesPredicate) return false;
-      }
-
-      // Filter by search text
-      if (searchText) {
-        const searchLower = searchText.toLowerCase();
-        const matchesOperation = node.operation.toLowerCase().includes(searchLower);
-        const matchesObject = node.objectName?.toLowerCase().includes(searchLower);
-        const matchesPredicates =
-          node.accessPredicates?.toLowerCase().includes(searchLower) ||
-          node.filterPredicates?.toLowerCase().includes(searchLower);
-        if (!matchesOperation && !matchesObject && !matchesPredicates) {
-          return false;
-        }
-      }
-
-      return true;
-    });
+    const hasActualStats = state.parsedPlan?.hasActualStats ?? false;
+    return state.parsedPlan.allNodes.filter((node) => matchesFilters(node, state.filters, hasActualStats));
   }, [state.parsedPlan, state.filters]);
 
   const value: PlanContextValue = {
