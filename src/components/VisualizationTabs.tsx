@@ -2,6 +2,9 @@ import { usePlan } from '../hooks/usePlanContext';
 import type { ViewMode } from '../lib/types';
 import { HierarchicalView } from './views/HierarchicalView';
 import { SankeyView } from './views/SankeyView';
+import { FlameGraphD3Library } from './views/FlameGraphD3Library';
+import { FlameGraphCustomD3 } from './views/FlameGraphCustomD3';
+import { FlameGraphReact } from './views/FlameGraphReact';
 
 const tabs: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
   {
@@ -19,6 +22,36 @@ const tabs: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4v16" />
+      </svg>
+    ),
+  },
+  {
+    id: 'flamegraph-d3lib',
+    label: 'Flame (D3 Lib)',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'flamegraph-custom',
+    label: 'Flame (Custom)',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'flamegraph-react',
+    label: 'Flame (React)',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
       </svg>
     ),
   },
@@ -53,8 +86,8 @@ export function VisualizationTabs() {
           ))}
         </div>
 
-        {/* Sankey metric toggle */}
-        {viewMode === 'sankey' && (
+        {/* Metric toggle for Sankey and Flame Graph views */}
+        {(viewMode === 'sankey' || viewMode.startsWith('flamegraph')) && (
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600 dark:text-gray-400">Show by:</span>
             <div className="flex bg-gray-200 dark:bg-gray-700 rounded-md p-0.5">
@@ -123,6 +156,9 @@ export function VisualizationTabs() {
       <div className="flex-1 min-h-0 h-full">
         {viewMode === 'hierarchical' && <HierarchicalView />}
         {viewMode === 'sankey' && <SankeyView />}
+        {viewMode === 'flamegraph-d3lib' && <FlameGraphD3Library />}
+        {viewMode === 'flamegraph-custom' && <FlameGraphCustomD3 />}
+        {viewMode === 'flamegraph-react' && <FlameGraphReact />}
       </div>
     </div>
   );

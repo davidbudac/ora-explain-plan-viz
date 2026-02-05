@@ -84,7 +84,7 @@ export interface FilterState {
   maxActualTime: number;
 }
 
-export type ViewMode = 'hierarchical' | 'sankey';
+export type ViewMode = 'hierarchical' | 'sankey' | 'flamegraph-d3lib' | 'flamegraph-custom' | 'flamegraph-react';
 export type SankeyMetric = 'rows' | 'cost' | 'actualRows' | 'actualTime';
 export type Theme = 'light' | 'dark';
 
