@@ -1,5 +1,5 @@
 import { usePlan } from '../hooks/usePlanContext';
-import type { ViewMode } from '../lib/types';
+import type { ViewMode, NodeIndicatorMetric } from '../lib/types';
 import { HierarchicalView } from './views/HierarchicalView';
 import { SankeyView } from './views/SankeyView';
 
@@ -24,8 +24,34 @@ const tabs: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
   },
 ];
 
+function IndicatorButton({
+  metric,
+  label,
+  current,
+  onClick,
+  activeClass = 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm',
+}: {
+  metric: NodeIndicatorMetric;
+  label: string;
+  current: NodeIndicatorMetric;
+  onClick: (m: NodeIndicatorMetric) => void;
+  activeClass?: string;
+}) {
+  return (
+    <button
+      onClick={() => onClick(metric)}
+      className={`
+        px-3 py-1 text-sm rounded transition-colors
+        ${current === metric ? activeClass : 'text-gray-600 dark:text-gray-400'}
+      `}
+    >
+      {label}
+    </button>
+  );
+}
+
 export function VisualizationTabs() {
-  const { viewMode, setViewMode, sankeyMetric, setSankeyMetric, parsedPlan } = usePlan();
+  const { viewMode, setViewMode, sankeyMetric, setSankeyMetric, nodeIndicatorMetric, setNodeIndicatorMetric, parsedPlan } = usePlan();
 
   if (!parsedPlan) return null;
 
@@ -52,6 +78,53 @@ export function VisualizationTabs() {
             </button>
           ))}
         </div>
+
+        {/* Hierarchical indicator metric toggle */}
+        {viewMode === 'hierarchical' && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600 dark:text-gray-400">Indicator:</span>
+            <div className="flex bg-gray-200 dark:bg-gray-700 rounded-md p-0.5">
+              <IndicatorButton
+                metric="cost"
+                label="Cost"
+                current={nodeIndicatorMetric}
+                onClick={setNodeIndicatorMetric}
+              />
+              {parsedPlan.hasActualStats && (
+                <>
+                  <IndicatorButton
+                    metric="actualRows"
+                    label="A-Rows"
+                    current={nodeIndicatorMetric}
+                    onClick={setNodeIndicatorMetric}
+                    activeClass="bg-blue-500 text-white shadow-sm"
+                  />
+                  <IndicatorButton
+                    metric="actualTime"
+                    label="A-Time"
+                    current={nodeIndicatorMetric}
+                    onClick={setNodeIndicatorMetric}
+                    activeClass="bg-purple-500 text-white shadow-sm"
+                  />
+                  <IndicatorButton
+                    metric="starts"
+                    label="Starts"
+                    current={nodeIndicatorMetric}
+                    onClick={setNodeIndicatorMetric}
+                    activeClass="bg-orange-500 text-white shadow-sm"
+                  />
+                  <IndicatorButton
+                    metric="activityPercent"
+                    label="Activity %"
+                    current={nodeIndicatorMetric}
+                    onClick={setNodeIndicatorMetric}
+                    activeClass="bg-rose-500 text-white shadow-sm"
+                  />
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Sankey metric toggle */}
         {viewMode === 'sankey' && (

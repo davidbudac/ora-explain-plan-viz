@@ -1,4 +1,4 @@
-import type { FilterState, ViewMode, SankeyMetric, NodeDisplayOptions, ColorScheme } from './types';
+import type { FilterState, ViewMode, SankeyMetric, NodeIndicatorMetric, NodeDisplayOptions, ColorScheme } from './types';
 
 const SETTINGS_KEY = 'ora-explain-viz-settings';
 const SETTINGS_VERSION = 1;
@@ -14,6 +14,7 @@ export interface UserSettings {
   // View settings
   viewMode: ViewMode;
   sankeyMetric: SankeyMetric;
+  nodeIndicatorMetric: NodeIndicatorMetric;
   colorScheme: ColorScheme;
 
   // UI panel states
@@ -51,6 +52,7 @@ const defaultSettings: UserSettings = {
   version: SETTINGS_VERSION,
   viewMode: 'hierarchical',
   sankeyMetric: 'rows',
+  nodeIndicatorMetric: 'cost',
   colorScheme: 'muted',
   legendVisible: false,
   inputPanelCollapsed: false,

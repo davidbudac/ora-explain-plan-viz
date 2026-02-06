@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
-import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, Theme, ColorScheme } from '../lib/types';
+import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, NodeIndicatorMetric, Theme, ColorScheme } from '../lib/types';
 import { parseExplainPlan } from '../lib/parser';
 import { loadSettings, saveSettings, extractFilterSettings, applySettingsToFilters } from '../lib/settings';
 import { SAMPLE_PLANS } from '../examples';
@@ -12,6 +12,7 @@ interface PlanState {
   selectedNodeId: number | null;
   viewMode: ViewMode;
   sankeyMetric: SankeyMetric;
+  nodeIndicatorMetric: NodeIndicatorMetric;
   colorScheme: ColorScheme;
   theme: Theme;
   filters: FilterState;
@@ -28,6 +29,7 @@ type PlanAction =
   | { type: 'SELECT_NODE'; payload: number | null }
   | { type: 'SET_VIEW_MODE'; payload: ViewMode }
   | { type: 'SET_SANKEY_METRIC'; payload: SankeyMetric }
+  | { type: 'SET_NODE_INDICATOR_METRIC'; payload: NodeIndicatorMetric }
   | { type: 'SET_COLOR_SCHEME'; payload: ColorScheme }
   | { type: 'SET_THEME'; payload: Theme }
   | { type: 'SET_FILTERS'; payload: Partial<FilterState> }
@@ -82,6 +84,7 @@ const getInitialState = (): PlanState => {
     selectedNodeId: null,
     viewMode: settings.viewMode,
     sankeyMetric: settings.sankeyMetric,
+    nodeIndicatorMetric: settings.nodeIndicatorMetric,
     colorScheme: settings.colorScheme,
     theme: getInitialTheme(),
     filters: applySettingsToFilters(initialFilters, settings),
@@ -97,13 +100,18 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
     case 'SET_INPUT':
       return { ...state, rawInput: action.payload, error: null };
 
-    case 'SET_PARSED_PLAN':
+    case 'SET_PARSED_PLAN': {
+      const newMetric = !action.payload.hasActualStats && state.nodeIndicatorMetric !== 'cost'
+        ? 'cost' as NodeIndicatorMetric
+        : state.nodeIndicatorMetric;
       return {
         ...state,
         parsedPlan: action.payload,
         error: null,
         selectedNodeId: null,
+        nodeIndicatorMetric: newMetric,
       };
+    }
 
     case 'SELECT_NODE':
       return { ...state, selectedNodeId: action.payload };
@@ -113,6 +121,9 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
 
     case 'SET_SANKEY_METRIC':
       return { ...state, sankeyMetric: action.payload };
+
+    case 'SET_NODE_INDICATOR_METRIC':
+      return { ...state, nodeIndicatorMetric: action.payload };
 
     case 'SET_COLOR_SCHEME':
       return { ...state, colorScheme: action.payload };
@@ -160,6 +171,7 @@ interface PlanContextValue extends PlanState {
   selectNode: (id: number | null) => void;
   setViewMode: (mode: ViewMode) => void;
   setSankeyMetric: (metric: SankeyMetric) => void;
+  setNodeIndicatorMetric: (metric: NodeIndicatorMetric) => void;
   setColorScheme: (scheme: ColorScheme) => void;
   setTheme: (theme: Theme) => void;
   setFilters: (filters: Partial<FilterState>) => void;
@@ -219,6 +231,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       saveSettings({
         viewMode: state.viewMode,
         sankeyMetric: state.sankeyMetric,
+        nodeIndicatorMetric: state.nodeIndicatorMetric,
         colorScheme: state.colorScheme,
         legendVisible: state.legendVisible,
         inputPanelCollapsed: state.inputPanelCollapsed,
@@ -235,6 +248,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   }, [
     state.viewMode,
     state.sankeyMetric,
+    state.nodeIndicatorMetric,
     state.colorScheme,
     state.legendVisible,
     state.inputPanelCollapsed,
@@ -301,6 +315,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_SANKEY_METRIC', payload: metric });
   }, []);
 
+  const setNodeIndicatorMetric = useCallback((metric: NodeIndicatorMetric) => {
+    dispatch({ type: 'SET_NODE_INDICATOR_METRIC', payload: metric });
+  }, []);
+
   const setColorScheme = useCallback((scheme: ColorScheme) => {
     dispatch({ type: 'SET_COLOR_SCHEME', payload: scheme });
   }, []);
@@ -351,6 +369,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     selectNode,
     setViewMode,
     setSankeyMetric,
+    setNodeIndicatorMetric,
     setColorScheme,
     setTheme,
     setFilters,

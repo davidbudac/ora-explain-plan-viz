@@ -1,6 +1,6 @@
 import { Handle, Position } from '@xyflow/react';
-import { getOperationCategory, COLOR_SCHEMES, getCostColor, formatNumber } from '../../lib/types';
-import type { PlanNode as PlanNodeType, NodeDisplayOptions, ColorScheme } from '../../lib/types';
+import { getOperationCategory, COLOR_SCHEMES, getMetricColor, formatNumber } from '../../lib/types';
+import type { PlanNode as PlanNodeType, NodeDisplayOptions, ColorScheme, NodeIndicatorMetric } from '../../lib/types';
 import { HighlightText } from '../HighlightText';
 
 export interface PlanNodeData extends Record<string, unknown> {
@@ -14,6 +14,10 @@ export interface PlanNodeData extends Record<string, unknown> {
   displayOptions?: NodeDisplayOptions;
   hasActualStats?: boolean;
   colorScheme?: ColorScheme;
+  nodeIndicatorMetric?: NodeIndicatorMetric;
+  maxActualRows?: number;
+  maxStarts?: number;
+  totalElapsedTime?: number;
   filterKey?: string; // Used to force re-renders when filters change
   searchText?: string;
   width?: number;
@@ -35,13 +39,17 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     displayOptions,
     hasActualStats,
     colorScheme = 'muted',
+    nodeIndicatorMetric = 'cost',
+    maxActualRows,
+    maxStarts,
+    totalElapsedTime,
     searchText,
   } = data;
   const category = getOperationCategory(node.operation);
   const schemeColors = COLOR_SCHEMES[colorScheme];
   const colors = schemeColors[category] || schemeColors['Other'];
-  const costColor = getCostColor(node.cost || 0, totalCost);
 
+  const indicator = computeIndicatorMetric(node, nodeIndicatorMetric, totalCost, maxActualRows, maxStarts, totalElapsedTime);
   const costPercentage = totalCost > 0 ? ((node.cost || 0) / totalCost * 100).toFixed(1) : '0';
 
   // Default display options if not provided
@@ -82,11 +90,14 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     >
       <Handle type="target" position={Position.Top} className="!bg-gray-400 !w-3 !h-3" />
 
-      {/* Cost indicator bar */}
-      <div className="absolute top-0 left-0 right-0 h-1 rounded-t-md overflow-hidden bg-gray-200 dark:bg-gray-700">
+      {/* Metric indicator bar */}
+      <div
+        className="absolute top-0 left-0 right-0 h-1 rounded-t-md overflow-hidden bg-gray-200 dark:bg-gray-700"
+        title={`${indicator.label}: ${indicator.formattedValue} (${(indicator.ratio * 100).toFixed(1)}%)`}
+      >
         <div
-          className={`h-full ${costColor} transition-all`}
-          style={{ width: `${Math.min(100, parseFloat(costPercentage))}%` }}
+          className={`h-full ${indicator.color} transition-all`}
+          style={{ width: `${Math.min(100, indicator.ratio * 100)}%` }}
         />
       </div>
 
@@ -204,6 +215,61 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
       <Handle type="source" position={Position.Bottom} className="!bg-gray-400 !w-3 !h-3" />
     </div>
   );
+}
+
+interface IndicatorResult {
+  ratio: number;
+  label: string;
+  formattedValue: string;
+  color: string;
+}
+
+function computeIndicatorMetric(
+  node: PlanNodeType,
+  metric: NodeIndicatorMetric,
+  totalCost: number,
+  maxActualRows?: number,
+  maxStarts?: number,
+  totalElapsedTime?: number,
+): IndicatorResult {
+  let ratio = 0;
+  let label = '';
+  let formattedValue = '';
+
+  switch (metric) {
+    case 'cost':
+      ratio = totalCost > 0 ? (node.cost || 0) / totalCost : 0;
+      label = 'Cost';
+      formattedValue = `${node.cost || 0}`;
+      break;
+    case 'actualRows':
+      ratio = maxActualRows && maxActualRows > 0 ? (node.actualRows || 0) / maxActualRows : 0;
+      label = 'A-Rows';
+      formattedValue = formatNumber(node.actualRows || 0);
+      break;
+    case 'actualTime':
+      ratio = totalElapsedTime && totalElapsedTime > 0 ? (node.actualTime || 0) / totalElapsedTime : 0;
+      label = 'A-Time';
+      formattedValue = formatTime(node.actualTime || 0);
+      break;
+    case 'starts':
+      ratio = maxStarts && maxStarts > 0 ? (node.starts || 0) / maxStarts : 0;
+      label = 'Starts';
+      formattedValue = formatNumber(node.starts || 0);
+      break;
+    case 'activityPercent':
+      ratio = (node.activityPercent || 0) / 100;
+      label = 'Activity %';
+      formattedValue = `${(node.activityPercent || 0).toFixed(1)}%`;
+      break;
+  }
+
+  return {
+    ratio: Math.min(1, ratio),
+    label,
+    formattedValue,
+    color: ratio === 0 ? 'bg-gray-200 dark:bg-gray-700' : getMetricColor(ratio),
+  };
 }
 
 function formatTime(ms: number): string {
