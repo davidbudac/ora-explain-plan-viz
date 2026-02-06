@@ -275,7 +275,7 @@ function fallbackDagreLayout(
 }
 
 function HierarchicalViewContent() {
-  const { parsedPlan, selectedNodeId, selectNode, theme, filters, colorScheme } = usePlan();
+  const { parsedPlan, selectedNodeId, selectNode, theme, filters, colorScheme, nodeIndicatorMetric } = usePlan();
   const containerRef = useRef<HTMLDivElement>(null);
   const { fitView, setNodes: rfSetNodes } = useReactFlow();
 
@@ -375,6 +375,10 @@ function HierarchicalViewContent() {
           displayOptions: filters.nodeDisplayOptions,
           hasActualStats: parsedPlan!.hasActualStats,
           colorScheme,
+          nodeIndicatorMetric,
+          maxActualRows: parsedPlan!.maxActualRows,
+          maxStarts: parsedPlan!.maxStarts,
+          totalElapsedTime: parsedPlan!.totalElapsedTime,
           width: NODE_WIDTH,
           height,
         },
@@ -500,7 +504,7 @@ function HierarchicalViewContent() {
       nodes: [...groupNodes, ...layoutedResult.nodes],
       edges: edgesWithThickness,
     };
-  }, [parsedPlan, filteredNodeIds, filters.animateEdges, filters.nodeDisplayOptions, theme, colorScheme]);
+  }, [parsedPlan, filteredNodeIds, filters.animateEdges, filters.nodeDisplayOptions, theme, colorScheme, nodeIndicatorMetric]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutData.edges);
@@ -538,6 +542,10 @@ function HierarchicalViewContent() {
             displayOptions: filters.nodeDisplayOptions,
             hasActualStats: parsedPlan?.hasActualStats,
             colorScheme,
+            nodeIndicatorMetric,
+            maxActualRows: parsedPlan?.maxActualRows,
+            maxStarts: parsedPlan?.maxStarts,
+            totalElapsedTime: parsedPlan?.totalElapsedTime,
             searchText,
             filterKey, // Include filterKey to force React Flow to detect changes
           },
@@ -551,6 +559,10 @@ function HierarchicalViewContent() {
     filters.focusSelection,
     parsedPlan?.hasActualStats,
     colorScheme,
+    nodeIndicatorMetric,
+    parsedPlan?.maxActualRows,
+    parsedPlan?.maxStarts,
+    parsedPlan?.totalElapsedTime,
     rfSetNodes,
     filterKey,
     selectionSets.ancestorIds,

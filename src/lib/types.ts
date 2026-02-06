@@ -33,6 +33,7 @@ export interface PlanNode {
 }
 
 export type PlanSource = 'dbms_xplan' | 'sql_monitor_text' | 'sql_monitor_xml';
+export type NodeIndicatorMetric = 'cost' | 'actualRows' | 'actualTime' | 'starts' | 'activityPercent';
 
 export interface ParsedPlan {
   planHashValue?: string;
@@ -40,6 +41,8 @@ export interface ParsedPlan {
   allNodes: PlanNode[];
   totalCost: number;
   maxRows: number;
+  maxActualRows?: number;
+  maxStarts?: number;
 
   // Source metadata
   source: PlanSource;
@@ -302,6 +305,13 @@ export const CATEGORY_COLORS = COLORS_VIBRANT;
 export function getCostColor(cost: number, totalCost: number): string {
   if (totalCost === 0) return 'bg-gray-200 dark:bg-gray-700';
   const ratio = cost / totalCost;
+  if (ratio >= 0.5) return 'bg-red-500';
+  if (ratio >= 0.25) return 'bg-orange-500';
+  if (ratio >= 0.1) return 'bg-yellow-500';
+  return 'bg-green-500';
+}
+
+export function getMetricColor(ratio: number): string {
   if (ratio >= 0.5) return 'bg-red-500';
   if (ratio >= 0.25) return 'bg-orange-500';
   if (ratio >= 0.1) return 'bg-yellow-500';

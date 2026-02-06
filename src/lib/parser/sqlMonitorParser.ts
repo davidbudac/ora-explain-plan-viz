@@ -47,11 +47,12 @@ export const sqlMonitorTextParser: PlanParser = {
     // Calculate totals
     const totalCost = allNodes.reduce((sum, node) => sum + (node.cost || 0), 0);
     const maxRows = Math.max(...allNodes.map(node => node.rows || 0));
-    const maxActualRows = Math.max(...allNodes.map(node => node.actualRows || 0));
+    const maxActualRows = Math.max(...allNodes.map(node => node.actualRows || 0), 0);
+    const maxStarts = Math.max(...allNodes.map(node => node.starts || 0), 0);
     const hasActualStats = allNodes.some(node => node.actualRows !== undefined);
 
-    // Calculate total elapsed time from actual times
-    const totalElapsedTime = allNodes.reduce((sum, node) => sum + (node.actualTime || 0), 0);
+    // A-Time is cumulative: root node's actualTime is the total elapsed time
+    const totalElapsedTime = rootNode?.actualTime || 0;
 
     return {
       planHashValue,
@@ -60,6 +61,8 @@ export const sqlMonitorTextParser: PlanParser = {
       allNodes,
       totalCost,
       maxRows: hasActualStats ? maxActualRows : maxRows,
+      maxActualRows: hasActualStats ? maxActualRows : undefined,
+      maxStarts: hasActualStats ? maxStarts : undefined,
       source: 'sql_monitor_text',
       hasActualStats,
       totalElapsedTime,
@@ -133,8 +136,11 @@ export const sqlMonitorXmlParser: PlanParser = {
     // Calculate totals
     const totalCost = allNodes.reduce((sum, node) => sum + (node.cost || 0), 0);
     const maxRows = Math.max(...allNodes.map(node => node.actualRows || node.rows || 0), 0);
+    const maxActualRows = Math.max(...allNodes.map(node => node.actualRows || 0), 0);
+    const maxStarts = Math.max(...allNodes.map(node => node.starts || 0), 0);
     const hasActualStats = allNodes.some(node => node.actualRows !== undefined);
-    const totalElapsedTime = allNodes.reduce((sum, node) => sum + (node.actualTime || 0), 0);
+    // A-Time is cumulative: root node's actualTime is the total elapsed time
+    const totalElapsedTime = rootNode?.actualTime || 0;
 
     return {
       planHashValue,
@@ -144,6 +150,8 @@ export const sqlMonitorXmlParser: PlanParser = {
       allNodes,
       totalCost,
       maxRows,
+      maxActualRows: hasActualStats ? maxActualRows : undefined,
+      maxStarts: hasActualStats ? maxStarts : undefined,
       source: 'sql_monitor_xml',
       hasActualStats,
       totalElapsedTime,
