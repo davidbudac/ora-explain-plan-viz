@@ -16,9 +16,8 @@ import '@xyflow/react/dist/style.css';
 import { usePlan } from '../../hooks/usePlanContext';
 import { PlanNodeMemo } from '../nodes/PlanNode';
 import { CollapsibleMiniMap } from '../CollapsibleMiniMap';
-import { formatNumber } from '../../lib/types';
+import { formatNumberShort } from '../../lib/format';
 import type { PlanNode, NodeDisplayOptions } from '../../lib/types';
-import { matchesFilters } from '../../lib/filtering';
 
 // Query block group component
 interface QueryBlockGroupData extends Record<string, unknown> {
@@ -275,7 +274,7 @@ function fallbackDagreLayout(
 }
 
 function HierarchicalViewContent() {
-  const { parsedPlan, selectedNodeId, selectNode, theme, filters, colorScheme, nodeIndicatorMetric } = usePlan();
+  const { parsedPlan, selectedNodeId, selectNode, theme, filters, colorScheme, nodeIndicatorMetric, filteredNodeIds, nodeById } = usePlan();
   const containerRef = useRef<HTMLDivElement>(null);
   const { fitView, setNodes: rfSetNodes } = useReactFlow();
 
@@ -286,32 +285,22 @@ function HierarchicalViewContent() {
   } = filters;
 
   // Create a filter key that changes when any filter value changes
-  const filterKey = useMemo(() =>
-    JSON.stringify({ operationTypes, minCost, maxCost, searchText, predicateTypes, minActualRows, maxActualRows, minActualTime, maxActualTime }),
-    [operationTypes, minCost, maxCost, searchText, predicateTypes, minActualRows, maxActualRows, minActualTime, maxActualTime]
-  );
-
-  // Compute filtered node IDs with explicit primitive dependencies
-  const filteredNodeIds = useMemo(() => {
-    if (!parsedPlan) return new Set<number>();
-    const filtered = parsedPlan.allNodes.filter((node) =>
-      matchesFilters(node, filters, parsedPlan.hasActualStats)
-    );
-
-    return new Set(filtered.map((n) => n.id));
-  }, [
-    parsedPlan,
-    filters,
-    operationTypes,
-    minCost,
-    maxCost,
-    searchText,
-    predicateTypes,
-    minActualRows,
-    maxActualRows,
-    minActualTime,
-    maxActualTime,
-  ]);
+  const filterKey = useMemo(() => {
+    const maxCostKey = maxCost === Infinity ? 'inf' : maxCost;
+    const maxActualRowsKey = maxActualRows === Infinity ? 'inf' : maxActualRows;
+    const maxActualTimeKey = maxActualTime === Infinity ? 'inf' : maxActualTime;
+    return [
+      operationTypes.join('|'),
+      minCost,
+      maxCostKey,
+      searchText,
+      predicateTypes.join('|'),
+      minActualRows,
+      maxActualRowsKey,
+      minActualTime,
+      maxActualTimeKey,
+    ].join('::');
+  }, [operationTypes, minCost, maxCost, searchText, predicateTypes, minActualRows, maxActualRows, minActualTime, maxActualTime]);
 
   const selectionSets = useMemo(() => {
     const empty = {
@@ -321,9 +310,7 @@ function HierarchicalViewContent() {
 
     if (!parsedPlan || selectedNodeId === null) return empty;
 
-    const nodeMap = new Map<number, PlanNode>();
-    parsedPlan.allNodes.forEach((node) => nodeMap.set(node.id, node));
-    const selected = nodeMap.get(selectedNodeId);
+    const selected = nodeById.get(selectedNodeId);
     if (!selected) return empty;
 
     const ancestorIds = new Set<number>();
@@ -331,7 +318,7 @@ function HierarchicalViewContent() {
     ancestorIds.add(current.id);
 
     while (current?.parentId !== undefined) {
-      const parent = nodeMap.get(current.parentId);
+      const parent = nodeById.get(current.parentId);
       if (!parent) break;
       ancestorIds.add(parent.id);
       current = parent;
@@ -345,7 +332,7 @@ function HierarchicalViewContent() {
     addDescendants(selected);
 
     return { ancestorIds, descendantIds };
-  }, [parsedPlan, selectedNodeId]);
+  }, [parsedPlan, selectedNodeId, nodeById]);
 
   const layoutData = useMemo(() => {
     if (!parsedPlan?.rootNode) {
@@ -371,14 +358,9 @@ function HierarchicalViewContent() {
           node,
           totalCost: parsedPlan!.totalCost,
           isSelected: false, // Updated by useEffect when selectedNodeId changes
-          isFiltered: filteredNodeIds.has(node.id),
+          isFiltered: false,
           displayOptions: filters.nodeDisplayOptions,
           hasActualStats: parsedPlan!.hasActualStats,
-          colorScheme,
-          nodeIndicatorMetric,
-          maxActualRows: parsedPlan!.maxActualRows,
-          maxStarts: parsedPlan!.maxStarts,
-          totalElapsedTime: parsedPlan!.totalElapsedTime,
           width: NODE_WIDTH,
           height,
         },
@@ -404,10 +386,10 @@ function HierarchicalViewContent() {
           id: `e${node.id}-${child.id}`,
           source: node.id.toString(),
           target: child.id.toString(),
-          animated: filters.animateEdges,
+          animated: false,
           data: { rowFlow },
           style: {
-            stroke: filteredNodeIds.has(child.id) ? '#6366f1' : '#d1d5db',
+            stroke: '#d1d5db',
             strokeWidth: 2,
           },
         });
@@ -437,13 +419,12 @@ function HierarchicalViewContent() {
       const normalizedFlow = rowFlowRange > 0 ? (rowFlow - minRowFlow) / rowFlowRange : 0.5;
       const strokeWidth = MIN_STROKE_WIDTH + normalizedFlow * (MAX_STROKE_WIDTH - MIN_STROKE_WIDTH);
       // Format row flow in human-readable format (e.g., 1.2M, 3.5K)
-      const formattedRowFlow = formatNumber(rowFlow);
-      const isDark = theme === 'dark';
+      const formattedRowFlow = formatNumberShort(rowFlow) ?? rowFlow.toString();
       return {
         ...edge,
         label: formattedRowFlow,
-        labelStyle: { fill: isDark ? '#9ca3af' : '#6b7280', fontSize: 10, fontWeight: 500 },
-        labelBgStyle: { fill: isDark ? '#1f2937' : 'white', fillOpacity: 0.9 },
+        labelStyle: { fill: '#6b7280', fontSize: 10, fontWeight: 500 },
+        labelBgStyle: { fill: 'white', fillOpacity: 0.9 },
         labelBgPadding: [4, 2] as [number, number],
         labelBgBorderRadius: 4,
         style: {
@@ -504,7 +485,7 @@ function HierarchicalViewContent() {
       nodes: [...groupNodes, ...layoutedResult.nodes],
       edges: edgesWithThickness,
     };
-  }, [parsedPlan, filteredNodeIds, filters.animateEdges, filters.nodeDisplayOptions, theme, colorScheme, nodeIndicatorMetric]);
+  }, [parsedPlan, filters.nodeDisplayOptions]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutData.edges);
@@ -579,6 +560,8 @@ function HierarchicalViewContent() {
         const currentAnimated = edge.animated;
         const currentStrokeWidth = edge.style?.strokeWidth;
         const currentStrokeOpacity = edge.style?.strokeOpacity;
+        const currentLabelStyle = edge.labelStyle as { fill?: string; fontSize?: number; fontWeight?: number } | undefined;
+        const currentLabelBgStyle = edge.labelBgStyle as { fill?: string; fillOpacity?: number } | undefined;
         const focusEnabled = filters.focusSelection && selectedNodeId !== null;
 
         const sourceId = parseInt(edge.source);
@@ -607,12 +590,22 @@ function HierarchicalViewContent() {
           }
         }
 
+        const labelFill = theme === 'dark' ? '#9ca3af' : '#6b7280';
+        const labelBgFill = theme === 'dark' ? '#1f2937' : 'white';
+        const labelStyle = { fill: labelFill, fontSize: 10, fontWeight: 500 };
+        const labelBgStyle = { fill: labelBgFill, fillOpacity: 0.9 };
+
         // Only create new edge object if something changed
         if (
           currentStroke === stroke &&
           currentAnimated === filters.animateEdges &&
           currentStrokeWidth === strokeWidth &&
-          currentStrokeOpacity === strokeOpacity
+          currentStrokeOpacity === strokeOpacity &&
+          currentLabelStyle?.fill === labelStyle.fill &&
+          currentLabelStyle?.fontSize === labelStyle.fontSize &&
+          currentLabelStyle?.fontWeight === labelStyle.fontWeight &&
+          currentLabelBgStyle?.fill === labelBgStyle.fill &&
+          currentLabelBgStyle?.fillOpacity === labelBgStyle.fillOpacity
         ) {
           return edge;
         }
@@ -620,6 +613,8 @@ function HierarchicalViewContent() {
         return {
           ...edge,
           animated: filters.animateEdges,
+          labelStyle,
+          labelBgStyle,
           style: {
             ...edge.style,
             stroke,
@@ -678,6 +673,7 @@ function HierarchicalViewContent() {
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.1}
         maxZoom={2}
+        onlyRenderVisibleElements
       >
         <Background
           variant={BackgroundVariant.Dots}

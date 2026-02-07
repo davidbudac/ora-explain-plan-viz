@@ -3,9 +3,10 @@ import { usePlan } from '../hooks/usePlanContext';
 import { OPERATION_CATEGORIES, getOperationCategory } from '../lib/types';
 import type { PredicateType } from '../lib/types';
 import { matchesSearch } from '../lib/filtering';
+import { formatNumberShort, formatTimeCompact } from '../lib/format';
 
 export function FilterPanel() {
-  const { parsedPlan, filters, setFilters, getFilteredNodes, selectNode, filterPanelCollapsed: isCollapsed, setFilterPanelCollapsed: setIsCollapsed } = usePlan();
+  const { parsedPlan, filters, setFilters, filteredNodes, selectNode, filterPanelCollapsed: isCollapsed, setFilterPanelCollapsed: setIsCollapsed } = usePlan();
   const [activeMatchIndex, setActiveMatchIndex] = useState(0);
 
   const operationStats = useMemo(() => {
@@ -48,7 +49,7 @@ export function FilterPanel() {
     return Math.max(...parsedPlan.allNodes.map((n) => n.actualTime || 0), 0);
   }, [parsedPlan]);
 
-  const filteredCount = getFilteredNodes().length;
+  const filteredCount = filteredNodes.length;
   const totalCount = parsedPlan?.allNodes.length || 0;
 
   const searchMatches = useMemo(() => {
@@ -395,7 +396,7 @@ export function FilterPanel() {
       {parsedPlan?.hasActualStats && maxActualRows > 0 && (
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Minimum A-Rows: {formatNumber(filters.minActualRows)}
+            Minimum A-Rows: {formatNumberShort(filters.minActualRows, { infinity: '∞' })}
           </label>
           <input
             type="range"
@@ -407,7 +408,7 @@ export function FilterPanel() {
           />
           <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
             <span>0</span>
-            <span>{formatNumber(maxActualRows)}</span>
+            <span>{formatNumberShort(maxActualRows, { infinity: '∞' })}</span>
           </div>
         </div>
       )}
@@ -416,7 +417,7 @@ export function FilterPanel() {
       {parsedPlan?.hasActualStats && maxActualTime > 0 && (
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Minimum A-Time: {formatTime(filters.minActualTime)}
+            Minimum A-Time: {formatTimeCompact(filters.minActualTime, { infinity: '∞' })}
           </label>
           <input
             type="range"
@@ -428,7 +429,7 @@ export function FilterPanel() {
           />
           <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
             <span>0</span>
-            <span>{formatTime(maxActualTime)}</span>
+            <span>{formatTimeCompact(maxActualTime, { infinity: '∞' })}</span>
           </div>
         </div>
       )}
@@ -506,28 +507,4 @@ export function FilterPanel() {
       </div>
     </div>
   );
-}
-
-function formatNumber(num: number): string {
-  if (num === Infinity) return '∞';
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M';
-  }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K';
-  }
-  return num.toString();
-}
-
-function formatTime(ms: number): string {
-  if (ms === Infinity) return '∞';
-  if (ms >= 60000) {
-    const mins = Math.floor(ms / 60000);
-    const secs = ((ms % 60000) / 1000).toFixed(1);
-    return `${mins}m ${secs}s`;
-  }
-  if (ms >= 1000) {
-    return (ms / 1000).toFixed(2) + 's';
-  }
-  return ms.toFixed(0) + 'ms';
 }

@@ -1,5 +1,6 @@
 import { Handle, Position } from '@xyflow/react';
-import { getOperationCategory, COLOR_SCHEMES, getMetricColor, formatNumber } from '../../lib/types';
+import { getOperationCategory, COLOR_SCHEMES, getMetricColor } from '../../lib/types';
+import { formatNumberShort, formatBytes, formatTimeCompact } from '../../lib/format';
 import type { PlanNode as PlanNodeType, NodeDisplayOptions, ColorScheme, NodeIndicatorMetric } from '../../lib/types';
 import { HighlightText } from '../HighlightText';
 
@@ -48,6 +49,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   const category = getOperationCategory(node.operation);
   const schemeColors = COLOR_SCHEMES[colorScheme];
   const colors = schemeColors[category] || schemeColors['Other'];
+  const borderClass = colorScheme === 'professional' ? '' : 'border-2';
 
   const indicator = computeIndicatorMetric(node, nodeIndicatorMetric, totalCost, maxActualRows, maxStarts, totalElapsedTime);
   const costPercentage = totalCost > 0 ? ((node.cost || 0) / totalCost * 100).toFixed(1) : '0';
@@ -81,7 +83,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   return (
     <div
       className={`
-        relative w-[260px] rounded-lg border-2 shadow-md transition-all duration-200
+        relative w-[260px] rounded-lg ${borderClass} shadow-md transition-all duration-200
         ${colors.bg} ${colors.border}
         ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900 scale-105' : ''}
         ${isInFocusPath ? 'ring-1 ring-blue-300/60' : ''}
@@ -137,7 +139,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         <div className="flex flex-wrap gap-2 text-xs">
           {options.showRows && node.rows !== undefined && (
             <span className="px-1.5 py-0.5 bg-white/50 dark:bg-black/20 rounded text-gray-700 dark:text-gray-300">
-              {rowsLabel}: {formatNumber(node.rows)}
+              {rowsLabel}: {formatNumberShort(node.rows)}
             </span>
           )}
           {options.showCost && node.cost !== undefined && (
@@ -157,17 +159,17 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           <div className="flex flex-wrap gap-2 text-xs mt-1">
             {options.showActualRows && node.actualRows !== undefined && (
               <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/40 rounded text-blue-700 dark:text-blue-300 font-medium">
-                A-Rows: {formatNumber(node.actualRows)}
+                A-Rows: {formatNumberShort(node.actualRows)}
               </span>
             )}
             {options.showActualTime && node.actualTime !== undefined && (
               <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/40 rounded text-purple-700 dark:text-purple-300 font-medium">
-                A-Time: {formatTime(node.actualTime)}
+                A-Time: {formatTimeCompact(node.actualTime)}
               </span>
             )}
             {options.showStarts && node.starts !== undefined && (
               <span className="px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/40 rounded text-orange-700 dark:text-orange-300 font-medium">
-                Starts: {formatNumber(node.starts)}
+                Starts: {formatNumberShort(node.starts)}
               </span>
             )}
           </div>
@@ -245,17 +247,17 @@ function computeIndicatorMetric(
     case 'actualRows':
       ratio = maxActualRows && maxActualRows > 0 ? (node.actualRows || 0) / maxActualRows : 0;
       label = 'A-Rows';
-      formattedValue = formatNumber(node.actualRows || 0);
+      formattedValue = formatNumberShort(node.actualRows || 0) ?? '0';
       break;
     case 'actualTime':
       ratio = totalElapsedTime && totalElapsedTime > 0 ? (node.actualTime || 0) / totalElapsedTime : 0;
       label = 'A-Time';
-      formattedValue = formatTime(node.actualTime || 0);
+      formattedValue = formatTimeCompact(node.actualTime || 0) ?? '0ms';
       break;
     case 'starts':
       ratio = maxStarts && maxStarts > 0 ? (node.starts || 0) / maxStarts : 0;
       label = 'Starts';
-      formattedValue = formatNumber(node.starts || 0);
+      formattedValue = formatNumberShort(node.starts || 0) ?? '0';
       break;
     case 'activityPercent':
       ratio = (node.activityPercent || 0) / 100;
@@ -270,31 +272,6 @@ function computeIndicatorMetric(
     formattedValue,
     color: ratio === 0 ? 'bg-gray-200 dark:bg-gray-700' : getMetricColor(ratio),
   };
-}
-
-function formatTime(ms: number): string {
-  if (ms >= 60000) {
-    const mins = Math.floor(ms / 60000);
-    const secs = ((ms % 60000) / 1000).toFixed(1);
-    return `${mins}m ${secs}s`;
-  }
-  if (ms >= 1000) {
-    return (ms / 1000).toFixed(2) + 's';
-  }
-  return ms.toFixed(0) + 'ms';
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes >= 1073741824) {
-    return (bytes / 1073741824).toFixed(1) + ' GB';
-  }
-  if (bytes >= 1048576) {
-    return (bytes / 1048576).toFixed(1) + ' MB';
-  }
-  if (bytes >= 1024) {
-    return (bytes / 1024).toFixed(1) + ' KB';
-  }
-  return bytes + ' B';
 }
 
 // No memo - we need to re-render when context changes (for filter state)

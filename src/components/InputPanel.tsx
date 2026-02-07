@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { getSourceDisplayName } from '../lib/parser';
-import { formatNumber } from '../lib/types';
+import { formatNumberShort, formatTimeShort } from '../lib/format';
 import { SAMPLE_PLANS_BY_CATEGORY, type SamplePlan } from '../examples';
 
 export function InputPanel() {
@@ -47,11 +47,14 @@ export function InputPanel() {
   return (
     <div className="flex flex-col bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
       {/* Header - always visible */}
-      <div
-        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-        onClick={() => setIsCollapsed(!isCollapsed)}
-      >
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+        <button
+          type="button"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          aria-expanded={!isCollapsed}
+          aria-controls="input-panel-content"
+          className="flex items-center gap-2 text-left"
+        >
           <svg
             className={`w-5 h-5 text-gray-500 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
             fill="none"
@@ -79,13 +82,13 @@ export function InputPanel() {
                   Actual Stats
                 </span>
               )}
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                ({parsedPlan.allNodes.length} operations, Cost: {parsedPlan.totalCost}{parsedPlan.hasActualStats && parsedPlan.rootNode?.actualRows != null ? `, A-Rows: ${formatNumber(parsedPlan.rootNode.actualRows)}` : ''}{parsedPlan.hasActualStats && parsedPlan.totalElapsedTime != null ? `, A-Time: ${formatTime(parsedPlan.totalElapsedTime)}` : ''})
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                ({parsedPlan.allNodes.length} operations, Cost: {parsedPlan.totalCost}{parsedPlan.hasActualStats && parsedPlan.rootNode?.actualRows != null ? `, A-Rows: ${formatNumberShort(parsedPlan.rootNode.actualRows)}` : ''}{parsedPlan.hasActualStats && parsedPlan.totalElapsedTime != null ? `, A-Time: ${formatTimeShort(parsedPlan.totalElapsedTime)}` : ''})
               </span>
             </div>
           )}
-        </div>
-        <div className="relative" ref={menuRef} onClick={(e) => e.stopPropagation()}>
+        </button>
+        <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowSampleMenu(!showSampleMenu)}
             className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-1"
@@ -131,7 +134,7 @@ export function InputPanel() {
 
       {/* Collapsible content */}
       {!isCollapsed && (
-        <div className="flex flex-col gap-3 px-4 pb-4">
+        <div id="input-panel-content" className="flex flex-col gap-3 px-4 pb-4">
           <textarea
             value={rawInput}
             onChange={(e) => setInput(e.target.value)}
@@ -189,10 +192,4 @@ export function InputPanel() {
       )}
     </div>
   );
-}
-
-function formatTime(ms: number): string {
-  if (ms >= 60000) return (ms / 60000).toFixed(1) + 'm';
-  if (ms >= 1000) return (ms / 1000).toFixed(2) + 's';
-  return ms.toFixed(0) + 'ms';
 }
