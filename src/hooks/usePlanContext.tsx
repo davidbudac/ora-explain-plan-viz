@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
+import { createContext, useContext, useReducer, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, NodeIndicatorMetric, Theme, ColorScheme } from '../lib/types';
 import { parseExplainPlan } from '../lib/parser';
@@ -178,6 +178,10 @@ interface PlanContextValue extends PlanState {
   clearPlan: () => void;
   getSelectedNode: () => PlanNode | null;
   getFilteredNodes: () => PlanNode[];
+  selectedNode: PlanNode | null;
+  filteredNodes: PlanNode[];
+  filteredNodeIds: Set<number>;
+  nodeById: Map<number, PlanNode>;
   setLegendVisible: (visible: boolean) => void;
   setInputPanelCollapsed: (collapsed: boolean) => void;
   setFilterPanelCollapsed: (collapsed: boolean) => void;
@@ -188,6 +192,26 @@ const PlanContext = createContext<PlanContextValue | null>(null);
 export function PlanProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(planReducer, undefined, getInitialState);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const nodeById = useMemo(() => {
+    if (!state.parsedPlan) return new Map<number, PlanNode>();
+    return new Map(state.parsedPlan.allNodes.map((node) => [node.id, node]));
+  }, [state.parsedPlan]);
+
+  const filteredNodes = useMemo((): PlanNode[] => {
+    if (!state.parsedPlan) return [];
+    const hasActualStats = state.parsedPlan.hasActualStats ?? false;
+    return state.parsedPlan.allNodes.filter((node) => matchesFilters(node, state.filters, hasActualStats));
+  }, [state.parsedPlan, state.filters]);
+
+  const filteredNodeIds = useMemo(() => {
+    return new Set(filteredNodes.map((node) => node.id));
+  }, [filteredNodes]);
+
+  const selectedNode = useMemo((): PlanNode | null => {
+    if (!state.parsedPlan || state.selectedNodeId === null) return null;
+    return nodeById.get(state.selectedNodeId) || null;
+  }, [state.parsedPlan, state.selectedNodeId, nodeById]);
 
   // Apply theme to document
   useEffect(() => {
@@ -347,19 +371,9 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_FILTER_PANEL_COLLAPSED', payload: collapsed });
   }, []);
 
-  const getSelectedNode = useCallback((): PlanNode | null => {
-    if (!state.parsedPlan || state.selectedNodeId === null) return null;
-    return (
-      state.parsedPlan.allNodes.find((n) => n.id === state.selectedNodeId) || null
-    );
-  }, [state.parsedPlan, state.selectedNodeId]);
+  const getSelectedNode = useCallback((): PlanNode | null => selectedNode, [selectedNode]);
 
-  const getFilteredNodes = useCallback((): PlanNode[] => {
-    if (!state.parsedPlan) return [];
-
-    const hasActualStats = state.parsedPlan?.hasActualStats ?? false;
-    return state.parsedPlan.allNodes.filter((node) => matchesFilters(node, state.filters, hasActualStats));
-  }, [state.parsedPlan, state.filters]);
+  const getFilteredNodes = useCallback((): PlanNode[] => filteredNodes, [filteredNodes]);
 
   const value: PlanContextValue = {
     ...state,
@@ -376,6 +390,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     clearPlan,
     getSelectedNode,
     getFilteredNodes,
+    selectedNode,
+    filteredNodes,
+    filteredNodeIds,
+    nodeById,
     setLegendVisible,
     setInputPanelCollapsed,
     setFilterPanelCollapsed,

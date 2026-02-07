@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { ReactNode } from 'react';
 
 interface HighlightTextProps {
@@ -17,38 +18,42 @@ export function HighlightText({
   className,
   highlightClassName = 'bg-yellow-200/80 dark:bg-yellow-700/40 text-gray-900 dark:text-yellow-100 rounded px-0.5',
 }: HighlightTextProps) {
-  if (!text) return null;
+  const safeText = text ?? '';
+  const trimmed = query?.trim() ?? '';
 
-  const trimmed = query?.trim();
-  if (!trimmed) {
-    return <span className={className}>{text}</span>;
-  }
+  return useMemo(() => {
+    if (!safeText) return null;
 
-  const safeQuery = escapeRegExp(trimmed);
-  const regex = new RegExp(safeQuery, 'ig');
-  const segments: ReactNode[] = [];
-  let lastIndex = 0;
-  let matchIndex = 0;
-
-  for (const match of text.matchAll(regex)) {
-    const index = match.index ?? 0;
-    if (index > lastIndex) {
-      segments.push(text.slice(lastIndex, index));
+    if (!trimmed) {
+      return <span className={className}>{safeText}</span>;
     }
 
-    segments.push(
-      <mark key={`m-${matchIndex}`} className={highlightClassName}>
-        {match[0]}
-      </mark>
-    );
+    const safeQuery = escapeRegExp(trimmed);
+    const regex = new RegExp(safeQuery, 'ig');
+    const segments: ReactNode[] = [];
+    let lastIndex = 0;
+    let matchIndex = 0;
 
-    lastIndex = index + match[0].length;
-    matchIndex += 1;
-  }
+    for (const match of safeText.matchAll(regex)) {
+      const index = match.index ?? 0;
+      if (index > lastIndex) {
+        segments.push(safeText.slice(lastIndex, index));
+      }
 
-  if (lastIndex < text.length) {
-    segments.push(text.slice(lastIndex));
-  }
+      segments.push(
+        <mark key={`m-${matchIndex}`} className={highlightClassName}>
+          {match[0]}
+        </mark>
+      );
 
-  return <span className={className}>{segments}</span>;
+      lastIndex = index + match[0].length;
+      matchIndex += 1;
+    }
+
+    if (lastIndex < safeText.length) {
+      segments.push(safeText.slice(lastIndex));
+    }
+
+    return <span className={className}>{segments}</span>;
+  }, [safeText, trimmed, className, highlightClassName]);
 }
