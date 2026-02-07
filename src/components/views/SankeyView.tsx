@@ -4,6 +4,7 @@ import type { SankeyNode, SankeyLink } from 'd3-sankey';
 import { usePlan } from '../../hooks/usePlanContext';
 import { COLOR_SCHEME_PALETTES, getOperationCategory } from '../../lib/types';
 import type { PlanNode } from '../../lib/types';
+import { formatNumberShort, formatTimeCompact } from '../../lib/format';
 
 interface SankeyNodeExtra {
   name: string;
@@ -24,7 +25,31 @@ export function SankeyView() {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [error, setError] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; title: string; lines: string[] } | null>(null);
-  const { parsedPlan, selectedNodeId, selectNode, sankeyMetric, getFilteredNodes, theme, colorScheme } = usePlan();
+  const tooltipStateRef = useRef<typeof tooltip>(null);
+  const rafRef = useRef<number | null>(null);
+  const pendingTooltipRef = useRef<typeof tooltip>(null);
+  const { parsedPlan, selectedNodeId, selectNode, sankeyMetric, filteredNodeIds, theme, colorScheme } = usePlan();
+
+  useEffect(() => {
+    tooltipStateRef.current = tooltip;
+  }, [tooltip]);
+
+  const scheduleTooltipUpdate = useCallback((next: typeof tooltip | null) => {
+    pendingTooltipRef.current = next;
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      setTooltip(pendingTooltipRef.current);
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, []);
 
   // Update dimensions on mount and resize
   useEffect(() => {
@@ -46,10 +71,6 @@ export function SankeyView() {
       clearTimeout(timer);
     };
   }, []);
-
-  const filteredNodeIds = useMemo(() => {
-    return new Set(getFilteredNodes().map((n) => n.id));
-  }, [getFilteredNodes]);
 
   const sankeyData = useMemo(() => {
     if (!parsedPlan?.rootNode) {
@@ -125,6 +146,7 @@ export function SankeyView() {
     const { width, height } = dimensions;
     if (width < 100 || height < 100) return; // Don't render if too small
 
+    pendingTooltipRef.current = null;
     setTooltip(null);
     setError(null);
 
@@ -210,7 +232,7 @@ export function SankeyView() {
 
           path.addEventListener('mouseenter', (event) => {
             const label = getMetricLabel(sankeyMetric, parsedPlan?.hasActualStats ?? false);
-            setTooltip({
+            scheduleTooltipUpdate({
               x: event.clientX,
               y: event.clientY,
               title: `${sourceNode.planNode.operation} → ${targetNode.planNode.operation}`,
@@ -221,11 +243,13 @@ export function SankeyView() {
           });
 
           path.addEventListener('mousemove', (event) => {
-            setTooltip((current) => (current ? { ...current, x: event.clientX, y: event.clientY } : current));
+            const current = tooltipStateRef.current;
+            if (!current) return;
+            scheduleTooltipUpdate({ ...current, x: event.clientX, y: event.clientY });
           });
 
           path.addEventListener('mouseleave', () => {
-            setTooltip(null);
+            scheduleTooltipUpdate(null);
           });
         }
       });
@@ -266,20 +290,20 @@ export function SankeyView() {
         rect.addEventListener('mouseenter', (event) => {
           const nodeLines = [
             sNode.planNode.objectName ? `Object: ${sNode.planNode.objectName}` : null,
-            `Cost: ${formatNumber(sNode.planNode.cost)}`,
-            sNode.planNode.rows !== undefined ? `E-Rows: ${formatNumber(sNode.planNode.rows)}` : null,
+            `Cost: ${formatNumberShort(sNode.planNode.cost, { empty: '—' })}`,
+            sNode.planNode.rows !== undefined ? `E-Rows: ${formatNumberShort(sNode.planNode.rows)}` : null,
           ].filter(Boolean) as string[];
 
           if (parsedPlan?.hasActualStats) {
             if (sNode.planNode.actualRows !== undefined) {
-              nodeLines.push(`A-Rows: ${formatNumber(sNode.planNode.actualRows)}`);
+              nodeLines.push(`A-Rows: ${formatNumberShort(sNode.planNode.actualRows)}`);
             }
             if (sNode.planNode.actualTime !== undefined) {
-              nodeLines.push(`A-Time: ${formatTime(sNode.planNode.actualTime)}`);
+              nodeLines.push(`A-Time: ${formatTimeCompact(sNode.planNode.actualTime)}`);
             }
           }
 
-          setTooltip({
+          scheduleTooltipUpdate({
             x: event.clientX,
             y: event.clientY,
             title: sNode.planNode.operation,
@@ -288,11 +312,13 @@ export function SankeyView() {
         });
 
         rect.addEventListener('mousemove', (event) => {
-          setTooltip((current) => (current ? { ...current, x: event.clientX, y: event.clientY } : current));
+          const current = tooltipStateRef.current;
+          if (!current) return;
+          scheduleTooltipUpdate({ ...current, x: event.clientX, y: event.clientY });
         });
 
         rect.addEventListener('mouseleave', () => {
-          setTooltip(null);
+          scheduleTooltipUpdate(null);
         });
 
         nodeGroup.appendChild(rect);
@@ -319,7 +345,7 @@ export function SankeyView() {
       console.error('Sankey rendering error:', err);
       setError(err instanceof Error ? err.message : 'Failed to render Sankey diagram');
     }
-  }, [sankeyData, selectedNodeId, filteredNodeIds, handleNodeClick, theme, dimensions, colorScheme, sankeyMetric, parsedPlan?.hasActualStats]);
+  }, [sankeyData, selectedNodeId, filteredNodeIds, handleNodeClick, theme, dimensions, colorScheme, sankeyMetric, parsedPlan?.hasActualStats, scheduleTooltipUpdate]);
 
   if (!parsedPlan?.rootNode) {
     return (
@@ -381,24 +407,7 @@ function getMetricLabel(metric: string, hasActualStats: boolean): string {
   }
 }
 
-function formatNumber(value?: number): string {
-  if (value === undefined) return '—';
-  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
-  return value.toString();
-}
-
-function formatTime(ms: number): string {
-  if (ms >= 60000) {
-    const mins = Math.floor(ms / 60000);
-    const secs = ((ms % 60000) / 1000).toFixed(1);
-    return `${mins}m ${secs}s`;
-  }
-  if (ms >= 1000) return `${(ms / 1000).toFixed(2)}s`;
-  return `${ms.toFixed(0)}ms`;
-}
-
 function formatMetricValue(value: number, metric: string): string {
-  if (metric === 'actualTime') return formatTime(value);
-  return formatNumber(value);
+  if (metric === 'actualTime') return formatTimeCompact(value) ?? '—';
+  return formatNumberShort(value, { empty: '—' }) ?? '—';
 }

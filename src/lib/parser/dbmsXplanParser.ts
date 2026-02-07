@@ -456,21 +456,23 @@ function buildTree(
   }
 
   // Build parent-child relationships based on depth
-  // In Oracle plans, a node's parent is the nearest preceding node with lower depth
-  for (let i = 1; i < rows.length; i++) {
-    const currentRow = rows[i];
-    const currentNode = nodeMap.get(currentRow.id)!;
+  // In Oracle plans, a node's parent is the nearest preceding node with lower depth.
+  // Use a stack for O(n) linking instead of O(n^2) backtracking.
+  const stack: PlanNode[] = [];
+  for (const row of rows) {
+    const currentNode = nodeMap.get(row.id)!;
 
-    // Look backwards for parent
-    for (let j = i - 1; j >= 0; j--) {
-      const potentialParentRow = rows[j];
-      if (potentialParentRow.depth < currentRow.depth) {
-        const parentNode = nodeMap.get(potentialParentRow.id)!;
-        parentNode.children.push(currentNode);
-        currentNode.parentId = parentNode.id;
-        break;
-      }
+    while (stack.length > 0 && stack[stack.length - 1].depth >= row.depth) {
+      stack.pop();
     }
+
+    const parent = stack[stack.length - 1];
+    if (parent) {
+      parent.children.push(currentNode);
+      currentNode.parentId = parent.id;
+    }
+
+    stack.push(currentNode);
   }
 
   // Root is typically id 0 or the first node
