@@ -10,6 +10,7 @@ export const sqlMonitorTextParser: PlanParser = {
     // SQL Monitor text reports typically contain these markers
     return (
       /SQL Monitoring Report/i.test(input) ||
+      /SQL Plan Monitoring Details/i.test(input) ||
       /Global Stats/i.test(input) ||
       (/\|\s*Id\s*\|.*A-Rows/i.test(input)) // Has actual rows column
     );
@@ -190,7 +191,7 @@ function extractSqlId(lines: string[]): string | undefined {
 
 function extractPlanHashValue(lines: string[]): string | undefined {
   for (const line of lines) {
-    const match = line.match(/Plan Hash[:\s]+(\d+)/i);
+    const match = line.match(/Plan Hash[^=\d]*[=:\s]+(\d+)/i);
     if (match) {
       return match[1];
     }
@@ -285,6 +286,7 @@ function parseSqlMonitorColumnPositions(headerLine: string): SqlMonitorColumnPos
   }
 
   const headerLower = headerLine.toLowerCase();
+  let rowsSeen = false;
 
   for (let i = 0; i < pipePositions.length - 1; i++) {
     const start = pipePositions[i] + 1;
@@ -297,15 +299,21 @@ function parseSqlMonitorColumnPositions(headerLine: string): SqlMonitorColumnPos
       cols.operation = { start, end };
     } else if (segment === 'name' || segment === 'object name') {
       cols.name = { start, end };
-    } else if (segment === 'e-rows' || segment === 'rows') {
-      cols.rows = { start, end };
+    } else if (segment === 'e-rows' || segment === 'rows' || segment === 'rows (estim)') {
+      // Real SQL Monitor reports have two 'Rows' columns: first = estimated, second = actual
+      if (segment === 'e-rows' || !rowsSeen) {
+        cols.rows = { start, end };
+        if (segment === 'rows') rowsSeen = true;
+      } else {
+        cols.aRows = { start, end };
+      }
     } else if (segment.includes('cost')) {
       cols.cost = { start, end };
-    } else if (segment === 'a-rows' || segment === 'actual rows') {
+    } else if (segment === 'a-rows' || segment === 'actual rows' || segment === 'rows (actual)') {
       cols.aRows = { start, end };
     } else if (segment === 'a-time' || segment === 'actual time') {
       cols.aTime = { start, end };
-    } else if (segment === 'starts') {
+    } else if (segment === 'starts' || segment === 'execs') {
       cols.starts = { start, end };
     } else if (segment.includes('mem') || segment === 'omem' || segment === 'used-mem') {
       cols.memory = { start, end };
@@ -353,9 +361,8 @@ function parseSqlMonitorDataRow(line: string, columns: SqlMonitorColumnPositions
   }
 
   if (columns.cost) {
-    const costStr = line.substring(columns.cost.start, columns.cost.end).trim();
-    const costMatch = costStr.match(/(\d+)/);
-    if (costMatch) row.cost = parseInt(costMatch[1], 10);
+    const val = parseNumericValue(line.substring(columns.cost.start, columns.cost.end).trim());
+    if (val !== null) row.cost = val;
   }
 
   if (columns.aRows) {

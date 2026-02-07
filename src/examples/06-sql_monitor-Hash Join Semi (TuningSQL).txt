@@ -1,0 +1,50 @@
+SQL Monitoring Report
+
+SQL Text
+------------------------------
+select .....
+
+Global Information
+------------------------------
+ Status              :  DONE (ALL ROWS)
+ Instance ID         :  1
+ Session             :  (1830:56405)
+ SQL ID              :  d889v8q7n9zxp
+ SQL Execution ID    :  16777216
+ Execution Started   :  08/31/2020 13:25:21
+ First Refresh Time  :  08/31/2020 13:25:27
+ Last Refresh Time   :  08/31/2020 13:57:41
+ Duration            :  1940s
+ Module/Action       :  SQL Developer/-
+ Service             :  SYS$USERS
+ Program             :  SQL Developer
+ Fetch Calls         :  14140
+
+Global Stats
+==========================================================================================================
+| Elapsed |   Cpu   |    IO    | Application |  Other   | Fetch | Buffer | Read  | Read  | Write | Write |
+| Time(s) | Time(s) | Waits(s) |  Waits(s)   | Waits(s) | Calls |  Gets  | Reqs  | Bytes | Reqs  | Bytes |
+==========================================================================================================
+|      76 |      20 |       55 |        0.01 |     0.12 | 14140 |   347K | 10005 |   2GB |  5131 |   1GB |
+==========================================================================================================
+
+SQL Plan Monitoring Details (Plan Hash Value=579203307)
+=========================================================================================================================================================================================================
+| Id |              Operation              |         Name         |  Rows   | Cost  |   Time    | Start  | Execs |   Rows   | Read | Read  | Write | Write |  Mem  | Temp  | Activity | Activity Detail |
+|    |                                     |                      | (Estim) |       | Active(s) | Active |       | (Actual) | Reqs | Bytes | Reqs  | Bytes | (Max) | (Max) |   (%)    |   (# samples)   |
+=========================================================================================================================================================================================================
+|  0 | SELECT STATEMENT                    |                      |         |       |         9 |    +66 |    21 |       21 |      |       |       |       |     . |     . |          |                 |
+|  1 |   TABLE ACCESS BY INDEX ROWID       | TABLE_A              |       1 |     1 |         9 |    +66 |    21 |       21 |      |       |       |       |     . |     . |          |                 |
+|  2 |    INDEX UNIQUE SCAN                | SYS_C006950          |       1 |       |         9 |    +66 |    21 |       21 |      |       |       |       |     . |     . |          |                 |
+|  3 |   SORT ORDER BY                     |                      |      7M |  132K |      1875 |    +66 |     1 |     707K |      |       |       |       |  59MB |     . |          |                 |
+|  4 |    HASH JOIN SEMI                   |                      |      7M | 57749 |        75 |     +0 |     1 |     707K | 5131 |   1GB |  5131 |   1GB |  56MB |   1GB |          |                 |
+|  5 |     TABLE ACCESS FULL               | TABLE_B              |     19M | 11791 |        62 |     +3 |     1 |      19M | 2437 | 605MB |       |       |     . |     . |          |                 |
+|  6 |     VIEW                            | VW_NSO_1             |      2M | 26128 |         3 |    +64 |     1 |     141K |      |       |       |       |     . |     . |          |                 |
+|  7 |      HASH JOIN                      |                      |      2M | 26128 |         4 |    +63 |     1 |     141K |      |       |       |       |   9MB |     . |          |                 |
+|  8 |       HASH JOIN                     |                      |   43796 | 11448 |         1 |    +64 |     1 |     141K |      |       |       |       |   1MB |     . |          |                 |
+|  9 |        TABLE ACCESS FULL            | TABLE_C              |      38 |     2 |         1 |    +64 |     1 |       38 |      |       |       |       |     . |     . |          |                 |
+| 10 |        TABLE ACCESS BY INDEX ROWID  | TABLE_D              |    139K | 11444 |         1 |    +64 |     1 |     141K |      |       |       |       |     . |     . |          |                 |
+| 11 |         BITMAP CONVERSION TO ROWIDS |                      |         |       |         1 |    +64 |     1 |     142K |      |       |       |       |     . |     . |          |                 |
+| 12 |          BITMAP INDEX SINGLE VALUE  | TABLE_D_BIX          |         |       |         1 |    +64 |     1 |     3641 |      |       |       |       |     . |     . |          |                 |
+| 13 |       TABLE ACCESS FULL             | TABLE_E              |      5M | 11791 |         3 |    +64 |     1 |       5M | 2437 | 605MB |       |       |     . |     . |          |                 |
+=========================================================================================================================================================================================================
