@@ -311,7 +311,7 @@ function parseSqlMonitorColumnPositions(headerLine: string): SqlMonitorColumnPos
       cols.cost = { start, end };
     } else if (segment === 'a-rows' || segment === 'actual rows' || segment === 'rows (actual)') {
       cols.aRows = { start, end };
-    } else if (segment === 'a-time' || segment === 'actual time') {
+    } else if (segment === 'a-time' || segment === 'actual time' || segment === 'time' || segment === 'time active(s)' || segment === 'time active (s)') {
       cols.aTime = { start, end };
     } else if (segment === 'starts' || segment === 'execs') {
       cols.starts = { start, end };
