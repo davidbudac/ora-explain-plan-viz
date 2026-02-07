@@ -1,0 +1,48 @@
+SQL Monitoring Report
+
+SQL Text
+------------------------------
+select /*+ MONITOR */ count(*) cnt from test_tbl, test_tbl, test_tbl, test_tbl
+
+Global Information
+------------------------------
+ Status              :  DONE (ALL ROWS)
+ Instance ID         :  1
+ Session             :  SYS (204:115)
+ SQL ID              :  9fvrwtjugnkup
+ SQL Execution ID    :  16777216
+ Execution Started   :  02/03/2013 01:57:49
+ First Refresh Time  :  02/03/2013 01:57:49
+ Last Refresh Time   :  02/03/2013 01:57:54
+ Duration            :  5s
+ Module/Action       :  SQL Developer/-
+ Service             :  SYS$USERS
+ Program             :  SQL Developer
+ Fetch Calls         :  1
+
+Global Stats
+=================================================
+| Elapsed |   Cpu   |  Other   | Fetch | Buffer |
+| Time(s) | Time(s) | Waits(s) | Calls |  Gets  |
+=================================================
+|    4.85 |    4.76 |     0.09 |     1 |     12 |
+=================================================
+
+SQL Plan Monitoring Details (Plan Hash Value=2897041765)
+===========================================================================================================================================
+| Id |         Operation         |   Name   |  Rows   | Cost |   Time    | Start  | Execs |   Rows   |  Mem  | Activity | Activity Detail |
+|    |                           |          | (Estim) |      | Active(s) | Active |       | (Actual) | (Max) |   (%)    |   (# samples)   |
+===========================================================================================================================================
+|  0 | SELECT STATEMENT          |          |         |      |         4 |     +2 |     1 |        1 |       |          |                 |
+|  1 |   SORT AGGREGATE          |          |       1 |      |         4 |     +2 |     1 |        1 |       |          |                 |
+|  2 |    MERGE JOIN CARTESIAN   |          |    100M | 275K |         4 |     +2 |     1 |     100M |       |          |                 |
+|  3 |     MERGE JOIN CARTESIAN  |          |      1M | 2752 |         4 |     +2 |     1 |       1M |       |          |                 |
+|  4 |      MERGE JOIN CARTESIAN |          |   10000 |   31 |         4 |     +2 |     1 |    10000 |       |          |                 |
+|  5 |       TABLE ACCESS FULL   | TEST_TBL |     100 |    2 |         4 |     +2 |     1 |      100 |       |          |                 |
+|  6 |       BUFFER SORT         |          |     100 |   29 |         4 |     +2 |   100 |    10000 |  4096 |          |                 |
+|  7 |        TABLE ACCESS FULL  | TEST_TBL |     100 |      |         1 |     +2 |     1 |      100 |       |          |                 |
+|  8 |      BUFFER SORT          |          |     100 | 2752 |         4 |     +2 | 10000 |       1M |  4096 |          |                 |
+|  9 |       TABLE ACCESS FULL   | TEST_TBL |     100 |      |         1 |     +2 |     1 |      100 |       |          |                 |
+| 10 |     BUFFER SORT           |          |     100 | 275K |         5 |     +1 |    1M |     100M |  4096 |   100.00 | Cpu (5)         |
+| 11 |      TABLE ACCESS FULL    | TEST_TBL |     100 |      |         1 |     +2 |     1 |      100 |       |          |                 |
+===========================================================================================================================================
