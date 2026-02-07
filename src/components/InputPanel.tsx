@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { getSourceDisplayName } from '../lib/parser';
+import { formatNumber } from '../lib/types';
 import { SAMPLE_PLANS_BY_CATEGORY, type SamplePlan } from '../examples';
 
 export function InputPanel() {
@@ -60,7 +61,13 @@ export function InputPanel() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Oracle Execution Plan Input
+            {parsedPlan && (parsedPlan.sqlId || parsedPlan.planHashValue)
+              ? [
+                  parsedPlan.sqlId && <span key="sql">SQL ID: <span className="font-mono">{parsedPlan.sqlId}</span></span>,
+                  parsedPlan.sqlId && parsedPlan.planHashValue && <span key="sep" className="text-gray-400 dark:text-gray-500 mx-1">|</span>,
+                  parsedPlan.planHashValue && <span key="hash">Plan Hash: <span className="font-mono">{parsedPlan.planHashValue}</span></span>,
+                ]
+              : 'Oracle Execution Plan Input'}
           </h2>
           {isCollapsed && parsedPlan && (
             <div className="flex items-center gap-2 ml-2">
@@ -73,7 +80,7 @@ export function InputPanel() {
                 </span>
               )}
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                ({parsedPlan.allNodes.length} operations, Cost: {parsedPlan.totalCost})
+                ({parsedPlan.allNodes.length} operations, Cost: {parsedPlan.totalCost}{parsedPlan.hasActualStats && parsedPlan.rootNode?.actualRows != null ? `, A-Rows: ${formatNumber(parsedPlan.rootNode.actualRows)}` : ''}{parsedPlan.hasActualStats && parsedPlan.totalElapsedTime != null ? `, A-Time: ${formatTime(parsedPlan.totalElapsedTime)}` : ''})
               </span>
             </div>
           )}
@@ -182,4 +189,10 @@ export function InputPanel() {
       )}
     </div>
   );
+}
+
+function formatTime(ms: number): string {
+  if (ms >= 60000) return (ms / 60000).toFixed(1) + 'm';
+  if (ms >= 1000) return (ms / 1000).toFixed(2) + 's';
+  return ms.toFixed(0) + 'ms';
 }
