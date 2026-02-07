@@ -1,28 +1,28 @@
 import { useMemo, useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { getOperationCategory, COLOR_SCHEMES, getCostColor } from '../lib/types';
+import { formatBytes, formatNumberShort, formatTimeDetailed } from '../lib/format';
 import type { PlanNode as PlanNodeType } from '../lib/types';
 import { HighlightText } from './HighlightText';
 
 export function NodeDetailPanel() {
-  const { getSelectedNode, parsedPlan, selectNode, colorScheme, filters } = usePlan();
+  const { selectedNode, parsedPlan, selectNode, colorScheme, filters, nodeById } = usePlan();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const node = getSelectedNode();
+  const node = selectedNode;
   const searchText = filters.searchText;
 
   const ancestry = useMemo(() => {
     if (!parsedPlan || !node) return [];
-    const nodeMap = new Map(parsedPlan.allNodes.map((n) => [n.id, n]));
     const chain: PlanNodeType[] = [];
     let current = node;
     while (current.parentId !== undefined) {
-      const parent = nodeMap.get(current.parentId);
+      const parent = nodeById.get(current.parentId);
       if (!parent) break;
       chain.push(parent);
       current = parent;
     }
     return chain.reverse();
-  }, [node, parsedPlan]);
+  }, [node, parsedPlan, nodeById]);
 
   if (isCollapsed) {
     return (
@@ -163,9 +163,9 @@ export function NodeDetailPanel() {
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Actual Statistics</h4>
           <div className="grid grid-cols-2 gap-3">
-            <StatItem label="A-Rows" value={formatNumber(node.actualRows)} highlight="blue" />
-            <StatItem label="A-Time" value={formatTime(node.actualTime)} highlight="purple" />
-            <StatItem label="Starts" value={formatNumber(node.starts)} highlight="orange" />
+            <StatItem label="A-Rows" value={formatNumberShort(node.actualRows)} highlight="blue" />
+            <StatItem label="A-Time" value={formatTimeDetailed(node.actualTime)} highlight="purple" />
+            <StatItem label="Starts" value={formatNumberShort(node.starts)} highlight="orange" />
             {node.activityPercent !== undefined && (
               <StatItem label="Activity %" value={`${node.activityPercent.toFixed(1)}%`} />
             )}
@@ -179,7 +179,7 @@ export function NodeDetailPanel() {
           {parsedPlan?.hasActualStats ? 'Estimated Statistics' : 'Statistics'}
         </h4>
         <div className="grid grid-cols-2 gap-3">
-          <StatItem label={parsedPlan?.hasActualStats ? "E-Rows" : "Rows"} value={formatNumber(node.rows)} />
+          <StatItem label={parsedPlan?.hasActualStats ? "E-Rows" : "Rows"} value={formatNumberShort(node.rows)} />
           <StatItem label="Bytes" value={formatBytes(node.bytes)} />
           <StatItem label="Cost" value={node.cost?.toString()} />
           <StatItem label="CPU %" value={node.cpuPercent ? `${node.cpuPercent}%` : undefined} />
@@ -231,8 +231,8 @@ export function NodeDetailPanel() {
           <div className="grid grid-cols-2 gap-3">
             <StatItem label="Memory" value={formatBytes(node.memoryUsed)} />
             <StatItem label="Temp Used" value={formatBytes(node.tempUsed)} />
-            <StatItem label="Phys Reads" value={formatNumber(node.physicalReads)} />
-            <StatItem label="Log Reads" value={formatNumber(node.logicalReads)} />
+            <StatItem label="Phys Reads" value={formatNumberShort(node.physicalReads)} />
+            <StatItem label="Log Reads" value={formatNumberShort(node.logicalReads)} />
           </div>
         </div>
       )}
@@ -289,45 +289,4 @@ function StatItem({ label, value, highlight }: { label: string; value?: string; 
       <div className={`text-sm font-medium ${highlight ? valueStyles[highlight] : 'text-gray-900 dark:text-gray-100'}`}>{value}</div>
     </div>
   );
-}
-
-function formatNumber(num?: number): string | undefined {
-  if (num === undefined) return undefined;
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M';
-  }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K';
-  }
-  return num.toString();
-}
-
-function formatBytes(bytes?: number): string | undefined {
-  if (bytes === undefined) return undefined;
-  if (bytes >= 1073741824) {
-    return (bytes / 1073741824).toFixed(1) + ' GB';
-  }
-  if (bytes >= 1048576) {
-    return (bytes / 1048576).toFixed(1) + ' MB';
-  }
-  if (bytes >= 1024) {
-    return (bytes / 1024).toFixed(1) + ' KB';
-  }
-  return bytes + ' B';
-}
-
-function formatTime(ms?: number): string | undefined {
-  if (ms === undefined) return undefined;
-  if (ms >= 60000) {
-    const minutes = Math.floor(ms / 60000);
-    const seconds = ((ms % 60000) / 1000).toFixed(1);
-    return `${minutes}m ${seconds}s`;
-  }
-  if (ms >= 1000) {
-    return (ms / 1000).toFixed(2) + 's';
-  }
-  if (ms >= 1) {
-    return ms.toFixed(1) + 'ms';
-  }
-  return (ms * 1000).toFixed(0) + 'μs';
 }
