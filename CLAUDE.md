@@ -18,22 +18,28 @@ src/
 ├── lib/
 │   ├── types.ts         # TypeScript interfaces, operation categories, colors
 │   ├── settings.ts      # User settings persistence (localStorage)
+│   ├── filtering.ts     # Node filtering logic (search, predicates, cost/rows/time ranges)
+│   ├── format.ts        # Number/time/bytes formatting utilities
 │   ├── parser.ts        # Legacy parser (kept for compatibility)
 │   └── parser/          # Modular parser system
 │       ├── index.ts           # Parser orchestration, format detection
 │       ├── types.ts           # Parser interfaces
 │       ├── dbmsXplanParser.ts # DBMS_XPLAN text parser
 │       └── sqlMonitorParser.ts # SQL Monitor text/XML parsers
+├── examples/            # Sample plan files loaded via Vite glob import
+│   ├── index.ts              # Auto-loader using NN-category-Name.txt convention
+│   └── *.txt                 # Example plan files (DBMS_XPLAN and SQL Monitor)
 ├── hooks/
 │   └── usePlanContext.tsx   # Global state management (React Context)
 ├── components/
 │   ├── Header.tsx           # App header with theme toggle
 │   ├── InputPanel.tsx       # Collapsible input with example loader
-│   ├── FilterPanel.tsx      # Filter by operation type, cost, search
+│   ├── FilterPanel.tsx      # Filter by operation type, cost, search, predicates
 │   ├── NodeDetailPanel.tsx  # Shows selected node attributes + runtime stats
 │   ├── VisualizationTabs.tsx # Tab switcher for views
 │   ├── Legend.tsx           # Hideable color legend
 │   ├── CollapsibleMiniMap.tsx # Toggleable minimap for navigation
+│   ├── HighlightText.tsx    # Search text highlighting component
 │   ├── nodes/
 │   │   └── PlanNode.tsx     # Custom React Flow node component
 │   └── views/
@@ -65,10 +71,14 @@ npm run preview
 - **Two Visualization Modes**: Hierarchical tree and Sankey diagram
 - **Multiple Input Formats**: DBMS_XPLAN, SQL Monitor text, SQL Monitor XML
 - **Runtime Statistics**: Display A-Rows, E-Rows, A-Time, and Starts from SQL Monitor
-- **Example Plans**: Built-in sample plans for quick testing
+- **Node Indicator Metrics**: Configurable node badges showing cost, A-Rows, A-Time, starts, or activity %
+- **Example Plans**: Auto-loaded sample plans from `src/examples/` (add .txt files, no code changes needed)
+- **Plan Metadata**: SQL ID, Plan Hash, A-Rows, and A-Time shown in input panel header
 - **Collapsible Input Panel**: More space for visualization when collapsed
-- **Filter Panel**: Filter by operation type, cost threshold, or search text
+- **Filter Panel**: Filter by operation type, cost threshold, search text, predicate type, and actual stats ranges
+- **Search Highlighting**: Matching text highlighted in plan nodes
 - **Node Details**: Click any node to see full attributes and predicates
+- **Color Schemes**: Vibrant, muted, professional, and monochrome options
 - **Settings Persistence**: View preferences saved to localStorage
 - **Theme Toggle**: Light/dark mode with localStorage persistence
 - **Sankey Metric Toggle**: Switch between Rows, Cost, A-Rows, or A-Time
