@@ -302,9 +302,10 @@ function fallbackDagreLayout(
 }
 
 function HierarchicalViewContent() {
-  const { parsedPlan, selectedNodeId, selectNode, theme, filters, colorScheme, nodeIndicatorMetric, filteredNodeIds, nodeById } = usePlan();
+  const { parsedPlan, selectedNodeId, selectedNodeIds, selectNode, theme, filters, colorScheme, nodeIndicatorMetric, filteredNodeIds, nodeById } = usePlan();
   const containerRef = useRef<HTMLDivElement>(null);
   const { fitView, setNodes: rfSetNodes } = useReactFlow();
+  const selectedNodeIdSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
 
   // Destructure filter values for explicit dependency tracking
   const {
@@ -336,7 +337,7 @@ function HierarchicalViewContent() {
       descendantIds: new Set<number>(),
     };
 
-    if (!parsedPlan || selectedNodeId === null) return empty;
+    if (!parsedPlan || selectedNodeId === null || selectedNodeIds.length !== 1) return empty;
 
     const selected = nodeById.get(selectedNodeId);
     if (!selected) return empty;
@@ -360,7 +361,7 @@ function HierarchicalViewContent() {
     addDescendants(selected);
 
     return { ancestorIds, descendantIds };
-  }, [parsedPlan, selectedNodeId, nodeById]);
+  }, [parsedPlan, selectedNodeId, selectedNodeIds.length, nodeById]);
 
   const layoutData = useMemo(() => {
     if (!parsedPlan?.rootNode) {
@@ -554,13 +555,13 @@ function HierarchicalViewContent() {
         if (node.type === 'queryBlockGroup') {
           return node;
         }
-        const focusEnabled = filters.focusSelection && selectedNodeId !== null;
+        const focusEnabled = filters.focusSelection && selectedNodeId !== null && selectedNodeIds.length === 1;
 
         return {
           ...node,
           data: {
             ...node.data,
-            isSelected: parseInt(node.id) === selectedNodeId,
+            isSelected: selectedNodeIdSet.has(parseInt(node.id)),
             isFiltered: filteredNodeIds.has(parseInt(node.id)),
             isInFocusPath:
               focusEnabled &&
@@ -585,6 +586,8 @@ function HierarchicalViewContent() {
     );
   }, [
     selectedNodeId,
+    selectedNodeIds.length,
+    selectedNodeIdSet,
     filteredNodeIds,
     filters.nodeDisplayOptions,
     filters.focusSelection,
@@ -613,7 +616,7 @@ function HierarchicalViewContent() {
         const currentStrokeOpacity = edge.style?.strokeOpacity;
         const currentLabelStyle = edge.labelStyle as { fill?: string; fontSize?: number; fontWeight?: number } | undefined;
         const currentLabelBgStyle = edge.labelBgStyle as { fill?: string; fillOpacity?: number } | undefined;
-        const focusEnabled = filters.focusSelection && selectedNodeId !== null;
+        const focusEnabled = filters.focusSelection && selectedNodeId !== null && selectedNodeIds.length === 1;
 
         const sourceId = parseInt(edge.source);
         const targetId = parseInt(edge.target);
@@ -675,11 +678,12 @@ function HierarchicalViewContent() {
         };
       })
     );
-  }, [filteredNodeIds, filters.animateEdges, filters.focusSelection, selectedNodeId, selectionSets.ancestorIds, selectionSets.descendantIds, theme, setEdges]);
+  }, [filteredNodeIds, filters.animateEdges, filters.focusSelection, selectedNodeId, selectedNodeIds.length, selectionSets.ancestorIds, selectionSets.descendantIds, theme, setEdges]);
 
   const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: Node) => {
-      selectNode(parseInt(node.id));
+    (event: React.MouseEvent, node: Node) => {
+      const additive = event.metaKey || event.ctrlKey;
+      selectNode(parseInt(node.id), { additive });
     },
     [selectNode]
   );
