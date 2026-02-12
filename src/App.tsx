@@ -1,3 +1,4 @@
+import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { PlanProvider, usePlan } from './hooks/usePlanContext';
 import { Header } from './components/Header';
 import { InputPanel } from './components/InputPanel';
@@ -6,8 +7,119 @@ import { VisualizationTabs } from './components/VisualizationTabs';
 import { NodeDetailPanel } from './components/NodeDetailPanel';
 import { Legend } from './components/Legend';
 
+const LEFT_PANEL_MIN = 220;
+const RIGHT_PANEL_MIN = 260;
+const PANEL_MAX_RATIO = 0.25;
+const CENTER_MIN_WIDTH = 440;
+const DEFAULT_LEFT_PANEL_WIDTH = 250;
+const DEFAULT_RIGHT_PANEL_WIDTH = 300;
+
+type ResizeSide = 'left' | 'right';
+
+interface PanelWidths {
+  left: number;
+  right: number;
+}
+
+interface ResizeState {
+  side: ResizeSide;
+  startX: number;
+  startLeft: number;
+  startRight: number;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function getMaxLeftWidth(viewportWidth: number, rightWidth: number): number {
+  const byRatio = Math.floor(viewportWidth * PANEL_MAX_RATIO);
+  const byCenter = viewportWidth - CENTER_MIN_WIDTH - rightWidth;
+  return Math.max(LEFT_PANEL_MIN, Math.min(byRatio, byCenter));
+}
+
+function getMaxRightWidth(viewportWidth: number, leftWidth: number): number {
+  const byRatio = Math.floor(viewportWidth * PANEL_MAX_RATIO);
+  const byCenter = viewportWidth - CENTER_MIN_WIDTH - leftWidth;
+  return Math.max(RIGHT_PANEL_MIN, Math.min(byRatio, byCenter));
+}
+
+function clampPanelWidths(widths: PanelWidths, viewportWidth: number): PanelWidths {
+  let left = clamp(widths.left, LEFT_PANEL_MIN, getMaxLeftWidth(viewportWidth, widths.right));
+  let right = clamp(widths.right, RIGHT_PANEL_MIN, getMaxRightWidth(viewportWidth, left));
+  left = clamp(left, LEFT_PANEL_MIN, getMaxLeftWidth(viewportWidth, right));
+  return { left, right };
+}
+
 function AppContent() {
   const { parsedPlan } = usePlan();
+  const [panelWidths, setPanelWidths] = useState<PanelWidths>({
+    left: DEFAULT_LEFT_PANEL_WIDTH,
+    right: DEFAULT_RIGHT_PANEL_WIDTH,
+  });
+  const [resizeState, setResizeState] = useState<ResizeState | null>(null);
+
+  useEffect(() => {
+    const onResize = () => {
+      setPanelWidths((current) => clampPanelWidths(current, window.innerWidth));
+    };
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    if (!resizeState) return;
+
+    const onPointerMove = (event: PointerEvent) => {
+      const deltaX = event.clientX - resizeState.startX;
+      const viewportWidth = window.innerWidth;
+
+      if (resizeState.side === 'left') {
+        const nextLeft = clamp(
+          resizeState.startLeft + deltaX,
+          LEFT_PANEL_MIN,
+          getMaxLeftWidth(viewportWidth, resizeState.startRight)
+        );
+        setPanelWidths((current) => ({ ...current, left: nextLeft }));
+        return;
+      }
+
+      const nextRight = clamp(
+        resizeState.startRight - deltaX,
+        RIGHT_PANEL_MIN,
+        getMaxRightWidth(viewportWidth, resizeState.startLeft)
+      );
+      setPanelWidths((current) => ({ ...current, right: nextRight }));
+    };
+
+    const onPointerUp = () => {
+      setResizeState(null);
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+
+    return () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, [resizeState]);
+
+  const startResize = (side: ResizeSide) => (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    setResizeState({
+      side,
+      startX: event.clientX,
+      startLeft: panelWidths.left,
+      startRight: panelWidths.right,
+    });
+  };
 
   return (
     <div className="compact-pro flex flex-col h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
@@ -16,12 +128,18 @@ function AppContent() {
 
       {parsedPlan && (
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          <FilterPanel />
+          <FilterPanel
+            panelWidth={panelWidths.left}
+            onResizeStart={startResize('left')}
+          />
           <div className="flex-1 flex flex-col relative min-w-0 bg-slate-50 dark:bg-slate-900 border-r border-l border-slate-200 dark:border-slate-800">
             <VisualizationTabs />
             <Legend />
           </div>
-          <NodeDetailPanel />
+          <NodeDetailPanel
+            panelWidth={panelWidths.right}
+            onResizeStart={startResize('right')}
+          />
         </div>
       )}
 
