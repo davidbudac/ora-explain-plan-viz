@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { OPERATION_CATEGORIES, getOperationCategory } from '../lib/types';
-import type { PredicateType } from '../lib/types';
+import type { NodeDisplayOptions, PredicateType } from '../lib/types';
 import { matchesSearch } from '../lib/filtering';
 import { formatNumberShort, formatTimeCompact } from '../lib/format';
+import { CustomizeViewMenu } from './CustomizeViewMenu';
 
-const DEFAULT_NODE_DISPLAY_OPTIONS = {
+const DEFAULT_NODE_DISPLAY_OPTIONS: NodeDisplayOptions = {
   showRows: true,
   showCost: true,
   showBytes: true,
@@ -17,9 +18,14 @@ const DEFAULT_NODE_DISPLAY_OPTIONS = {
   showActualRows: true,
   showActualTime: true,
   showStarts: true,
-} as const;
+};
 
-export function FilterPanel() {
+interface FilterPanelProps {
+  panelWidth: number;
+  onResizeStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+}
+
+export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
   const { parsedPlan, filters, setFilters, filteredNodes, selectNode, filterPanelCollapsed: isCollapsed, setFilterPanelCollapsed: setIsCollapsed } = usePlan();
   const [activeMatchIndex, setActiveMatchIndex] = useState(0);
 
@@ -161,7 +167,17 @@ export function FilterPanel() {
   }
 
   return (
-    <div className="w-[250px] bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 overflow-y-auto">
+    <div
+      className="relative shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 overflow-y-auto"
+      style={{ width: panelWidth }}
+    >
+      <button
+        type="button"
+        onPointerDown={onResizeStart}
+        className="absolute right-0 top-0 z-10 h-full w-2 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors"
+        aria-label="Resize filters panel"
+        title="Resize filters panel"
+      />
       <div className="p-3 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -229,167 +245,17 @@ export function FilterPanel() {
         )}
       </div>
 
-      {/* Display Options */}
+      {/* View Customization */}
       <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-3 uppercase tracking-wide">
-          Display Options
+        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">
+          View
         </label>
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={filters.animateEdges}
-              onChange={(e) => setFilters({ animateEdges: e.target.checked })}
-              className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-xs text-slate-700 dark:text-slate-300">Animate edges</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={filters.focusSelection}
-              onChange={(e) => setFilters({ focusSelection: e.target.checked })}
-              className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-xs text-slate-700 dark:text-slate-300">Focus selection path</span>
-          </label>
-          <div className="border-t border-slate-200 dark:border-slate-700 pt-2 mt-2">
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 mb-2 block uppercase tracking-wide">Node Properties</span>
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filters.nodeDisplayOptions.showObjectName}
-                  onChange={(e) => setFilters({
-                    nodeDisplayOptions: { ...filters.nodeDisplayOptions, showObjectName: e.target.checked }
-                  })}
-                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-xs text-slate-700 dark:text-slate-300">Object name</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filters.nodeDisplayOptions.showRows}
-                  onChange={(e) => setFilters({
-                    nodeDisplayOptions: { ...filters.nodeDisplayOptions, showRows: e.target.checked }
-                  })}
-                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-xs text-slate-700 dark:text-slate-300">
-                  {parsedPlan?.hasActualStats ? 'E-Rows' : 'Rows'}
-                </span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filters.nodeDisplayOptions.showCost}
-                  onChange={(e) => setFilters({
-                    nodeDisplayOptions: { ...filters.nodeDisplayOptions, showCost: e.target.checked }
-                  })}
-                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-xs text-slate-700 dark:text-slate-300">Cost</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filters.nodeDisplayOptions.showBytes}
-                  onChange={(e) => setFilters({
-                    nodeDisplayOptions: { ...filters.nodeDisplayOptions, showBytes: e.target.checked }
-                  })}
-                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-xs text-slate-700 dark:text-slate-300">Bytes</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filters.nodeDisplayOptions.showPredicateIndicators}
-                  onChange={(e) => setFilters({
-                    nodeDisplayOptions: { ...filters.nodeDisplayOptions, showPredicateIndicators: e.target.checked }
-                  })}
-                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-xs text-slate-700 dark:text-slate-300">Predicate indicators</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filters.nodeDisplayOptions.showPredicateDetails}
-                  onChange={(e) => setFilters({
-                    nodeDisplayOptions: { ...filters.nodeDisplayOptions, showPredicateDetails: e.target.checked }
-                  })}
-                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-xs text-slate-700 dark:text-slate-300">Predicate details</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filters.nodeDisplayOptions.showQueryBlockBadge}
-                  onChange={(e) => setFilters({
-                    nodeDisplayOptions: { ...filters.nodeDisplayOptions, showQueryBlockBadge: e.target.checked }
-                  })}
-                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-xs text-slate-700 dark:text-slate-300">Query block badge</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filters.nodeDisplayOptions.showQueryBlockGrouping}
-                  onChange={(e) => setFilters({
-                    nodeDisplayOptions: { ...filters.nodeDisplayOptions, showQueryBlockGrouping: e.target.checked }
-                  })}
-                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-xs text-slate-700 dark:text-slate-300">Query block grouping</span>
-              </label>
-            </div>
-            {/* SQL Monitor actual statistics options */}
-            {parsedPlan?.hasActualStats && (
-              <div className="border-t border-slate-200 dark:border-slate-700 pt-2 mt-2">
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 mb-2 block uppercase tracking-wide">Runtime Statistics</span>
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={filters.nodeDisplayOptions.showActualRows}
-                      onChange={(e) => setFilters({
-                        nodeDisplayOptions: { ...filters.nodeDisplayOptions, showActualRows: e.target.checked }
-                      })}
-                      className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-xs text-slate-700 dark:text-slate-300">A-Rows</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={filters.nodeDisplayOptions.showActualTime}
-                      onChange={(e) => setFilters({
-                        nodeDisplayOptions: { ...filters.nodeDisplayOptions, showActualTime: e.target.checked }
-                      })}
-                      className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-xs text-slate-700 dark:text-slate-300">A-Time</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={filters.nodeDisplayOptions.showStarts}
-                      onChange={(e) => setFilters({
-                        nodeDisplayOptions: { ...filters.nodeDisplayOptions, showStarts: e.target.checked }
-                      })}
-                      className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-xs text-slate-700 dark:text-slate-300">Starts</span>
-                  </label>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <CustomizeViewMenu
+          filters={filters}
+          setFilters={setFilters}
+          hasActualStats={parsedPlan.hasActualStats}
+          defaultNodeDisplayOptions={DEFAULT_NODE_DISPLAY_OPTIONS}
+        />
       </div>
 
       {/* Predicate Types */}

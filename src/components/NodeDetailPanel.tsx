@@ -1,11 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { getOperationCategory, COLOR_SCHEMES, getCostColor } from '../lib/types';
 import { formatBytes, formatNumberShort, formatTimeDetailed } from '../lib/format';
 import type { PlanNode as PlanNodeType } from '../lib/types';
 import { HighlightText } from './HighlightText';
 
-export function NodeDetailPanel() {
+interface NodeDetailPanelProps {
+  panelWidth: number;
+  onResizeStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+}
+
+export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelProps) {
   const { selectedNode, parsedPlan, selectNode, colorScheme, filters, nodeById } = usePlan();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const node = selectedNode;
@@ -43,7 +48,17 @@ export function NodeDetailPanel() {
 
   if (!node) {
     return (
-      <div className="w-[300px] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 p-3">
+      <div
+        className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 p-3"
+        style={{ width: panelWidth }}
+      >
+        <button
+          type="button"
+          onPointerDown={onResizeStart}
+          className="absolute left-0 top-0 z-10 h-full w-2 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors"
+          aria-label="Resize details panel"
+          title="Resize details panel"
+        />
         <div className="flex justify-end mb-2">
           <button
             onClick={() => setIsCollapsed(true)}
@@ -83,7 +98,17 @@ export function NodeDetailPanel() {
   const costColor = getCostColor(node.cost || 0, totalCost);
 
   return (
-    <div className="w-[300px] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 overflow-y-auto">
+    <div
+      className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 overflow-y-auto"
+      style={{ width: panelWidth }}
+    >
+      <button
+        type="button"
+        onPointerDown={onResizeStart}
+        className="absolute left-0 top-0 z-10 h-full w-2 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors"
+        aria-label="Resize details panel"
+        title="Resize details panel"
+      />
       {/* Header */}
       <div className={`p-3 border-b border-slate-200 dark:border-slate-800 ${colors.bg}`}>
         <div className="flex items-start justify-between">
