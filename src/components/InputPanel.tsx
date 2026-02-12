@@ -45,44 +45,44 @@ export function InputPanel() {
   };
 
   return (
-    <div className="flex flex-col bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+    <div className="flex flex-col bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
       {/* Header - always visible */}
-      <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+      <div className="flex items-center justify-between px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
         <button
           type="button"
           onClick={() => setIsCollapsed(!isCollapsed)}
           aria-expanded={!isCollapsed}
           aria-controls="input-panel-content"
-          className="flex items-center gap-2 text-left"
+          className="flex items-center gap-2 text-left min-w-0"
         >
           <svg
-            className={`w-5 h-5 text-gray-500 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
+            className={`w-4 h-4 text-slate-500 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
             {parsedPlan && (parsedPlan.sqlId || parsedPlan.planHashValue)
               ? [
                   parsedPlan.sqlId && <span key="sql">SQL ID: <span className="font-mono">{parsedPlan.sqlId}</span></span>,
-                  parsedPlan.sqlId && parsedPlan.planHashValue && <span key="sep" className="text-gray-400 dark:text-gray-500 mx-1">|</span>,
-                  parsedPlan.planHashValue && <span key="hash">Plan Hash: <span className="font-mono">{parsedPlan.planHashValue}</span></span>,
+                  parsedPlan.sqlId && parsedPlan.planHashValue && <span key="sep" className="text-slate-400 dark:text-slate-500 mx-1">|</span>,
+                  parsedPlan.planHashValue && <span key="hash">PHV: <span className="font-mono">{parsedPlan.planHashValue}</span></span>,
                 ]
               : 'Oracle Execution Plan Input'}
           </h2>
           {isCollapsed && parsedPlan && (
-            <div className="flex items-center gap-2 ml-2">
-              <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs font-medium">
+            <div className="hidden lg:flex items-center gap-1.5 ml-2">
+              <span className="px-2 py-0.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium">
                 {getSourceDisplayName(parsedPlan.source)}
               </span>
               {parsedPlan.hasActualStats && (
-                <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded text-xs font-medium">
+                <span className="px-2 py-0.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium">
                   Actual Stats
                 </span>
               )}
-                <span className="text-sm text-gray-500 dark:text-gray-400">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
                 ({parsedPlan.allNodes.length} operations, Cost: {parsedPlan.totalCost}{parsedPlan.hasActualStats && parsedPlan.rootNode?.actualRows != null ? `, A-Rows: ${formatNumberShort(parsedPlan.rootNode.actualRows)}` : ''}{parsedPlan.hasActualStats && parsedPlan.totalElapsedTime != null ? `, A-Time: ${formatTimeShort(parsedPlan.totalElapsedTime)}` : ''})
               </span>
             </div>
@@ -91,7 +91,7 @@ export function InputPanel() {
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowSampleMenu(!showSampleMenu)}
-            className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-1"
+            className="h-8 px-3 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1 font-semibold"
           >
             Load Example
             <svg className={`w-4 h-4 transition-transform ${showSampleMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -99,29 +99,29 @@ export function InputPanel() {
             </svg>
           </button>
           {showSampleMenu && (
-            <div className="absolute right-0 mt-1 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
+            <div className="absolute right-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50">
               <div className="py-1">
-                <div className="px-3 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                   DBMS_XPLAN
                 </div>
                 {SAMPLE_PLANS_BY_CATEGORY.dbms_xplan.map((sample) => (
                   <button
                     key={sample.name}
                     onClick={() => handleLoadSample(sample)}
-                    className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                   >
                     {sample.name}
                   </button>
                 ))}
-                <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-                <div className="px-3 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                <div className="border-t border-slate-200 dark:border-slate-700 my-1" />
+                <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                   SQL Monitor
                 </div>
                 {SAMPLE_PLANS_BY_CATEGORY.sql_monitor.map((sample) => (
                   <button
                     key={sample.name}
                     onClick={() => handleLoadSample(sample)}
-                    className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                   >
                     {sample.name}
                   </button>
@@ -134,16 +134,16 @@ export function InputPanel() {
 
       {/* Collapsible content */}
       {!isCollapsed && (
-        <div id="input-panel-content" className="flex flex-col gap-3 px-4 pb-4">
+        <div id="input-panel-content" className="flex flex-col gap-2 px-3 pb-3">
           <textarea
             value={rawInput}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Paste your DBMS_XPLAN output or SQL Monitor report here..."
-            className="w-full h-48 p-3 font-mono text-sm bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+            className="w-full h-36 p-2.5 font-mono text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-blue-500/60 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400"
           />
 
           {error && (
-            <div className="p-3 text-sm bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">
+            <div className="p-2 text-xs bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-red-700 dark:text-red-400">
               {error}
             </div>
           )}
@@ -152,25 +152,25 @@ export function InputPanel() {
             <button
               onClick={handleParse}
               disabled={!rawInput.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              className="h-8 px-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold text-xs"
             >
-              Parse & Visualize
+              Parse
             </button>
             {parsedPlan && (
               <button
                 onClick={handleClear}
-                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
+                className="h-8 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-semibold text-xs"
               >
                 Clear
               </button>
             )}
             {parsedPlan && (
-              <div className="flex items-center ml-auto text-sm text-gray-600 dark:text-gray-400 gap-4">
-                <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs font-medium">
+              <div className="hidden xl:flex items-center ml-auto text-xs text-slate-600 dark:text-slate-400 gap-2">
+                <span className="px-2 py-0.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium">
                   {getSourceDisplayName(parsedPlan.source)}
                 </span>
                 {parsedPlan.hasActualStats && (
-                  <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded text-xs font-medium">
+                  <span className="px-2 py-0.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium">
                     Actual Stats
                   </span>
                 )}
@@ -182,7 +182,7 @@ export function InputPanel() {
                 </span>
                 {parsedPlan.planHashValue && (
                   <span>
-                    Plan Hash: {parsedPlan.planHashValue}
+                    PHV: {parsedPlan.planHashValue}
                   </span>
                 )}
               </div>
