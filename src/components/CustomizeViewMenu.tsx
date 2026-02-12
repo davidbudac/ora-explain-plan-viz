@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { FilterState, NodeDisplayOptions } from '../lib/types';
 
 type CommandSection = 'Behavior' | 'Node fields' | 'Runtime fields';
@@ -135,8 +136,10 @@ export function CustomizeViewMenu({
 }: CustomizeViewMenuProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 });
 
   const commands = useMemo(() => buildCommands(hasActualStats), [hasActualStats]);
   const availableCommands = useMemo(
@@ -169,8 +172,36 @@ export function CustomizeViewMenu({
   useEffect(() => {
     if (!open) return;
 
+    const updatePopoverPosition = () => {
+      const triggerElement = triggerRef.current;
+      const popoverElement = popoverRef.current;
+      if (!triggerElement || !popoverElement) return;
+
+      const triggerRect = triggerElement.getBoundingClientRect();
+      const popoverWidth = popoverElement.offsetWidth || 320;
+      const popoverHeight = popoverElement.offsetHeight || 360;
+      const viewportPadding = 8;
+      const gap = 8;
+
+      let left = triggerRect.left;
+      left = Math.max(viewportPadding, Math.min(left, window.innerWidth - popoverWidth - viewportPadding));
+
+      let top = triggerRect.top - popoverHeight - gap;
+      if (top < viewportPadding) {
+        top = Math.min(
+          triggerRect.bottom + gap,
+          window.innerHeight - popoverHeight - viewportPadding
+        );
+      }
+
+      setPopoverPosition({ top, left });
+    };
+
     const handleOutsideClick = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const targetNode = event.target as Node;
+      const clickedTrigger = triggerRef.current?.contains(targetNode);
+      const clickedPopover = popoverRef.current?.contains(targetNode);
+      if (!clickedTrigger && !clickedPopover) {
         setOpen(false);
       }
     };
@@ -180,12 +211,18 @@ export function CustomizeViewMenu({
       }
     };
 
+    const animationFrame = requestAnimationFrame(updatePopoverPosition);
     document.addEventListener('mousedown', handleOutsideClick);
     document.addEventListener('keydown', handleEscape);
+    window.addEventListener('resize', updatePopoverPosition);
+    window.addEventListener('scroll', updatePopoverPosition, true);
 
     return () => {
+      cancelAnimationFrame(animationFrame);
       document.removeEventListener('mousedown', handleOutsideClick);
       document.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('resize', updatePopoverPosition);
+      window.removeEventListener('scroll', updatePopoverPosition, true);
     };
   }, [open]);
 
@@ -247,8 +284,9 @@ export function CustomizeViewMenu({
   };
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className="relative">
       <button
+        ref={triggerRef}
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
@@ -270,12 +308,14 @@ export function CustomizeViewMenu({
         {enabledCount}/{availableCount} enabled
       </p>
 
-      {open && (
+      {open && createPortal(
         <div
+          ref={popoverRef}
           id="customize-view-popover"
           role="dialog"
           aria-label="Customize view"
-          className="absolute left-0 mt-2 z-30 w-[320px] max-w-[calc(100vw-2rem)] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl"
+          className="fixed z-[80] w-[320px] max-w-[calc(100vw-1rem)] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl"
+          style={{ top: popoverPosition.top, left: popoverPosition.left }}
         >
           <div className="p-2 border-b border-slate-200 dark:border-slate-700">
             <input
@@ -344,7 +384,8 @@ export function CustomizeViewMenu({
               </div>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
