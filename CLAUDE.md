@@ -9,7 +9,7 @@ A client-side web application that parses Oracle execution plan output and rende
 - **Graph Visualization**: React Flow (@xyflow/react)
 - **Sankey Diagram**: D3-sankey
 - **Layout Algorithm**: Custom tree layout (with Dagre fallback)
-- **Styling**: Tailwind CSS
+- **Styling**: Tailwind CSS (slate color palette, compact layout)
 
 ## Project Structure
 
@@ -38,7 +38,6 @@ src/
 │   ├── NodeDetailPanel.tsx  # Shows selected node attributes + runtime stats
 │   ├── VisualizationTabs.tsx # Tab switcher for views
 │   ├── Legend.tsx           # Hideable color legend
-│   ├── CollapsibleMiniMap.tsx # Toggleable minimap for navigation
 │   ├── HighlightText.tsx    # Search text highlighting component
 │   ├── nodes/
 │   │   └── PlanNode.tsx     # Custom React Flow node component
@@ -78,11 +77,10 @@ npm run preview
 - **Filter Panel**: Filter by operation type, cost threshold, search text, predicate type, and actual stats ranges
 - **Search Highlighting**: Matching text highlighted in plan nodes
 - **Node Details**: Click any node to see full attributes and predicates
-- **Color Schemes**: Vibrant, muted, professional, and monochrome options
+- **Color Schemes**: Muted (default), vibrant, professional, and monochrome options
 - **Settings Persistence**: View preferences saved to localStorage
 - **Theme Toggle**: Light/dark mode with localStorage persistence
 - **Sankey Metric Toggle**: Switch between Rows, Cost, A-Rows, or A-Time
-- **Collapsible Minimap**: Navigation aid for large plans
 - **Hideable Legend**: Color coding reference that can be hidden
 - **Fully Client-Side**: No backend, no data upload - everything runs in browser
 
