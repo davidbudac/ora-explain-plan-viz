@@ -10,7 +10,7 @@ function AppContent() {
   const { parsedPlan } = usePlan();
 
   return (
-    <div className="compact-pro flex flex-col h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div className="flex flex-col h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <Header />
       <InputPanel />
 
