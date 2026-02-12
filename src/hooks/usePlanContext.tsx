@@ -10,6 +10,7 @@ interface PlanState {
   rawInput: string;
   parsedPlan: ParsedPlan | null;
   selectedNodeId: number | null;
+  selectedNodeIds: number[];
   viewMode: ViewMode;
   sankeyMetric: SankeyMetric;
   nodeIndicatorMetric: NodeIndicatorMetric;
@@ -26,7 +27,7 @@ interface PlanState {
 type PlanAction =
   | { type: 'SET_INPUT'; payload: string }
   | { type: 'SET_PARSED_PLAN'; payload: ParsedPlan }
-  | { type: 'SELECT_NODE'; payload: number | null }
+  | { type: 'SELECT_NODE'; payload: { id: number | null; additive?: boolean } }
   | { type: 'SET_VIEW_MODE'; payload: ViewMode }
   | { type: 'SET_SANKEY_METRIC'; payload: SankeyMetric }
   | { type: 'SET_NODE_INDICATOR_METRIC'; payload: NodeIndicatorMetric }
@@ -82,6 +83,7 @@ const getInitialState = (): PlanState => {
     rawInput: '',
     parsedPlan: null,
     selectedNodeId: null,
+    selectedNodeIds: [],
     viewMode: settings.viewMode,
     sankeyMetric: settings.sankeyMetric,
     nodeIndicatorMetric: settings.nodeIndicatorMetric,
@@ -109,12 +111,40 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
         parsedPlan: action.payload,
         error: null,
         selectedNodeId: null,
+        selectedNodeIds: [],
         nodeIndicatorMetric: newMetric,
       };
     }
 
-    case 'SELECT_NODE':
-      return { ...state, selectedNodeId: action.payload };
+    case 'SELECT_NODE': {
+      const { id, additive } = action.payload;
+
+      if (id === null) {
+        return { ...state, selectedNodeId: null, selectedNodeIds: [] };
+      }
+
+      if (!additive) {
+        return { ...state, selectedNodeId: id, selectedNodeIds: [id] };
+      }
+
+      const isAlreadySelected = state.selectedNodeIds.includes(id);
+      if (isAlreadySelected) {
+        const nextSelectedNodeIds = state.selectedNodeIds.filter((nodeId) => nodeId !== id);
+        const nextPrimaryId =
+          nextSelectedNodeIds.length > 0 ? nextSelectedNodeIds[nextSelectedNodeIds.length - 1] : null;
+        return {
+          ...state,
+          selectedNodeId: state.selectedNodeId === id ? nextPrimaryId : state.selectedNodeId,
+          selectedNodeIds: nextSelectedNodeIds,
+        };
+      }
+
+      return {
+        ...state,
+        selectedNodeId: id,
+        selectedNodeIds: [...state.selectedNodeIds, id],
+      };
+    }
 
     case 'SET_VIEW_MODE':
       return { ...state, viewMode: action.payload };
@@ -146,6 +176,7 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
         rawInput: '',
         parsedPlan: null,
         selectedNodeId: null,
+        selectedNodeIds: [],
         error: null,
         filters: applySettingsToFilters(initialFilters, loadSettings()),
       };
@@ -168,7 +199,7 @@ interface PlanContextValue extends PlanState {
   setInput: (input: string) => void;
   parsePlan: () => void;
   loadAndParsePlan: (input: string) => void;
-  selectNode: (id: number | null) => void;
+  selectNode: (id: number | null, options?: { additive?: boolean }) => void;
   setViewMode: (mode: ViewMode) => void;
   setSankeyMetric: (metric: SankeyMetric) => void;
   setNodeIndicatorMetric: (metric: NodeIndicatorMetric) => void;
@@ -179,6 +210,7 @@ interface PlanContextValue extends PlanState {
   getSelectedNode: () => PlanNode | null;
   getFilteredNodes: () => PlanNode[];
   selectedNode: PlanNode | null;
+  selectedNodes: PlanNode[];
   filteredNodes: PlanNode[];
   filteredNodeIds: Set<number>;
   nodeById: Map<number, PlanNode>;
@@ -212,6 +244,13 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     if (!state.parsedPlan || state.selectedNodeId === null) return null;
     return nodeById.get(state.selectedNodeId) || null;
   }, [state.parsedPlan, state.selectedNodeId, nodeById]);
+
+  const selectedNodes = useMemo((): PlanNode[] => {
+    if (!state.parsedPlan || state.selectedNodeIds.length === 0) return [];
+    return state.selectedNodeIds
+      .map((id) => nodeById.get(id))
+      .filter((node): node is PlanNode => Boolean(node));
+  }, [state.parsedPlan, state.selectedNodeIds, nodeById]);
 
   // Apply theme to document
   useEffect(() => {
@@ -327,8 +366,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const selectNode = useCallback((id: number | null) => {
-    dispatch({ type: 'SELECT_NODE', payload: id });
+  const selectNode = useCallback((id: number | null, options?: { additive?: boolean }) => {
+    dispatch({ type: 'SELECT_NODE', payload: { id, additive: options?.additive } });
   }, []);
 
   const setViewMode = useCallback((mode: ViewMode) => {
@@ -391,6 +430,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     getSelectedNode,
     getFilteredNodes,
     selectedNode,
+    selectedNodes,
     filteredNodes,
     filteredNodeIds,
     nodeById,
