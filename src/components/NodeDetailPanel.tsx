@@ -11,10 +11,12 @@ interface NodeDetailPanelProps {
 }
 
 export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelProps) {
-  const { selectedNode, parsedPlan, selectNode, colorScheme, filters, nodeIndicatorMetric } = usePlan();
+  const { selectedNode: selectedPrimaryNode, selectedNodes, selectedNodeIds, parsedPlan, selectNode, colorScheme, filters, nodeIndicatorMetric } = usePlan();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const node = selectedNode;
   const searchText = filters.searchText;
+  const isMultiSelection = selectedNodes.length > 1;
+  const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : selectedPrimaryNode;
+  const aggregateSelection = isMultiSelection ? computeAggregateSelection(selectedNodes) : null;
 
   if (isCollapsed) {
     return (
@@ -33,7 +35,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
     );
   }
 
-  if (!node) {
+  if (selectedNodes.length === 0) {
     return (
       <div
         className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 p-3"
@@ -71,12 +73,124 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
               d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <p>Click on a node to see details</p>
+          <p>Click a node to see details, or Cmd/Ctrl-click for multi-select</p>
         </div>
       </div>
     );
   }
 
+  if (isMultiSelection && aggregateSelection) {
+    const indicator = computeNodeDetailIndicator(aggregateSelection.indicatorNode, parsedPlan, nodeIndicatorMetric);
+    const selectedIdPreview = selectedNodeIds.slice(0, 12).join(', ');
+    const hasMoreIds = selectedNodeIds.length > 12;
+
+    return (
+      <div
+        className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 overflow-y-auto"
+        style={{ width: panelWidth }}
+      >
+        <button
+          type="button"
+          onPointerDown={onResizeStart}
+          className="absolute left-0 top-0 z-10 h-full w-2 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors"
+          aria-label="Resize details panel"
+          title="Resize details panel"
+        />
+
+        <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40">
+          <div className="flex items-start justify-between">
+            <div>
+              <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900">
+                Multi Selection
+              </span>
+              <h3 className="mt-2 font-semibold text-sm text-slate-900 dark:text-slate-100">
+                {selectedNodes.length} nodes selected
+              </h3>
+              <div className="mt-1 text-[11px] text-slate-600 dark:text-slate-400 break-all">
+                IDs: {selectedIdPreview}{hasMoreIds ? ', ...' : ''}
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setIsCollapsed(true)}
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
+                title="Collapse panel"
+              >
+                <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                </svg>
+              </button>
+              <button
+                onClick={() => selectNode(null)}
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
+                title="Clear selection"
+              >
+                <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">{indicator.title}</span>
+            <span className="text-xs text-slate-600 dark:text-slate-400">{indicator.percentText}% {indicator.referenceLabel}</span>
+          </div>
+          <div className="mb-2 text-xs font-medium text-slate-700 dark:text-slate-300">{indicator.formattedValue}</div>
+          <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+            <div
+              className={`h-full ${indicator.color} transition-all duration-300`}
+              style={{ width: `${Math.min(100, indicator.ratio * 100)}%` }}
+            />
+          </div>
+        </div>
+
+        {parsedPlan?.hasActualStats && (
+          <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Actual Statistics (Selection)</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <StatItem label="A-Rows" value={formatNumberShort(aggregateSelection.sumActualRows)} highlight="blue" />
+              <StatItem label="A-Time" value={formatTimeDetailed(aggregateSelection.sumActualTime)} highlight="purple" />
+              <StatItem label="Starts" value={formatNumberShort(aggregateSelection.sumStarts)} highlight="orange" />
+              <StatItem label="Avg Activity %" value={aggregateSelection.avgActivityPercent !== undefined ? `${aggregateSelection.avgActivityPercent.toFixed(1)}%` : undefined} />
+            </div>
+          </div>
+        )}
+
+        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">
+            {parsedPlan?.hasActualStats ? 'Estimated Statistics (Selection)' : 'Statistics (Selection)'}
+          </h4>
+          <div className="grid grid-cols-2 gap-3">
+            <StatItem label={parsedPlan?.hasActualStats ? "E-Rows" : "Rows"} value={formatNumberShort(aggregateSelection.sumRows)} />
+            <StatItem label="Bytes" value={formatBytes(aggregateSelection.sumBytes)} />
+            <StatItem label="Cost" value={formatNumberShort(aggregateSelection.sumCost)} />
+            <StatItem label="Avg CPU %" value={aggregateSelection.avgCpuPercent !== undefined ? `${aggregateSelection.avgCpuPercent.toFixed(1)}%` : undefined} />
+            <StatItem label="Temp Space" value={aggregateSelection.sumTempSpace > 0 ? formatBytes(aggregateSelection.sumTempSpace) : undefined} />
+          </div>
+        </div>
+
+        {(aggregateSelection.sumMemoryUsed > 0 ||
+          aggregateSelection.sumTempUsed > 0 ||
+          aggregateSelection.sumPhysicalReads > 0 ||
+          aggregateSelection.sumLogicalReads > 0) && (
+          <div className="p-3 border-t border-slate-200 dark:border-slate-800">
+            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Memory & I/O (Selection)</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <StatItem label="Memory" value={aggregateSelection.sumMemoryUsed > 0 ? formatBytes(aggregateSelection.sumMemoryUsed) : undefined} />
+              <StatItem label="Temp Used" value={aggregateSelection.sumTempUsed > 0 ? formatBytes(aggregateSelection.sumTempUsed) : undefined} />
+              <StatItem label="Phys Reads" value={formatNumberShort(aggregateSelection.sumPhysicalReads)} />
+              <StatItem label="Log Reads" value={formatNumberShort(aggregateSelection.sumLogicalReads)} />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const node = selectedNode!;
   const category = getOperationCategory(node.operation);
   const schemeColors = COLOR_SCHEMES[colorScheme];
   const colors = schemeColors[category] || schemeColors['Other'];
@@ -341,4 +455,74 @@ function computeNodeDetailIndicator(
     percentText: (clampedRatio * 100).toFixed(1),
     color: clampedRatio === 0 ? 'bg-gray-200 dark:bg-gray-700' : getMetricColor(clampedRatio),
   };
+}
+
+interface AggregateSelectionStats {
+  indicatorNode: PlanNodeType;
+  sumRows: number;
+  sumBytes: number;
+  sumCost: number;
+  sumActualRows: number;
+  sumActualTime: number;
+  sumStarts: number;
+  avgActivityPercent: number | undefined;
+  avgCpuPercent: number | undefined;
+  sumTempSpace: number;
+  sumMemoryUsed: number;
+  sumTempUsed: number;
+  sumPhysicalReads: number;
+  sumLogicalReads: number;
+}
+
+function computeAggregateSelection(nodes: PlanNodeType[]): AggregateSelectionStats {
+  const sumRows = sumNumbers(nodes.map((n) => n.rows));
+  const sumBytes = sumNumbers(nodes.map((n) => n.bytes));
+  const sumCost = sumNumbers(nodes.map((n) => n.cost));
+  const sumActualRows = sumNumbers(nodes.map((n) => n.actualRows));
+  const sumActualTime = sumNumbers(nodes.map((n) => n.actualTime));
+  const sumStarts = sumNumbers(nodes.map((n) => n.starts));
+  const avgActivityPercent = averageNumbers(nodes.map((n) => n.activityPercent));
+  const avgCpuPercent = averageNumbers(nodes.map((n) => n.cpuPercent));
+  const sumTempSpace = sumNumbers(nodes.map((n) => n.tempSpace));
+  const sumMemoryUsed = sumNumbers(nodes.map((n) => n.memoryUsed));
+  const sumTempUsed = sumNumbers(nodes.map((n) => n.tempUsed));
+  const sumPhysicalReads = sumNumbers(nodes.map((n) => n.physicalReads));
+  const sumLogicalReads = sumNumbers(nodes.map((n) => n.logicalReads));
+
+  return {
+    indicatorNode: {
+      id: -1,
+      depth: 0,
+      operation: `${nodes.length} nodes`,
+      children: [],
+      cost: sumCost,
+      actualRows: sumActualRows,
+      actualTime: sumActualTime,
+      starts: sumStarts,
+      activityPercent: avgActivityPercent,
+    },
+    sumRows,
+    sumBytes,
+    sumCost,
+    sumActualRows,
+    sumActualTime,
+    sumStarts,
+    avgActivityPercent,
+    avgCpuPercent,
+    sumTempSpace,
+    sumMemoryUsed,
+    sumTempUsed,
+    sumPhysicalReads,
+    sumLogicalReads,
+  };
+}
+
+function sumNumbers(values: Array<number | undefined>): number {
+  return values.reduce<number>((total, value) => total + (value ?? 0), 0);
+}
+
+function averageNumbers(values: Array<number | undefined>): number | undefined {
+  const definedValues = values.filter((value): value is number => value !== undefined);
+  if (definedValues.length === 0) return undefined;
+  return definedValues.reduce((total, value) => total + value, 0) / definedValues.length;
 }

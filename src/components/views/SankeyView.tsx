@@ -28,7 +28,8 @@ export function SankeyView() {
   const tooltipStateRef = useRef<typeof tooltip>(null);
   const rafRef = useRef<number | null>(null);
   const pendingTooltipRef = useRef<typeof tooltip>(null);
-  const { parsedPlan, selectedNodeId, selectNode, sankeyMetric, filteredNodeIds, theme, colorScheme } = usePlan();
+  const { parsedPlan, selectedNodeIds, selectNode, sankeyMetric, filteredNodeIds, theme, colorScheme } = usePlan();
+  const selectedNodeIdSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
 
   useEffect(() => {
     tooltipStateRef.current = tooltip;
@@ -134,10 +135,10 @@ export function SankeyView() {
   }, [parsedPlan, sankeyMetric]);
 
   const handleNodeClick = useCallback(
-    (nodeId: number) => {
-      selectNode(selectedNodeId === nodeId ? null : nodeId);
+    (nodeId: number, additive: boolean) => {
+      selectNode(nodeId, { additive });
     },
-    [selectNode, selectedNodeId]
+    [selectNode]
   );
 
   useEffect(() => {
@@ -261,7 +262,7 @@ export function SankeyView() {
       nodes.forEach((node) => {
         const sNode = node as SNode;
         const isFiltered = filteredNodeIds.has(sNode.planNode.id);
-        const isSelected = selectedNodeId === sNode.planNode.id;
+        const isSelected = selectedNodeIdSet.has(sNode.planNode.id);
 
         const nodeWidth = (node.x1 || 0) - (node.x0 || 0);
         const nodeHeight = (node.y1 || 0) - (node.y0 || 0);
@@ -283,8 +284,9 @@ export function SankeyView() {
           rect.setAttribute('stroke-width', '3');
         }
 
-        rect.addEventListener('click', () => {
-          handleNodeClick(sNode.planNode.id);
+        rect.addEventListener('click', (event) => {
+          const additive = event.metaKey || event.ctrlKey;
+          handleNodeClick(sNode.planNode.id, additive);
         });
 
         rect.addEventListener('mouseenter', (event) => {
@@ -345,7 +347,7 @@ export function SankeyView() {
       console.error('Sankey rendering error:', err);
       setError(err instanceof Error ? err.message : 'Failed to render Sankey diagram');
     }
-  }, [sankeyData, selectedNodeId, filteredNodeIds, handleNodeClick, theme, dimensions, colorScheme, sankeyMetric, parsedPlan?.hasActualStats, scheduleTooltipUpdate]);
+  }, [sankeyData, selectedNodeIdSet, filteredNodeIds, handleNodeClick, theme, dimensions, colorScheme, sankeyMetric, parsedPlan?.hasActualStats, scheduleTooltipUpdate]);
 
   if (!parsedPlan?.rootNode) {
     return (
