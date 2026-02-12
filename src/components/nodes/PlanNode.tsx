@@ -52,7 +52,6 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   const borderClass = colorScheme === 'professional' ? '' : 'border-2';
 
   const indicator = computeIndicatorMetric(node, nodeIndicatorMetric, totalCost, maxActualRows, maxStarts, totalElapsedTime);
-  const costPercentage = totalCost > 0 ? ((node.cost || 0) / totalCost * 100).toFixed(1) : '0';
 
   // Default display options if not provided
   const options = displayOptions || {
@@ -95,7 +94,11 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
       {/* Metric indicator bar */}
       <div
         className="absolute top-0 left-0 right-0 h-1 rounded-t-md overflow-hidden bg-gray-200 dark:bg-gray-700"
-        title={`${indicator.label}: ${indicator.formattedValue} (${(indicator.ratio * 100).toFixed(1)}%)`}
+        title={
+          nodeIndicatorMetric === 'cost'
+            ? `${indicator.label}: ${indicator.formattedValue}`
+            : `${indicator.label}: ${indicator.formattedValue} (${(indicator.ratio * 100).toFixed(1)}%)`
+        }
       >
         <div
           className={`h-full ${indicator.color} transition-all`}
@@ -144,7 +147,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           )}
           {options.showCost && node.cost !== undefined && (
             <span className="px-1.5 py-0.5 bg-white/50 dark:bg-black/20 rounded text-gray-700 dark:text-gray-300">
-              Cost: {node.cost} ({costPercentage}%)
+              Cost: {node.cost}
             </span>
           )}
           {options.showBytes && node.bytes !== undefined && (
