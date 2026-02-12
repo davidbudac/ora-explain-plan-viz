@@ -1,8 +1,8 @@
-import { useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
-import { getOperationCategory, COLOR_SCHEMES, getCostColor } from '../lib/types';
-import { formatBytes, formatNumberShort, formatTimeDetailed } from '../lib/format';
-import type { PlanNode as PlanNodeType } from '../lib/types';
+import { getOperationCategory, COLOR_SCHEMES, getMetricColor } from '../lib/types';
+import { formatBytes, formatNumberShort, formatTimeCompact, formatTimeDetailed } from '../lib/format';
+import type { PlanNode as PlanNodeType, NodeIndicatorMetric } from '../lib/types';
 import { HighlightText } from './HighlightText';
 
 interface NodeDetailPanelProps {
@@ -11,23 +11,10 @@ interface NodeDetailPanelProps {
 }
 
 export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelProps) {
-  const { selectedNode, parsedPlan, selectNode, colorScheme, filters, nodeById } = usePlan();
+  const { selectedNode, parsedPlan, selectNode, colorScheme, filters, nodeIndicatorMetric } = usePlan();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const node = selectedNode;
   const searchText = filters.searchText;
-
-  const ancestry = useMemo(() => {
-    if (!parsedPlan || !node) return [];
-    const chain: PlanNodeType[] = [];
-    let current = node;
-    while (current.parentId !== undefined) {
-      const parent = nodeById.get(current.parentId);
-      if (!parent) break;
-      chain.push(parent);
-      current = parent;
-    }
-    return chain.reverse();
-  }, [node, parsedPlan, nodeById]);
 
   if (isCollapsed) {
     return (
@@ -93,9 +80,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
   const category = getOperationCategory(node.operation);
   const schemeColors = COLOR_SCHEMES[colorScheme];
   const colors = schemeColors[category] || schemeColors['Other'];
-  const totalCost = parsedPlan?.totalCost || 0;
-  const costPercentage = totalCost > 0 ? ((node.cost || 0) / totalCost * 100).toFixed(1) : '0';
-  const costColor = getCostColor(node.cost || 0, totalCost);
+  const indicator = computeNodeDetailIndicator(node, parsedPlan, nodeIndicatorMetric);
 
   return (
     <div
@@ -169,16 +154,17 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         )}
       </div>
 
-      {/* Cost indicator */}
+      {/* Node indicator */}
       <div className="p-3 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Cost Impact</span>
-          <span className="text-xs text-slate-600 dark:text-slate-400">{costPercentage}% of total</span>
+          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">{indicator.title}</span>
+          <span className="text-xs text-slate-600 dark:text-slate-400">{indicator.percentText}% {indicator.referenceLabel}</span>
         </div>
+        <div className="mb-2 text-xs font-medium text-slate-700 dark:text-slate-300">{indicator.formattedValue}</div>
         <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
           <div
-            className={`h-full ${costColor} transition-all duration-300`}
-            style={{ width: `${Math.min(100, parseFloat(costPercentage))}%` }}
+            className={`h-full ${indicator.color} transition-all duration-300`}
+            style={{ width: `${Math.min(100, indicator.ratio * 100)}%` }}
           />
         </div>
       </div>
@@ -262,33 +248,6 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         </div>
       )}
 
-      {/* Tree position info */}
-      <div className="p-3 border-t border-slate-200 dark:border-slate-800">
-        <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Tree Position</h4>
-        <div className="text-xs text-slate-600 dark:text-slate-400">
-          <div>Depth: {node.depth}</div>
-          <div>Children: {node.children.length}</div>
-          {node.parentId !== undefined && <div>Parent ID: {node.parentId}</div>}
-        </div>
-      </div>
-
-      {ancestry.length > 0 && (
-        <div className="p-3 border-t border-slate-200 dark:border-slate-800">
-          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Ancestry</h4>
-          <div className="flex flex-wrap gap-2">
-            {ancestry.map((ancestor) => (
-              <button
-                key={ancestor.id}
-                onClick={() => selectNode(ancestor.id)}
-                className="px-2 py-1 rounded text-[11px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                title={ancestor.operation}
-              >
-                {ancestor.id}: {ancestor.operation}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -314,4 +273,72 @@ function StatItem({ label, value, highlight }: { label: string; value?: string; 
       <div className={`text-xs font-semibold ${highlight ? valueStyles[highlight] : 'text-slate-900 dark:text-slate-100'}`}>{value}</div>
     </div>
   );
+}
+
+interface NodeDetailIndicator {
+  ratio: number;
+  title: string;
+  formattedValue: string;
+  referenceLabel: string;
+  percentText: string;
+  color: string;
+}
+
+function computeNodeDetailIndicator(
+  node: PlanNodeType,
+  parsedPlan: { totalCost: number; maxActualRows?: number; maxStarts?: number; totalElapsedTime?: number } | null,
+  metric: NodeIndicatorMetric,
+): NodeDetailIndicator {
+  const totalCost = parsedPlan?.totalCost || 0;
+  const maxActualRows = parsedPlan?.maxActualRows || 0;
+  const maxStarts = parsedPlan?.maxStarts || 0;
+  const totalElapsedTime = parsedPlan?.totalElapsedTime || 0;
+
+  let ratio = 0;
+  let title = 'Cost Impact';
+  let formattedValue = `Cost: ${node.cost || 0}`;
+  let referenceLabel = 'of total';
+
+  switch (metric) {
+    case 'cost':
+      ratio = totalCost > 0 ? (node.cost || 0) / totalCost : 0;
+      title = 'Cost Impact';
+      formattedValue = `Cost: ${node.cost || 0}`;
+      referenceLabel = 'of total';
+      break;
+    case 'actualRows':
+      ratio = maxActualRows > 0 ? (node.actualRows || 0) / maxActualRows : 0;
+      title = 'A-Rows Impact';
+      formattedValue = `A-Rows: ${formatNumberShort(node.actualRows || 0) ?? '0'}`;
+      referenceLabel = 'of max';
+      break;
+    case 'actualTime':
+      ratio = totalElapsedTime > 0 ? (node.actualTime || 0) / totalElapsedTime : 0;
+      title = 'A-Time Impact';
+      formattedValue = `A-Time: ${formatTimeCompact(node.actualTime || 0) ?? '0ms'}`;
+      referenceLabel = 'of total';
+      break;
+    case 'starts':
+      ratio = maxStarts > 0 ? (node.starts || 0) / maxStarts : 0;
+      title = 'Starts Impact';
+      formattedValue = `Starts: ${formatNumberShort(node.starts || 0) ?? '0'}`;
+      referenceLabel = 'of max';
+      break;
+    case 'activityPercent':
+      ratio = (node.activityPercent || 0) / 100;
+      title = 'Activity Impact';
+      formattedValue = `Activity: ${(node.activityPercent || 0).toFixed(1)}%`;
+      referenceLabel = 'of total';
+      break;
+  }
+
+  const clampedRatio = Math.max(0, Math.min(1, ratio));
+  return {
+    ratio: clampedRatio,
+    title,
+    formattedValue,
+    referenceLabel,
+    percentText: (clampedRatio * 100).toFixed(1),
+    color: clampedRatio === 0 ? 'bg-gray-200 dark:bg-gray-700' : getMetricColor(clampedRatio),
+  };
 }
