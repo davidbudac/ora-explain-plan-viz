@@ -605,7 +605,8 @@ function HierarchicalViewContent() {
   useEffect(() => {
     setEdges((currentEdges) =>
       currentEdges.map((edge) => {
-        const newStroke = filteredNodeIds.has(parseInt(edge.target)) ? '#6366f1' : '#d1d5db';
+        const activeEdgeStroke = theme === 'dark' ? '#4f46e5' : '#6366f1';
+        const newStroke = filteredNodeIds.has(parseInt(edge.target)) ? activeEdgeStroke : '#d1d5db';
         const currentStroke = edge.style?.stroke;
         const currentAnimated = edge.animated;
         const currentStrokeWidth = edge.style?.strokeWidth;
@@ -631,11 +632,11 @@ function HierarchicalViewContent() {
             strokeWidth = Math.max(baseWidth, 4);
             strokeOpacity = 0.95;
           } else if (isDescendantEdge) {
-            stroke = '#6366f1';
+            stroke = activeEdgeStroke;
             strokeWidth = Math.max(baseWidth, 3);
             strokeOpacity = 0.7;
           } else {
-            stroke = theme === 'dark' ? '#4b5563' : '#e5e7eb';
+            stroke = theme === 'dark' ? '#374151' : '#e5e7eb';
             strokeOpacity = 0.15;
           }
         }
