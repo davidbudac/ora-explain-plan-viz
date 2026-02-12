@@ -29,7 +29,7 @@ function IndicatorButton({
   label,
   current,
   onClick,
-  activeClass = 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm',
+  activeClass = 'bg-blue-600 text-white shadow-sm',
 }: {
   metric: NodeIndicatorMetric;
   label: string;
@@ -41,8 +41,8 @@ function IndicatorButton({
     <button
       onClick={() => onClick(metric)}
       className={`
-        px-3 py-1 text-sm rounded transition-colors
-        ${current === metric ? activeClass : 'text-gray-600 dark:text-gray-400'}
+        px-2.5 py-1 text-xs rounded-md transition-colors font-medium
+        ${current === metric ? activeClass : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}
       `}
     >
       {label}
@@ -58,18 +58,18 @@ export function VisualizationTabs() {
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Tab bar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 gap-2">
         <div className="flex gap-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setViewMode(tab.id)}
               className={`
-                flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors
+                flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border
                 ${
                   viewMode === tab.id
-                    ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
                 }
               `}
             >
@@ -82,8 +82,8 @@ export function VisualizationTabs() {
         {/* Hierarchical indicator metric toggle */}
         {viewMode === 'hierarchical' && (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Indicator:</span>
-            <div className="flex bg-gray-200 dark:bg-gray-700 rounded-md p-0.5">
+            <span className="text-xs text-slate-600 dark:text-slate-400">Indicator</span>
+            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-md p-0.5 border border-slate-200 dark:border-slate-700">
               <IndicatorButton
                 metric="cost"
                 label="Cost"
@@ -97,28 +97,24 @@ export function VisualizationTabs() {
                     label="A-Rows"
                     current={nodeIndicatorMetric}
                     onClick={setNodeIndicatorMetric}
-                    activeClass="bg-blue-500 text-white shadow-sm"
                   />
                   <IndicatorButton
                     metric="actualTime"
                     label="A-Time"
                     current={nodeIndicatorMetric}
                     onClick={setNodeIndicatorMetric}
-                    activeClass="bg-purple-500 text-white shadow-sm"
                   />
                   <IndicatorButton
                     metric="starts"
                     label="Starts"
                     current={nodeIndicatorMetric}
                     onClick={setNodeIndicatorMetric}
-                    activeClass="bg-orange-500 text-white shadow-sm"
                   />
                   <IndicatorButton
                     metric="activityPercent"
                     label="Activity %"
                     current={nodeIndicatorMetric}
                     onClick={setNodeIndicatorMetric}
-                    activeClass="bg-rose-500 text-white shadow-sm"
                   />
                 </>
               )}
@@ -129,16 +125,16 @@ export function VisualizationTabs() {
         {/* Sankey metric toggle */}
         {viewMode === 'sankey' && (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Show by:</span>
-            <div className="flex bg-gray-200 dark:bg-gray-700 rounded-md p-0.5">
+            <span className="text-xs text-slate-600 dark:text-slate-400">Show by</span>
+            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-md p-0.5 border border-slate-200 dark:border-slate-700">
               <button
                 onClick={() => setSankeyMetric('rows')}
                 className={`
-                  px-3 py-1 text-sm rounded transition-colors
+                  px-2.5 py-1 text-xs rounded-md transition-colors font-medium
                   ${
                     sankeyMetric === 'rows'
-                      ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm'
-                      : 'text-gray-600 dark:text-gray-400'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
                   }
                 `}
               >
@@ -147,11 +143,11 @@ export function VisualizationTabs() {
               <button
                 onClick={() => setSankeyMetric('cost')}
                 className={`
-                  px-3 py-1 text-sm rounded transition-colors
+                  px-2.5 py-1 text-xs rounded-md transition-colors font-medium
                   ${
                     sankeyMetric === 'cost'
-                      ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm'
-                      : 'text-gray-600 dark:text-gray-400'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
                   }
                 `}
               >
@@ -162,11 +158,11 @@ export function VisualizationTabs() {
                   <button
                     onClick={() => setSankeyMetric('actualRows')}
                     className={`
-                      px-3 py-1 text-sm rounded transition-colors
+                      px-2.5 py-1 text-xs rounded-md transition-colors font-medium
                       ${
                         sankeyMetric === 'actualRows'
-                          ? 'bg-blue-500 text-white shadow-sm'
-                          : 'text-gray-600 dark:text-gray-400'
+                          ? 'bg-blue-600 text-white'
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
                       }
                     `}
                   >
@@ -175,11 +171,11 @@ export function VisualizationTabs() {
                   <button
                     onClick={() => setSankeyMetric('actualTime')}
                     className={`
-                      px-3 py-1 text-sm rounded transition-colors
+                      px-2.5 py-1 text-xs rounded-md transition-colors font-medium
                       ${
                         sankeyMetric === 'actualTime'
-                          ? 'bg-purple-500 text-white shadow-sm'
-                          : 'text-gray-600 dark:text-gray-400'
+                          ? 'bg-blue-600 text-white'
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
                       }
                     `}
                   >

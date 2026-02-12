@@ -85,7 +85,7 @@ const getInitialState = (): PlanState => {
     viewMode: settings.viewMode,
     sankeyMetric: settings.sankeyMetric,
     nodeIndicatorMetric: settings.nodeIndicatorMetric,
-    colorScheme: settings.colorScheme,
+    colorScheme: settings.colorScheme ?? 'muted',
     theme: getInitialTheme(),
     filters: applySettingsToFilters(initialFilters, settings),
     error: null,

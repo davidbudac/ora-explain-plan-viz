@@ -2,24 +2,29 @@ import { usePlan } from '../hooks/usePlanContext';
 import type { ColorScheme } from '../lib/types';
 
 const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
-  vibrant: 'Vibrant',
   muted: 'Muted',
   professional: 'Professional',
+  vibrant: 'Vibrant',
   monochrome: 'Monochrome',
 };
 
 export function Header() {
-  const { theme, setTheme, colorScheme, setColorScheme } = usePlan();
+  const {
+    theme,
+    setTheme,
+    colorScheme,
+    setColorScheme,
+  } = usePlan();
 
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
 
   return (
-    <header className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-      <div className="flex items-center gap-3">
+    <header className="h-[52px] flex items-center justify-between gap-3 px-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+      <div className="flex items-center gap-2 min-w-0">
         <svg
-          className="w-8 h-8 text-blue-600 dark:text-blue-400"
+          className="w-6 h-6 text-slate-700 dark:text-slate-300 shrink-0"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -31,23 +36,17 @@ export function Header() {
             d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
           />
         </svg>
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-            Oracle Execution Plan Visualizer
-          </h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Visualize DBMS_XPLAN and SQL Monitor output (more sources coming soon).
-          </p>
-        </div>
+        <h1 className="text-[15px] font-semibold text-slate-900 dark:text-slate-100 truncate">
+          Oracle Plan Visualizer
+        </h1>
       </div>
 
-      <div className="flex items-center gap-3">
-        {/* Color scheme selector */}
+      <div className="flex items-center gap-1.5">
         <select
           value={colorScheme}
           onChange={(e) => setColorScheme(e.target.value as ColorScheme)}
-          className="px-3 py-2 text-sm rounded-lg bg-gray-100 dark:bg-gray-700 border-0 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          title="Color scheme"
+          className="h-8 px-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/60"
+          title="Graph color palette"
         >
           {Object.entries(COLOR_SCHEME_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
@@ -56,14 +55,13 @@ export function Header() {
           ))}
         </select>
 
-        {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          className="h-8 w-8 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
         >
           {theme === 'light' ? (
-            <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -72,7 +70,7 @@ export function Header() {
               />
             </svg>
           ) : (
-            <svg className="w-5 h-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -83,15 +81,14 @@ export function Header() {
           )}
         </button>
 
-        {/* GitHub link */}
         <a
           href="https://github.com/davidbudac/ora-explain-plan-viz"
           target="_blank"
           rel="noopener noreferrer"
-          className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          className="h-8 w-8 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           title="View on GitHub"
         >
-          <svg className="w-5 h-5 text-gray-700 dark:text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-slate-700 dark:text-slate-300" fill="currentColor" viewBox="0 0 24 24">
             <path
               fillRule="evenodd"
               clipRule="evenodd"

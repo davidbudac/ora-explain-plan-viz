@@ -15,7 +15,6 @@ import '@xyflow/react/dist/style.css';
 
 import { usePlan } from '../../hooks/usePlanContext';
 import { PlanNodeMemo } from '../nodes/PlanNode';
-import { CollapsibleMiniMap } from '../CollapsibleMiniMap';
 import { formatNumberShort } from '../../lib/format';
 import type { PlanNode, NodeDisplayOptions } from '../../lib/types';
 
@@ -116,8 +115,7 @@ const NODE_V_SPACING = 80;
 function getLayoutedElements(
   nodes: Node[],
   edges: Edge[],
-  nodeDimensions: Map<string, { width: number; height: number }>,
-  _direction: 'TB' | 'LR' = 'TB'
+  nodeDimensions: Map<string, { width: number; height: number }>
 ): { nodes: Node[]; edges: Edge[] } {
   if (nodes.length === 0) {
     return { nodes: [], edges };
@@ -171,13 +169,45 @@ function getLayoutedElements(
 
   calculateSubtreeWidth(rootId);
 
+  // Assign depth and compute max node height per depth to avoid row overlaps
+  // when dynamic node content (e.g. predicate details) expands.
+  const depthByNodeId = new Map<string, number>();
+  const maxHeightByDepth = new Map<number, number>();
+
+  function assignDepth(nodeId: string, depth: number): void {
+    const existingDepth = depthByNodeId.get(nodeId);
+    if (existingDepth !== undefined && existingDepth <= depth) return;
+
+    depthByNodeId.set(nodeId, depth);
+    const dims = nodeDimensions.get(nodeId) || { width: NODE_WIDTH, height: NODE_BASE_HEIGHT };
+    maxHeightByDepth.set(depth, Math.max(maxHeightByDepth.get(depth) || 0, dims.height));
+
+    const children = childrenMap.get(nodeId) || [];
+    for (const childId of children) {
+      assignDepth(childId, depth + 1);
+    }
+  }
+
+  assignDepth(rootId, 0);
+
+  const levelYOffsets = new Map<number, number>();
+  levelYOffsets.set(0, 0);
+  const maxDepth = Math.max(...depthByNodeId.values(), 0);
+  for (let depth = 1; depth <= maxDepth; depth++) {
+    const prevY = levelYOffsets.get(depth - 1) || 0;
+    const prevHeight = maxHeightByDepth.get(depth - 1) || NODE_BASE_HEIGHT;
+    levelYOffsets.set(depth, prevY + prevHeight + NODE_V_SPACING);
+  }
+
   // Position nodes: each node is centered over its subtree
   const positions = new Map<string, { x: number; y: number }>();
 
-  function positionNode(nodeId: string, xStart: number, y: number): void {
+  function positionNode(nodeId: string, xStart: number): void {
     const dims = nodeDimensions.get(nodeId) || { width: NODE_WIDTH, height: NODE_BASE_HEIGHT };
     const subtreeWidth = subtreeWidths.get(nodeId) || dims.width;
     const children = childrenMap.get(nodeId) || [];
+    const depth = depthByNodeId.get(nodeId) || 0;
+    const y = levelYOffsets.get(depth) || 0;
 
     // Center the node within its allocated subtree width
     const nodeX = xStart + (subtreeWidth - dims.width) / 2;
@@ -185,8 +215,6 @@ function getLayoutedElements(
 
     // Position children
     if (children.length > 0) {
-      const childY = y + dims.height + NODE_V_SPACING;
-
       if (children.length === 1) {
         // Single child: align directly under parent (same X position)
         const childId = children[0];
@@ -196,7 +224,7 @@ function getLayoutedElements(
         // childXStart = nodeX - (childSubtreeWidth - childWidth) / 2
         const childSubtreeWidth = subtreeWidths.get(childId) || NODE_WIDTH;
         const childXStart = nodeX - (childSubtreeWidth - childDims.width) / 2;
-        positionNode(childId, childXStart, childY);
+        positionNode(childId, childXStart);
       } else {
         // Multiple children: center the group under the parent
         let totalChildrenWidth = 0;
@@ -213,14 +241,14 @@ function getLayoutedElements(
 
         for (const childId of children) {
           const childSubtreeWidth = subtreeWidths.get(childId) || NODE_WIDTH;
-          positionNode(childId, childX, childY);
+          positionNode(childId, childX);
           childX += childSubtreeWidth + NODE_H_SPACING;
         }
       }
     }
   }
 
-  positionNode(rootId, 0, 0);
+  positionNode(rootId, 0);
 
   // Apply positions to nodes
   const layoutedNodes = nodes.map((node) => {
@@ -343,11 +371,22 @@ function HierarchicalViewContent() {
     const edges: Edge[] = [];
     const nodeQueryBlocks: Map<string, string> = new Map();
     const nodeDimensions: Map<string, { width: number; height: number }> = new Map();
+    const nodeGroupDimensions: Map<string, { width: number; height: number }> = new Map();
 
     function traverse(node: PlanNode) {
+      const hasActualStats = parsedPlan!.hasActualStats || false;
       // Calculate dynamic height for this node
-      const height = calculateNodeHeight(node, filters.nodeDisplayOptions, parsedPlan!.hasActualStats || false);
+      const height = calculateNodeHeight(node, filters.nodeDisplayOptions, hasActualStats);
       nodeDimensions.set(node.id.toString(), { width: NODE_WIDTH, height });
+
+      // Keep query block envelopes stable across predicate-detail toggles by
+      // sizing groups against the expanded node-height baseline.
+      const groupHeight = calculateNodeHeight(
+        node,
+        { ...filters.nodeDisplayOptions, showPredicateDetails: true },
+        hasActualStats
+      );
+      nodeGroupDimensions.set(node.id.toString(), { width: NODE_WIDTH, height: groupHeight });
 
       planNodes.push({
         id: node.id.toString(),
@@ -451,17 +490,20 @@ function HierarchicalViewContent() {
 
       // Create group nodes with bounding boxes
       const padding = 20;
+      // Keep query block groups visually stable even when node content is compact
+      // (e.g. predicate details disabled) and nodes still have rings/shadows/scale.
+      const visualBuffer = 14;
       queryBlockGroups.forEach((groupedNodes, queryBlock) => {
         if (groupedNodes.length === 0) return;
 
         // Calculate bounding box using actual node dimensions
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         for (const node of groupedNodes) {
-          const dims = nodeDimensions.get(node.id) || { width: NODE_WIDTH, height: NODE_BASE_HEIGHT };
-          minX = Math.min(minX, node.position.x);
-          minY = Math.min(minY, node.position.y);
-          maxX = Math.max(maxX, node.position.x + dims.width);
-          maxY = Math.max(maxY, node.position.y + dims.height);
+          const dims = nodeGroupDimensions.get(node.id) || nodeDimensions.get(node.id) || { width: NODE_WIDTH, height: NODE_BASE_HEIGHT };
+          minX = Math.min(minX, node.position.x - visualBuffer);
+          minY = Math.min(minY, node.position.y - visualBuffer);
+          maxX = Math.max(maxX, node.position.x + dims.width + visualBuffer);
+          maxY = Math.max(maxY, node.position.y + dims.height + visualBuffer);
         }
 
         groupNodes.push({
@@ -495,6 +537,14 @@ function HierarchicalViewContent() {
     setNodes(layoutData.nodes);
     setEdges(layoutData.edges);
   }, [layoutData, setNodes, setEdges]);
+
+  // Re-fit viewport when layout changes (e.g. enabling predicate details expands nodes).
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fitView({ padding: 0.2 });
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [layoutData, fitView]);
 
   // Update node data properties separately (selection, filtering, display options)
   // Use rfSetNodes from useReactFlow to ensure React Flow detects the change
@@ -682,14 +732,6 @@ function HierarchicalViewContent() {
           color={theme === 'dark' ? '#374151' : '#e5e7eb'}
         />
         <Controls className="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-700" />
-        <CollapsibleMiniMap
-          nodeColor={(node) => {
-            const isFiltered = filteredNodeIds.has(parseInt(node.id));
-            return isFiltered ? '#6366f1' : '#d1d5db';
-          }}
-          maskColor={theme === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.7)'}
-          className="!bg-gray-100 dark:!bg-gray-800 !border-gray-200 dark:!border-gray-700"
-        />
       </ReactFlow>
     </div>
   );
