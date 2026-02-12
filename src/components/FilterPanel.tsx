@@ -420,10 +420,10 @@ export function FilterPanel() {
                 `}
               >
                 <span className="truncate">{label}</span>
-                  <span className="ml-2 px-2 py-0.5 bg-white dark:bg-slate-900 rounded text-[11px]">
-                    {count}
-                  </span>
-                </button>
+                <span className="ml-2 px-2 py-0.5 bg-white dark:bg-slate-900 rounded text-[11px]">
+                  {count}
+                </span>
+              </button>
             );
           })}
         </div>
@@ -455,10 +455,10 @@ export function FilterPanel() {
                 `}
               >
                 <span className="truncate">{category}</span>
-                  <span className="ml-2 px-2 py-0.5 bg-white dark:bg-slate-900 rounded text-[11px]">
-                    {count}
-                  </span>
-                </button>
+                <span className="ml-2 px-2 py-0.5 bg-white dark:bg-slate-900 rounded text-[11px]">
+                  {count}
+                </span>
+              </button>
             );
           })}
         </div>
