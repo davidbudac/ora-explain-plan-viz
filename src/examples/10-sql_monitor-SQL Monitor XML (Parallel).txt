@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Source: Synthetic example modeled after real Oracle 19c SQL Monitor XML format.
+  Structure based on: https://github.com/oracle-samples/oracle-db-examples/blob/main/optimizer/execution_plans/part0/EM_sqlmonitor_output.html
+  Plan: Parallel DWH query (DOP=4) with PX COORDINATOR, PX SEND/RECEIVE,
+        BROADCAST distribution, HASH GROUP BY, and star schema joins on
+        a 75M row fact table.
+-->
 <report db_version="19.0.0.0.0" elapsed_time="15.73" cpu_time="52.14" cpu_cores="8" hyperthread="Y">
   <sql_monitor_report version="4.0" sysdate="02/10/2025 16:45:22">
     <report_parameters>
