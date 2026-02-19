@@ -280,6 +280,83 @@ Plan hash value: 123456
     });
   });
 
+  describe('Merge Join example - Oracle-Base (11-sql_monitor-SQL Monitor XML (Merge Join).txt)', () => {
+    let result: ReturnType<typeof sqlMonitorXmlParser.parse>;
+
+    it('parses without errors', () => {
+      const xml = readExample('11-sql_monitor-SQL Monitor XML (Merge Join).txt');
+      result = sqlMonitorXmlParser.parse(xml);
+      expect(result.rootNode).not.toBeNull();
+    });
+
+    it('extracts metadata from Oracle 11g format', () => {
+      expect(result.sqlId).toBe('526mvccm5nfy4');
+      expect(result.planHashValue).toBe('2970111170');
+    });
+
+    it('extracts SQL text with WM_CONCAT', () => {
+      expect(result.sqlText).toContain('WM_CONCAT');
+      expect(result.sqlText).toContain('emp');
+      expect(result.sqlText).toContain('dept');
+    });
+
+    it('parses all 7 operations', () => {
+      expect(result.allNodes).toHaveLength(7);
+    });
+
+    it('handles MERGE JOIN operation', () => {
+      const mergeJoin = result.allNodes.find(n => n.id === 2);
+      expect(mergeJoin?.operation).toBe('MERGE JOIN');
+      expect(mergeJoin?.rows).toBe(14);
+      expect(mergeJoin?.actualRows).toBe(14);
+    });
+
+    it('handles SORT GROUP BY operation', () => {
+      const sortGroupBy = result.allNodes.find(n => n.id === 1);
+      expect(sortGroupBy?.operation).toBe('SORT GROUP BY');
+      expect(sortGroupBy?.rows).toBe(4);
+      expect(sortGroupBy?.actualRows).toBe(3); // fewer groups than estimated
+      expect(sortGroupBy?.memoryUsed).toBe(2048);
+    });
+
+    it('handles INDEX FULL SCAN operation', () => {
+      const indexScan = result.allNodes.find(n => n.id === 4);
+      expect(indexScan?.operation).toBe('INDEX FULL SCAN');
+      expect(indexScan?.objectName).toBe('PK_DEPT');
+    });
+
+    it('handles SORT JOIN with access and filter predicates', () => {
+      const sortJoin = result.allNodes.find(n => n.id === 5);
+      expect(sortJoin?.operation).toBe('SORT JOIN');
+      expect(sortJoin?.starts).toBe(4); // called once per DEPT row
+      expect(sortJoin?.accessPredicates).toBeTruthy();
+      expect(sortJoin?.filterPredicates).toBeTruthy();
+    });
+
+    it('handles TABLE ACCESS BY INDEX ROWID', () => {
+      const tableAccess = result.allNodes.find(n => n.id === 3);
+      expect(tableAccess?.operation).toBe('TABLE ACCESS BY INDEX ROWID');
+      expect(tableAccess?.objectName).toBe('DEPT');
+    });
+
+    it('builds correct tree structure', () => {
+      // SELECT -> SORT GROUP BY -> MERGE JOIN -> (DEPT by ROWID, SORT JOIN)
+      const root = result.rootNode!;
+      expect(root.children).toHaveLength(1);
+      const sortGroupBy = root.children[0];
+      expect(sortGroupBy.children).toHaveLength(1);
+      const mergeJoin = sortGroupBy.children[0];
+      expect(mergeJoin.children).toHaveLength(2);
+      expect(mergeJoin.children[0].operation).toBe('TABLE ACCESS BY INDEX ROWID');
+      expect(mergeJoin.children[1].operation).toBe('SORT JOIN');
+    });
+
+    it('has correct global elapsed time from 11g format', () => {
+      // elapsed_time = 14344 microseconds = 14.344 ms
+      expect(result.totalElapsedTime).toBeCloseTo(14.344, 2);
+    });
+  });
+
   describe('Legacy XML format backward compatibility', () => {
     it('parses old simplified XML format', () => {
       const legacyXml = `<?xml version="1.0" encoding="UTF-8"?>
