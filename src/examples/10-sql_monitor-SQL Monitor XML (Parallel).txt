@@ -1,0 +1,438 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<report db_version="19.0.0.0.0" elapsed_time="15.73" cpu_time="52.14" cpu_cores="8" hyperthread="Y">
+  <sql_monitor_report version="4.0" sysdate="02/10/2025 16:45:22">
+    <report_parameters>
+      <sql_id>bx92mp4qr6h01</sql_id>
+      <sql_exec_id>67108864</sql_exec_id>
+      <session_id>287</session_id>
+      <session_serial>19428</session_serial>
+      <sql_exec_start>02/10/2025 16:45:06</sql_exec_start>
+    </report_parameters>
+    <target instance_id="1" session_id="287" session_serial="19428"
+            sql_id="bx92mp4qr6h01" sql_exec_start="02/10/2025 16:45:06"
+            sql_exec_id="67108864" sql_plan_hash="3847291056"
+            db_unique_name="DWHPROD" db_platform_name="Linux x86 64-bit">
+      <user>DWH_ETL</user>
+      <program>python@etl-server01</program>
+      <module>ETL_DAILY_SALES</module>
+      <sql_fulltext is_full="Y">SELECT /*+ MONITOR PARALLEL(4) */
+       d.fiscal_year, d.fiscal_quarter, d.month_name,
+       p.category, p.subcategory,
+       s.store_name, s.region,
+       SUM(f.quantity_sold) total_qty,
+       SUM(f.amount) total_amount,
+       COUNT(DISTINCT f.customer_id) unique_customers
+FROM   fact_sales f
+JOIN   dim_date d ON d.date_key = f.sale_date_key
+JOIN   dim_product p ON p.product_key = f.product_key
+JOIN   dim_store s ON s.store_key = f.store_key
+WHERE  d.fiscal_year = 2024
+GROUP BY d.fiscal_year, d.fiscal_quarter, d.month_name,
+         p.category, p.subcategory,
+         s.store_name, s.region
+ORDER BY total_amount DESC</sql_fulltext>
+      <status>DONE (ALL ROWS)</status>
+      <duration>15.731</duration>
+    </target>
+    <stats type="monitor">
+      <stat name="elapsed_time">15731000</stat>
+      <stat name="cpu_time">52140000</stat>
+      <stat name="user_io_wait_time">8240000</stat>
+      <stat name="buffer_gets">2847561</stat>
+      <stat name="read_reqs">35824</stat>
+      <stat name="read_bytes">293601280</stat>
+      <stat name="user_fetch_count">52</stat>
+    </stats>
+    <plan>
+      <operation name="SELECT STATEMENT" id="0" depth="0" pos="12450">
+        <cost>12450</cost>
+      </operation>
+      <operation name="PX COORDINATOR" id="1" depth="1" pos="1">
+        <qblock>SEL$1</qblock>
+      </operation>
+      <operation name="PX SEND" options="QC (ORDER)" id="2" depth="2" pos="1">
+        <card>2400</card>
+        <bytes>216000</bytes>
+        <cost>12450</cost>
+        <time>00:00:16</time>
+      </operation>
+      <operation name="SORT" options="ORDER BY" id="3" depth="3" pos="1">
+        <card>2400</card>
+        <bytes>216000</bytes>
+        <cost>12450</cost>
+        <time>00:00:16</time>
+      </operation>
+      <operation name="PX RECEIVE" id="4" depth="4" pos="1">
+        <card>2400</card>
+        <bytes>216000</bytes>
+        <cost>12450</cost>
+        <time>00:00:16</time>
+      </operation>
+      <operation name="PX SEND" options="RANGE" id="5" depth="5" pos="1">
+        <card>2400</card>
+        <bytes>216000</bytes>
+        <cost>12450</cost>
+        <time>00:00:16</time>
+      </operation>
+      <operation name="HASH" options="GROUP BY" id="6" depth="6" pos="1">
+        <card>2400</card>
+        <bytes>216000</bytes>
+        <cost>12450</cost>
+        <time>00:00:16</time>
+        <qblock>SEL$1</qblock>
+      </operation>
+      <operation name="HASH JOIN" id="7" depth="7" pos="1">
+        <card>18500000</card>
+        <bytes>1665000000</bytes>
+        <cost>11200</cost>
+        <time>00:00:14</time>
+        <predicates type="access">"S"."STORE_KEY"="F"."STORE_KEY"</predicates>
+      </operation>
+      <operation name="PX RECEIVE" id="8" depth="8" pos="1">
+        <card>500</card>
+        <bytes>15000</bytes>
+        <cost>3</cost>
+      </operation>
+      <operation name="PX SEND" options="BROADCAST" id="9" depth="9" pos="1">
+        <card>500</card>
+        <bytes>15000</bytes>
+        <cost>3</cost>
+      </operation>
+      <operation name="PX BLOCK ITERATOR" id="10" depth="10" pos="1">
+        <card>500</card>
+        <bytes>15000</bytes>
+        <cost>3</cost>
+      </operation>
+      <operation name="TABLE ACCESS" options="FULL" id="11" depth="11" pos="1">
+        <object>DIM_STORE</object>
+        <card>500</card>
+        <bytes>15000</bytes>
+        <cost>3</cost>
+        <qblock>SEL$1</qblock>
+        <object_alias>S@SEL$1</object_alias>
+      </operation>
+      <operation name="HASH JOIN" id="12" depth="8" pos="2">
+        <card>18500000</card>
+        <bytes>1110000000</bytes>
+        <cost>11190</cost>
+        <predicates type="access">"P"."PRODUCT_KEY"="F"."PRODUCT_KEY"</predicates>
+      </operation>
+      <operation name="PX RECEIVE" id="13" depth="9" pos="1">
+        <card>15000</card>
+        <bytes>450000</bytes>
+        <cost>42</cost>
+      </operation>
+      <operation name="PX SEND" options="BROADCAST" id="14" depth="10" pos="1">
+        <card>15000</card>
+        <bytes>450000</bytes>
+        <cost>42</cost>
+      </operation>
+      <operation name="PX BLOCK ITERATOR" id="15" depth="11" pos="1">
+        <card>15000</card>
+        <bytes>450000</bytes>
+        <cost>42</cost>
+      </operation>
+      <operation name="TABLE ACCESS" options="FULL" id="16" depth="12" pos="1">
+        <object>DIM_PRODUCT</object>
+        <card>15000</card>
+        <bytes>450000</bytes>
+        <cost>42</cost>
+        <qblock>SEL$1</qblock>
+        <object_alias>P@SEL$1</object_alias>
+      </operation>
+      <operation name="HASH JOIN" id="17" depth="9" pos="2">
+        <card>18500000</card>
+        <bytes>555000000</bytes>
+        <cost>10850</cost>
+        <predicates type="access">"D"."DATE_KEY"="F"."SALE_DATE_KEY"</predicates>
+      </operation>
+      <operation name="PX RECEIVE" id="18" depth="10" pos="1">
+        <card>365</card>
+        <bytes>5475</bytes>
+        <cost>2</cost>
+      </operation>
+      <operation name="PX SEND" options="BROADCAST" id="19" depth="11" pos="1">
+        <card>365</card>
+        <bytes>5475</bytes>
+        <cost>2</cost>
+      </operation>
+      <operation name="PX BLOCK ITERATOR" id="20" depth="12" pos="1">
+        <card>365</card>
+        <bytes>5475</bytes>
+        <cost>2</cost>
+      </operation>
+      <operation name="TABLE ACCESS" options="FULL" id="21" depth="13" pos="1">
+        <object>DIM_DATE</object>
+        <card>365</card>
+        <bytes>5475</bytes>
+        <cost>2</cost>
+        <predicates type="filter">"D"."FISCAL_YEAR"=2024</predicates>
+        <qblock>SEL$1</qblock>
+        <object_alias>D@SEL$1</object_alias>
+      </operation>
+      <operation name="PX BLOCK ITERATOR" id="22" depth="10" pos="2">
+        <card>75000000</card>
+        <bytes>1125000000</bytes>
+        <cost>10500</cost>
+      </operation>
+      <operation name="TABLE ACCESS" options="FULL" id="23" depth="11" pos="1">
+        <object>FACT_SALES</object>
+        <card>75000000</card>
+        <bytes>1125000000</bytes>
+        <cost>10500</cost>
+        <qblock>SEL$1</qblock>
+        <object_alias>F@SEL$1</object_alias>
+      </operation>
+    </plan>
+    <plan_monitor max_io_reqs="35824" max_io_bytes="293601280">
+      <operation id="0" name="SELECT STATEMENT" depth="0" position="0" skp="0">
+        <stats type="plan_monitor">
+          <stat name="first_active">02/10/2025 16:45:06</stat>
+          <stat name="last_active">02/10/2025 16:45:22</stat>
+          <stat name="duration">16</stat>
+          <stat name="starts">1</stat>
+          <stat name="cardinality">2156</stat>
+        </stats>
+      </operation>
+      <operation id="1" parent_id="0" name="PX COORDINATOR" depth="1" position="1" skp="0">
+        <stats type="plan_monitor">
+          <stat name="starts">1</stat>
+          <stat name="cardinality">2156</stat>
+        </stats>
+      </operation>
+      <operation id="2" parent_id="1" name="PX SEND" options="QC (ORDER)" depth="2" position="1" skp="0">
+        <optimizer>
+          <cardinality>2400</cardinality>
+          <cost>12450</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">2156</stat>
+        </stats>
+      </operation>
+      <operation id="3" parent_id="2" name="SORT" options="ORDER BY" depth="3" position="1" skp="0">
+        <optimizer>
+          <cardinality>2400</cardinality>
+          <cost>12450</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">2156</stat>
+          <stat name="max_memory">3145728</stat>
+        </stats>
+      </operation>
+      <operation id="4" parent_id="3" name="PX RECEIVE" depth="4" position="1" skp="0">
+        <optimizer>
+          <cardinality>2400</cardinality>
+          <cost>12450</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">8624</stat>
+        </stats>
+      </operation>
+      <operation id="5" parent_id="4" name="PX SEND" options="RANGE" depth="5" position="1" skp="0">
+        <optimizer>
+          <cardinality>2400</cardinality>
+          <cost>12450</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">8624</stat>
+        </stats>
+      </operation>
+      <operation id="6" parent_id="5" name="HASH" options="GROUP BY" depth="6" position="1" skp="0">
+        <optimizer>
+          <cardinality>2400</cardinality>
+          <cost>12450</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">8624</stat>
+          <stat name="max_memory">8388608</stat>
+        </stats>
+      </operation>
+      <operation id="7" parent_id="6" name="HASH JOIN" depth="7" position="1" skp="0">
+        <optimizer>
+          <cardinality>18500000</cardinality>
+          <cost>11200</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">17832456</stat>
+          <stat name="max_memory">524288</stat>
+        </stats>
+      </operation>
+      <operation id="8" parent_id="7" name="PX RECEIVE" depth="8" position="1" skp="0">
+        <optimizer>
+          <cardinality>500</cardinality>
+          <cost>3</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">2000</stat>
+        </stats>
+      </operation>
+      <operation id="9" parent_id="8" name="PX SEND" options="BROADCAST" depth="9" position="1" skp="0">
+        <optimizer>
+          <cardinality>500</cardinality>
+          <cost>3</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">500</stat>
+        </stats>
+      </operation>
+      <operation id="10" parent_id="9" name="PX BLOCK ITERATOR" depth="10" position="1" skp="0">
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">500</stat>
+        </stats>
+      </operation>
+      <operation id="11" parent_id="10" name="TABLE ACCESS" options="FULL" depth="11" position="1" skp="0">
+        <object type="TABLE">
+          <owner>DWH_ETL</owner>
+          <name>DIM_STORE</name>
+        </object>
+        <optimizer>
+          <cardinality>500</cardinality>
+          <cost>3</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">500</stat>
+          <stat name="read_reqs">4</stat>
+          <stat name="read_bytes">32768</stat>
+        </stats>
+      </operation>
+      <operation id="12" parent_id="7" name="HASH JOIN" depth="8" position="2" skp="0">
+        <optimizer>
+          <cardinality>18500000</cardinality>
+          <cost>11190</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">17832456</stat>
+          <stat name="max_memory">1572864</stat>
+        </stats>
+      </operation>
+      <operation id="13" parent_id="12" name="PX RECEIVE" depth="9" position="1" skp="0">
+        <optimizer>
+          <cardinality>15000</cardinality>
+          <cost>42</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">60000</stat>
+        </stats>
+      </operation>
+      <operation id="14" parent_id="13" name="PX SEND" options="BROADCAST" depth="10" position="1" skp="0">
+        <optimizer>
+          <cardinality>15000</cardinality>
+          <cost>42</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">15000</stat>
+        </stats>
+      </operation>
+      <operation id="15" parent_id="14" name="PX BLOCK ITERATOR" depth="11" position="1" skp="0">
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">15000</stat>
+        </stats>
+      </operation>
+      <operation id="16" parent_id="15" name="TABLE ACCESS" options="FULL" depth="12" position="1" skp="0">
+        <object type="TABLE">
+          <owner>DWH_ETL</owner>
+          <name>DIM_PRODUCT</name>
+        </object>
+        <optimizer>
+          <cardinality>15000</cardinality>
+          <cost>42</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">15000</stat>
+          <stat name="read_reqs">20</stat>
+          <stat name="read_bytes">163840</stat>
+        </stats>
+      </operation>
+      <operation id="17" parent_id="12" name="HASH JOIN" depth="9" position="2" skp="0">
+        <optimizer>
+          <cardinality>18500000</cardinality>
+          <cost>10850</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">17832456</stat>
+          <stat name="max_memory">65536</stat>
+        </stats>
+      </operation>
+      <operation id="18" parent_id="17" name="PX RECEIVE" depth="10" position="1" skp="0">
+        <optimizer>
+          <cardinality>365</cardinality>
+          <cost>2</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">1460</stat>
+        </stats>
+      </operation>
+      <operation id="19" parent_id="18" name="PX SEND" options="BROADCAST" depth="11" position="1" skp="0">
+        <optimizer>
+          <cardinality>365</cardinality>
+          <cost>2</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">365</stat>
+        </stats>
+      </operation>
+      <operation id="20" parent_id="19" name="PX BLOCK ITERATOR" depth="12" position="1" skp="0">
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">365</stat>
+        </stats>
+      </operation>
+      <operation id="21" parent_id="20" name="TABLE ACCESS" options="FULL" depth="13" position="1" skp="0">
+        <object type="TABLE">
+          <owner>DWH_ETL</owner>
+          <name>DIM_DATE</name>
+        </object>
+        <optimizer>
+          <cardinality>365</cardinality>
+          <cost>2</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">365</stat>
+          <stat name="read_reqs">4</stat>
+          <stat name="read_bytes">32768</stat>
+        </stats>
+      </operation>
+      <operation id="22" parent_id="17" name="PX BLOCK ITERATOR" depth="10" position="2" skp="0">
+        <stats type="plan_monitor">
+          <stat name="starts">4</stat>
+          <stat name="cardinality">72458921</stat>
+        </stats>
+      </operation>
+      <operation id="23" parent_id="22" name="TABLE ACCESS" options="FULL" depth="11" position="1" skp="0">
+        <object type="TABLE">
+          <owner>DWH_ETL</owner>
+          <name>FACT_SALES</name>
+        </object>
+        <optimizer>
+          <cardinality>75000000</cardinality>
+          <cost>10500</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">16</stat>
+          <stat name="cardinality">72458921</stat>
+          <stat name="read_reqs">35796</stat>
+          <stat name="read_bytes">293371904</stat>
+        </stats>
+      </operation>
+    </plan_monitor>
+  </sql_monitor_report>
+</report>

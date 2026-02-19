@@ -85,6 +85,18 @@ npm run build
 npm run preview
 ```
 
+### Testing
+
+```bash
+# Run all tests
+npx vitest run --environment jsdom
+
+# Run tests in watch mode
+npx vitest --environment jsdom
+```
+
+Tests use [Vitest](https://vitest.dev/) with jsdom and cover the parser logic (SQL Monitor XML format parsing, tree building, metadata extraction, backward compatibility).
+
 ## License
 
 MIT

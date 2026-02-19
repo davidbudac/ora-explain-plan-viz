@@ -25,7 +25,9 @@ src/
 │       ├── index.ts           # Parser orchestration, format detection
 │       ├── types.ts           # Parser interfaces
 │       ├── dbmsXplanParser.ts # DBMS_XPLAN text parser
-│       └── sqlMonitorParser.ts # SQL Monitor text/XML parsers
+│       ├── sqlMonitorParser.ts # SQL Monitor text/XML parsers
+│       └── __tests__/         # Parser unit tests (vitest + jsdom)
+│           └── sqlMonitorXml.test.ts
 ├── examples/            # Sample plan files loaded via Vite glob import
 │   ├── index.ts              # Auto-loader using NN-category-Name.txt convention
 │   └── *.txt                 # Example plan files (DBMS_XPLAN and SQL Monitor)
@@ -64,6 +66,33 @@ npm run build
 # Preview production build
 npm run preview
 ```
+
+## Testing
+
+Tests use [Vitest](https://vitest.dev/) with jsdom for DOM API support (DOMParser, etc.).
+
+```bash
+# Run all tests
+npx vitest run --environment jsdom
+
+# Run tests in watch mode
+npx vitest --environment jsdom
+
+# Run a specific test file
+npx vitest run --environment jsdom src/lib/parser/__tests__/sqlMonitorXml.test.ts
+```
+
+### Test Structure
+
+```
+src/
+└── lib/
+    └── parser/
+        └── __tests__/
+            └── sqlMonitorXml.test.ts   # SQL Monitor XML parser tests (real Oracle format + legacy)
+```
+
+Tests are excluded from the production build via `tsconfig.app.json` exclude patterns. Test files use the `*.test.ts` convention and live in `__tests__/` directories alongside the code they test.
 
 ## Features
 
@@ -120,6 +149,15 @@ SQL Plan Monitoring Details (Plan Hash Value=1234567890)
 
 ### SQL Monitor XML
 XML format from DBMS_SQL_MONITOR.REPORT_SQL_MONITOR with full execution details.
+
+The parser handles the **real Oracle XML format** with separate `<plan>` (optimizer estimates + predicates) and `<plan_monitor>` (actual runtime statistics) sections. Key XML elements:
+
+- `<report>` root with `<sql_monitor_report>` container
+- `<report_parameters>` / `<target>` for metadata (sql_id, plan_hash, sql_fulltext)
+- `<plan>` operations: `<card>`, `<cost>`, `<predicates type="access|filter">`
+- `<plan_monitor>` operations: `<stats type="plan_monitor">` with `<stat name="cardinality">` (actual rows), `<stat name="starts">`, `<stat name="max_memory">`, etc.
+- Operation names combine `name` + `options` attributes (e.g., `TABLE ACCESS` + `FULL`)
+- A legacy simplified XML format is also supported for backward compatibility
 
 ## Code Conventions
 

@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<report db_version="12.2.0.1.0" elapsed_time="0.28" cpu_time="0.08" cpu_cores="2" hyperthread="N">
+  <sql_monitor_report version="4.0" sysdate="03/09/2018 14:00:09">
+    <report_parameters>
+      <sql_id>an05rsj1up1k5</sql_id>
+      <sql_exec_id>16777225</sql_exec_id>
+      <session_id>63</session_id>
+      <session_serial>34039</session_serial>
+      <sql_exec_start>03/09/2018 14:00:09</sql_exec_start>
+    </report_parameters>
+    <target instance_id="1" session_id="63" session_serial="34039"
+            sql_id="an05rsj1up1k5" sql_exec_start="03/09/2018 14:00:09"
+            sql_exec_id="16777225" sql_plan_hash="2341252972"
+            sql_full_plan_hash="1830508051">
+      <user>ADHOC</user>
+      <program>sqlplus@prod12c (TNS V1-V3)</program>
+      <module>SQL*Plus</module>
+      <sql_fulltext is_full="Y">select /*+ MONITOR */
+       e.ename, r.rname
+from   employees  e
+join   roles       r on (r.id = e.role_id)
+join   departments d on (d.id = e.dept_id)
+where  e.staffno &lt;= 10
+and    d.dname in ('Department Name 1','Department Name 2')</sql_fulltext>
+      <status>DONE (ALL ROWS)</status>
+      <duration>.001755</duration>
+    </target>
+    <stats type="monitor">
+      <stat name="elapsed_time">1755</stat>
+      <stat name="cpu_time">1000</stat>
+      <stat name="other_wait_time">755</stat>
+      <stat name="user_fetch_count">2</stat>
+      <stat name="buffer_gets">28</stat>
+    </stats>
+    <plan>
+      <operation name="SELECT STATEMENT" id="0" depth="0" pos="6">
+        <cost>6</cost>
+      </operation>
+      <operation name="HASH JOIN" id="1" depth="1" pos="1">
+        <card>3</card>
+        <bytes>192</bytes>
+        <cost>6</cost>
+        <io_cost>6</io_cost>
+        <cpu_cost>1456622</cpu_cost>
+        <time>00:00:01</time>
+        <predicates type="access">"R"."ID"="E"."ROLE_ID"</predicates>
+        <qblock>SEL$9E43CB6E</qblock>
+        <object_alias>R@SEL$1</object_alias>
+      </operation>
+      <operation name="HASH JOIN" id="2" depth="2" pos="1">
+        <card>3</card>
+        <bytes>147</bytes>
+        <cost>4</cost>
+        <io_cost>4</io_cost>
+        <cpu_cost>815164</cpu_cost>
+        <time>00:00:01</time>
+        <predicates type="access">"D"."ID"="E"."DEPT_ID"</predicates>
+      </operation>
+      <operation name="TABLE ACCESS" options="FULL" id="3" depth="3" pos="1">
+        <object>DEPARTMENTS</object>
+        <card>2</card>
+        <bytes>42</bytes>
+        <cost>2</cost>
+        <predicates type="filter">("D"."DNAME"='Department Name 1' OR "D"."DNAME"='Department Name 2')</predicates>
+        <qblock>SEL$9E43CB6E</qblock>
+        <object_alias>D@SEL$2</object_alias>
+      </operation>
+      <operation name="TABLE ACCESS" options="FULL" id="4" depth="3" pos="2">
+        <object>EMPLOYEES</object>
+        <card>10</card>
+        <bytes>280</bytes>
+        <cost>2</cost>
+        <predicates type="filter">"E"."STAFFNO"&lt;=10</predicates>
+        <qblock>SEL$9E43CB6E</qblock>
+        <object_alias>E@SEL$1</object_alias>
+      </operation>
+      <operation name="TABLE ACCESS" options="FULL" id="5" depth="2" pos="2">
+        <object>ROLES</object>
+        <card>20</card>
+        <bytes>300</bytes>
+        <cost>2</cost>
+        <qblock>SEL$9E43CB6E</qblock>
+        <object_alias>R@SEL$1</object_alias>
+      </operation>
+    </plan>
+    <plan_monitor max_io_reqs="0" max_io_bytes="0">
+      <operation id="0" name="SELECT STATEMENT" depth="0" position="0" skp="0">
+        <stats type="plan_monitor">
+          <stat name="first_active">03/09/2018 14:00:09</stat>
+          <stat name="last_active">03/09/2018 14:00:09</stat>
+          <stat name="duration">1</stat>
+          <stat name="starts">1</stat>
+          <stat name="cardinality">1</stat>
+        </stats>
+      </operation>
+      <operation id="1" parent_id="0" name="HASH JOIN" depth="1" position="1" skp="0">
+        <optimizer>
+          <cardinality>3</cardinality>
+          <bytes>192</bytes>
+          <cost>6</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="first_active">03/09/2018 14:00:09</stat>
+          <stat name="last_active">03/09/2018 14:00:09</stat>
+          <stat name="duration">1</stat>
+          <stat name="starts">1</stat>
+          <stat name="cardinality">1</stat>
+          <stat name="max_memory">923648</stat>
+        </stats>
+      </operation>
+      <operation id="2" parent_id="1" name="HASH JOIN" depth="2" position="1" skp="0">
+        <optimizer>
+          <cardinality>3</cardinality>
+          <bytes>147</bytes>
+          <cost>4</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">1</stat>
+          <stat name="cardinality">2</stat>
+          <stat name="max_memory">923648</stat>
+        </stats>
+      </operation>
+      <operation id="3" parent_id="2" name="TABLE ACCESS" options="FULL" depth="3" position="1" skp="0">
+        <object type="TABLE">
+          <owner>ADHOC</owner>
+          <name>DEPARTMENTS</name>
+        </object>
+        <optimizer>
+          <cardinality>2</cardinality>
+          <bytes>42</bytes>
+          <cost>2</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">1</stat>
+          <stat name="cardinality">2</stat>
+        </stats>
+      </operation>
+      <operation id="4" parent_id="2" name="TABLE ACCESS" options="FULL" depth="3" position="2" skp="0">
+        <object type="TABLE">
+          <owner>ADHOC</owner>
+          <name>EMPLOYEES</name>
+        </object>
+        <optimizer>
+          <cardinality>10</cardinality>
+          <bytes>280</bytes>
+          <cost>2</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">1</stat>
+          <stat name="cardinality">10</stat>
+        </stats>
+      </operation>
+      <operation id="5" parent_id="1" name="TABLE ACCESS" options="FULL" depth="2" position="2" skp="0">
+        <object type="TABLE">
+          <owner>ADHOC</owner>
+          <name>ROLES</name>
+        </object>
+        <optimizer>
+          <cardinality>20</cardinality>
+          <bytes>300</bytes>
+          <cost>2</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">1</stat>
+          <stat name="cardinality">20</stat>
+        </stats>
+      </operation>
+    </plan_monitor>
+  </sql_monitor_report>
+</report>
