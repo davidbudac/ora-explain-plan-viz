@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<report db_version="19.0.0.0.0" elapsed_time="2.45" cpu_time="1.82" cpu_cores="4" hyperthread="Y">
+  <sql_monitor_report version="4.0" sysdate="11/15/2024 09:23:41">
+    <report_parameters>
+      <sql_id>g8f4kw2n7m103</sql_id>
+      <sql_exec_id>33554432</sql_exec_id>
+      <session_id>142</session_id>
+      <session_serial>51203</session_serial>
+      <sql_exec_start>11/15/2024 09:23:39</sql_exec_start>
+    </report_parameters>
+    <target instance_id="1" session_id="142" session_serial="51203"
+            sql_id="g8f4kw2n7m103" sql_exec_start="11/15/2024 09:23:39"
+            sql_exec_id="33554432" sql_plan_hash="891273456"
+            db_unique_name="PRODDB" db_platform_name="Linux x86 64-bit">
+      <user>APP_USER</user>
+      <program>JDBC Thin Client</program>
+      <module>OrderProcessing</module>
+      <sql_fulltext is_full="Y">SELECT /*+ MONITOR */
+       o.order_id, o.order_date, o.total_amount,
+       c.customer_name, c.email,
+       p.product_name, p.unit_price,
+       oi.quantity, oi.line_total
+FROM   orders o
+JOIN   customers c ON c.customer_id = o.customer_id
+JOIN   order_items oi ON oi.order_id = o.order_id
+JOIN   products p ON p.product_id = oi.product_id
+WHERE  o.order_date BETWEEN DATE '2024-01-01' AND DATE '2024-06-30'
+AND    o.status = 'SHIPPED'
+AND    c.region = 'NORTH_AMERICA'
+ORDER BY o.order_date DESC, o.total_amount DESC</sql_fulltext>
+      <status>DONE (ALL ROWS)</status>
+      <duration>2.451</duration>
+    </target>
+    <stats type="monitor">
+      <stat name="elapsed_time">2451000</stat>
+      <stat name="cpu_time">1820000</stat>
+      <stat name="user_io_wait_time">580000</stat>
+      <stat name="other_wait_time">51000</stat>
+      <stat name="buffer_gets">84523</stat>
+      <stat name="read_reqs">1247</stat>
+      <stat name="read_bytes">10223616</stat>
+      <stat name="user_fetch_count">335</stat>
+    </stats>
+    <plan>
+      <operation name="SELECT STATEMENT" id="0" depth="0" pos="2850">
+        <cost>2850</cost>
+      </operation>
+      <operation name="SORT" options="ORDER BY" id="1" depth="1" pos="1">
+        <card>4500</card>
+        <bytes>396000</bytes>
+        <cost>2850</cost>
+        <time>00:00:03</time>
+        <qblock>SEL$1</qblock>
+      </operation>
+      <operation name="NESTED LOOPS" id="2" depth="2" pos="1">
+        <card>4500</card>
+        <bytes>396000</bytes>
+        <cost>2420</cost>
+        <time>00:00:02</time>
+      </operation>
+      <operation name="NESTED LOOPS" id="3" depth="3" pos="1">
+        <card>4500</card>
+        <bytes>342000</bytes>
+        <cost>1920</cost>
+        <time>00:00:02</time>
+      </operation>
+      <operation name="HASH JOIN" id="4" depth="4" pos="1">
+        <card>4500</card>
+        <bytes>261000</bytes>
+        <cost>920</cost>
+        <time>00:00:01</time>
+        <predicates type="access">"C"."CUSTOMER_ID"="O"."CUSTOMER_ID"</predicates>
+      </operation>
+      <operation name="TABLE ACCESS" options="BY INDEX ROWID BATCHED" id="5" depth="5" pos="1">
+        <object>CUSTOMERS</object>
+        <card>2500</card>
+        <bytes>50000</bytes>
+        <cost>185</cost>
+        <predicates type="filter">"C"."REGION"='NORTH_AMERICA'</predicates>
+        <qblock>SEL$1</qblock>
+        <object_alias>C@SEL$1</object_alias>
+      </operation>
+      <operation name="INDEX" options="RANGE SCAN" id="6" depth="6" pos="1">
+        <object>CUST_REGION_IX</object>
+        <card>2500</card>
+        <cost>8</cost>
+        <predicates type="access">"C"."REGION"='NORTH_AMERICA'</predicates>
+        <qblock>SEL$1</qblock>
+        <object_alias>C@SEL$1</object_alias>
+      </operation>
+      <operation name="TABLE ACCESS" options="BY INDEX ROWID BATCHED" id="7" depth="5" pos="2">
+        <object>ORDERS</object>
+        <card>12000</card>
+        <bytes>456000</bytes>
+        <cost>735</cost>
+        <predicates type="filter">"O"."STATUS"='SHIPPED'</predicates>
+        <qblock>SEL$1</qblock>
+        <object_alias>O@SEL$1</object_alias>
+      </operation>
+      <operation name="INDEX" options="RANGE SCAN" id="8" depth="6" pos="1">
+        <object>ORD_DATE_IX</object>
+        <card>25000</card>
+        <cost>52</cost>
+        <predicates type="access">"O"."ORDER_DATE"&gt;=DATE '2024-01-01' AND "O"."ORDER_DATE"&lt;=DATE '2024-06-30'</predicates>
+        <qblock>SEL$1</qblock>
+        <object_alias>O@SEL$1</object_alias>
+      </operation>
+      <operation name="TABLE ACCESS" options="BY INDEX ROWID" id="9" depth="4" pos="2">
+        <object>ORDER_ITEMS</object>
+        <card>3</card>
+        <bytes>54</bytes>
+        <cost>2</cost>
+        <qblock>SEL$1</qblock>
+        <object_alias>OI@SEL$1</object_alias>
+      </operation>
+      <operation name="INDEX" options="RANGE SCAN" id="10" depth="5" pos="1">
+        <object>OITM_ORDER_IX</object>
+        <card>3</card>
+        <cost>1</cost>
+        <predicates type="access">"OI"."ORDER_ID"="O"."ORDER_ID"</predicates>
+        <qblock>SEL$1</qblock>
+        <object_alias>OI@SEL$1</object_alias>
+      </operation>
+      <operation name="TABLE ACCESS" options="BY INDEX ROWID" id="11" depth="3" pos="2">
+        <object>PRODUCTS</object>
+        <card>1</card>
+        <bytes>12</bytes>
+        <cost>1</cost>
+        <qblock>SEL$1</qblock>
+        <object_alias>P@SEL$1</object_alias>
+      </operation>
+      <operation name="INDEX" options="UNIQUE SCAN" id="12" depth="4" pos="1">
+        <object>PROD_PK</object>
+        <card>1</card>
+        <cost>0</cost>
+        <predicates type="access">"P"."PRODUCT_ID"="OI"."PRODUCT_ID"</predicates>
+        <qblock>SEL$1</qblock>
+        <object_alias>P@SEL$1</object_alias>
+      </operation>
+    </plan>
+    <plan_monitor max_io_reqs="1247" max_io_bytes="10223616">
+      <operation id="0" name="SELECT STATEMENT" depth="0" position="0" skp="0">
+        <stats type="plan_monitor">
+          <stat name="first_active">11/15/2024 09:23:39</stat>
+          <stat name="last_active">11/15/2024 09:23:41</stat>
+          <stat name="duration">2</stat>
+          <stat name="starts">1</stat>
+          <stat name="cardinality">5012</stat>
+        </stats>
+      </operation>
+      <operation id="1" parent_id="0" name="SORT" options="ORDER BY" depth="1" position="1" skp="0">
+        <optimizer>
+          <cardinality>4500</cardinality>
+          <bytes>396000</bytes>
+          <cost>2850</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="first_active">11/15/2024 09:23:39</stat>
+          <stat name="last_active">11/15/2024 09:23:41</stat>
+          <stat name="duration">2</stat>
+          <stat name="starts">1</stat>
+          <stat name="cardinality">5012</stat>
+          <stat name="max_memory">1245184</stat>
+          <stat name="max_tempseg">2097152</stat>
+        </stats>
+      </operation>
+      <operation id="2" parent_id="1" name="NESTED LOOPS" depth="2" position="1" skp="0">
+        <optimizer>
+          <cardinality>4500</cardinality>
+          <bytes>396000</bytes>
+          <cost>2420</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">1</stat>
+          <stat name="cardinality">5012</stat>
+        </stats>
+      </operation>
+      <operation id="3" parent_id="2" name="NESTED LOOPS" depth="3" position="1" skp="0">
+        <optimizer>
+          <cardinality>4500</cardinality>
+          <bytes>342000</bytes>
+          <cost>1920</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">1</stat>
+          <stat name="cardinality">5012</stat>
+        </stats>
+      </operation>
+      <operation id="4" parent_id="3" name="HASH JOIN" depth="4" position="1" skp="0">
+        <optimizer>
+          <cardinality>4500</cardinality>
+          <bytes>261000</bytes>
+          <cost>920</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">1</stat>
+          <stat name="cardinality">3842</stat>
+          <stat name="max_memory">2457600</stat>
+          <stat name="read_reqs">842</stat>
+          <stat name="read_bytes">6897664</stat>
+        </stats>
+      </operation>
+      <operation id="5" parent_id="4" name="TABLE ACCESS" options="BY INDEX ROWID BATCHED" depth="5" position="1" skp="0">
+        <object type="TABLE">
+          <owner>APP_USER</owner>
+          <name>CUSTOMERS</name>
+        </object>
+        <optimizer>
+          <cardinality>2500</cardinality>
+          <bytes>50000</bytes>
+          <cost>185</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">1</stat>
+          <stat name="cardinality">2187</stat>
+          <stat name="read_reqs">124</stat>
+          <stat name="read_bytes">1015808</stat>
+        </stats>
+      </operation>
+      <operation id="6" parent_id="5" name="INDEX" options="RANGE SCAN" depth="6" position="1" skp="0">
+        <object type="INDEX">
+          <owner>APP_USER</owner>
+          <name>CUST_REGION_IX</name>
+        </object>
+        <optimizer>
+          <cardinality>2500</cardinality>
+          <cost>8</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">1</stat>
+          <stat name="cardinality">2187</stat>
+          <stat name="read_reqs">5</stat>
+          <stat name="read_bytes">40960</stat>
+        </stats>
+      </operation>
+      <operation id="7" parent_id="4" name="TABLE ACCESS" options="BY INDEX ROWID BATCHED" depth="5" position="2" skp="0">
+        <object type="TABLE">
+          <owner>APP_USER</owner>
+          <name>ORDERS</name>
+        </object>
+        <optimizer>
+          <cardinality>12000</cardinality>
+          <bytes>456000</bytes>
+          <cost>735</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">1</stat>
+          <stat name="cardinality">8456</stat>
+          <stat name="read_reqs">689</stat>
+          <stat name="read_bytes">5644288</stat>
+        </stats>
+      </operation>
+      <operation id="8" parent_id="7" name="INDEX" options="RANGE SCAN" depth="6" position="1" skp="0">
+        <object type="INDEX">
+          <owner>APP_USER</owner>
+          <name>ORD_DATE_IX</name>
+        </object>
+        <optimizer>
+          <cardinality>25000</cardinality>
+          <cost>52</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">1</stat>
+          <stat name="cardinality">24130</stat>
+          <stat name="read_reqs">24</stat>
+          <stat name="read_bytes">196608</stat>
+        </stats>
+      </operation>
+      <operation id="9" parent_id="3" name="TABLE ACCESS" options="BY INDEX ROWID" depth="4" position="2" skp="0">
+        <object type="TABLE">
+          <owner>APP_USER</owner>
+          <name>ORDER_ITEMS</name>
+        </object>
+        <optimizer>
+          <cardinality>3</cardinality>
+          <bytes>54</bytes>
+          <cost>2</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">3842</stat>
+          <stat name="cardinality">5012</stat>
+          <stat name="read_reqs">312</stat>
+          <stat name="read_bytes">2555904</stat>
+        </stats>
+      </operation>
+      <operation id="10" parent_id="9" name="INDEX" options="RANGE SCAN" depth="5" position="1" skp="0">
+        <object type="INDEX">
+          <owner>APP_USER</owner>
+          <name>OITM_ORDER_IX</name>
+        </object>
+        <optimizer>
+          <cardinality>3</cardinality>
+          <cost>1</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">3842</stat>
+          <stat name="cardinality">5012</stat>
+          <stat name="read_reqs">68</stat>
+          <stat name="read_bytes">557056</stat>
+        </stats>
+      </operation>
+      <operation id="11" parent_id="2" name="TABLE ACCESS" options="BY INDEX ROWID" depth="3" position="2" skp="0">
+        <object type="TABLE">
+          <owner>APP_USER</owner>
+          <name>PRODUCTS</name>
+        </object>
+        <optimizer>
+          <cardinality>1</cardinality>
+          <bytes>12</bytes>
+          <cost>1</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">5012</stat>
+          <stat name="cardinality">5012</stat>
+        </stats>
+      </operation>
+      <operation id="12" parent_id="11" name="INDEX" options="UNIQUE SCAN" depth="4" position="1" skp="0">
+        <object type="INDEX">
+          <owner>APP_USER</owner>
+          <name>PROD_PK</name>
+        </object>
+        <optimizer>
+          <cardinality>1</cardinality>
+          <cost>0</cost>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="starts">5012</stat>
+          <stat name="cardinality">5012</stat>
+        </stats>
+      </operation>
+    </plan_monitor>
+  </sql_monitor_report>
+</report>
