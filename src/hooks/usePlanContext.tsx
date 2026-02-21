@@ -68,6 +68,8 @@ const initialFilters: FilterState = {
   maxActualRows: Infinity,
   minActualTime: 0,
   maxActualTime: Infinity,
+  // Cardinality mismatch filter
+  minCardinalityMismatch: 0,
 };
 
 const getInitialTheme = (): Theme => {
@@ -214,6 +216,7 @@ interface PlanContextValue extends PlanState {
   filteredNodes: PlanNode[];
   filteredNodeIds: Set<number>;
   nodeById: Map<number, PlanNode>;
+  hottestNodeId: number | null;
   setLegendVisible: (visible: boolean) => void;
   setInputPanelCollapsed: (collapsed: boolean) => void;
   setFilterPanelCollapsed: (collapsed: boolean) => void;
@@ -251,6 +254,22 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       .map((id) => nodeById.get(id))
       .filter((node): node is PlanNode => Boolean(node));
   }, [state.parsedPlan, state.selectedNodeIds, nodeById]);
+
+  // Hottest node: the non-root node with the highest A-Time
+  const hottestNodeId = useMemo((): number | null => {
+    if (!state.parsedPlan?.hasActualStats) return null;
+    let maxTime = 0;
+    let hotId: number | null = null;
+    for (const node of state.parsedPlan.allNodes) {
+      // Skip root SELECT/UPDATE/etc. statements — they always have the total time
+      if (node.parentId === undefined) continue;
+      if (node.actualTime !== undefined && node.actualTime > maxTime) {
+        maxTime = node.actualTime;
+        hotId = node.id;
+      }
+    }
+    return hotId;
+  }, [state.parsedPlan]);
 
   // Apply theme to document
   useEffect(() => {
@@ -434,6 +453,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     filteredNodes,
     filteredNodeIds,
     nodeById,
+    hottestNodeId,
     setLegendVisible,
     setInputPanelCollapsed,
     setFilterPanelCollapsed,

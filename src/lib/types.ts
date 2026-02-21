@@ -86,9 +86,11 @@ export interface FilterState {
   maxActualRows: number;
   minActualTime: number;
   maxActualTime: number;
+  // Cardinality mismatch filter (minimum ratio deviation)
+  minCardinalityMismatch: number;
 }
 
-export type ViewMode = 'hierarchical' | 'sankey';
+export type ViewMode = 'hierarchical' | 'sankey' | 'text';
 export type SankeyMetric = 'rows' | 'cost' | 'actualRows' | 'actualTime';
 export type Theme = 'light' | 'dark';
 
@@ -326,4 +328,76 @@ export function formatNumber(num: number): string {
     return (num / 1000).toFixed(1) + 'K';
   }
   return num.toString();
+}
+
+/** Brief tooltips for common Oracle execution plan operations. */
+export const OPERATION_TOOLTIPS: Record<string, string> = {
+  'SELECT STATEMENT': 'Root of a SELECT query plan',
+  'UPDATE STATEMENT': 'Root of an UPDATE query plan',
+  'INSERT STATEMENT': 'Root of an INSERT query plan',
+  'DELETE STATEMENT': 'Root of a DELETE query plan',
+  'TABLE ACCESS FULL': 'Full table scan — reads every row. May indicate missing index',
+  'TABLE ACCESS BY INDEX ROWID': 'Row lookup by ROWID obtained from an index',
+  'TABLE ACCESS BY INDEX ROWID BATCHED': 'Batched row lookup — sorts ROWIDs before accessing table blocks',
+  'TABLE ACCESS BY USER ROWID': 'Direct access using user-supplied ROWID',
+  'TABLE ACCESS BY GLOBAL INDEX ROWID': 'Partitioned table access via global index',
+  'TABLE ACCESS BY LOCAL INDEX ROWID': 'Partitioned table access via local index',
+  'INDEX UNIQUE SCAN': 'Finds exactly one index entry. Most efficient index access',
+  'INDEX RANGE SCAN': 'Reads a range of index entries. Common for range predicates or non-unique lookups',
+  'INDEX FULL SCAN': 'Reads entire index in order. Often used for ORDER BY without table access',
+  'INDEX FAST FULL SCAN': 'Reads entire index using multiblock I/O. Like a full table scan on the index',
+  'INDEX SKIP SCAN': 'Skips leading index column. May indicate a missing composite index',
+  'INDEX RANGE SCAN DESCENDING': 'Range scan in descending order (e.g., ORDER BY col DESC)',
+  'NESTED LOOPS': 'For each row from the outer source, probes the inner source. Best for small result sets',
+  'HASH JOIN': 'Builds hash table on smaller input, probes with larger. Best for large unsorted joins',
+  'MERGE JOIN': 'Merges two sorted inputs. Requires both sides sorted on the join key',
+  'HASH JOIN OUTER': 'Hash join preserving all rows from the outer (left) side',
+  'HASH JOIN ANTI': 'Hash join for NOT IN / NOT EXISTS — finds rows with no match',
+  'HASH JOIN SEMI': 'Hash join for EXISTS / IN — stops after first match per row',
+  'NESTED LOOPS OUTER': 'Outer join variant of nested loops',
+  'MERGE JOIN OUTER': 'Outer join variant of merge join',
+  'SORT AGGREGATE': 'Computes aggregate (COUNT, SUM, etc.) — no actual sort performed',
+  'HASH GROUP BY': 'Groups rows using a hash table. Common for GROUP BY',
+  'SORT GROUP BY': 'Groups rows by sorting. Used when result must be ordered',
+  'SORT GROUP BY NOSORT': 'Groups already-sorted input without re-sorting',
+  'SORT ORDER BY': 'Sorts output rows for ORDER BY clause',
+  'SORT UNIQUE': 'Sorts and removes duplicates (DISTINCT)',
+  'SORT JOIN': 'Sorts input for a merge join',
+  'BUFFER SORT': 'Buffers rows to avoid repeated access. Watch for high temp space usage',
+  'FILTER': 'Applies a filter condition. May execute subqueries per row — check predicates',
+  'VIEW': 'Materializes an inline view or subquery',
+  'COUNT STOPKEY': 'Stops after ROWNUM limit is reached. Efficient for top-N queries',
+  'FIRST ROW': 'Optimized to return only the first row',
+  'UNION-ALL': 'Concatenates results from multiple branches without deduplication',
+  'UNION': 'Concatenates and deduplicates results from multiple branches',
+  'INTERSECT': 'Returns rows common to both branches',
+  'MINUS': 'Returns rows from first branch not in second',
+  'CONCATENATION': 'OR-expansion: each branch handles a different OR condition',
+  'PARTITION RANGE ALL': 'Accesses all partitions in range-partitioned table',
+  'PARTITION RANGE SINGLE': 'Accesses a single partition. Good partition pruning',
+  'PARTITION RANGE ITERATOR': 'Iterates over a subset of partitions',
+  'PARTITION LIST ALL': 'Accesses all list partitions',
+  'PARTITION LIST SINGLE': 'Accesses a single list partition',
+  'PX COORDINATOR': 'Parallel query coordinator — collects results from parallel slaves',
+  'PX SEND QC': 'Parallel slave sends data to query coordinator',
+  'PX SEND HASH': 'Parallel redistribution by hash — for parallel joins',
+  'PX SEND BROADCAST': 'Broadcasts data to all parallel slaves. Watch for data skew',
+  'PX SEND RANGE': 'Sends data partitioned by range to parallel slaves',
+  'PX SEND ROUND-ROBIN': 'Distributes rows round-robin to parallel slaves',
+  'PX RECEIVE': 'Receives data from parallel slaves',
+  'PX BLOCK ITERATOR': 'Parallel scan — divides work into block ranges',
+  'PX SELECTOR': 'Selects specific parallel execution server',
+  'LOAD TABLE CONVENTIONAL': 'Conventional path INSERT',
+  'SEQUENCE': 'Generates sequence values',
+};
+
+/** Look up tooltip for an operation, trying exact match first, then prefix match. */
+export function getOperationTooltip(operation: string): string | undefined {
+  const upper = operation.toUpperCase();
+  if (OPERATION_TOOLTIPS[upper]) return OPERATION_TOOLTIPS[upper];
+  // Try prefix match (e.g., "NESTED LOOPS OUTER" matches "NESTED LOOPS")
+  for (const [key, value] of Object.entries(OPERATION_TOOLTIPS)) {
+    if (upper.startsWith(key)) return value;
+  }
+  return undefined;
 }
