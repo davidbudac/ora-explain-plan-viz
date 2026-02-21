@@ -1,7 +1,7 @@
-import { useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useState, useCallback, useMemo, type PointerEvent as ReactPointerEvent } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
-import { getOperationCategory, COLOR_SCHEMES, getMetricColor } from '../lib/types';
-import { formatBytes, formatNumberShort, formatTimeCompact, formatTimeDetailed } from '../lib/format';
+import { getOperationCategory, COLOR_SCHEMES, getMetricColor, getOperationTooltip } from '../lib/types';
+import { formatBytes, formatNumberShort, formatTimeCompact, formatTimeDetailed, computeCardinalityRatio, formatCardinalityRatio, cardinalityRatioSeverity } from '../lib/format';
 import type { PlanNode as PlanNodeType, NodeIndicatorMetric } from '../lib/types';
 import { HighlightText } from './HighlightText';
 
@@ -17,6 +17,41 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
   const isMultiSelection = selectedNodes.length > 1;
   const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : selectedPrimaryNode;
   const aggregateSelection = isMultiSelection ? computeAggregateSelection(selectedNodes) : null;
+
+  // Compute worst nodes — must be before any early returns to satisfy Rules of Hooks
+  const worstNodes = useMemo(() => {
+    if (!parsedPlan) return { byCost: [], byTime: [], byCardinalityMismatch: [] };
+
+    const nonRoot = parsedPlan.allNodes.filter(n => n.parentId !== undefined);
+
+    const byCost = [...nonRoot]
+      .sort((a, b) => (b.cost || 0) - (a.cost || 0))
+      .slice(0, 5);
+
+    const byTime = parsedPlan.hasActualStats
+      ? [...nonRoot]
+          .filter(n => n.actualTime !== undefined)
+          .sort((a, b) => (b.actualTime || 0) - (a.actualTime || 0))
+          .slice(0, 5)
+      : [];
+
+    const byCardinalityMismatch = parsedPlan.hasActualStats
+      ? [...nonRoot]
+          .map(n => ({
+            node: n,
+            ratio: computeCardinalityRatio(n.rows, n.actualRows),
+          }))
+          .filter(item => item.ratio !== undefined && item.ratio !== 1)
+          .sort((a, b) => {
+            const devA = (a.ratio! >= 1 ? a.ratio! : 1 / a.ratio!);
+            const devB = (b.ratio! >= 1 ? b.ratio! : 1 / b.ratio!);
+            return devB - devA;
+          })
+          .slice(0, 5)
+      : [];
+
+    return { byCost, byTime, byCardinalityMismatch };
+  }, [parsedPlan]);
 
   if (isCollapsed) {
     return (
@@ -38,7 +73,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
   if (selectedNodes.length === 0) {
     return (
       <div
-        className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 p-3"
+        className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 overflow-y-auto"
         style={{ width: panelWidth }}
       >
         <button
@@ -48,33 +83,96 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           aria-label="Resize details panel"
           title="Resize details panel"
         />
-        <div className="flex justify-end mb-2">
-          <button
-            onClick={() => setIsCollapsed(true)}
-            className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
-            title="Collapse panel"
-          >
-            <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-            </svg>
-          </button>
+        <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Hotspots</h3>
+            <button
+              onClick={() => setIsCollapsed(true)}
+              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+              title="Collapse panel"
+            >
+              <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Click a row to select, or Cmd/Ctrl-click nodes for multi-select</p>
         </div>
-        <div className="text-slate-500 dark:text-slate-400 text-center mt-8">
-          <svg
-            className="w-10 h-10 mx-auto mb-3 text-slate-400 dark:text-slate-600"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <p>Click a node to see details, or Cmd/Ctrl-click for multi-select</p>
-        </div>
+
+        {/* Worst by A-Time */}
+        {worstNodes.byTime.length > 0 && (
+          <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide flex items-center gap-1">
+              <svg className="w-3.5 h-3.5 text-red-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" /></svg>
+              Slowest by A-Time
+            </h4>
+            <div className="space-y-1">
+              {worstNodes.byTime.map(n => (
+                <button
+                  key={n.id}
+                  onClick={() => selectNode(n.id)}
+                  className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between gap-2"
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <span className="w-5 h-5 rounded-full bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 text-[10px] font-bold flex items-center justify-center shrink-0">{n.id}</span>
+                    <span className="truncate text-slate-700 dark:text-slate-300">{n.operation}</span>
+                  </span>
+                  <span className="text-purple-600 dark:text-purple-400 font-medium whitespace-nowrap">{formatTimeCompact(n.actualTime)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Worst by Cost */}
+        {worstNodes.byCost.length > 0 && (
+          <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Highest Cost</h4>
+            <div className="space-y-1">
+              {worstNodes.byCost.map(n => (
+                <button
+                  key={n.id}
+                  onClick={() => selectNode(n.id)}
+                  className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between gap-2"
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <span className="w-5 h-5 rounded-full bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 text-[10px] font-bold flex items-center justify-center shrink-0">{n.id}</span>
+                    <span className="truncate text-slate-700 dark:text-slate-300">{n.operation}</span>
+                  </span>
+                  <span className="text-slate-600 dark:text-slate-400 font-medium whitespace-nowrap">{n.cost}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Worst Cardinality Mismatches */}
+        {worstNodes.byCardinalityMismatch.length > 0 && (
+          <div className="p-3">
+            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Worst Cardinality Mismatches</h4>
+            <div className="space-y-1">
+              {worstNodes.byCardinalityMismatch.map(({ node: n, ratio }) => {
+                const severity = cardinalityRatioSeverity(ratio);
+                const label = formatCardinalityRatio(ratio);
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => selectNode(n.id)}
+                    className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between gap-2"
+                  >
+                    <span className="flex items-center gap-1.5 truncate">
+                      <span className="w-5 h-5 rounded-full bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 text-[10px] font-bold flex items-center justify-center shrink-0">{n.id}</span>
+                      <span className="truncate text-slate-700 dark:text-slate-300">{n.operation}</span>
+                    </span>
+                    <span className={`font-medium whitespace-nowrap ${
+                      severity === 'bad' ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
+                    }`}>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -266,7 +364,62 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
             )}
           </div>
         )}
+
+        {/* Operation tooltip */}
+        {(() => {
+          const tip = getOperationTooltip(node.operation);
+          return tip ? (
+            <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400 italic leading-snug">
+              {tip}
+            </div>
+          ) : null;
+        })()}
       </div>
+
+      {/* Cardinality Mismatch */}
+      {(() => {
+        const ratio = computeCardinalityRatio(node.rows, node.actualRows);
+        const severity = cardinalityRatioSeverity(ratio);
+        const label = formatCardinalityRatio(ratio);
+        if (severity === 'good' || !label) return null;
+        return (
+          <div className={`p-3 border-b border-slate-200 dark:border-slate-800 ${
+            severity === 'bad'
+              ? 'bg-red-50 dark:bg-red-950/30'
+              : 'bg-amber-50 dark:bg-amber-950/30'
+          }`}>
+            <div className="flex items-center justify-between mb-1">
+              <span className={`text-xs font-semibold uppercase tracking-wide ${
+                severity === 'bad'
+                  ? 'text-red-700 dark:text-red-300'
+                  : 'text-amber-700 dark:text-amber-300'
+              }`}>Cardinality Mismatch</span>
+              <span className={`text-xs font-bold ${
+                severity === 'bad'
+                  ? 'text-red-600 dark:text-red-400'
+                  : 'text-amber-600 dark:text-amber-400'
+              }`}>{label}</span>
+            </div>
+            <div className="text-xs text-slate-600 dark:text-slate-400">
+              E-Rows: {formatNumberShort(node.rows)} → A-Rows: {formatNumberShort(node.actualRows)}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Spill Warning */}
+      {node.tempUsed !== undefined && node.tempUsed > 0 && (
+        <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-yellow-50 dark:bg-yellow-950/30">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-yellow-700 dark:text-yellow-300">
+              Spill to Disk
+            </span>
+            <span className="text-xs text-yellow-600 dark:text-yellow-400">
+              {formatBytes(node.tempUsed)} temp space used
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Node indicator */}
       <div className="p-3 border-b border-slate-200 dark:border-slate-800">
@@ -324,6 +477,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
                 <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs rounded font-medium">
                   Access
                 </span>
+                <CopyButton text={node.accessPredicates} label="Copy access predicate" />
               </div>
               <code className="block text-xs bg-slate-50 dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-mono whitespace-pre-wrap break-all">
                 <HighlightText text={node.accessPredicates} query={searchText} />
@@ -337,6 +491,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
                 <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs rounded font-medium">
                   Filter
                 </span>
+                <CopyButton text={node.filterPredicates} label="Copy filter predicate" />
               </div>
               <code className="block text-xs bg-slate-50 dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-mono whitespace-pre-wrap break-all">
                 <HighlightText text={node.filterPredicates} query={searchText} />
@@ -386,6 +541,34 @@ function StatItem({ label, value, highlight }: { label: string; value?: string; 
       <div className="text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">{label}</div>
       <div className={`text-xs font-semibold ${highlight ? valueStyles[highlight] : 'text-slate-900 dark:text-slate-100'}`}>{value}</div>
     </div>
+  );
+}
+
+function CopyButton({ text, label }: { text: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }, [text]);
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
+      title={label || 'Copy to clipboard'}
+    >
+      {copied ? (
+        <svg className="w-3.5 h-3.5 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+      ) : (
+        <svg className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+      )}
+    </button>
   );
 }
 

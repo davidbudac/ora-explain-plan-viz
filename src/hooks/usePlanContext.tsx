@@ -68,6 +68,8 @@ const initialFilters: FilterState = {
   maxActualRows: Infinity,
   minActualTime: 0,
   maxActualTime: Infinity,
+  // Cardinality mismatch filter
+  minCardinalityMismatch: 0,
 };
 
 const getInitialTheme = (): Theme => {
@@ -214,6 +216,7 @@ interface PlanContextValue extends PlanState {
   filteredNodes: PlanNode[];
   filteredNodeIds: Set<number>;
   nodeById: Map<number, PlanNode>;
+  hottestNodeId: number | null;
   setLegendVisible: (visible: boolean) => void;
   setInputPanelCollapsed: (collapsed: boolean) => void;
   setFilterPanelCollapsed: (collapsed: boolean) => void;
@@ -252,6 +255,22 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       .filter((node): node is PlanNode => Boolean(node));
   }, [state.parsedPlan, state.selectedNodeIds, nodeById]);
 
+  // Hottest node: the non-root node with the highest A-Time
+  const hottestNodeId = useMemo((): number | null => {
+    if (!state.parsedPlan?.hasActualStats) return null;
+    let maxTime = 0;
+    let hotId: number | null = null;
+    for (const node of state.parsedPlan.allNodes) {
+      // Skip root SELECT/UPDATE/etc. statements — they always have the total time
+      if (node.parentId === undefined) continue;
+      if (node.actualTime !== undefined && node.actualTime > maxTime) {
+        maxTime = node.actualTime;
+        hotId = node.id;
+      }
+    }
+    return hotId;
+  }, [state.parsedPlan]);
+
   // Apply theme to document
   useEffect(() => {
     const root = document.documentElement;
@@ -269,8 +288,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     if (hasLoadedDefaultRef.current) return;
     hasLoadedDefaultRef.current = true;
 
-    // Find the "SQL Monitor" example and load it
-    const defaultExample = SAMPLE_PLANS.find((p) => p.name === 'SQL Monitor');
+    // Find the default example and load it
+    const defaultExample = SAMPLE_PLANS.find((p) => p.name === 'SQL Monitor XML (Nested Loops)');
     if (defaultExample) {
       dispatch({ type: 'SET_INPUT', payload: defaultExample.data });
       try {
@@ -434,6 +453,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     filteredNodes,
     filteredNodeIds,
     nodeById,
+    hottestNodeId,
     setLegendVisible,
     setInputPanelCollapsed,
     setFilterPanelCollapsed,

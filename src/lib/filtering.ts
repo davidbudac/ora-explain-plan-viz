@@ -1,4 +1,5 @@
 import type { FilterState, PlanNode, PredicateType } from './types';
+import { computeCardinalityRatio } from './format';
 
 export function matchesSearch(node: PlanNode, searchText: string): boolean {
   const searchLower = searchText.trim().toLowerCase();
@@ -48,6 +49,7 @@ export function matchesFilters(
     maxActualRows,
     minActualTime,
     maxActualTime,
+    minCardinalityMismatch,
   } = filters;
 
   if (!matchesOperationTypes(node, operationTypes)) return false;
@@ -61,6 +63,18 @@ export function matchesFilters(
 
   if (hasActualStats && node.actualTime !== undefined) {
     if (node.actualTime < minActualTime || node.actualTime > maxActualTime) return false;
+  }
+
+  // Cardinality mismatch filter
+  if (hasActualStats && minCardinalityMismatch > 0) {
+    const ratio = computeCardinalityRatio(node.rows, node.actualRows);
+    if (ratio !== undefined) {
+      const deviation = ratio >= 1 ? ratio : 1 / ratio;
+      if (deviation < minCardinalityMismatch) return false;
+    } else {
+      // No ratio available — hide if filter is active
+      return false;
+    }
   }
 
   if (!matchesPredicateTypes(node, predicateTypes)) return false;

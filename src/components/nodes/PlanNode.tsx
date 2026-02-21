@@ -1,6 +1,6 @@
 import { Handle, Position } from '@xyflow/react';
-import { getOperationCategory, COLOR_SCHEMES, getMetricColor } from '../../lib/types';
-import { formatNumberShort, formatBytes, formatTimeCompact } from '../../lib/format';
+import { getOperationCategory, COLOR_SCHEMES, getMetricColor, getOperationTooltip } from '../../lib/types';
+import { formatNumberShort, formatBytes, formatTimeCompact, formatCardinalityRatio, cardinalityRatioSeverity, computeCardinalityRatio } from '../../lib/format';
 import type { PlanNode as PlanNodeType, NodeDisplayOptions, ColorScheme, NodeIndicatorMetric } from '../../lib/types';
 import { HighlightText } from '../HighlightText';
 
@@ -23,6 +23,7 @@ export interface PlanNodeData extends Record<string, unknown> {
   searchText?: string;
   width?: number;
   height?: number;
+  isHotNode?: boolean; // Node with highest A-Time
 }
 
 interface PlanNodeProps {
@@ -45,6 +46,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     maxStarts,
     totalElapsedTime,
     searchText,
+    isHotNode,
   } = data;
   const category = getOperationCategory(node.operation);
   const schemeColors = COLOR_SCHEMES[colorScheme];
@@ -71,6 +73,17 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   // Label for rows depends on whether we have actual stats
   const rowsLabel = hasActualStats ? 'E-Rows' : 'Rows';
 
+  // Cardinality mismatch
+  const cardinalityRatio = hasActualStats ? computeCardinalityRatio(node.rows, node.actualRows) : undefined;
+  const cardSeverity = cardinalityRatioSeverity(cardinalityRatio);
+  const cardLabel = formatCardinalityRatio(cardinalityRatio);
+
+  // Spill detection
+  const hasSpill = (node.tempUsed !== undefined && node.tempUsed > 0);
+
+  // Operation tooltip
+  const tooltip = getOperationTooltip(node.operation);
+
   let opacity = isFiltered ? 1 : 0.35;
   if (isFocusDimmed) {
     opacity = Math.min(opacity, 0.15);
@@ -86,6 +99,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         ${colors.bg} ${colors.border}
         ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900 scale-105' : ''}
         ${isInFocusPath ? 'ring-1 ring-blue-300/60' : ''}
+        ${isHotNode && !isSelected ? 'ring-2 ring-red-500/70 ring-offset-1 dark:ring-offset-gray-900' : ''}
       `}
       style={{ opacity }}
     >
@@ -112,8 +126,37 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           {node.id}
         </div>
 
+        {/* Warning badges row (hot node, spill, cardinality) */}
+        {(isHotNode || hasSpill || (cardSeverity !== 'good' && cardLabel)) && (
+          <div className="flex flex-wrap gap-1 mb-1.5">
+            {isHotNode && (
+              <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-[10px] rounded font-semibold flex items-center gap-0.5" title="Highest execution time in plan">
+                <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" /></svg>
+                Hotspot
+              </span>
+            )}
+            {hasSpill && (
+              <span className="px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 text-[10px] rounded font-semibold" title="Spill to disk — temp space used">
+                Spill
+              </span>
+            )}
+            {cardSeverity !== 'good' && cardLabel && (
+              <span
+                className={`px-1.5 py-0.5 text-[10px] rounded font-semibold ${
+                  cardSeverity === 'bad'
+                    ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+                    : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
+                }`}
+                title={`Cardinality mismatch: E-Rows=${formatNumberShort(node.rows)} vs A-Rows=${formatNumberShort(node.actualRows)}`}
+              >
+                {cardLabel}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Operation name */}
-        <div className={`font-semibold text-sm leading-tight mb-1 ${colors.text}`}>
+        <div className={`font-semibold text-sm leading-tight mb-1 ${colors.text}`} title={tooltip}>
           <HighlightText text={node.operation} query={searchText} />
         </div>
 
@@ -171,7 +214,11 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
               </span>
             )}
             {options.showStarts && node.starts !== undefined && (
-              <span className="px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/40 rounded text-orange-700 dark:text-orange-300 font-medium">
+              <span className={`px-1.5 py-0.5 rounded font-medium ${
+                node.starts >= 1000
+                  ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+                  : 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300'
+              }`}>
                 Starts: {formatNumberShort(node.starts)}
               </span>
             )}
