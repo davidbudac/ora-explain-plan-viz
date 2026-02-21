@@ -693,6 +693,11 @@ function HierarchicalViewContent() {
 
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
+      // Ignore clicks on query block group nodes — treat as pane click (deselect)
+      if (node.type === 'queryBlockGroup') {
+        selectNode(null);
+        return;
+      }
       const additive = event.metaKey || event.ctrlKey;
       selectNode(parseInt(node.id), { additive });
     },
