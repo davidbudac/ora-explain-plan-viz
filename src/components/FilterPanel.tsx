@@ -144,6 +144,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       maxActualRows: Infinity,
       minActualTime: 0,
       maxActualTime: Infinity,
+      minCardinalityMismatch: 0,
     });
   };
 
@@ -372,7 +373,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
 
       {/* SQL Monitor: Actual Time Range */}
       {parsedPlan?.hasActualStats && maxActualTime > 0 && (
-        <div className="p-3">
+        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
           <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">
             Minimum A-Time: {formatTimeCompact(filters.minActualTime, { infinity: '∞' })}
           </label>
@@ -388,6 +389,33 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
             <span>0</span>
             <span>{formatTimeCompact(maxActualTime, { infinity: '∞' })}</span>
           </div>
+        </div>
+      )}
+
+      {/* Cardinality Mismatch Filter */}
+      {parsedPlan?.hasActualStats && (
+        <div className="p-3">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">
+            Min Cardinality Mismatch: {filters.minCardinalityMismatch > 0 ? `${filters.minCardinalityMismatch}x` : 'Off'}
+          </label>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={filters.minCardinalityMismatch}
+            onChange={(e) => setFilters({ minCardinalityMismatch: parseInt(e.target.value) })}
+            className="w-full accent-blue-600"
+          />
+          <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+            <span>Off</span>
+            <span>100x</span>
+          </div>
+          {filters.minCardinalityMismatch > 0 && (
+            <div className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400">
+              Showing only nodes where E-Rows/A-Rows differ by {filters.minCardinalityMismatch}x+
+            </div>
+          )}
         </div>
       )}
     </div>

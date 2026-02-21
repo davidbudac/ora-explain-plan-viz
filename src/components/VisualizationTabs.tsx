@@ -22,6 +22,15 @@ const tabs: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
       </svg>
     ),
   },
+  {
+    id: 'text',
+    label: 'Plan Text',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
 ];
 
 function IndicatorButton({
@@ -51,7 +60,7 @@ function IndicatorButton({
 }
 
 export function VisualizationTabs() {
-  const { viewMode, setViewMode, sankeyMetric, setSankeyMetric, nodeIndicatorMetric, setNodeIndicatorMetric, parsedPlan } = usePlan();
+  const { viewMode, setViewMode, sankeyMetric, setSankeyMetric, nodeIndicatorMetric, setNodeIndicatorMetric, parsedPlan, rawInput } = usePlan();
 
   if (!parsedPlan) return null;
 
@@ -192,6 +201,13 @@ export function VisualizationTabs() {
       <div className="flex-1 min-h-0 h-full">
         {viewMode === 'hierarchical' && <HierarchicalView />}
         {viewMode === 'sankey' && <SankeyView />}
+        {viewMode === 'text' && (
+          <div className="h-full overflow-auto bg-slate-50 dark:bg-slate-950 p-4">
+            <pre className="text-xs font-mono text-slate-800 dark:text-slate-200 whitespace-pre leading-relaxed">
+              {rawInput || 'No plan text available.'}
+            </pre>
+          </div>
+        )}
       </div>
     </div>
   );
