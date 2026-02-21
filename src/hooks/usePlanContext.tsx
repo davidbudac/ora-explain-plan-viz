@@ -288,8 +288,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     if (hasLoadedDefaultRef.current) return;
     hasLoadedDefaultRef.current = true;
 
-    // Find the "SQL Monitor" example and load it
-    const defaultExample = SAMPLE_PLANS.find((p) => p.name === 'SQL Monitor');
+    // Find the default example and load it
+    const defaultExample = SAMPLE_PLANS.find((p) => p.name === 'SQL Monitor XML (Nested Loops)');
     if (defaultExample) {
       dispatch({ type: 'SET_INPUT', payload: defaultExample.data });
       try {
