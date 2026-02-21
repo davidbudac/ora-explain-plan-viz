@@ -15,7 +15,7 @@ import '@xyflow/react/dist/style.css';
 
 import { usePlan } from '../../hooks/usePlanContext';
 import { PlanNodeMemo } from '../nodes/PlanNode';
-import { formatNumberShort } from '../../lib/format';
+import { formatNumberShort, computeCardinalityRatio, cardinalityRatioSeverity } from '../../lib/format';
 import type { PlanNode, NodeDisplayOptions } from '../../lib/types';
 
 // Query block group component
@@ -55,6 +55,15 @@ function calculateNodeHeight(
   hasActualStats: boolean
 ): number {
   let height = NODE_BASE_HEIGHT;
+
+  // Warning badges row (hotspot, spill, cardinality mismatch)
+  const hasSpill = (node.tempUsed !== undefined && node.tempUsed > 0);
+  const cardRatio = hasActualStats ? computeCardinalityRatio(node.rows, node.actualRows) : undefined;
+  const hasCardBadge = cardinalityRatioSeverity(cardRatio) !== 'good';
+  // We always add space for badges if there's a potential hot node (we don't know which is hottest at layout time)
+  if (hasSpill || hasCardBadge || (hasActualStats && node.actualTime !== undefined)) {
+    height += 24;
+  }
 
   // Object name row
   if (displayOptions.showObjectName && node.objectName) {
@@ -302,7 +311,7 @@ function fallbackDagreLayout(
 }
 
 function HierarchicalViewContent() {
-  const { parsedPlan, selectedNodeId, selectedNodeIds, selectNode, theme, filters, colorScheme, nodeIndicatorMetric, filteredNodeIds, nodeById } = usePlan();
+  const { parsedPlan, selectedNodeId, selectedNodeIds, selectNode, theme, filters, colorScheme, nodeIndicatorMetric, filteredNodeIds, nodeById, hottestNodeId } = usePlan();
   const containerRef = useRef<HTMLDivElement>(null);
   const { fitView, setNodes: rfSetNodes } = useReactFlow();
   const selectedNodeIdSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
@@ -580,6 +589,7 @@ function HierarchicalViewContent() {
             totalElapsedTime: parsedPlan?.totalElapsedTime,
             searchText,
             filterKey, // Include filterKey to force React Flow to detect changes
+            isHotNode: hottestNodeId !== null && parseInt(node.id) === hottestNodeId,
           },
         };
       })
@@ -602,6 +612,7 @@ function HierarchicalViewContent() {
     selectionSets.ancestorIds,
     selectionSets.descendantIds,
     searchText,
+    hottestNodeId,
   ]);
 
   // Update edge styles separately - only create new objects when values change
@@ -682,6 +693,11 @@ function HierarchicalViewContent() {
 
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
+      // Ignore clicks on query block group nodes — treat as pane click (deselect)
+      if (node.type === 'queryBlockGroup') {
+        selectNode(null);
+        return;
+      }
       const additive = event.metaKey || event.ctrlKey;
       selectNode(parseInt(node.id), { additive });
     },
@@ -691,6 +707,73 @@ function HierarchicalViewContent() {
   const onPaneClick = useCallback(() => {
     selectNode(null);
   }, [selectNode]);
+
+  // Keyboard navigation: arrow keys to move between nodes
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!parsedPlan || selectedNodeId === null) {
+        // Escape clears selection regardless
+        if (e.key === 'Escape') {
+          selectNode(null);
+        }
+        return;
+      }
+
+      const node = nodeById.get(selectedNodeId);
+      if (!node) return;
+
+      let targetId: number | null = null;
+
+      switch (e.key) {
+        case 'Escape':
+          selectNode(null);
+          return;
+        case 'ArrowUp': {
+          // Go to parent
+          if (node.parentId !== undefined) {
+            targetId = node.parentId;
+          }
+          break;
+        }
+        case 'ArrowDown': {
+          // Go to first child
+          if (node.children.length > 0) {
+            targetId = node.children[0].id;
+          }
+          break;
+        }
+        case 'ArrowLeft':
+        case 'ArrowRight': {
+          // Go to sibling
+          if (node.parentId !== undefined) {
+            const parent = nodeById.get(node.parentId);
+            if (parent) {
+              const siblings = parent.children;
+              const idx = siblings.findIndex(s => s.id === node.id);
+              if (idx >= 0) {
+                const delta = e.key === 'ArrowLeft' ? -1 : 1;
+                const newIdx = idx + delta;
+                if (newIdx >= 0 && newIdx < siblings.length) {
+                  targetId = siblings[newIdx].id;
+                }
+              }
+            }
+          }
+          break;
+        }
+        default:
+          return;
+      }
+
+      if (targetId !== null) {
+        e.preventDefault();
+        selectNode(targetId);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [parsedPlan, selectedNodeId, nodeById, selectNode]);
 
   // Handle container resize
   useEffect(() => {

@@ -12,9 +12,12 @@ It's a work in progress, and I'll probably break things from time to time as I w
    ```sql
    select * from table(dbms_xplan.display_cursor('<sql_id>', 'null', 'ALLSTATS LAST'));>'));
    ```
-   or for sql monitor:
+   or for sql monitor (text or XML):
    ```sql
+   -- Text format
    select dbms_sql_monitor.report_sql_monitor(sql_id => '<sql_id>') from dual;
+   -- XML format (richest data: memory, I/O, predicates)
+   select dbms_sql_monitor.report_sql_monitor(sql_id => '<sql_id>', type => 'XML') from dual;
    ```
 2. Copy the output (including the table and predicate information)
 3. Paste into the input panel and click "Parse Plan"
@@ -23,17 +26,28 @@ It's a work in progress, and I'll probably break things from time to time as I w
 
 ## Features
 
-- **Two Visualization Modes**
+- **Three Visualization Modes**
   - **Hierarchical Tree**: Traditional tree layout showing parent-child relationships with optional animated edges
   - **Sankey Diagram**: Flow visualization showing data movement through operations
+  - **Plan Text**: Raw plan output in monospace format for quick reference
+
+- **Performance Analysis**
+  - **Hot Node Detection**: Automatically highlights the most expensive node (highest A-Time) with a red ring and badge
+  - **Hotspots Summary**: Top 5 nodes ranked by A-Time, Cost, and cardinality mismatch (clickable to navigate)
+  - **Cardinality Mismatch Analysis**: Detects E-Rows vs A-Rows divergence with severity badges (warn at 3x, critical at 10x)
+  - **Spill-to-Disk Warnings**: Visual alerts on nodes that use temp space
+  - **Operation Tooltips**: Expert descriptions for ~50 Oracle operations on hover
 
 - **Interactive Filtering**
   - Filter by operation type (Table Access, Index Operations, Joins, etc.)
   - Filter by predicate type (Access, Filter, or No Predicate)
-  - Filter by minimum cost threshold
+  - Filter by minimum cost threshold, A-Rows, A-Time ranges
+  - Filter by cardinality mismatch threshold
   - Text search across operations, objects, and predicates
 
-- **Node Details Panel**: Click any node to see full attributes including predicates, cost, rows, and bytes
+- **Keyboard Navigation**: Arrow keys to navigate parent/child/sibling nodes, Escape to deselect
+
+- **Node Details Panel**: Click any node to see full attributes including predicates, cost, rows, cardinality analysis, and spill warnings. Copy-to-clipboard on predicates.
 
 - **Query Block Visualization**: Visual grouping of nodes by query block with optional badges
 
@@ -49,7 +63,6 @@ It's a work in progress, and I'll probably break things from time to time as I w
 ### Features in the works but not yet implemented in the UI:
 
 - Multiple plans side by side for comparison with visual highlighting of differences
-- Support for DBMS_SQL_MONITOR output with real-time execution visualization
 - Support for annotation of plans and their export/import for sharing with others
 
 
