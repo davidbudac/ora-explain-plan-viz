@@ -4,6 +4,14 @@ import { getOperationCategory, COLOR_SCHEMES, getMetricColor, getOperationToolti
 import { formatBytes, formatNumberShort, formatTimeCompact, formatTimeDetailed, computeCardinalityRatio, formatCardinalityRatio, cardinalityRatioSeverity } from '../lib/format';
 import type { PlanNode as PlanNodeType, NodeIndicatorMetric } from '../lib/types';
 import { HighlightText } from './HighlightText';
+import { AnnotationEditor, BulkHighlightPicker } from './AnnotationEditor';
+import { GroupAnnotationDialog } from './GroupAnnotationDialog';
+import { HIGHLIGHT_COLORS } from '../lib/annotations';
+import type { HighlightColor } from '../lib/annotations';
+
+const HIGHLIGHT_COLORS_MAP: Record<HighlightColor, string> = Object.fromEntries(
+  HIGHLIGHT_COLORS.map((c) => [c.name, c.chip])
+) as Record<HighlightColor, string>;
 
 interface NodeDetailPanelProps {
   panelWidth: number;
@@ -11,9 +19,16 @@ interface NodeDetailPanelProps {
 }
 
 export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelProps) {
-  const { selectedNode: selectedPrimaryNode, selectedNodes, selectedNodeIds, parsedPlan, selectNode, colorScheme, filters, nodeIndicatorMetric } = usePlan();
+  const {
+    selectedNode: selectedPrimaryNode, selectedNodes, selectedNodeIds, parsedPlan, selectNode,
+    colorScheme, filters, nodeIndicatorMetric, annotations,
+    setNodeAnnotation, removeNodeAnnotation, setNodeHighlight, removeNodeHighlight,
+    addAnnotationGroup, updateAnnotationGroup, removeAnnotationGroup,
+  } = usePlan();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const searchText = filters.searchText;
+  const [showGroupDialog, setShowGroupDialog] = useState(false);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const isMultiSelection = selectedNodes.length > 1;
   const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : selectedPrimaryNode;
   const aggregateSelection = isMultiSelection ? computeAggregateSelection(selectedNodes) : null;
@@ -148,7 +163,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
         {/* Worst Cardinality Mismatches */}
         {worstNodes.byCardinalityMismatch.length > 0 && (
-          <div className="p-3">
+          <div className="p-3 border-b border-slate-200 dark:border-slate-800">
             <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Worst Cardinality Mismatches</h4>
             <div className="space-y-1">
               {worstNodes.byCardinalityMismatch.map(({ node: n, ratio }) => {
@@ -173,6 +188,59 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
             </div>
           </div>
         )}
+
+        {/* Annotation Groups */}
+        {annotations.groups.length > 0 && (
+          <div className="p-3">
+            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Annotation Groups</h4>
+            <div className="space-y-1">
+              {annotations.groups.map((group) => {
+                const colorDef = HIGHLIGHT_COLORS_MAP[group.color];
+                return (
+                  <div
+                    key={group.id}
+                    className="flex items-center justify-between px-2 py-1.5 text-xs rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <span className="flex items-center gap-1.5 truncate">
+                      <span className={`w-3 h-3 rounded-full shrink-0 ${colorDef}`} />
+                      <span className="truncate text-slate-700 dark:text-slate-300">{group.name}</span>
+                      <span className="text-[10px] text-slate-400">({group.nodeIds.length})</span>
+                    </span>
+                    <button
+                      onClick={() => setEditingGroupId(group.id)}
+                      className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"
+                      title="Edit group"
+                    >
+                      <svg className="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {editingGroupId && (() => {
+          const group = annotations.groups.find((g) => g.id === editingGroupId);
+          if (!group) return null;
+          return (
+            <GroupAnnotationDialog
+              nodeIds={group.nodeIds}
+              existingGroup={group}
+              onSave={(data) => {
+                updateAnnotationGroup({ ...group, ...data });
+                setEditingGroupId(null);
+              }}
+              onDelete={() => {
+                removeAnnotationGroup(group.id);
+                setEditingGroupId(null);
+              }}
+              onClose={() => setEditingGroupId(null)}
+            />
+          );
+        })()}
       </div>
     );
   }
@@ -230,6 +298,53 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
             </div>
           </div>
         </div>
+
+        {/* Bulk annotation controls */}
+        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Annotate</h4>
+          <BulkHighlightPicker
+            nodeIds={selectedNodeIds}
+            onHighlightChange={setNodeHighlight}
+            onHighlightRemove={removeNodeHighlight}
+          />
+          <button
+            onClick={() => setShowGroupDialog(true)}
+            className="mt-2 w-full px-2.5 py-1.5 text-xs font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+          >
+            Create Group from Selection
+          </button>
+        </div>
+
+        {showGroupDialog && (
+          <GroupAnnotationDialog
+            nodeIds={selectedNodeIds}
+            onSave={(data) => {
+              addAnnotationGroup(data);
+              setShowGroupDialog(false);
+            }}
+            onClose={() => setShowGroupDialog(false)}
+          />
+        )}
+
+        {editingGroupId && (() => {
+          const group = annotations.groups.find((g) => g.id === editingGroupId);
+          if (!group) return null;
+          return (
+            <GroupAnnotationDialog
+              nodeIds={group.nodeIds}
+              existingGroup={group}
+              onSave={(data) => {
+                updateAnnotationGroup({ ...group, ...data });
+                setEditingGroupId(null);
+              }}
+              onDelete={() => {
+                removeAnnotationGroup(group.id);
+                setEditingGroupId(null);
+              }}
+              onClose={() => setEditingGroupId(null)}
+            />
+          );
+        })()}
 
         <div className="p-3 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between mb-2">
@@ -375,6 +490,17 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           ) : null;
         })()}
       </div>
+
+      {/* Annotation Editor */}
+      <AnnotationEditor
+        nodeId={node.id}
+        annotationText={annotations.nodeAnnotations.get(node.id)?.text || ''}
+        highlightColor={annotations.nodeHighlights.get(node.id)?.color}
+        onTextChange={setNodeAnnotation}
+        onTextRemove={removeNodeAnnotation}
+        onHighlightChange={setNodeHighlight}
+        onHighlightRemove={removeNodeHighlight}
+      />
 
       {/* Cardinality Mismatch */}
       {(() => {

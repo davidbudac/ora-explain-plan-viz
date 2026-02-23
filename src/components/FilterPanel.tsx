@@ -18,6 +18,7 @@ const DEFAULT_NODE_DISPLAY_OPTIONS: NodeDisplayOptions = {
   showActualRows: true,
   showActualTime: true,
   showStarts: true,
+  showAnnotationPreviews: false,
 };
 
 interface FilterPanelProps {
@@ -139,7 +140,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       predicateTypes: [],
       animateEdges: false,
       focusSelection: false,
-      nodeDisplayOptions: { ...DEFAULT_NODE_DISPLAY_OPTIONS },
+      nodeDisplayOptions: { ...DEFAULT_NODE_DISPLAY_OPTIONS, showAnnotationPreviews: false },
       minActualRows: 0,
       maxActualRows: Infinity,
       minActualTime: 0,
