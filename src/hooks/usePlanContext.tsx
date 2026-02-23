@@ -1,6 +1,8 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, NodeIndicatorMetric, Theme, ColorScheme } from '../lib/types';
+import type { PlanSlot, CompareMetric } from '../lib/compare';
+import { createEmptySlot, DEFAULT_COMPARE_METRICS } from '../lib/compare';
 import { parseExplainPlan } from '../lib/parser';
 import { loadSettings, saveSettings, extractFilterSettings, applySettingsToFilters } from '../lib/settings';
 import { SAMPLE_PLANS } from '../examples';
@@ -9,17 +11,15 @@ import type { AnnotationState, AnnotationGroup, HighlightColor, AnnotatedPlanExp
 import { createEmptyAnnotationState, serializeAnnotations, deserializeAnnotations, validateExport, downloadAnnotatedPlan, generateGroupId } from '../lib/annotations';
 
 interface PlanState {
-  rawInput: string;
-  parsedPlan: ParsedPlan | null;
-  selectedNodeId: number | null;
-  selectedNodeIds: number[];
+  plans: PlanSlot[];
+  activePlanIndex: number;
+  compareMetrics: CompareMetric[];
   viewMode: ViewMode;
   sankeyMetric: SankeyMetric;
   nodeIndicatorMetric: NodeIndicatorMetric;
   colorScheme: ColorScheme;
   theme: Theme;
   filters: FilterState;
-  error: string | null;
   // UI panel states (persisted)
   legendVisible: boolean;
   inputPanelCollapsed: boolean;
@@ -44,6 +44,10 @@ type PlanAction =
   | { type: 'SET_LEGEND_VISIBLE'; payload: boolean }
   | { type: 'SET_INPUT_PANEL_COLLAPSED'; payload: boolean }
   | { type: 'SET_FILTER_PANEL_COLLAPSED'; payload: boolean }
+  | { type: 'ADD_PLAN_SLOT' }
+  | { type: 'REMOVE_PLAN_SLOT'; payload: number }
+  | { type: 'SET_ACTIVE_PLAN'; payload: number }
+  | { type: 'SET_COMPARE_METRICS'; payload: CompareMetric[] }
   | { type: 'SET_NODE_ANNOTATION'; payload: { nodeId: number; text: string } }
   | { type: 'REMOVE_NODE_ANNOTATION'; payload: number }
   | { type: 'SET_NODE_HIGHLIGHT'; payload: { nodeId: number; color: HighlightColor } }
@@ -97,17 +101,15 @@ const getInitialTheme = (): Theme => {
 const getInitialState = (): PlanState => {
   const settings = loadSettings();
   return {
-    rawInput: '',
-    parsedPlan: null,
-    selectedNodeId: null,
-    selectedNodeIds: [],
+    plans: [createEmptySlot(0)],
+    activePlanIndex: 0,
+    compareMetrics: settings.compareMetrics ?? DEFAULT_COMPARE_METRICS,
     viewMode: settings.viewMode,
     sankeyMetric: settings.sankeyMetric,
     nodeIndicatorMetric: settings.nodeIndicatorMetric,
     colorScheme: settings.colorScheme ?? 'muted',
     theme: getInitialTheme(),
     filters: applySettingsToFilters(initialFilters, settings),
-    error: null,
     legendVisible: settings.legendVisible,
     inputPanelCollapsed: settings.inputPanelCollapsed,
     filterPanelCollapsed: settings.filterPanelCollapsed,
@@ -116,21 +118,30 @@ const getInitialState = (): PlanState => {
   };
 };
 
+function updateActiveSlot(state: PlanState, updater: (slot: PlanSlot) => PlanSlot): PlanState {
+  const plans = state.plans.map((slot, i) =>
+    i === state.activePlanIndex ? updater(slot) : slot
+  );
+  return { ...state, plans };
+}
+
 function planReducer(state: PlanState, action: PlanAction): PlanState {
   switch (action.type) {
     case 'SET_INPUT':
-      return { ...state, rawInput: action.payload, error: null };
+      return updateActiveSlot(state, slot => ({ ...slot, rawInput: action.payload, error: null }));
 
     case 'SET_PARSED_PLAN': {
       const newMetric = !action.payload.hasActualStats && state.nodeIndicatorMetric !== 'cost'
         ? 'cost' as NodeIndicatorMetric
         : state.nodeIndicatorMetric;
       return {
-        ...state,
-        parsedPlan: action.payload,
-        error: null,
-        selectedNodeId: null,
-        selectedNodeIds: [],
+        ...updateActiveSlot(state, slot => ({
+          ...slot,
+          parsedPlan: action.payload,
+          error: null,
+          selectedNodeId: null,
+          selectedNodeIds: [],
+        })),
         nodeIndicatorMetric: newMetric,
         annotations: createEmptyAnnotationState(),
         hasUnsavedAnnotations: false,
@@ -139,32 +150,31 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
 
     case 'SELECT_NODE': {
       const { id, additive } = action.payload;
-
-      if (id === null) {
-        return { ...state, selectedNodeId: null, selectedNodeIds: [] };
-      }
-
-      if (!additive) {
-        return { ...state, selectedNodeId: id, selectedNodeIds: [id] };
-      }
-
-      const isAlreadySelected = state.selectedNodeIds.includes(id);
-      if (isAlreadySelected) {
-        const nextSelectedNodeIds = state.selectedNodeIds.filter((nodeId) => nodeId !== id);
-        const nextPrimaryId =
-          nextSelectedNodeIds.length > 0 ? nextSelectedNodeIds[nextSelectedNodeIds.length - 1] : null;
+      return updateActiveSlot(state, slot => {
+        if (id === null) {
+          return { ...slot, selectedNodeId: null, selectedNodeIds: [] };
+        }
+        if (!additive) {
+          return { ...slot, selectedNodeId: id, selectedNodeIds: [id] };
+        }
+        const isAlreadySelected = slot.selectedNodeIds.includes(id);
+        if (isAlreadySelected) {
+          const nextSelectedNodeIds = slot.selectedNodeIds.filter(nodeId => nodeId !== id);
+          const nextPrimaryId = nextSelectedNodeIds.length > 0
+            ? nextSelectedNodeIds[nextSelectedNodeIds.length - 1]
+            : null;
+          return {
+            ...slot,
+            selectedNodeId: slot.selectedNodeId === id ? nextPrimaryId : slot.selectedNodeId,
+            selectedNodeIds: nextSelectedNodeIds,
+          };
+        }
         return {
-          ...state,
-          selectedNodeId: state.selectedNodeId === id ? nextPrimaryId : state.selectedNodeId,
-          selectedNodeIds: nextSelectedNodeIds,
+          ...slot,
+          selectedNodeId: id,
+          selectedNodeIds: [...slot.selectedNodeIds, id],
         };
-      }
-
-      return {
-        ...state,
-        selectedNodeId: id,
-        selectedNodeIds: [...state.selectedNodeIds, id],
-      };
+      });
     }
 
     case 'SET_VIEW_MODE':
@@ -189,16 +199,18 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
       };
 
     case 'SET_ERROR':
-      return { ...state, error: action.payload };
+      return updateActiveSlot(state, slot => ({ ...slot, error: action.payload }));
 
     case 'CLEAR_PLAN':
       return {
-        ...state,
-        rawInput: '',
-        parsedPlan: null,
-        selectedNodeId: null,
-        selectedNodeIds: [],
-        error: null,
+        ...updateActiveSlot(state, slot => ({
+          ...slot,
+          rawInput: '',
+          parsedPlan: null,
+          selectedNodeId: null,
+          selectedNodeIds: [],
+          error: null,
+        })),
         filters: applySettingsToFilters(initialFilters, loadSettings()),
         annotations: createEmptyAnnotationState(),
         hasUnsavedAnnotations: false,
@@ -212,6 +224,49 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
 
     case 'SET_FILTER_PANEL_COLLAPSED':
       return { ...state, filterPanelCollapsed: action.payload };
+
+    case 'ADD_PLAN_SLOT': {
+      if (state.plans.length >= 2) return state;
+      const newSlot = createEmptySlot(1);
+      return {
+        ...state,
+        plans: [...state.plans, newSlot],
+        activePlanIndex: 1,
+        inputPanelCollapsed: false,
+      };
+    }
+
+    case 'REMOVE_PLAN_SLOT': {
+      const removeIndex = action.payload;
+      if (state.plans.length <= 1) return state;
+      const newPlans = state.plans.filter((_, i) => i !== removeIndex);
+      // Re-label remaining slots
+      const relabeled = newPlans.map((slot, i) => ({
+        ...slot,
+        id: `plan-${i}`,
+        label: i === 0 ? 'Plan A' : 'Plan B',
+      }));
+      let newActiveIndex = state.activePlanIndex;
+      if (removeIndex <= state.activePlanIndex) {
+        newActiveIndex = Math.max(0, state.activePlanIndex - 1);
+      }
+      newActiveIndex = Math.min(newActiveIndex, relabeled.length - 1);
+      return {
+        ...state,
+        plans: relabeled,
+        activePlanIndex: newActiveIndex,
+        // Exit compare view if going back to single plan
+        viewMode: relabeled.length < 2 && state.viewMode === 'compare'
+          ? 'hierarchical'
+          : state.viewMode,
+      };
+    }
+
+    case 'SET_ACTIVE_PLAN':
+      return { ...state, activePlanIndex: Math.min(action.payload, state.plans.length - 1) };
+
+    case 'SET_COMPARE_METRICS':
+      return { ...state, compareMetrics: action.payload };
 
     case 'SET_NODE_ANNOTATION': {
       const { nodeId, text } = action.payload;
@@ -320,7 +375,33 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
   }
 }
 
-interface PlanContextValue extends PlanState {
+interface PlanContextValue {
+  // Backward-compatible derived values from active plan
+  rawInput: string;
+  parsedPlan: ParsedPlan | null;
+  selectedNodeId: number | null;
+  selectedNodeIds: number[];
+  error: string | null;
+
+  // Global state
+  viewMode: ViewMode;
+  sankeyMetric: SankeyMetric;
+  nodeIndicatorMetric: NodeIndicatorMetric;
+  colorScheme: ColorScheme;
+  theme: Theme;
+  filters: FilterState;
+  legendVisible: boolean;
+  inputPanelCollapsed: boolean;
+  filterPanelCollapsed: boolean;
+
+  // Multi-plan state
+  plans: PlanSlot[];
+  activePlanIndex: number;
+  canAddPlan: boolean;
+  hasMultiplePlans: boolean;
+  compareMetrics: CompareMetric[];
+
+  // Actions
   setInput: (input: string) => void;
   parsePlan: () => void;
   loadAndParsePlan: (input: string) => void;
@@ -343,6 +424,17 @@ interface PlanContextValue extends PlanState {
   setLegendVisible: (visible: boolean) => void;
   setInputPanelCollapsed: (collapsed: boolean) => void;
   setFilterPanelCollapsed: (collapsed: boolean) => void;
+
+  // Annotations
+  annotations: AnnotationState;
+  hasUnsavedAnnotations: boolean;
+
+  // Multi-plan actions
+  addPlanSlot: () => void;
+  removePlanSlot: (index: number) => void;
+  setActivePlan: (index: number) => void;
+  setCompareMetrics: (metrics: CompareMetric[]) => void;
+
   // Annotation methods
   setNodeAnnotation: (nodeId: number, text: string) => void;
   removeNodeAnnotation: (nodeId: number) => void;
@@ -362,39 +454,50 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(planReducer, undefined, getInitialState);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Derive active slot values for backward compatibility
+  const activeSlot = state.plans[state.activePlanIndex];
+  const rawInput = activeSlot.rawInput;
+  const parsedPlan = activeSlot.parsedPlan;
+  const selectedNodeId = activeSlot.selectedNodeId;
+  const selectedNodeIds = activeSlot.selectedNodeIds;
+  const error = activeSlot.error;
+
+  const canAddPlan = state.plans.length < 2;
+  const hasMultiplePlans = state.plans.length > 1;
+
   const nodeById = useMemo(() => {
-    if (!state.parsedPlan) return new Map<number, PlanNode>();
-    return new Map(state.parsedPlan.allNodes.map((node) => [node.id, node]));
-  }, [state.parsedPlan]);
+    if (!parsedPlan) return new Map<number, PlanNode>();
+    return new Map(parsedPlan.allNodes.map((node) => [node.id, node]));
+  }, [parsedPlan]);
 
   const filteredNodes = useMemo((): PlanNode[] => {
-    if (!state.parsedPlan) return [];
-    const hasActualStats = state.parsedPlan.hasActualStats ?? false;
-    return state.parsedPlan.allNodes.filter((node) => matchesFilters(node, state.filters, hasActualStats));
-  }, [state.parsedPlan, state.filters]);
+    if (!parsedPlan) return [];
+    const hasActualStats = parsedPlan.hasActualStats ?? false;
+    return parsedPlan.allNodes.filter((node) => matchesFilters(node, state.filters, hasActualStats));
+  }, [parsedPlan, state.filters]);
 
   const filteredNodeIds = useMemo(() => {
     return new Set(filteredNodes.map((node) => node.id));
   }, [filteredNodes]);
 
   const selectedNode = useMemo((): PlanNode | null => {
-    if (!state.parsedPlan || state.selectedNodeId === null) return null;
-    return nodeById.get(state.selectedNodeId) || null;
-  }, [state.parsedPlan, state.selectedNodeId, nodeById]);
+    if (!parsedPlan || selectedNodeId === null) return null;
+    return nodeById.get(selectedNodeId) || null;
+  }, [parsedPlan, selectedNodeId, nodeById]);
 
   const selectedNodes = useMemo((): PlanNode[] => {
-    if (!state.parsedPlan || state.selectedNodeIds.length === 0) return [];
-    return state.selectedNodeIds
+    if (!parsedPlan || selectedNodeIds.length === 0) return [];
+    return selectedNodeIds
       .map((id) => nodeById.get(id))
       .filter((node): node is PlanNode => Boolean(node));
-  }, [state.parsedPlan, state.selectedNodeIds, nodeById]);
+  }, [parsedPlan, selectedNodeIds, nodeById]);
 
   // Hottest node: the non-root node with the highest A-Time
   const hottestNodeId = useMemo((): number | null => {
-    if (!state.parsedPlan?.hasActualStats) return null;
+    if (!parsedPlan?.hasActualStats) return null;
     let maxTime = 0;
     let hotId: number | null = null;
-    for (const node of state.parsedPlan.allNodes) {
+    for (const node of parsedPlan.allNodes) {
       // Skip root SELECT/UPDATE/etc. statements — they always have the total time
       if (node.parentId === undefined) continue;
       if (node.actualTime !== undefined && node.actualTime > maxTime) {
@@ -403,7 +506,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       }
     }
     return hotId;
-  }, [state.parsedPlan]);
+  }, [parsedPlan]);
 
   // Apply theme to document
   useEffect(() => {
@@ -445,13 +548,14 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     }
     saveTimeoutRef.current = setTimeout(() => {
       saveSettings({
-        viewMode: state.viewMode,
+        viewMode: state.viewMode === 'compare' ? 'hierarchical' : state.viewMode,
         sankeyMetric: state.sankeyMetric,
         nodeIndicatorMetric: state.nodeIndicatorMetric,
         colorScheme: state.colorScheme,
         legendVisible: state.legendVisible,
         inputPanelCollapsed: state.inputPanelCollapsed,
         filterPanelCollapsed: state.filterPanelCollapsed,
+        compareMetrics: state.compareMetrics,
         ...extractFilterSettings(state.filters),
       });
     }, 300);
@@ -469,6 +573,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     state.legendVisible,
     state.inputPanelCollapsed,
     state.filterPanelCollapsed,
+    state.compareMetrics,
     state.filters.animateEdges,
     state.filters.focusSelection,
     state.filters.nodeDisplayOptions,
@@ -482,7 +587,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   const parsePlan = useCallback(() => {
     try {
-      const parsed = parseExplainPlan(state.rawInput);
+      const parsed = parseExplainPlan(rawInput);
       if (!parsed.rootNode) {
         dispatch({
           type: 'SET_ERROR',
@@ -497,7 +602,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         payload: `Parse error: ${err instanceof Error ? err.message : 'Unknown error'}`,
       });
     }
-  }, [state.rawInput]);
+  }, [rawInput]);
 
   const loadAndParsePlan = useCallback((input: string) => {
     dispatch({ type: 'SET_INPUT', payload: input });
@@ -563,6 +668,22 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_FILTER_PANEL_COLLAPSED', payload: collapsed });
   }, []);
 
+  const addPlanSlot = useCallback(() => {
+    dispatch({ type: 'ADD_PLAN_SLOT' });
+  }, []);
+
+  const removePlanSlot = useCallback((index: number) => {
+    dispatch({ type: 'REMOVE_PLAN_SLOT', payload: index });
+  }, []);
+
+  const setActivePlan = useCallback((index: number) => {
+    dispatch({ type: 'SET_ACTIVE_PLAN', payload: index });
+  }, []);
+
+  const setCompareMetrics = useCallback((metrics: CompareMetric[]) => {
+    dispatch({ type: 'SET_COMPARE_METRICS', payload: metrics });
+  }, []);
+
   const setNodeAnnotation = useCallback((nodeId: number, text: string) => {
     dispatch({ type: 'SET_NODE_ANNOTATION', payload: { nodeId, text } });
   }, []);
@@ -596,18 +717,18 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const exportAnnotatedPlan = useCallback(() => {
-    if (!state.parsedPlan) return;
+    if (!parsedPlan) return;
     const exportData: AnnotatedPlanExport = {
       version: 1,
       exportedAt: new Date().toISOString(),
-      rawPlanText: state.rawInput,
-      planSource: state.parsedPlan.source,
-      planHashValue: state.parsedPlan.planHashValue,
-      sqlId: state.parsedPlan.sqlId,
+      rawPlanText: rawInput,
+      planSource: parsedPlan.source,
+      planHashValue: parsedPlan.planHashValue,
+      sqlId: parsedPlan.sqlId,
       annotations: serializeAnnotations(state.annotations),
     };
     downloadAnnotatedPlan(exportData);
-  }, [state.parsedPlan, state.rawInput, state.annotations]);
+  }, [parsedPlan, rawInput, state.annotations]);
 
   const importAnnotatedPlan = useCallback(async (file: File) => {
     try {
@@ -641,7 +762,32 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const getFilteredNodes = useCallback((): PlanNode[] => filteredNodes, [filteredNodes]);
 
   const value: PlanContextValue = {
-    ...state,
+    // Backward-compatible derived values
+    rawInput,
+    parsedPlan,
+    selectedNodeId,
+    selectedNodeIds,
+    error,
+
+    // Global state
+    viewMode: state.viewMode,
+    sankeyMetric: state.sankeyMetric,
+    nodeIndicatorMetric: state.nodeIndicatorMetric,
+    colorScheme: state.colorScheme,
+    theme: state.theme,
+    filters: state.filters,
+    legendVisible: state.legendVisible,
+    inputPanelCollapsed: state.inputPanelCollapsed,
+    filterPanelCollapsed: state.filterPanelCollapsed,
+
+    // Multi-plan state
+    plans: state.plans,
+    activePlanIndex: state.activePlanIndex,
+    canAddPlan,
+    hasMultiplePlans,
+    compareMetrics: state.compareMetrics,
+
+    // Actions
     setInput,
     parsePlan,
     loadAndParsePlan,
@@ -664,6 +810,18 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setLegendVisible,
     setInputPanelCollapsed,
     setFilterPanelCollapsed,
+
+    // Annotations
+    annotations: state.annotations,
+    hasUnsavedAnnotations: state.hasUnsavedAnnotations,
+
+    // Multi-plan actions
+    addPlanSlot,
+    removePlanSlot,
+    setActivePlan,
+    setCompareMetrics,
+
+    // Annotation methods
     setNodeAnnotation,
     removeNodeAnnotation,
     setNodeHighlight,
