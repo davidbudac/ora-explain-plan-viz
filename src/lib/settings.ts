@@ -1,4 +1,5 @@
 import type { FilterState, ViewMode, SankeyMetric, NodeIndicatorMetric, NodeDisplayOptions, ColorScheme } from './types';
+import type { CompareMetric } from './compare';
 
 const SETTINGS_KEY = 'ora-explain-viz-settings';
 const SETTINGS_VERSION = 1;
@@ -32,6 +33,9 @@ export interface UserSettings {
 
   // Operation type filters
   operationTypes: string[];
+
+  // Comparison metrics
+  compareMetrics: CompareMetric[];
 }
 
 const defaultNodeDisplayOptions: NodeDisplayOptions = {
@@ -62,6 +66,7 @@ const defaultSettings: UserSettings = {
   nodeDisplayOptions: defaultNodeDisplayOptions,
   predicateTypes: [],
   operationTypes: [],
+  compareMetrics: ['cost', 'actualRows', 'actualTime'],
 };
 
 /**
