@@ -2,6 +2,7 @@ import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'rea
 import { PlanProvider, usePlan } from './hooks/usePlanContext';
 import { Header } from './components/Header';
 import { InputPanel } from './components/InputPanel';
+import { PlanTabs } from './components/PlanTabs';
 import { FilterPanel } from './components/FilterPanel';
 import { VisualizationTabs } from './components/VisualizationTabs';
 import { NodeDetailPanel } from './components/NodeDetailPanel';
@@ -52,7 +53,9 @@ function clampPanelWidths(widths: PanelWidths, viewportWidth: number): PanelWidt
 }
 
 function AppContent() {
-  const { parsedPlan } = usePlan();
+  const { plans, viewMode } = usePlan();
+  const anyPlanParsed = plans.some(p => p.parsedPlan);
+  const isCompareView = viewMode === 'compare';
   const [panelWidths, setPanelWidths] = useState<PanelWidths>({
     left: DEFAULT_LEFT_PANEL_WIDTH,
     right: DEFAULT_RIGHT_PANEL_WIDTH,
@@ -125,25 +128,30 @@ function AppContent() {
     <div className="flex flex-col h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <Header />
       <InputPanel />
+      <PlanTabs />
 
-      {parsedPlan && (
+      {anyPlanParsed && (
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          <FilterPanel
-            panelWidth={panelWidths.left}
-            onResizeStart={startResize('left')}
-          />
+          {!isCompareView && (
+            <FilterPanel
+              panelWidth={panelWidths.left}
+              onResizeStart={startResize('left')}
+            />
+          )}
           <div className="flex-1 flex flex-col relative min-w-0 bg-slate-50 dark:bg-slate-900 border-r border-l border-slate-200 dark:border-slate-800">
             <VisualizationTabs />
             <Legend />
           </div>
-          <NodeDetailPanel
-            panelWidth={panelWidths.right}
-            onResizeStart={startResize('right')}
-          />
+          {!isCompareView && (
+            <NodeDetailPanel
+              panelWidth={panelWidths.right}
+              onResizeStart={startResize('right')}
+            />
+          )}
         </div>
       )}
 
-      {!parsedPlan && (
+      {!anyPlanParsed && (
         <div className="flex-1 flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 p-8">
           <svg
             className="w-16 h-16 mb-4 text-slate-300 dark:text-slate-700"

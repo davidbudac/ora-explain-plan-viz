@@ -5,7 +5,7 @@ import { formatNumberShort, formatTimeShort } from '../lib/format';
 import { SAMPLE_PLANS_BY_CATEGORY, type SamplePlan } from '../examples';
 
 export function InputPanel() {
-  const { rawInput, setInput, parsePlan, loadAndParsePlan, clearPlan, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed } = usePlan();
+  const { rawInput, setInput, parsePlan, loadAndParsePlan, clearPlan, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, canAddPlan, addPlanSlot, hasMultiplePlans, plans, activePlanIndex } = usePlan();
   const [showSampleMenu, setShowSampleMenu] = useState(false);
   const wasParsingRef = useRef(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -64,6 +64,9 @@ export function InputPanel() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
           <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+            {hasMultiplePlans && (
+              <span className="text-blue-600 dark:text-blue-400 mr-1.5">{plans[activePlanIndex].label}:</span>
+            )}
             {parsedPlan && (parsedPlan.sqlId || parsedPlan.planHashValue)
               ? [
                   parsedPlan.sqlId && <span key="sql">SQL ID: <span className="font-mono">{parsedPlan.sqlId}</span></span>,
@@ -188,6 +191,18 @@ export function InputPanel() {
               </div>
             )}
           </div>
+
+          {parsedPlan && canAddPlan && (
+            <button
+              onClick={addPlanSlot}
+              className="h-8 px-3 border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 hover:border-slate-400 dark:hover:border-slate-500 transition-colors font-medium text-xs flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Plan for Comparison
+            </button>
+          )}
         </div>
       )}
     </div>
