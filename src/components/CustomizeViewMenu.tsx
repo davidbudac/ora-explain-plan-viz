@@ -15,7 +15,8 @@ type NodeOptionKey =
   | 'showQueryBlockGrouping'
   | 'showActualRows'
   | 'showActualTime'
-  | 'showStarts';
+  | 'showStarts'
+  | 'showAnnotationPreviews';
 
 type CommandKey = 'animateEdges' | 'focusSelection' | NodeOptionKey;
 
@@ -99,6 +100,12 @@ function buildCommands(hasActualStats: boolean): ViewCommand[] {
       keywords: ['query', 'block', 'group', 'grouping'],
     },
     {
+      key: 'showAnnotationPreviews',
+      section: 'Node fields',
+      label: 'Annotation previews',
+      keywords: ['annotation', 'note', 'preview', 'comment'],
+    },
+    {
       key: 'showActualRows',
       section: 'Runtime fields',
       label: 'A-Rows',
@@ -125,7 +132,7 @@ function buildCommands(hasActualStats: boolean): ViewCommand[] {
 function isCommandEnabled(commandKey: CommandKey, filters: FilterState): boolean {
   if (commandKey === 'animateEdges') return filters.animateEdges;
   if (commandKey === 'focusSelection') return filters.focusSelection;
-  return filters.nodeDisplayOptions[commandKey];
+  return filters.nodeDisplayOptions[commandKey] ?? false;
 }
 
 export function CustomizeViewMenu({
