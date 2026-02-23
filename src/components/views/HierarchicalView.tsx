@@ -17,6 +17,7 @@ import { usePlan } from '../../hooks/usePlanContext';
 import { PlanNodeMemo } from '../nodes/PlanNode';
 import { formatNumberShort, computeCardinalityRatio, cardinalityRatioSeverity } from '../../lib/format';
 import type { PlanNode, NodeDisplayOptions } from '../../lib/types';
+import { getHighlightColorDef } from '../../lib/annotations';
 
 // Query block group component
 interface QueryBlockGroupData extends Record<string, unknown> {
@@ -39,9 +40,38 @@ const QueryBlockGroupNode = memo(({ data }: { data: QueryBlockGroupData }) => {
 });
 QueryBlockGroupNode.displayName = 'QueryBlockGroupNode';
 
+interface AnnotationGroupData extends Record<string, unknown> {
+  label: string;
+  width: number;
+  height: number;
+  borderClass: string;
+  bgClass: string;
+  note?: string;
+}
+
+const AnnotationGroupNode = memo(({ data }: { data: AnnotationGroupData }) => {
+  return (
+    <div
+      className={`border-2 border-dashed rounded-lg ${data.borderClass} ${data.bgClass}`}
+      style={{ width: data.width, height: data.height }}
+    >
+      <div className={`absolute -top-3 left-3 px-2 bg-white dark:bg-gray-900 text-xs font-medium`}>
+        <span className="text-slate-700 dark:text-slate-300">{data.label}</span>
+      </div>
+      {data.note && (
+        <div className="absolute -bottom-2.5 left-3 px-2 bg-white dark:bg-gray-900 text-[10px] text-slate-500 dark:text-slate-400 italic truncate max-w-[200px]">
+          {data.note}
+        </div>
+      )}
+    </div>
+  );
+});
+AnnotationGroupNode.displayName = 'AnnotationGroupNode';
+
 const nodeTypes: NodeTypes = {
   planNode: PlanNodeMemo as unknown as NodeTypes['planNode'],
   queryBlockGroup: QueryBlockGroupNode as unknown as NodeTypes['queryBlockGroup'],
+  annotationGroup: AnnotationGroupNode as unknown as NodeTypes['annotationGroup'],
 };
 
 // Layout dimensions for dagre algorithm
@@ -52,7 +82,8 @@ const NODE_BASE_HEIGHT = 60; // Base: operation name + ID badge + cost bar
 function calculateNodeHeight(
   node: PlanNode,
   displayOptions: NodeDisplayOptions,
-  hasActualStats: boolean
+  hasActualStats: boolean,
+  hasAnnotation?: boolean,
 ): number {
   let height = NODE_BASE_HEIGHT;
 
@@ -108,6 +139,11 @@ function calculateNodeHeight(
     if (node.filterPredicates) {
       height += 24 + Math.min(60, Math.ceil(node.filterPredicates.length / 35) * 16);
     }
+  }
+
+  // Annotation preview text
+  if (displayOptions.showAnnotationPreviews && hasAnnotation) {
+    height += 18;
   }
 
   return height;
@@ -311,7 +347,7 @@ function fallbackDagreLayout(
 }
 
 function HierarchicalViewContent() {
-  const { parsedPlan, selectedNodeId, selectedNodeIds, selectNode, theme, filters, colorScheme, nodeIndicatorMetric, filteredNodeIds, nodeById, hottestNodeId } = usePlan();
+  const { parsedPlan, selectedNodeId, selectedNodeIds, selectNode, theme, filters, colorScheme, nodeIndicatorMetric, filteredNodeIds, nodeById, hottestNodeId, annotations } = usePlan();
   const containerRef = useRef<HTMLDivElement>(null);
   const { fitView, setNodes: rfSetNodes } = useReactFlow();
   const selectedNodeIdSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
@@ -385,8 +421,9 @@ function HierarchicalViewContent() {
 
     function traverse(node: PlanNode) {
       const hasActualStats = parsedPlan!.hasActualStats || false;
+      const hasAnnotation = annotations.nodeAnnotations.has(node.id);
       // Calculate dynamic height for this node
-      const height = calculateNodeHeight(node, filters.nodeDisplayOptions, hasActualStats);
+      const height = calculateNodeHeight(node, filters.nodeDisplayOptions, hasActualStats, hasAnnotation);
       nodeDimensions.set(node.id.toString(), { width: NODE_WIDTH, height });
 
       // Keep query block envelopes stable across predicate-detail toggles by
@@ -394,7 +431,8 @@ function HierarchicalViewContent() {
       const groupHeight = calculateNodeHeight(
         node,
         { ...filters.nodeDisplayOptions, showPredicateDetails: true },
-        hasActualStats
+        hasActualStats,
+        hasAnnotation
       );
       nodeGroupDimensions.set(node.id.toString(), { width: NODE_WIDTH, height: groupHeight });
 
@@ -532,12 +570,55 @@ function HierarchicalViewContent() {
       });
     }
 
+    // Annotation group overlay nodes
+    const annotationGroupNodes: Node[] = [];
+    if (annotations.groups.length > 0) {
+      const padding = 20;
+      const visualBuffer = 14;
+
+      for (const group of annotations.groups) {
+        // Find positioned plan nodes that belong to this group
+        const memberNodes = group.nodeIds
+          .map((id) => layoutedResult.nodes.find((n) => n.id === id.toString()))
+          .filter((n): n is Node => Boolean(n));
+
+        if (memberNodes.length === 0) continue;
+
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const node of memberNodes) {
+          const dims = nodeGroupDimensions.get(node.id) || nodeDimensions.get(node.id) || { width: NODE_WIDTH, height: NODE_BASE_HEIGHT };
+          minX = Math.min(minX, node.position.x - visualBuffer);
+          minY = Math.min(minY, node.position.y - visualBuffer);
+          maxX = Math.max(maxX, node.position.x + dims.width + visualBuffer);
+          maxY = Math.max(maxY, node.position.y + dims.height + visualBuffer);
+        }
+
+        const colorDef = getHighlightColorDef(group.color);
+        annotationGroupNodes.push({
+          id: `anngroup-${group.id}`,
+          type: 'annotationGroup',
+          position: { x: minX - padding, y: minY - padding },
+          data: {
+            label: group.name,
+            width: maxX - minX + padding * 2,
+            height: maxY - minY + padding * 2,
+            borderClass: colorDef.groupBorder,
+            bgClass: colorDef.groupBg,
+            note: group.note,
+          },
+          selectable: false,
+          draggable: false,
+          zIndex: -1,
+        });
+      }
+    }
+
     // Group nodes should be rendered first (behind plan nodes)
     return {
-      nodes: [...groupNodes, ...layoutedResult.nodes],
+      nodes: [...groupNodes, ...annotationGroupNodes, ...layoutedResult.nodes],
       edges: edgesWithThickness,
     };
-  }, [parsedPlan, filters.nodeDisplayOptions]);
+  }, [parsedPlan, filters.nodeDisplayOptions, annotations.groups, annotations.nodeAnnotations]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutData.edges);
@@ -561,7 +642,7 @@ function HierarchicalViewContent() {
   useEffect(() => {
     rfSetNodes((currentNodes) =>
       currentNodes.map((node) => {
-        if (node.type === 'queryBlockGroup') {
+        if (node.type === 'queryBlockGroup' || node.type === 'annotationGroup') {
           return node;
         }
         const focusEnabled = filters.focusSelection && selectedNodeId !== null && selectedNodeIds.length === 1;
@@ -590,6 +671,9 @@ function HierarchicalViewContent() {
             searchText,
             filterKey, // Include filterKey to force React Flow to detect changes
             isHotNode: hottestNodeId !== null && parseInt(node.id) === hottestNodeId,
+            annotationText: annotations.nodeAnnotations.get(parseInt(node.id))?.text,
+            highlightColor: annotations.nodeHighlights.get(parseInt(node.id))?.color,
+            showAnnotationPreviews: filters.nodeDisplayOptions.showAnnotationPreviews,
           },
         };
       })
@@ -613,6 +697,8 @@ function HierarchicalViewContent() {
     selectionSets.descendantIds,
     searchText,
     hottestNodeId,
+    annotations.nodeAnnotations,
+    annotations.nodeHighlights,
   ]);
 
   // Update edge styles separately - only create new objects when values change
@@ -693,8 +779,8 @@ function HierarchicalViewContent() {
 
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
-      // Ignore clicks on query block group nodes — treat as pane click (deselect)
-      if (node.type === 'queryBlockGroup') {
+      // Ignore clicks on group overlay nodes — treat as pane click (deselect)
+      if (node.type === 'queryBlockGroup' || node.type === 'annotationGroup') {
         selectNode(null);
         return;
       }

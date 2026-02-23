@@ -69,6 +69,8 @@ export interface NodeDisplayOptions {
   showActualRows: boolean;
   showActualTime: boolean;
   showStarts: boolean;
+  // Annotation previews
+  showAnnotationPreviews?: boolean;
 }
 
 export interface FilterState {

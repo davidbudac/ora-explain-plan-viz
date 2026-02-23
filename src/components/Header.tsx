@@ -1,5 +1,7 @@
+import { useRef, useCallback } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import type { ColorScheme } from '../lib/types';
+import { hasAnnotations } from '../lib/annotations';
 
 const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
   muted: 'Muted',
@@ -14,11 +16,36 @@ export function Header() {
     setTheme,
     colorScheme,
     setColorScheme,
+    parsedPlan,
+    annotations,
+    hasUnsavedAnnotations,
+    exportAnnotatedPlan,
+    importAnnotatedPlan,
   } = usePlan();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
+
+  const handleLoad = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        importAnnotatedPlan(file);
+      }
+      // Reset so the same file can be re-selected
+      e.target.value = '';
+    },
+    [importAnnotatedPlan]
+  );
+
+  const showSave = parsedPlan !== null;
+  const hasSomethingToSave = showSave && (hasAnnotations(annotations) || hasUnsavedAnnotations);
 
   return (
     <header className="h-[52px] flex items-center justify-between gap-3 px-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
@@ -42,6 +69,41 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-1.5">
+        {/* Load annotated plan */}
+        <button
+          onClick={handleLoad}
+          className="h-8 w-8 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+          title="Load annotated plan (.json)"
+        >
+          <svg className="w-4 h-4 text-slate-700 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+
+        {/* Save annotated plan */}
+        {showSave && (
+          <button
+            onClick={exportAnnotatedPlan}
+            className={`h-8 w-8 flex items-center justify-center rounded-md border transition-colors ${
+              hasSomethingToSave
+                ? 'border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50'
+                : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700'
+            }`}
+            title="Save annotated plan (.json)"
+          >
+            <svg className={`w-4 h-4 ${hasSomethingToSave ? 'text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </button>
+        )}
+
         <select
           value={colorScheme}
           onChange={(e) => setColorScheme(e.target.value as ColorScheme)}
