@@ -5,6 +5,8 @@ import { parseExplainPlan } from '../lib/parser';
 import { loadSettings, saveSettings, extractFilterSettings, applySettingsToFilters } from '../lib/settings';
 import { SAMPLE_PLANS } from '../examples';
 import { matchesFilters } from '../lib/filtering';
+import type { AnnotationState, AnnotationGroup, HighlightColor, AnnotatedPlanExport } from '../lib/annotations';
+import { createEmptyAnnotationState, serializeAnnotations, deserializeAnnotations, validateExport, downloadAnnotatedPlan, generateGroupId } from '../lib/annotations';
 
 interface PlanState {
   rawInput: string;
@@ -22,6 +24,9 @@ interface PlanState {
   legendVisible: boolean;
   inputPanelCollapsed: boolean;
   filterPanelCollapsed: boolean;
+  // Annotations (overlay, not persisted to localStorage)
+  annotations: AnnotationState;
+  hasUnsavedAnnotations: boolean;
 }
 
 type PlanAction =
@@ -38,7 +43,16 @@ type PlanAction =
   | { type: 'CLEAR_PLAN' }
   | { type: 'SET_LEGEND_VISIBLE'; payload: boolean }
   | { type: 'SET_INPUT_PANEL_COLLAPSED'; payload: boolean }
-  | { type: 'SET_FILTER_PANEL_COLLAPSED'; payload: boolean };
+  | { type: 'SET_FILTER_PANEL_COLLAPSED'; payload: boolean }
+  | { type: 'SET_NODE_ANNOTATION'; payload: { nodeId: number; text: string } }
+  | { type: 'REMOVE_NODE_ANNOTATION'; payload: number }
+  | { type: 'SET_NODE_HIGHLIGHT'; payload: { nodeId: number; color: HighlightColor } }
+  | { type: 'REMOVE_NODE_HIGHLIGHT'; payload: number }
+  | { type: 'ADD_ANNOTATION_GROUP'; payload: Omit<AnnotationGroup, 'id'> }
+  | { type: 'UPDATE_ANNOTATION_GROUP'; payload: AnnotationGroup }
+  | { type: 'REMOVE_ANNOTATION_GROUP'; payload: string }
+  | { type: 'LOAD_ANNOTATIONS'; payload: AnnotationState }
+  | { type: 'CLEAR_ANNOTATIONS' };
 
 const initialFilters: FilterState = {
   operationTypes: [],
@@ -62,6 +76,7 @@ const initialFilters: FilterState = {
     showActualRows: true,
     showActualTime: true,
     showStarts: true,
+    showAnnotationPreviews: false,
   },
   // SQL Monitor actual statistics filters
   minActualRows: 0,
@@ -96,6 +111,8 @@ const getInitialState = (): PlanState => {
     legendVisible: settings.legendVisible,
     inputPanelCollapsed: settings.inputPanelCollapsed,
     filterPanelCollapsed: settings.filterPanelCollapsed,
+    annotations: createEmptyAnnotationState(),
+    hasUnsavedAnnotations: false,
   };
 };
 
@@ -115,6 +132,8 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
         selectedNodeId: null,
         selectedNodeIds: [],
         nodeIndicatorMetric: newMetric,
+        annotations: createEmptyAnnotationState(),
+        hasUnsavedAnnotations: false,
       };
     }
 
@@ -181,6 +200,8 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
         selectedNodeIds: [],
         error: null,
         filters: applySettingsToFilters(initialFilters, loadSettings()),
+        annotations: createEmptyAnnotationState(),
+        hasUnsavedAnnotations: false,
       };
 
     case 'SET_LEGEND_VISIBLE':
@@ -191,6 +212,108 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
 
     case 'SET_FILTER_PANEL_COLLAPSED':
       return { ...state, filterPanelCollapsed: action.payload };
+
+    case 'SET_NODE_ANNOTATION': {
+      const { nodeId, text } = action.payload;
+      const newAnnotations = new Map(state.annotations.nodeAnnotations);
+      const now = new Date().toISOString();
+      const existing = newAnnotations.get(nodeId);
+      newAnnotations.set(nodeId, {
+        nodeId,
+        text,
+        createdAt: existing?.createdAt || now,
+        updatedAt: now,
+      });
+      return {
+        ...state,
+        annotations: { ...state.annotations, nodeAnnotations: newAnnotations },
+        hasUnsavedAnnotations: true,
+      };
+    }
+
+    case 'REMOVE_NODE_ANNOTATION': {
+      const newAnnotations = new Map(state.annotations.nodeAnnotations);
+      newAnnotations.delete(action.payload);
+      return {
+        ...state,
+        annotations: { ...state.annotations, nodeAnnotations: newAnnotations },
+        hasUnsavedAnnotations: true,
+      };
+    }
+
+    case 'SET_NODE_HIGHLIGHT': {
+      const { nodeId, color } = action.payload;
+      const newHighlights = new Map(state.annotations.nodeHighlights);
+      newHighlights.set(nodeId, { nodeId, color });
+      return {
+        ...state,
+        annotations: { ...state.annotations, nodeHighlights: newHighlights },
+        hasUnsavedAnnotations: true,
+      };
+    }
+
+    case 'REMOVE_NODE_HIGHLIGHT': {
+      const newHighlights = new Map(state.annotations.nodeHighlights);
+      newHighlights.delete(action.payload);
+      return {
+        ...state,
+        annotations: { ...state.annotations, nodeHighlights: newHighlights },
+        hasUnsavedAnnotations: true,
+      };
+    }
+
+    case 'ADD_ANNOTATION_GROUP': {
+      const newGroup: AnnotationGroup = {
+        ...action.payload,
+        id: generateGroupId(),
+      };
+      return {
+        ...state,
+        annotations: {
+          ...state.annotations,
+          groups: [...state.annotations.groups, newGroup],
+        },
+        hasUnsavedAnnotations: true,
+      };
+    }
+
+    case 'UPDATE_ANNOTATION_GROUP': {
+      return {
+        ...state,
+        annotations: {
+          ...state.annotations,
+          groups: state.annotations.groups.map((g) =>
+            g.id === action.payload.id ? action.payload : g
+          ),
+        },
+        hasUnsavedAnnotations: true,
+      };
+    }
+
+    case 'REMOVE_ANNOTATION_GROUP': {
+      return {
+        ...state,
+        annotations: {
+          ...state.annotations,
+          groups: state.annotations.groups.filter((g) => g.id !== action.payload),
+        },
+        hasUnsavedAnnotations: true,
+      };
+    }
+
+    case 'LOAD_ANNOTATIONS':
+      return {
+        ...state,
+        annotations: action.payload,
+        hasUnsavedAnnotations: false,
+      };
+
+    case 'CLEAR_ANNOTATIONS':
+      return {
+        ...state,
+        annotations: createEmptyAnnotationState(),
+        hasUnsavedAnnotations: false,
+      };
 
     default:
       return state;
@@ -220,6 +343,17 @@ interface PlanContextValue extends PlanState {
   setLegendVisible: (visible: boolean) => void;
   setInputPanelCollapsed: (collapsed: boolean) => void;
   setFilterPanelCollapsed: (collapsed: boolean) => void;
+  // Annotation methods
+  setNodeAnnotation: (nodeId: number, text: string) => void;
+  removeNodeAnnotation: (nodeId: number) => void;
+  setNodeHighlight: (nodeId: number, color: HighlightColor) => void;
+  removeNodeHighlight: (nodeId: number) => void;
+  addAnnotationGroup: (group: Omit<AnnotationGroup, 'id'>) => void;
+  updateAnnotationGroup: (group: AnnotationGroup) => void;
+  removeAnnotationGroup: (id: string) => void;
+  exportAnnotatedPlan: () => void;
+  importAnnotatedPlan: (file: File) => Promise<void>;
+  clearAnnotations: () => void;
 }
 
 const PlanContext = createContext<PlanContextValue | null>(null);
@@ -429,6 +563,79 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_FILTER_PANEL_COLLAPSED', payload: collapsed });
   }, []);
 
+  const setNodeAnnotation = useCallback((nodeId: number, text: string) => {
+    dispatch({ type: 'SET_NODE_ANNOTATION', payload: { nodeId, text } });
+  }, []);
+
+  const removeNodeAnnotation = useCallback((nodeId: number) => {
+    dispatch({ type: 'REMOVE_NODE_ANNOTATION', payload: nodeId });
+  }, []);
+
+  const setNodeHighlight = useCallback((nodeId: number, color: HighlightColor) => {
+    dispatch({ type: 'SET_NODE_HIGHLIGHT', payload: { nodeId, color } });
+  }, []);
+
+  const removeNodeHighlight = useCallback((nodeId: number) => {
+    dispatch({ type: 'REMOVE_NODE_HIGHLIGHT', payload: nodeId });
+  }, []);
+
+  const addAnnotationGroup = useCallback((group: Omit<AnnotationGroup, 'id'>) => {
+    dispatch({ type: 'ADD_ANNOTATION_GROUP', payload: group });
+  }, []);
+
+  const updateAnnotationGroup = useCallback((group: AnnotationGroup) => {
+    dispatch({ type: 'UPDATE_ANNOTATION_GROUP', payload: group });
+  }, []);
+
+  const removeAnnotationGroup = useCallback((id: string) => {
+    dispatch({ type: 'REMOVE_ANNOTATION_GROUP', payload: id });
+  }, []);
+
+  const clearAnnotations = useCallback(() => {
+    dispatch({ type: 'CLEAR_ANNOTATIONS' });
+  }, []);
+
+  const exportAnnotatedPlan = useCallback(() => {
+    if (!state.parsedPlan) return;
+    const exportData: AnnotatedPlanExport = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      rawPlanText: state.rawInput,
+      planSource: state.parsedPlan.source,
+      planHashValue: state.parsedPlan.planHashValue,
+      sqlId: state.parsedPlan.sqlId,
+      annotations: serializeAnnotations(state.annotations),
+    };
+    downloadAnnotatedPlan(exportData);
+  }, [state.parsedPlan, state.rawInput, state.annotations]);
+
+  const importAnnotatedPlan = useCallback(async (file: File) => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!validateExport(data)) {
+        dispatch({ type: 'SET_ERROR', payload: 'Invalid annotated plan file. Please check the format.' });
+        return;
+      }
+      // Parse the plan text from the file
+      dispatch({ type: 'SET_INPUT', payload: data.rawPlanText });
+      const parsed = parseExplainPlan(data.rawPlanText);
+      if (!parsed.rootNode) {
+        dispatch({ type: 'SET_ERROR', payload: 'Could not parse the plan from the file.' });
+        return;
+      }
+      dispatch({ type: 'SET_PARSED_PLAN', payload: parsed });
+      // Load annotations after plan is set (SET_PARSED_PLAN clears them first)
+      const annotations = deserializeAnnotations(data.annotations);
+      dispatch({ type: 'LOAD_ANNOTATIONS', payload: annotations });
+    } catch (err) {
+      dispatch({
+        type: 'SET_ERROR',
+        payload: `Import error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      });
+    }
+  }, []);
+
   const getSelectedNode = useCallback((): PlanNode | null => selectedNode, [selectedNode]);
 
   const getFilteredNodes = useCallback((): PlanNode[] => filteredNodes, [filteredNodes]);
@@ -457,6 +664,16 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setLegendVisible,
     setInputPanelCollapsed,
     setFilterPanelCollapsed,
+    setNodeAnnotation,
+    removeNodeAnnotation,
+    setNodeHighlight,
+    removeNodeHighlight,
+    addAnnotationGroup,
+    updateAnnotationGroup,
+    removeAnnotationGroup,
+    exportAnnotatedPlan,
+    importAnnotatedPlan,
+    clearAnnotations,
   };
 
   return <PlanContext.Provider value={value}>{children}</PlanContext.Provider>;

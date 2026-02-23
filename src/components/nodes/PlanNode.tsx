@@ -3,6 +3,8 @@ import { getOperationCategory, COLOR_SCHEMES, getMetricColor, getOperationToolti
 import { formatNumberShort, formatBytes, formatTimeCompact, formatCardinalityRatio, cardinalityRatioSeverity, computeCardinalityRatio } from '../../lib/format';
 import type { PlanNode as PlanNodeType, NodeDisplayOptions, ColorScheme, NodeIndicatorMetric } from '../../lib/types';
 import { HighlightText } from '../HighlightText';
+import { getHighlightColorDef } from '../../lib/annotations';
+import type { HighlightColor } from '../../lib/annotations';
 
 export interface PlanNodeData extends Record<string, unknown> {
   label: string;
@@ -24,6 +26,9 @@ export interface PlanNodeData extends Record<string, unknown> {
   width?: number;
   height?: number;
   isHotNode?: boolean; // Node with highest A-Time
+  annotationText?: string;
+  highlightColor?: HighlightColor;
+  showAnnotationPreviews?: boolean;
 }
 
 interface PlanNodeProps {
@@ -47,6 +52,9 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     totalElapsedTime,
     searchText,
     isHotNode,
+    annotationText,
+    highlightColor,
+    showAnnotationPreviews,
   } = data;
   const category = getOperationCategory(node.operation);
   const schemeColors = COLOR_SCHEMES[colorScheme];
@@ -92,14 +100,20 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     opacity = 1;
   }
 
+  // Highlight ring priority: selected (blue) > hotNode (red) > highlight (color) > focusPath (faint blue)
+  const highlightRingClass = highlightColor && !isSelected && !isHotNode
+    ? getHighlightColorDef(highlightColor).ring
+    : '';
+
   return (
     <div
       className={`
         relative w-[260px] rounded-lg ${borderClass} shadow-md transition-all duration-200
         ${colors.bg} ${colors.border}
         ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900 scale-105' : ''}
-        ${isInFocusPath ? 'ring-1 ring-blue-300/60' : ''}
+        ${isInFocusPath && !highlightColor ? 'ring-1 ring-blue-300/60' : ''}
         ${isHotNode && !isSelected ? 'ring-2 ring-red-500/70 ring-offset-1 dark:ring-offset-gray-900' : ''}
+        ${highlightRingClass}
       `}
       style={{ opacity }}
     >
@@ -126,9 +140,18 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           {node.id}
         </div>
 
-        {/* Warning badges row (hot node, spill, cardinality) */}
-        {(isHotNode || hasSpill || (cardSeverity !== 'good' && cardLabel)) && (
+        {/* Warning badges row (hot node, spill, cardinality, annotation) */}
+        {(isHotNode || hasSpill || (cardSeverity !== 'good' && cardLabel) || annotationText) && (
           <div className="flex flex-wrap gap-1 mb-1.5">
+            {annotationText && (
+              <span
+                className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] rounded font-semibold flex items-center gap-0.5"
+                title={annotationText}
+              >
+                <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 13V5a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2h3l3 3 3-3h3a2 2 0 002-2zM5 7a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1zm1 3a1 1 0 100 2h3a1 1 0 100-2H6z" clipRule="evenodd" /></svg>
+                Note
+              </span>
+            )}
             {isHotNode && (
               <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-[10px] rounded font-semibold flex items-center gap-0.5" title="Highest execution time in plan">
                 <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" /></svg>
@@ -260,6 +283,13 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                 </code>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Annotation preview */}
+        {showAnnotationPreviews && annotationText && (
+          <div className="mt-2 text-[10px] text-slate-500 dark:text-slate-400 italic truncate" title={annotationText}>
+            {annotationText.length > 40 ? annotationText.slice(0, 40) + '...' : annotationText}
           </div>
         )}
       </div>
