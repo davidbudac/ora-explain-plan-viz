@@ -2,6 +2,7 @@ import { usePlan } from '../hooks/usePlanContext';
 import type { ViewMode, NodeIndicatorMetric } from '../lib/types';
 import { HierarchicalView } from './views/HierarchicalView';
 import { SankeyView } from './views/SankeyView';
+import { CompareView } from './views/CompareView';
 
 const tabs: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
   {
@@ -62,6 +63,14 @@ function IndicatorButton({
 export function VisualizationTabs() {
   const { viewMode, setViewMode, sankeyMetric, setSankeyMetric, nodeIndicatorMetric, setNodeIndicatorMetric, parsedPlan, rawInput } = usePlan();
 
+  if (viewMode === 'compare') {
+    return (
+      <div className="flex-1 flex flex-col min-h-0">
+        <CompareView />
+      </div>
+    );
+  }
+
   if (!parsedPlan) return null;
 
   return (
@@ -69,7 +78,7 @@ export function VisualizationTabs() {
       {/* Tab bar */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 gap-2">
         <div className="flex gap-1">
-          {tabs.map((tab) => (
+          {tabs.filter(tab => tab.id !== 'compare').map((tab) => (
             <button
               key={tab.id}
               onClick={() => setViewMode(tab.id)}
