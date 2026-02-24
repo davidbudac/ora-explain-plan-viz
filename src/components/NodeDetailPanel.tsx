@@ -117,7 +117,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         {/* Worst by A-Time */}
         {worstNodes.byTime.length > 0 && (
           <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide flex items-center gap-1">
+            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide flex items-center gap-1">
               <svg className="w-3.5 h-3.5 text-red-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" /></svg>
               Slowest by A-Time
             </h4>
@@ -142,7 +142,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         {/* Worst by Cost */}
         {worstNodes.byCost.length > 0 && (
           <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Highest Cost</h4>
+            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">Highest Cost</h4>
             <div className="space-y-1">
               {worstNodes.byCost.map(n => (
                 <button
@@ -164,7 +164,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         {/* Worst Cardinality Mismatches */}
         {worstNodes.byCardinalityMismatch.length > 0 && (
           <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Worst Cardinality Mismatches</h4>
+            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">Worst Cardinality Mismatches</h4>
             <div className="space-y-1">
               {worstNodes.byCardinalityMismatch.map(({ node: n, ratio }) => {
                 const severity = cardinalityRatioSeverity(ratio);
@@ -192,7 +192,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         {/* Annotation Groups */}
         {annotations.groups.length > 0 && (
           <div className="p-3">
-            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Annotation Groups</h4>
+            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">Annotation Groups</h4>
             <div className="space-y-1">
               {annotations.groups.map((group) => {
                 const colorDef = HIGHLIGHT_COLORS_MAP[group.color];
@@ -301,7 +301,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
         {/* Bulk annotation controls */}
         <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Annotate</h4>
+          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">Annotate</h4>
           <BulkHighlightPicker
             nodeIds={selectedNodeIds}
             onHighlightChange={setNodeHighlight}
@@ -348,7 +348,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
         <div className="p-3 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">{indicator.title}</span>
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-wide">{indicator.title}</span>
             <span className="text-xs text-slate-600 dark:text-slate-400">{indicator.percentText}% {indicator.referenceLabel}</span>
           </div>
           <div className="mb-2 text-xs font-medium text-slate-700 dark:text-slate-300">{indicator.formattedValue}</div>
@@ -362,7 +362,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
         {parsedPlan?.hasActualStats && (
           <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Actual Statistics (Selection)</h4>
+            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">Actual Statistics (Selection)</h4>
             <div className="grid grid-cols-2 gap-3">
               <StatItem label="A-Rows" value={formatNumberShort(aggregateSelection.sumActualRows)} highlight="blue" />
               <StatItem label="A-Time" value={formatTimeDetailed(aggregateSelection.sumActualTime)} highlight="purple" />
@@ -373,7 +373,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         )}
 
         <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">
+          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">
             {parsedPlan?.hasActualStats ? 'Estimated Statistics (Selection)' : 'Statistics (Selection)'}
           </h4>
           <div className="grid grid-cols-2 gap-3">
@@ -390,7 +390,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           aggregateSelection.sumPhysicalReads > 0 ||
           aggregateSelection.sumLogicalReads > 0) && (
           <div className="p-3 border-t border-slate-200 dark:border-slate-800">
-            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Memory & I/O (Selection)</h4>
+            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">Memory & I/O (Selection)</h4>
             <div className="grid grid-cols-2 gap-3">
               <StatItem label="Memory" value={aggregateSelection.sumMemoryUsed > 0 ? formatBytes(aggregateSelection.sumMemoryUsed) : undefined} />
               <StatItem label="Temp Used" value={aggregateSelection.sumTempUsed > 0 ? formatBytes(aggregateSelection.sumTempUsed) : undefined} />
@@ -515,7 +515,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
               : 'bg-amber-50 dark:bg-amber-950/30'
           }`}>
             <div className="flex items-center justify-between mb-1">
-              <span className={`text-xs font-semibold uppercase tracking-wide ${
+              <span className={`text-xs font-semibold tracking-wide ${
                 severity === 'bad'
                   ? 'text-red-700 dark:text-red-300'
                   : 'text-amber-700 dark:text-amber-300'
@@ -537,7 +537,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
       {node.tempUsed !== undefined && node.tempUsed > 0 && (
         <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-yellow-50 dark:bg-yellow-950/30">
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wide text-yellow-700 dark:text-yellow-300">
+            <span className="text-xs font-semibold tracking-wide text-yellow-700 dark:text-yellow-300">
               Spill to Disk
             </span>
             <span className="text-xs text-yellow-600 dark:text-yellow-400">
@@ -550,7 +550,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
       {/* Node indicator */}
       <div className="p-3 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">{indicator.title}</span>
+          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-wide">{indicator.title}</span>
           <span className="text-xs text-slate-600 dark:text-slate-400">{indicator.percentText}% {indicator.referenceLabel}</span>
         </div>
         <div className="mb-2 text-xs font-medium text-slate-700 dark:text-slate-300">{indicator.formattedValue}</div>
@@ -565,7 +565,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
       {/* Actual Statistics (SQL Monitor) */}
       {parsedPlan?.hasActualStats && (
         <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Actual Statistics</h4>
+          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">Actual Statistics</h4>
           <div className="grid grid-cols-2 gap-3">
             <StatItem label="A-Rows" value={formatNumberShort(node.actualRows)} highlight="blue" />
             <StatItem label="A-Time" value={formatTimeDetailed(node.actualTime)} highlight="purple" />
@@ -579,7 +579,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
       {/* Estimated Statistics */}
       <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-        <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">
+        <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">
           {parsedPlan?.hasActualStats ? 'Estimated Statistics' : 'Statistics'}
         </h4>
         <div className="grid grid-cols-2 gap-3">
@@ -595,7 +595,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
       {/* Predicates */}
       {(node.accessPredicates || node.filterPredicates) && (
         <div className="p-3">
-          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Predicates</h4>
+          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">Predicates</h4>
 
           {node.accessPredicates && (
             <div className="mb-3">
@@ -633,7 +633,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         node.physicalReads !== undefined ||
         node.logicalReads !== undefined) && (
         <div className="p-3 border-t border-slate-200 dark:border-slate-800">
-          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Memory & I/O</h4>
+          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">Memory & I/O</h4>
           <div className="grid grid-cols-2 gap-3">
             <StatItem label="Memory" value={formatBytes(node.memoryUsed)} />
             <StatItem label="Temp Used" value={formatBytes(node.tempUsed)} />
@@ -664,7 +664,7 @@ function StatItem({ label, value, highlight }: { label: string; value?: string; 
 
   return (
     <div className={`rounded-md p-2 border border-slate-200 dark:border-slate-700 ${highlight ? highlightStyles[highlight] : 'bg-slate-50 dark:bg-slate-950'}`}>
-      <div className="text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">{label}</div>
+      <div className="text-[11px] text-slate-500 dark:text-slate-400 tracking-wide">{label}</div>
       <div className={`text-xs font-semibold ${highlight ? valueStyles[highlight] : 'text-slate-900 dark:text-slate-100'}`}>{value}</div>
     </div>
   );

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { FilterState, NodeDisplayOptions } from '../lib/types';
 
-type CommandSection = 'Behavior' | 'Node fields' | 'Runtime fields';
+type CommandSection = 'Behavior' | 'Node fields' | 'Runtime fields' | 'Warning badges' | 'Annotations';
 
 type NodeOptionKey =
   | 'showObjectName'
@@ -16,7 +16,10 @@ type NodeOptionKey =
   | 'showActualRows'
   | 'showActualTime'
   | 'showStarts'
-  | 'showAnnotationPreviews';
+  | 'showHotspotBadge'
+  | 'showSpillBadge'
+  | 'showCardinalityBadge'
+  | 'showAnnotations';
 
 type CommandKey = 'animateEdges' | 'focusSelection' | NodeOptionKey;
 
@@ -35,7 +38,7 @@ interface CustomizeViewMenuProps {
   defaultNodeDisplayOptions: NodeDisplayOptions;
 }
 
-const SECTION_ORDER: CommandSection[] = ['Behavior', 'Node fields', 'Runtime fields'];
+const SECTION_ORDER: CommandSection[] = ['Behavior', 'Node fields', 'Runtime fields', 'Warning badges', 'Annotations'];
 
 function buildCommands(hasActualStats: boolean): ViewCommand[] {
   return [
@@ -100,12 +103,6 @@ function buildCommands(hasActualStats: boolean): ViewCommand[] {
       keywords: ['query', 'block', 'group', 'grouping'],
     },
     {
-      key: 'showAnnotationPreviews',
-      section: 'Node fields',
-      label: 'Annotation previews',
-      keywords: ['annotation', 'note', 'preview', 'comment'],
-    },
-    {
       key: 'showActualRows',
       section: 'Runtime fields',
       label: 'A-Rows',
@@ -125,6 +122,32 @@ function buildCommands(hasActualStats: boolean): ViewCommand[] {
       label: 'Starts',
       keywords: ['starts', 'runtime', 'executions'],
       runtimeOnly: true,
+    },
+    {
+      key: 'showHotspotBadge',
+      section: 'Warning badges',
+      label: 'Hotspot',
+      keywords: ['hotspot', 'hot', 'node', 'warning', 'badge'],
+      runtimeOnly: true,
+    },
+    {
+      key: 'showSpillBadge',
+      section: 'Warning badges',
+      label: 'Spill to disk',
+      keywords: ['spill', 'disk', 'temp', 'warning', 'badge'],
+    },
+    {
+      key: 'showCardinalityBadge',
+      section: 'Warning badges',
+      label: 'Cardinality mismatch',
+      keywords: ['cardinality', 'mismatch', 'estimate', 'warning', 'badge'],
+      runtimeOnly: true,
+    },
+    {
+      key: 'showAnnotations',
+      section: 'Annotations',
+      label: 'Show annotations',
+      keywords: ['annotations', 'notes', 'highlights', 'overlay'],
     },
   ];
 }
@@ -282,6 +305,28 @@ export function CustomizeViewMenu({
     });
   };
 
+  const toggleSectionAll = (items: ViewCommand[], enabled: boolean) => {
+    let nextAnimateEdges = filters.animateEdges;
+    let nextFocusSelection = filters.focusSelection;
+    const nextNodeDisplayOptions = { ...filters.nodeDisplayOptions };
+
+    for (const command of items) {
+      if (command.key === 'animateEdges') {
+        nextAnimateEdges = enabled;
+      } else if (command.key === 'focusSelection') {
+        nextFocusSelection = enabled;
+      } else {
+        nextNodeDisplayOptions[command.key as NodeOptionKey] = enabled;
+      }
+    }
+
+    setFilters({
+      animateEdges: nextAnimateEdges,
+      focusSelection: nextFocusSelection,
+      nodeDisplayOptions: nextNodeDisplayOptions,
+    });
+  };
+
   const resetDefaults = () => {
     setFilters({
       animateEdges: false,
@@ -361,35 +406,71 @@ export function CustomizeViewMenu({
             {groupedCommands.length === 0 && (
               <div className="px-2 py-3 text-[11px] text-slate-500 dark:text-slate-400">No matching options</div>
             )}
-            {groupedCommands.map((group) => (
-              <div key={group.section}>
-                <h4 className="px-2 pb-1 text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  {group.section}
-                </h4>
-                <div className="space-y-1">
-                  {group.items.map((command) => {
-                    const enabled = isCommandEnabled(command.key, filters);
-                    return (
-                      <button
-                        key={command.key}
-                        type="button"
-                        role="switch"
-                        aria-checked={enabled}
-                        onClick={() => toggleCommand(command.key)}
-                        className={`w-full px-2 py-1.5 rounded-md text-xs border transition-colors flex items-center justify-between ${
-                          enabled
-                            ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300'
-                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
-                        }`}
-                      >
-                        <span className="text-left">{command.label}</span>
-                        <span className="text-[11px] font-semibold">{enabled ? 'ON' : 'OFF'}</span>
-                      </button>
-                    );
-                  })}
+            {groupedCommands.map((group) => {
+              const sectionEnabled = group.items.filter(c => isCommandEnabled(c.key, filters)).length;
+              const sectionTotal = group.items.length;
+              const allOn = sectionEnabled === sectionTotal;
+              const allOff = sectionEnabled === 0;
+              return (
+                <div key={group.section}>
+                  <div className="flex items-center justify-between px-2 pb-1">
+                    <h4 className="text-[11px] tracking-wide text-slate-500 dark:text-slate-400">
+                      {group.section}
+                    </h4>
+                    {sectionTotal > 1 && (
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => toggleSectionAll(group.items, true)}
+                          className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${
+                            allOn
+                              ? 'text-slate-400 dark:text-slate-500 cursor-default'
+                              : 'text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'
+                          }`}
+                          disabled={allOn}
+                        >
+                          All on
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleSectionAll(group.items, false)}
+                          className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${
+                            allOff
+                              ? 'text-slate-400 dark:text-slate-500 cursor-default'
+                              : 'text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'
+                          }`}
+                          disabled={allOff}
+                        >
+                          All off
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    {group.items.map((command) => {
+                      const enabled = isCommandEnabled(command.key, filters);
+                      return (
+                        <button
+                          key={command.key}
+                          type="button"
+                          role="switch"
+                          aria-checked={enabled}
+                          onClick={() => toggleCommand(command.key)}
+                          className={`w-full px-2 py-1.5 rounded-md text-xs border transition-colors flex items-center justify-between ${
+                            enabled
+                              ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300'
+                              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                          }`}
+                        >
+                          <span className="text-left">{command.label}</span>
+                          <span className="text-[11px] font-semibold">{enabled ? 'ON' : 'OFF'}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>,
         document.body
