@@ -32,7 +32,7 @@ const QueryBlockGroupNode = memo(({ data }: { data: QueryBlockGroupData }) => {
       className="border-2 border-dashed border-violet-400 dark:border-violet-500 rounded-lg bg-violet-50/30 dark:bg-violet-900/10"
       style={{ width: data.width, height: data.height }}
     >
-      <div className="absolute -top-3 left-3 px-2 bg-white dark:bg-gray-900 text-violet-600 dark:text-violet-400 text-xs font-mono">
+      <div className="absolute -top-3 left-3 px-2 bg-[var(--surface)] dark:bg-[var(--surface-dark)] text-violet-600 dark:text-violet-400 text-xs font-mono">
         {data.label}
       </div>
     </div>
@@ -55,11 +55,11 @@ const AnnotationGroupNode = memo(({ data }: { data: AnnotationGroupData }) => {
       className={`border-2 border-dashed rounded-lg ${data.borderClass} ${data.bgClass}`}
       style={{ width: data.width, height: data.height }}
     >
-      <div className={`absolute -top-3 left-3 px-2 bg-white dark:bg-gray-900 text-xs font-medium`}>
+      <div className={`absolute -top-3 left-3 px-2 bg-[var(--surface)] dark:bg-[var(--surface-dark)] text-xs font-medium`}>
         <span className="text-slate-700 dark:text-slate-300">{data.label}</span>
       </div>
       {data.note && (
-        <div className="absolute -bottom-2.5 left-3 px-2 bg-white dark:bg-gray-900 text-[10px] text-slate-500 dark:text-slate-400 italic truncate max-w-[200px]">
+        <div className="absolute -bottom-2.5 left-3 px-2 bg-[var(--surface)] dark:bg-[var(--surface-dark)] text-[10px] text-slate-500 dark:text-slate-400 italic truncate max-w-[200px]">
           {data.note}
         </div>
       )}

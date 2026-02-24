@@ -1,31 +1,46 @@
 @import "tailwindcss";
 
-/* Enable class-based dark mode for Tailwind v4 */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   :root {
-    --color-primary: #3b82f6;
-    --color-secondary: #6366f1;
-    --color-success: #22c55e;
-    --color-warning: #f59e0b;
-    --color-danger: #ef4444;
-    --app-bg: #f2f4f7;
-    --app-bg-dark: #020617;
+    --color-primary: #1a1a1a;
+    --color-accent: #c2410c;
+    --color-accent-light: #fed7aa;
+    --color-success: #16a34a;
+    --color-warning: #d97706;
+    --color-danger: #dc2626;
+    --app-bg: #fafaf9;
+    --app-bg-dark: #0f0f0f;
+    --surface: #ffffff;
+    --surface-dark: #171717;
+    --surface-raised: #fafaf9;
+    --surface-raised-dark: #1c1c1c;
+    --border-color: #e7e5e4;
+    --border-color-dark: #292524;
+    --text-primary: #1c1917;
+    --text-primary-dark: #fafaf9;
+    --text-secondary: #57534e;
+    --text-secondary-dark: #a8a29e;
+    --text-muted: #a8a29e;
+    --text-muted-dark: #57534e;
   }
 
   html {
-    font-family: Manrope, "Avenir Next", "Segoe UI", sans-serif;
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
   body {
-    @apply text-slate-900 dark:text-slate-100;
+    color: var(--text-primary);
     background: var(--app-bg);
     margin: 0;
     min-height: 100vh;
   }
 
   .dark body {
+    color: var(--text-primary-dark);
     background: var(--app-bg-dark);
   }
 
@@ -34,36 +49,65 @@
     display: flex;
     flex-direction: column;
   }
+
+  h1, h2, h3, h4 {
+    font-family: "Source Serif 4", Georgia, serif;
+  }
+
+  pre, code, .font-mono, textarea {
+    font-family: "Fira Code", monospace !important;
+  }
+
+  /* Elegant scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 99px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    background: var(--border-color-dark);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
 }
 
-/* React Flow custom styles for dark mode */
+/* React Flow */
+.react-flow__background {
+  background-color: var(--app-bg) !important;
+}
 .dark .react-flow__background {
-  background-color: #0f172a;
-}
-
-.dark .react-flow__controls button {
-  background-color: #1e293b;
-  border-color: #334155;
-  color: #f9fafb;
-}
-
-.dark .react-flow__controls button:hover {
-  background-color: #334155;
+  background-color: var(--app-bg-dark) !important;
 }
 
 .react-flow__controls button {
-  border-radius: 8px;
-  border-color: #cbd5e1;
-  background-color: #ffffff;
-  color: #334155;
+  background-color: var(--surface) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+  border-radius: 99px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
+}
+.dark .react-flow__controls button {
+  background-color: var(--surface-dark) !important;
+  border-color: var(--border-color-dark) !important;
+  color: var(--text-primary-dark) !important;
+}
+.react-flow__controls button:hover,
+.dark .react-flow__controls button:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
 }
 
-/* Reverse animation direction for edges (data flows from children to parent) */
 .react-flow__edge.animated path {
   animation-direction: reverse;
 }
 
-/* Vertical text for collapsed panels */
 .writing-mode-vertical {
   writing-mode: vertical-rl;
   text-orientation: mixed;
