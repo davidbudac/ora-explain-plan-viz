@@ -370,7 +370,7 @@ export function SankeyView() {
       <svg ref={svgRef} className="w-full h-full" />
       {tooltip && containerRef.current && (
         <div
-          className="absolute z-10 pointer-events-none bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg px-3 py-2 text-xs text-gray-800 dark:text-gray-100"
+          className="absolute z-10 pointer-events-none bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-sm shadow-lg px-3 py-2 text-xs text-gray-800 dark:text-gray-100"
           style={{
             left: `${tooltip.x - containerRef.current.getBoundingClientRect().left + 12}px`,
             top: `${tooltip.y - containerRef.current.getBoundingClientRect().top + 12}px`,

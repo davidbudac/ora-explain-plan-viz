@@ -51,8 +51,8 @@ function IndicatorButton({
     <button
       onClick={() => onClick(metric)}
       className={`
-        px-2.5 py-1 text-xs rounded-md transition-colors font-medium
-        ${current === metric ? activeClass : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}
+        px-2.5 py-1 text-xs rounded-sm transition-colors font-medium
+        ${current === metric ? activeClass : 'text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] hover:bg-[var(--surface-raised)] dark:hover:bg-[var(--surface-dark)]'}
       `}
     >
       {label}
@@ -76,18 +76,18 @@ export function VisualizationTabs() {
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Tab bar */}
-      <div className="flex items-center justify-between px-3 py-1.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 gap-2">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-[var(--surface)] dark:bg-[var(--surface-dark)] border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)] gap-2">
         <div className="flex gap-1">
           {tabs.filter(tab => tab.id !== 'compare').map((tab) => (
             <button
               key={tab.id}
               onClick={() => setViewMode(tab.id)}
               className={`
-                flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border
+                flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-sm transition-colors border
                 ${
                   viewMode === tab.id
                     ? 'bg-blue-600 text-white border-blue-600'
-                    : 'text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    : 'text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] border-[var(--border-color)] dark:border-[var(--border-color-dark)] hover:bg-[var(--surface-raised)] dark:hover:bg-[var(--surface-raised-dark)]'
                 }
               `}
             >
@@ -100,8 +100,8 @@ export function VisualizationTabs() {
         {/* Hierarchical indicator metric toggle */}
         {viewMode === 'hierarchical' && (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-600 dark:text-slate-400">Indicator</span>
-            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-md p-0.5 border border-slate-200 dark:border-slate-700">
+            <span className="text-xs text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">Indicator</span>
+            <div className="flex bg-[var(--surface-raised)] dark:bg-[var(--surface-raised-dark)] rounded-sm p-0.5 border border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
               <IndicatorButton
                 metric="cost"
                 label="Cost"
@@ -143,16 +143,16 @@ export function VisualizationTabs() {
         {/* Sankey metric toggle */}
         {viewMode === 'sankey' && (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-600 dark:text-slate-400">Show by</span>
-            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-md p-0.5 border border-slate-200 dark:border-slate-700">
+            <span className="text-xs text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">Show by</span>
+            <div className="flex bg-[var(--surface-raised)] dark:bg-[var(--surface-raised-dark)] rounded-sm p-0.5 border border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
               <button
                 onClick={() => setSankeyMetric('rows')}
                 className={`
-                  px-2.5 py-1 text-xs rounded-md transition-colors font-medium
+                  px-2.5 py-1 text-xs rounded-sm transition-colors font-medium
                   ${
                     sankeyMetric === 'rows'
                       ? 'bg-blue-600 text-white'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                      : 'text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] hover:bg-[var(--surface)] dark:hover:bg-[var(--surface-dark)]'
                   }
                 `}
               >
@@ -161,11 +161,11 @@ export function VisualizationTabs() {
               <button
                 onClick={() => setSankeyMetric('cost')}
                 className={`
-                  px-2.5 py-1 text-xs rounded-md transition-colors font-medium
+                  px-2.5 py-1 text-xs rounded-sm transition-colors font-medium
                   ${
                     sankeyMetric === 'cost'
                       ? 'bg-blue-600 text-white'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                      : 'text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] hover:bg-[var(--surface)] dark:hover:bg-[var(--surface-dark)]'
                   }
                 `}
               >
@@ -176,11 +176,11 @@ export function VisualizationTabs() {
                   <button
                     onClick={() => setSankeyMetric('actualRows')}
                     className={`
-                      px-2.5 py-1 text-xs rounded-md transition-colors font-medium
+                      px-2.5 py-1 text-xs rounded-sm transition-colors font-medium
                       ${
                         sankeyMetric === 'actualRows'
                           ? 'bg-blue-600 text-white'
-                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                          : 'text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] hover:bg-[var(--surface)] dark:hover:bg-[var(--surface-dark)]'
                       }
                     `}
                   >
@@ -189,11 +189,11 @@ export function VisualizationTabs() {
                   <button
                     onClick={() => setSankeyMetric('actualTime')}
                     className={`
-                      px-2.5 py-1 text-xs rounded-md transition-colors font-medium
+                      px-2.5 py-1 text-xs rounded-sm transition-colors font-medium
                       ${
                         sankeyMetric === 'actualTime'
                           ? 'bg-blue-600 text-white'
-                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                          : 'text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] hover:bg-[var(--surface)] dark:hover:bg-[var(--surface-dark)]'
                       }
                     `}
                   >
@@ -211,8 +211,8 @@ export function VisualizationTabs() {
         {viewMode === 'hierarchical' && <HierarchicalView />}
         {viewMode === 'sankey' && <SankeyView />}
         {viewMode === 'text' && (
-          <div className="h-full overflow-auto bg-slate-50 dark:bg-slate-950 p-4">
-            <pre className="text-xs font-mono text-slate-800 dark:text-slate-200 whitespace-pre leading-relaxed">
+          <div className="h-full overflow-auto bg-[var(--surface-raised)] dark:bg-[var(--app-bg-dark)] p-4">
+            <pre className="text-xs font-mono text-[var(--text-primary)] dark:text-[var(--text-primary-dark)] whitespace-pre leading-relaxed">
               {rawInput || 'No plan text available.'}
             </pre>
           </div>

@@ -71,8 +71,8 @@ export function AnnotationEditor({
   };
 
   return (
-    <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-      <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">
+    <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+      <h4 className="text-xs font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] mb-2 uppercase tracking-wide">
         Annotation
       </h4>
 
@@ -82,11 +82,11 @@ export function AnnotationEditor({
         onBlur={handleBlur}
         placeholder="Add a note..."
         rows={2}
-        className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/60 resize-y"
+        className="w-full px-2.5 py-1.5 text-xs border border-[var(--border-color)] dark:border-[var(--border-color-dark)] rounded-sm bg-white dark:bg-slate-950 text-[var(--text-primary)] dark:text-[var(--text-primary-dark)] placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/60 resize-y"
       />
 
       <div className="flex items-center gap-1.5 mt-2">
-        <span className="text-[11px] text-slate-500 dark:text-slate-400 mr-1">Highlight:</span>
+        <span className="text-[11px] text-[var(--text-muted)] dark:text-[var(--text-muted-dark)] mr-1">Highlight:</span>
         {HIGHLIGHT_COLORS.map((colorDef) => {
           const isActive = highlightColor === colorDef.name;
           return (
@@ -105,7 +105,7 @@ export function AnnotationEditor({
       {highlightColor && (
         <div className="mt-1.5 flex items-center gap-1">
           <div className={`w-2.5 h-2.5 rounded-full ${getHighlightColorDef(highlightColor).chip}`} />
-          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+          <span className="text-[11px] text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]">
             {getHighlightColorDef(highlightColor).label} highlight
           </span>
         </div>
@@ -139,7 +139,7 @@ export function BulkHighlightPicker({
 
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-[11px] text-slate-500 dark:text-slate-400 mr-1">Highlight all:</span>
+      <span className="text-[11px] text-[var(--text-muted)] dark:text-[var(--text-muted-dark)] mr-1">Highlight all:</span>
       {HIGHLIGHT_COLORS.map((colorDef) => (
         <button
           key={colorDef.name}

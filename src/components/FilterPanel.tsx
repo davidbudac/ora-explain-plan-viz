@@ -156,46 +156,46 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
 
   if (isCollapsed) {
     return (
-      <div className="bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col items-center py-3">
+      <div className="bg-[var(--surface)] dark:bg-[var(--surface-dark)] border-r border-[var(--border-color)] dark:border-[var(--border-color-dark)] flex flex-col items-center py-3">
         <button
           onClick={() => setIsCollapsed(false)}
-          className="h-8 w-8 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors border border-slate-200 dark:border-slate-700"
+          className="h-8 w-8 flex items-center justify-center hover:bg-[var(--surface-raised)] dark:hover:bg-[var(--surface-raised-dark)] rounded-sm transition-colors border border-[var(--border-color)] dark:border-[var(--border-color-dark)]"
           title="Show filters"
         >
-          <svg className="w-4 h-4 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-4 h-4 text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
           </svg>
         </button>
-        <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 writing-mode-vertical">Filters</span>
+        <span className="text-[11px] text-[var(--text-muted)] dark:text-[var(--text-muted-dark)] mt-2 writing-mode-vertical">Filters</span>
       </div>
     );
   }
 
   return (
     <div
-      className="relative shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 overflow-y-auto"
+      className="relative shrink-0 bg-[var(--surface)] dark:bg-[var(--surface-dark)] border-r border-[var(--border-color)] dark:border-[var(--border-color-dark)] overflow-y-auto"
       style={{ width: panelWidth }}
     >
       <button
         type="button"
         onPointerDown={onResizeStart}
-        className="absolute right-0 top-0 z-10 h-full w-2 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors"
+        className="absolute right-0 top-0 z-10 h-full w-2 cursor-col-resize touch-none bg-transparent hover:bg-[var(--border-color)]/30 dark:hover:bg-[var(--border-color-dark)]/30 transition-colors"
         aria-label="Resize filters panel"
         title="Resize filters panel"
       />
-      <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+      <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsCollapsed(true)}
-              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+              className="p-1 hover:bg-[var(--surface-raised)] dark:hover:bg-[var(--surface-raised-dark)] rounded-sm transition-colors"
               title="Collapse panel"
             >
-              <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
               </svg>
             </button>
-            <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Filters</h3>
+            <h3 className="font-semibold text-sm text-[var(--text-primary)] dark:text-[var(--text-primary-dark)]">Filters</h3>
           </div>
           <button
             onClick={clearFilters}
@@ -204,14 +204,14 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
             Clear all
           </button>
         </div>
-        <div className="text-xs text-slate-600 dark:text-slate-400">
+        <div className="text-xs text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">
           Showing {filteredCount} of {totalCount} nodes
         </div>
       </div>
 
       {/* Search */}
-      <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">
+      <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+        <label className="block font-mono text-[10px] font-semibold text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wide">
           Search
         </label>
         <input
@@ -219,10 +219,10 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
           value={filters.searchText}
           onChange={(e) => setFilters({ searchText: e.target.value })}
           placeholder="Operation, object, predicate..."
-          className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60"
+          className="w-full px-2.5 py-1.5 text-xs border border-[var(--border-color)] dark:border-[var(--border-color-dark)] rounded-sm bg-[var(--surface)] dark:bg-[var(--app-bg-dark)] text-[var(--text-primary)] dark:text-[var(--text-primary-dark)] placeholder-[var(--text-muted)] dark:placeholder-[var(--text-muted-dark)] focus:outline-none focus:ring-2 focus:ring-blue-500/60"
         />
         {filters.searchText.trim() && (
-          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400">
+          <div className="mt-2 flex items-center justify-between text-[11px] text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">
             <span>
               {searchMatches.length === 0
                 ? 'No matches'
@@ -232,14 +232,14 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => handleMatchNavigate('prev')}
-                  className="px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  className="px-2 py-1 rounded-sm border border-[var(--border-color)] dark:border-[var(--border-color-dark)] bg-[var(--surface)] dark:bg-[var(--surface-raised-dark)] text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] hover:bg-[var(--surface-raised)] dark:hover:bg-[var(--surface-dark)] transition-colors"
                   title="Previous match"
                 >
                   Prev
                 </button>
                 <button
                   onClick={() => handleMatchNavigate('next')}
-                  className="px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  className="px-2 py-1 rounded-sm border border-[var(--border-color)] dark:border-[var(--border-color-dark)] bg-[var(--surface)] dark:bg-[var(--surface-raised-dark)] text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] hover:bg-[var(--surface-raised)] dark:hover:bg-[var(--surface-dark)] transition-colors"
                   title="Next match"
                 >
                   Next
@@ -251,8 +251,8 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       </div>
 
       {/* View Customization */}
-      <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">
+      <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+        <label className="block font-mono text-[10px] font-semibold text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wide">
           View
         </label>
         <CustomizeViewMenu
@@ -264,8 +264,8 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       </div>
 
       {/* Predicate Types */}
-      <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-3 uppercase tracking-wide">
+      <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+        <label className="block font-mono text-[10px] font-semibold text-blue-600 dark:text-blue-400 mb-3 uppercase tracking-wide">
           Predicate Types
         </label>
         <div className="space-y-2">
@@ -282,16 +282,16 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
                 key={type}
                 onClick={() => handlePredicateTypeToggle(type)}
                 className={`
-                  w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded-md transition-colors
+                  w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded-sm transition-colors
                   ${
                     isActive
                       ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700'
-                      : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                      : 'bg-[var(--surface-raised)] dark:bg-[var(--surface-raised-dark)] text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] border border-[var(--border-color)] dark:border-[var(--border-color-dark)] hover:bg-[var(--surface)] dark:hover:bg-[var(--surface-dark)]'
                   }
                 `}
               >
                 <span className="truncate">{label}</span>
-                <span className="ml-2 px-2 py-0.5 bg-white dark:bg-slate-900 rounded text-[11px]">
+                <span className="ml-2 px-2 py-0.5 bg-[var(--surface)] dark:bg-[var(--surface-dark)] rounded-sm text-[11px]">
                   {count}
                 </span>
               </button>
@@ -301,8 +301,8 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       </div>
 
       {/* Operation Categories */}
-      <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-3 uppercase tracking-wide">
+      <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+        <label className="block font-mono text-[10px] font-semibold text-blue-600 dark:text-blue-400 mb-3 uppercase tracking-wide">
           Operation Types
         </label>
         <div className="space-y-2">
@@ -317,16 +317,16 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
                 key={category}
                 onClick={() => handleCategoryToggle(category)}
                 className={`
-                  w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded-md transition-colors
+                  w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded-sm transition-colors
                   ${
                     isActive
                       ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700'
-                      : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                      : 'bg-[var(--surface-raised)] dark:bg-[var(--surface-raised-dark)] text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] border border-[var(--border-color)] dark:border-[var(--border-color-dark)] hover:bg-[var(--surface)] dark:hover:bg-[var(--surface-dark)]'
                   }
                 `}
               >
                 <span className="truncate">{category}</span>
-                <span className="ml-2 px-2 py-0.5 bg-white dark:bg-slate-900 rounded text-[11px]">
+                <span className="ml-2 px-2 py-0.5 bg-[var(--surface)] dark:bg-[var(--surface-dark)] rounded-sm text-[11px]">
                   {count}
                 </span>
               </button>
@@ -336,8 +336,8 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       </div>
 
       {/* Cost Range */}
-      <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">
+      <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+        <label className="block font-mono text-[10px] font-semibold text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wide">
           Minimum Cost: {filters.minCost}
         </label>
         <input
@@ -348,7 +348,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
           onChange={(e) => setFilters({ minCost: parseInt(e.target.value) })}
           className="w-full accent-blue-600"
         />
-        <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+        <div className="flex justify-between text-[11px] text-[var(--text-muted)] dark:text-[var(--text-muted-dark)] mt-1">
           <span>0</span>
           <span>{maxCost}</span>
         </div>
@@ -356,8 +356,8 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
 
       {/* SQL Monitor: Actual Rows Range */}
       {parsedPlan?.hasActualStats && maxActualRows > 0 && (
-        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">
+        <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+          <label className="block font-mono text-[10px] font-semibold text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wide">
             Minimum A-Rows: {formatNumberShort(filters.minActualRows, { infinity: '∞' })}
           </label>
           <input
@@ -368,7 +368,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
             onChange={(e) => setFilters({ minActualRows: parseInt(e.target.value) })}
             className="w-full accent-blue-600"
           />
-          <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+          <div className="flex justify-between text-[11px] text-[var(--text-muted)] dark:text-[var(--text-muted-dark)] mt-1">
             <span>0</span>
             <span>{formatNumberShort(maxActualRows, { infinity: '∞' })}</span>
           </div>
@@ -377,8 +377,8 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
 
       {/* SQL Monitor: Actual Time Range */}
       {parsedPlan?.hasActualStats && maxActualTime > 0 && (
-        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">
+        <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+          <label className="block font-mono text-[10px] font-semibold text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wide">
             Minimum A-Time: {formatTimeCompact(filters.minActualTime, { infinity: '∞' })}
           </label>
           <input
@@ -389,7 +389,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
             onChange={(e) => setFilters({ minActualTime: parseInt(e.target.value) })}
             className="w-full accent-blue-600"
           />
-          <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+          <div className="flex justify-between text-[11px] text-[var(--text-muted)] dark:text-[var(--text-muted-dark)] mt-1">
             <span>0</span>
             <span>{formatTimeCompact(maxActualTime, { infinity: '∞' })}</span>
           </div>
@@ -399,7 +399,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       {/* Cardinality Mismatch Filter */}
       {parsedPlan?.hasActualStats && (
         <div className="p-3">
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">
+          <label className="block font-mono text-[10px] font-semibold text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wide">
             Min Cardinality Mismatch: {filters.minCardinalityMismatch > 0 ? `${filters.minCardinalityMismatch}x` : 'Off'}
           </label>
           <input
@@ -411,7 +411,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
             onChange={(e) => setFilters({ minCardinalityMismatch: parseInt(e.target.value) })}
             className="w-full accent-blue-600"
           />
-          <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+          <div className="flex justify-between text-[11px] text-[var(--text-muted)] dark:text-[var(--text-muted-dark)] mt-1">
             <span>Off</span>
             <span>100x</span>
           </div>

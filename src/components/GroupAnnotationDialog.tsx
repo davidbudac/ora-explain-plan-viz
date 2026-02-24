@@ -41,10 +41,10 @@ export function GroupAnnotationDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50">
       <form
         onSubmit={handleSubmit}
-        className="bg-white dark:bg-slate-900 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 p-4 w-80 max-w-[90vw]"
+        className="bg-[var(--surface)] dark:bg-[var(--surface-dark)] rounded-sm shadow-xl border border-[var(--border-color)] dark:border-[var(--border-color-dark)] p-4 w-80 max-w-[90vw]"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">
+        <h3 className="text-sm font-semibold text-[var(--text-primary)] dark:text-[var(--text-primary-dark)] mb-3">
           {existingGroup ? 'Edit Group' : 'Create Group'}
         </h3>
 
@@ -59,7 +59,7 @@ export function GroupAnnotationDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Join path bottleneck"
-              className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60"
+              className="w-full px-2.5 py-1.5 text-xs border border-[var(--border-color)] dark:border-[var(--border-color-dark)] rounded-sm bg-white dark:bg-slate-950 text-[var(--text-primary)] dark:text-[var(--text-primary-dark)] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60"
             />
           </div>
 
@@ -91,16 +91,16 @@ export function GroupAnnotationDialog({
               onChange={(e) => setNote(e.target.value)}
               placeholder="Add context..."
               rows={2}
-              className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 resize-y"
+              className="w-full px-2.5 py-1.5 text-xs border border-[var(--border-color)] dark:border-[var(--border-color-dark)] rounded-sm bg-white dark:bg-slate-950 text-[var(--text-primary)] dark:text-[var(--text-primary-dark)] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 resize-y"
             />
           </div>
 
-          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+          <div className="text-[11px] text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]">
             {nodeIds.length} node{nodeIds.length !== 1 ? 's' : ''} selected
           </div>
         </div>
 
-        <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
           <div>
             {existingGroup && onDelete && (
               <button

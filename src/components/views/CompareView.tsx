@@ -18,11 +18,11 @@ function formatMetricValue(value: number | undefined, metric: string): string {
 
 function DeltaCell({ valueA, valueB, metric }: { valueA?: number; valueB?: number; metric: string }) {
   if (valueA === undefined || valueB === undefined) {
-    return <td className="px-2 py-1.5 text-center text-slate-400 dark:text-slate-500 text-xs">-</td>;
+    return <td className="px-2 py-1.5 text-center text-[var(--text-muted)] dark:text-[var(--text-muted-dark)] text-xs">-</td>;
   }
   const delta = valueB - valueA;
   if (delta === 0) {
-    return <td className="px-2 py-1.5 text-center text-slate-500 dark:text-slate-400 text-xs">=</td>;
+    return <td className="px-2 py-1.5 text-center text-[var(--text-muted)] dark:text-[var(--text-muted-dark)] text-xs">=</td>;
   }
   // For cost and time, lower is better (negative delta = improvement)
   const lowerIsBetter = ['cost', 'actualTime', 'tempSpace'].includes(metric);
@@ -75,24 +75,24 @@ function SummaryCard({ label, plan, cost, time, nodeCount, phv }: {
 }) {
   const color = plan === 'A' ? 'blue' : 'violet';
   return (
-    <div className={`flex-1 rounded-lg border border-${color}-200 dark:border-${color}-800 bg-${color}-50/50 dark:bg-${color}-950/30 p-3`}>
+    <div className={`flex-1 rounded-sm border border-${color}-200 dark:border-${color}-800 bg-${color}-50/50 dark:bg-${color}-950/30 p-3`}>
       <div className="flex items-center gap-2 mb-2">
         <span className={`text-xs font-bold text-${color}-600 dark:text-${color}-400`}>{label}</span>
-        {phv && <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">PHV: {phv}</span>}
+        {phv && <span className="text-[10px] font-mono text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]">PHV: {phv}</span>}
       </div>
       <div className="grid grid-cols-3 gap-2 text-xs">
         <div>
-          <div className="text-slate-500 dark:text-slate-400">Cost</div>
+          <div className="text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]">Cost</div>
           <div className="font-semibold text-slate-800 dark:text-slate-200">{formatNumberShort(cost)}</div>
         </div>
         {time !== undefined && (
           <div>
-            <div className="text-slate-500 dark:text-slate-400">A-Time</div>
+            <div className="text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]">A-Time</div>
             <div className="font-semibold text-slate-800 dark:text-slate-200">{formatTimeShort(time)}</div>
           </div>
         )}
         <div>
-          <div className="text-slate-500 dark:text-slate-400">Nodes</div>
+          <div className="text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]">Nodes</div>
           <div className="font-semibold text-slate-800 dark:text-slate-200">{nodeCount}</div>
         </div>
       </div>
@@ -115,7 +115,7 @@ function DeltaArrow({ delta, deltaPercent, label, lowerIsBetter = true }: {
 
   return (
     <div className={`flex flex-col items-center text-xs ${color}`}>
-      <span className="text-[10px] text-slate-500 dark:text-slate-400">{label}</span>
+      <span className="text-[10px] text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]">{label}</span>
       <span className="font-bold">
         {delta === 0 ? '=' : delta > 0 ? '+' : ''}{deltaPercent.toFixed(1)}%
       </span>
@@ -143,7 +143,7 @@ export function CompareView() {
 
   if (!planA || !planB || !summary) {
     return (
-      <div className="flex-1 flex items-center justify-center text-slate-500 dark:text-slate-400 p-8">
+      <div className="flex-1 flex items-center justify-center text-[var(--text-muted)] dark:text-[var(--text-muted-dark)] p-8">
         <p>Both plans must be loaded to compare.</p>
       </div>
     );
@@ -161,7 +161,7 @@ export function CompareView() {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-auto bg-slate-50 dark:bg-slate-950 p-4 gap-4">
+    <div className="flex-1 flex flex-col min-h-0 overflow-auto bg-[var(--surface-raised)] dark:bg-[var(--app-bg-dark)] p-4 gap-4">
       {/* Summary header */}
       <div className="flex items-center gap-3">
         <SummaryCard
@@ -189,7 +189,7 @@ export function CompareView() {
       </div>
 
       {/* Match stats */}
-      <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400">
+      <div className="flex items-center gap-4 text-xs text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">
         <span className="flex items-center gap-1">
           <MatchIcon type="exact-id" />
           {summary.matchedCount - matches.filter(m => m.matchType === 'heuristic').length} exact
@@ -208,29 +208,29 @@ export function CompareView() {
       <CompareMetricSelector />
 
       {/* Comparison table */}
-      <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+      <div className="rounded-sm border border-[var(--border-color)] dark:border-[var(--border-color-dark)] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
-                <th className="px-2 py-2 text-left font-semibold text-slate-600 dark:text-slate-400 w-6" />
-                <th className="px-2 py-2 text-left font-semibold text-slate-600 dark:text-slate-400 w-10">ID(A)</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-600 dark:text-slate-400 w-10">ID(B)</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-600 dark:text-slate-400">Operation</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-600 dark:text-slate-400">Object</th>
+              <tr className="bg-slate-100 dark:bg-slate-800/80 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+                <th className="px-2 py-2 text-left font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] w-6" />
+                <th className="px-2 py-2 text-left font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] w-10">ID(A)</th>
+                <th className="px-2 py-2 text-left font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] w-10">ID(B)</th>
+                <th className="px-2 py-2 text-left font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">Operation</th>
+                <th className="px-2 py-2 text-left font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">Object</th>
                 {compareMetrics.map(metric => (
-                  <th key={`header-${metric}`} colSpan={3} className="px-2 py-2 text-center font-semibold text-slate-600 dark:text-slate-400 border-l border-slate-200 dark:border-slate-700">
+                  <th key={`header-${metric}`} colSpan={3} className="px-2 py-2 text-center font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] border-l border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
                     {getMetricLabel(metric)}
                   </th>
                 ))}
               </tr>
-              <tr className="bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-700">
+              <tr className="bg-slate-50 dark:bg-slate-800/40 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
                 <th colSpan={5} />
                 {compareMetrics.map(metric => (
                   <React.Fragment key={`subheader-${metric}`}>
-                    <th className="px-2 py-1 text-center text-[10px] font-medium text-blue-600 dark:text-blue-400 border-l border-slate-200 dark:border-slate-700">A</th>
+                    <th className="px-2 py-1 text-center text-[10px] font-medium text-blue-600 dark:text-blue-400 border-l border-[var(--border-color)] dark:border-[var(--border-color-dark)]">A</th>
                     <th className="px-2 py-1 text-center text-[10px] font-medium text-violet-600 dark:text-violet-400">B</th>
-                    <th className="px-2 py-1 text-center text-[10px] font-medium text-slate-500 dark:text-slate-400">Delta</th>
+                    <th className="px-2 py-1 text-center text-[10px] font-medium text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]">Delta</th>
                   </React.Fragment>
                 ))}
               </tr>
@@ -245,21 +245,21 @@ export function CompareView() {
                   <tr
                     key={i}
                     onClick={() => handleRowClick(match)}
-                    className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/60 cursor-pointer transition-colors"
+                    className="border-b border-slate-100 dark:border-slate-800 hover:bg-[var(--surface-raised)] dark:hover:bg-[var(--surface-raised-dark)]/60 cursor-pointer transition-colors"
                   >
                     <td className="px-2 py-1.5 text-center">
                       <MatchIcon type={match.matchType} />
                     </td>
-                    <td className="px-2 py-1.5 font-mono text-slate-600 dark:text-slate-400">
+                    <td className="px-2 py-1.5 font-mono text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">
                       {nodeA?.id ?? '-'}
                     </td>
-                    <td className="px-2 py-1.5 font-mono text-slate-600 dark:text-slate-400">
+                    <td className="px-2 py-1.5 font-mono text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">
                       {nodeB?.id ?? '-'}
                     </td>
                     <td className="px-2 py-1.5 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
                       {operation}
                     </td>
-                    <td className="px-2 py-1.5 text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                    <td className="px-2 py-1.5 text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] whitespace-nowrap">
                       {objectName}
                     </td>
                     {compareMetrics.map(metric => {
@@ -267,10 +267,10 @@ export function CompareView() {
                       const valB = nodeB ? getNodeMetricValue(nodeB, metric) : undefined;
                       return (
                         <React.Fragment key={`${i}-${metric}`}>
-                          <td className="px-2 py-1.5 text-center text-slate-700 dark:text-slate-300 border-l border-slate-100 dark:border-slate-800">
+                          <td className="px-2 py-1.5 text-center text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] border-l border-slate-100 dark:border-slate-800">
                             {formatMetricValue(valA, metric)}
                           </td>
-                          <td className="px-2 py-1.5 text-center text-slate-700 dark:text-slate-300">
+                          <td className="px-2 py-1.5 text-center text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">
                             {formatMetricValue(valB, metric)}
                           </td>
                           <DeltaCell valueA={valA} valueB={valB} metric={metric} />
