@@ -703,7 +703,8 @@ function HierarchicalViewContent() {
     setEdges((currentEdges) =>
       currentEdges.map((edge) => {
         const activeEdgeStroke = theme === 'dark' ? '#4f46e5' : '#6366f1';
-        const newStroke = filteredNodeIds.has(parseInt(edge.target)) ? activeEdgeStroke : '#d1d5db';
+        const defaultEdgeStroke = theme === 'dark' ? '#404040' : '#d4d4d4';
+        const newStroke = filteredNodeIds.has(parseInt(edge.target)) ? activeEdgeStroke : defaultEdgeStroke;
         const currentStroke = edge.style?.stroke;
         const currentAnimated = edge.animated;
         const currentStrokeWidth = edge.style?.strokeWidth;
@@ -733,13 +734,13 @@ function HierarchicalViewContent() {
             strokeWidth = Math.max(baseWidth, 3);
             strokeOpacity = 0.7;
           } else {
-            stroke = theme === 'dark' ? '#374151' : '#e5e7eb';
+            stroke = theme === 'dark' ? '#2e2e2e' : '#e5e5e5';
             strokeOpacity = 0.15;
           }
         }
 
-        const labelFill = theme === 'dark' ? '#9ca3af' : '#6b7280';
-        const labelBgFill = theme === 'dark' ? '#1f2937' : 'white';
+        const labelFill = theme === 'dark' ? '#a3a3a3' : '#737373';
+        const labelBgFill = theme === 'dark' ? '#171717' : 'white';
         const labelStyle = { fill: labelFill, fontSize: 10, fontWeight: 500 };
         const labelBgStyle = { fill: labelBgFill, fillOpacity: 0.9 };
 

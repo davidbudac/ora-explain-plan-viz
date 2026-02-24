@@ -306,16 +306,16 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           </div>
         )}
 
-        {/* Annotation preview — shown as handwriting-style note in highlight color */}
+        {/* Annotation preview */}
         {showAnnotationsOverlay && annotationText && (
-          <div
-            className={`mt-2 text-[11px] italic truncate ${
-              highlightColor ? getHighlightColorDef(highlightColor).text : 'text-neutral-500 dark:text-neutral-400'
-            }`}
-            style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
-            title={annotationText}
-          >
-            {annotationText.length > 50 ? annotationText.slice(0, 50) + '\u2026' : annotationText}
+          <div className="mt-2 pt-1.5 border-t border-neutral-200 dark:border-neutral-700">
+            <div
+              className={`text-[11px] whitespace-pre-wrap break-words ${
+                highlightColor ? getHighlightColorDef(highlightColor).text : 'text-neutral-500 dark:text-neutral-400'
+              }`}
+            >
+              {annotationText}
+            </div>
           </div>
         )}
       </div>
