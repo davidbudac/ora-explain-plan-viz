@@ -48,10 +48,10 @@ export function Header() {
   const hasSomethingToSave = showSave && (hasAnnotations(annotations) || hasUnsavedAnnotations);
 
   return (
-    <header className="h-[52px] flex items-center justify-between gap-3 px-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+    <header className="h-12 flex items-center justify-between gap-3 px-3 bg-[var(--surface)] dark:bg-[var(--surface-dark)] border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)] shadow-sm">
       <div className="flex items-center gap-2 min-w-0">
         <svg
-          className="w-6 h-6 text-slate-700 dark:text-slate-300 shrink-0"
+          className="w-6 h-6 text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] shrink-0"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -63,7 +63,7 @@ export function Header() {
             d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
           />
         </svg>
-        <h1 className="text-[15px] font-semibold text-slate-900 dark:text-slate-100 truncate">
+        <h1 className="text-[14px] font-bold text-cyan-600 dark:text-cyan-400 truncate">
           Oracle Plan Visualizer
         </h1>
       </div>
@@ -72,10 +72,10 @@ export function Header() {
         {/* Load annotated plan */}
         <button
           onClick={handleLoad}
-          className="h-8 w-8 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+          className="h-8 w-8 flex items-center justify-center rounded-lg border border-[var(--border-color)] dark:border-[var(--border-color-dark)] bg-[var(--surface-raised)] dark:bg-[var(--surface-card-dark)] hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           title="Load annotated plan (.json)"
         >
-          <svg className="w-4 h-4 text-slate-700 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-4 h-4 text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
           </svg>
         </button>
@@ -91,14 +91,14 @@ export function Header() {
         {showSave && (
           <button
             onClick={exportAnnotatedPlan}
-            className={`h-8 w-8 flex items-center justify-center rounded-md border transition-colors ${
+            className={`h-8 w-8 flex items-center justify-center rounded-lg border transition-colors ${
               hasSomethingToSave
-                ? 'border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50'
-                : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700'
+                ? 'border-cyan-300 dark:border-cyan-700 bg-cyan-50 dark:bg-cyan-900/30 hover:bg-cyan-100 dark:hover:bg-cyan-900/50'
+                : 'border-[var(--border-color)] dark:border-[var(--border-color-dark)] bg-[var(--surface-raised)] dark:bg-[var(--surface-card-dark)] hover:bg-slate-100 dark:hover:bg-slate-700'
             }`}
             title="Save annotated plan (.json)"
           >
-            <svg className={`w-4 h-4 ${hasSomethingToSave ? 'text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className={`w-4 h-4 ${hasSomethingToSave ? 'text-cyan-600 dark:text-cyan-400' : 'text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
           </button>
@@ -107,7 +107,7 @@ export function Header() {
         <select
           value={colorScheme}
           onChange={(e) => setColorScheme(e.target.value as ColorScheme)}
-          className="h-8 px-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/60"
+          className="h-8 px-2.5 rounded-lg border border-[var(--border-color)] dark:border-[var(--border-color-dark)] bg-[var(--surface-raised)] dark:bg-[var(--surface-card-dark)] text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-cyan-500/60"
           title="Graph color palette"
         >
           {Object.entries(COLOR_SCHEME_LABELS).map(([value, label]) => (
@@ -119,11 +119,11 @@ export function Header() {
 
         <button
           onClick={toggleTheme}
-          className="h-8 w-8 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+          className="h-8 w-8 flex items-center justify-center rounded-lg border border-[var(--border-color)] dark:border-[var(--border-color-dark)] bg-[var(--surface-raised)] dark:bg-[var(--surface-card-dark)] hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
         >
           {theme === 'light' ? (
-            <svg className="w-4 h-4 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -147,10 +147,10 @@ export function Header() {
           href="https://github.com/davidbudac/ora-explain-plan-viz"
           target="_blank"
           rel="noopener noreferrer"
-          className="h-8 w-8 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+          className="h-8 w-8 flex items-center justify-center rounded-lg border border-[var(--border-color)] dark:border-[var(--border-color-dark)] bg-[var(--surface-raised)] dark:bg-[var(--surface-card-dark)] hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           title="View on GitHub"
         >
-          <svg className="w-4 h-4 text-slate-700 dark:text-slate-300" fill="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]" fill="currentColor" viewBox="0 0 24 24">
             <path
               fillRule="evenodd"
               clipRule="evenodd"

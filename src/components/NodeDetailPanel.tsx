@@ -70,17 +70,17 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
   if (isCollapsed) {
     return (
-      <div className="bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col items-center py-3">
+      <div className="bg-[var(--surface)] dark:bg-[var(--surface-dark)] border-l border-[var(--border-color)] dark:border-[var(--border-color-dark)] flex flex-col items-center py-3">
         <button
           onClick={() => setIsCollapsed(false)}
-          className="h-8 w-8 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors border border-slate-200 dark:border-slate-700"
+          className="h-8 w-8 flex items-center justify-center hover:bg-[var(--surface-raised)] dark:hover:bg-[var(--surface-raised-dark)] rounded-lg transition-colors border border-[var(--border-color)] dark:border-[var(--border-color-dark)]"
           title="Show details"
         >
-          <svg className="w-4 h-4 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-4 h-4 text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </button>
-        <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 writing-mode-vertical">Details</span>
+        <span className="text-[11px] text-[var(--text-muted)] dark:text-[var(--text-muted-dark)] mt-2 writing-mode-vertical">Details</span>
       </div>
     );
   }
@@ -88,36 +88,36 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
   if (selectedNodes.length === 0) {
     return (
       <div
-        className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 overflow-y-auto"
+        className="relative shrink-0 bg-[var(--surface)] dark:bg-[var(--surface-dark)] border-l border-[var(--border-color)] dark:border-[var(--border-color-dark)] overflow-y-auto"
         style={{ width: panelWidth }}
       >
         <button
           type="button"
           onPointerDown={onResizeStart}
-          className="absolute left-0 top-0 z-10 h-full w-2 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors"
+          className="absolute left-0 top-0 z-10 h-full w-2 cursor-col-resize touch-none bg-transparent hover:bg-[var(--border-color)]/70 dark:hover:bg-[var(--border-color-dark)]/70 transition-colors"
           aria-label="Resize details panel"
           title="Resize details panel"
         />
-        <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40">
+        <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)] bg-[var(--surface-raised)] dark:bg-[var(--surface-raised-dark)]">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Hotspots</h3>
+            <h3 className="font-semibold text-sm text-[var(--text-primary)] dark:text-[var(--text-primary-dark)]">Hotspots</h3>
             <button
               onClick={() => setIsCollapsed(true)}
-              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+              className="p-1 hover:bg-[var(--surface)] dark:hover:bg-[var(--surface-card-dark)] rounded-lg transition-colors"
               title="Collapse panel"
             >
-              <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
               </svg>
             </button>
           </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Click a row to select, or Cmd/Ctrl-click nodes for multi-select</p>
+          <p className="text-[11px] text-[var(--text-muted)] dark:text-[var(--text-muted-dark)] mt-1">Click a row to select, or Cmd/Ctrl-click nodes for multi-select</p>
         </div>
 
         {/* Worst by A-Time */}
         {worstNodes.byTime.length > 0 && (
-          <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide flex items-center gap-1">
+          <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+            <h4 className="text-xs font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] mb-2 tracking-wide flex items-center gap-1">
               <svg className="w-3.5 h-3.5 text-red-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" /></svg>
               Slowest by A-Time
             </h4>
@@ -126,11 +126,11 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
                 <button
                   key={n.id}
                   onClick={() => selectNode(n.id)}
-                  className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between gap-2"
+                  className="w-full text-left px-2 py-1.5 text-xs rounded-lg hover:bg-[var(--surface-raised)] dark:hover:bg-[var(--surface-raised-dark)] transition-colors flex items-center justify-between gap-2"
                 >
                   <span className="flex items-center gap-1.5 truncate">
-                    <span className="w-5 h-5 rounded-full bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 text-[10px] font-bold flex items-center justify-center shrink-0">{n.id}</span>
-                    <span className="truncate text-slate-700 dark:text-slate-300">{n.operation}</span>
+                    <span className="w-5 h-5 rounded-md bg-cyan-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">{n.id}</span>
+                    <span className="truncate text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">{n.operation}</span>
                   </span>
                   <span className="text-purple-600 dark:text-purple-400 font-medium whitespace-nowrap">{formatTimeCompact(n.actualTime)}</span>
                 </button>
@@ -141,20 +141,20 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
         {/* Worst by Cost */}
         {worstNodes.byCost.length > 0 && (
-          <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">Highest Cost</h4>
+          <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+            <h4 className="text-xs font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] mb-2 tracking-wide">Highest Cost</h4>
             <div className="space-y-1">
               {worstNodes.byCost.map(n => (
                 <button
                   key={n.id}
                   onClick={() => selectNode(n.id)}
-                  className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between gap-2"
+                  className="w-full text-left px-2 py-1.5 text-xs rounded-lg hover:bg-[var(--surface-raised)] dark:hover:bg-[var(--surface-raised-dark)] transition-colors flex items-center justify-between gap-2"
                 >
                   <span className="flex items-center gap-1.5 truncate">
-                    <span className="w-5 h-5 rounded-full bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 text-[10px] font-bold flex items-center justify-center shrink-0">{n.id}</span>
-                    <span className="truncate text-slate-700 dark:text-slate-300">{n.operation}</span>
+                    <span className="w-5 h-5 rounded-md bg-cyan-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">{n.id}</span>
+                    <span className="truncate text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">{n.operation}</span>
                   </span>
-                  <span className="text-slate-600 dark:text-slate-400 font-medium whitespace-nowrap">{n.cost}</span>
+                  <span className="text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] font-medium whitespace-nowrap">{n.cost}</span>
                 </button>
               ))}
             </div>
@@ -163,8 +163,8 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
         {/* Worst Cardinality Mismatches */}
         {worstNodes.byCardinalityMismatch.length > 0 && (
-          <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">Worst Cardinality Mismatches</h4>
+          <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+            <h4 className="text-xs font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] mb-2 tracking-wide">Worst Cardinality Mismatches</h4>
             <div className="space-y-1">
               {worstNodes.byCardinalityMismatch.map(({ node: n, ratio }) => {
                 const severity = cardinalityRatioSeverity(ratio);
@@ -173,11 +173,11 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
                   <button
                     key={n.id}
                     onClick={() => selectNode(n.id)}
-                    className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between gap-2"
+                    className="w-full text-left px-2 py-1.5 text-xs rounded-lg hover:bg-[var(--surface-raised)] dark:hover:bg-[var(--surface-raised-dark)] transition-colors flex items-center justify-between gap-2"
                   >
                     <span className="flex items-center gap-1.5 truncate">
-                      <span className="w-5 h-5 rounded-full bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 text-[10px] font-bold flex items-center justify-center shrink-0">{n.id}</span>
-                      <span className="truncate text-slate-700 dark:text-slate-300">{n.operation}</span>
+                      <span className="w-5 h-5 rounded-md bg-cyan-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">{n.id}</span>
+                      <span className="truncate text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">{n.operation}</span>
                     </span>
                     <span className={`font-medium whitespace-nowrap ${
                       severity === 'bad' ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
@@ -192,26 +192,26 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         {/* Annotation Groups */}
         {annotations.groups.length > 0 && (
           <div className="p-3">
-            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">Annotation Groups</h4>
+            <h4 className="text-xs font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] mb-2 tracking-wide">Annotation Groups</h4>
             <div className="space-y-1">
               {annotations.groups.map((group) => {
                 const colorDef = HIGHLIGHT_COLORS_MAP[group.color];
                 return (
                   <div
                     key={group.id}
-                    className="flex items-center justify-between px-2 py-1.5 text-xs rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    className="flex items-center justify-between px-2 py-1.5 text-xs rounded-lg hover:bg-[var(--surface-raised)] dark:hover:bg-[var(--surface-raised-dark)] transition-colors"
                   >
                     <span className="flex items-center gap-1.5 truncate">
                       <span className={`w-3 h-3 rounded-full shrink-0 ${colorDef}`} />
-                      <span className="truncate text-slate-700 dark:text-slate-300">{group.name}</span>
-                      <span className="text-[10px] text-slate-400">({group.nodeIds.length})</span>
+                      <span className="truncate text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">{group.name}</span>
+                      <span className="text-[10px] text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]">({group.nodeIds.length})</span>
                     </span>
                     <button
                       onClick={() => setEditingGroupId(group.id)}
-                      className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"
+                      className="p-0.5 hover:bg-[var(--surface)] dark:hover:bg-slate-700 rounded-lg"
                       title="Edit group"
                     >
-                      <svg className="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="w-3 h-3 text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
@@ -252,46 +252,46 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
     return (
       <div
-        className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 overflow-y-auto"
+        className="relative shrink-0 bg-[var(--surface)] dark:bg-[var(--surface-dark)] border-l border-[var(--border-color)] dark:border-[var(--border-color-dark)] overflow-y-auto"
         style={{ width: panelWidth }}
       >
         <button
           type="button"
           onPointerDown={onResizeStart}
-          className="absolute left-0 top-0 z-10 h-full w-2 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors"
+          className="absolute left-0 top-0 z-10 h-full w-2 cursor-col-resize touch-none bg-transparent hover:bg-[var(--border-color)]/70 dark:hover:bg-[var(--border-color-dark)]/70 transition-colors"
           aria-label="Resize details panel"
           title="Resize details panel"
         />
 
-        <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40">
+        <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)] bg-[var(--surface-raised)] dark:bg-[var(--surface-raised-dark)]">
           <div className="flex items-start justify-between">
             <div>
-              <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900">
+              <span className="inline-block px-2 py-0.5 rounded-lg text-[11px] font-semibold border border-[var(--border-color)] dark:border-[var(--border-color-dark)] text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] bg-[var(--surface)] dark:bg-[var(--surface-dark)]">
                 Multi Selection
               </span>
-              <h3 className="mt-2 font-semibold text-sm text-slate-900 dark:text-slate-100">
+              <h3 className="mt-2 font-semibold text-sm text-[var(--text-primary)] dark:text-[var(--text-primary-dark)]">
                 {selectedNodes.length} nodes selected
               </h3>
-              <div className="mt-1 text-[11px] text-slate-600 dark:text-slate-400 break-all">
+              <div className="mt-1 text-[11px] text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] break-all">
                 IDs: {selectedIdPreview}{hasMoreIds ? ', ...' : ''}
               </div>
             </div>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setIsCollapsed(true)}
-                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
+                className="p-1 hover:bg-[var(--surface)] dark:hover:bg-[var(--surface-card-dark)] rounded-lg"
                 title="Collapse panel"
               >
-                <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                 </svg>
               </button>
               <button
                 onClick={() => selectNode(null)}
-                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
+                className="p-1 hover:bg-[var(--surface)] dark:hover:bg-[var(--surface-card-dark)] rounded-lg"
                 title="Clear selection"
               >
-                <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -300,8 +300,8 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         </div>
 
         {/* Bulk annotation controls */}
-        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">Annotate</h4>
+        <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+          <h4 className="text-xs font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] mb-2 tracking-wide">Annotate</h4>
           <BulkHighlightPicker
             nodeIds={selectedNodeIds}
             onHighlightChange={setNodeHighlight}
@@ -309,7 +309,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           />
           <button
             onClick={() => setShowGroupDialog(true)}
-            className="mt-2 w-full px-2.5 py-1.5 text-xs font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+            className="mt-2 w-full px-2.5 py-1.5 text-xs font-medium text-cyan-700 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-900/30 border border-cyan-200 dark:border-cyan-800 rounded-lg hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-colors"
           >
             Create Group from Selection
           </button>
@@ -346,13 +346,13 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           );
         })()}
 
-        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+        <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-wide">{indicator.title}</span>
-            <span className="text-xs text-slate-600 dark:text-slate-400">{indicator.percentText}% {indicator.referenceLabel}</span>
+            <span className="text-xs font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] tracking-wide">{indicator.title}</span>
+            <span className="text-xs text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">{indicator.percentText}% {indicator.referenceLabel}</span>
           </div>
-          <div className="mb-2 text-xs font-medium text-slate-700 dark:text-slate-300">{indicator.formattedValue}</div>
-          <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+          <div className="mb-2 text-xs font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">{indicator.formattedValue}</div>
+          <div className="h-2.5 bg-[var(--border-color)] dark:bg-[var(--border-color-dark)] rounded-full overflow-hidden">
             <div
               className={`h-full ${indicator.color} transition-all duration-300`}
               style={{ width: `${Math.min(100, indicator.ratio * 100)}%` }}
@@ -361,8 +361,8 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         </div>
 
         {parsedPlan?.hasActualStats && (
-          <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">Actual Statistics (Selection)</h4>
+          <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+            <h4 className="text-xs font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] mb-2 tracking-wide">Actual Statistics (Selection)</h4>
             <div className="grid grid-cols-2 gap-3">
               <StatItem label="A-Rows" value={formatNumberShort(aggregateSelection.sumActualRows)} highlight="blue" />
               <StatItem label="A-Time" value={formatTimeDetailed(aggregateSelection.sumActualTime)} highlight="purple" />
@@ -372,8 +372,8 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           </div>
         )}
 
-        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">
+        <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+          <h4 className="text-xs font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] mb-2 tracking-wide">
             {parsedPlan?.hasActualStats ? 'Estimated Statistics (Selection)' : 'Statistics (Selection)'}
           </h4>
           <div className="grid grid-cols-2 gap-3">
@@ -389,8 +389,8 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           aggregateSelection.sumTempUsed > 0 ||
           aggregateSelection.sumPhysicalReads > 0 ||
           aggregateSelection.sumLogicalReads > 0) && (
-          <div className="p-3 border-t border-slate-200 dark:border-slate-800">
-            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">Memory & I/O (Selection)</h4>
+          <div className="p-3 border-t border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+            <h4 className="text-xs font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] mb-2 tracking-wide">Memory & I/O (Selection)</h4>
             <div className="grid grid-cols-2 gap-3">
               <StatItem label="Memory" value={aggregateSelection.sumMemoryUsed > 0 ? formatBytes(aggregateSelection.sumMemoryUsed) : undefined} />
               <StatItem label="Temp Used" value={aggregateSelection.sumTempUsed > 0 ? formatBytes(aggregateSelection.sumTempUsed) : undefined} />
@@ -411,28 +411,28 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
   return (
     <div
-      className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 overflow-y-auto"
+      className="relative shrink-0 bg-[var(--surface)] dark:bg-[var(--surface-dark)] border-l border-[var(--border-color)] dark:border-[var(--border-color-dark)] overflow-y-auto"
       style={{ width: panelWidth }}
     >
       <button
         type="button"
         onPointerDown={onResizeStart}
-        className="absolute left-0 top-0 z-10 h-full w-2 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors"
+        className="absolute left-0 top-0 z-10 h-full w-2 cursor-col-resize touch-none bg-transparent hover:bg-[var(--border-color)]/70 dark:hover:bg-[var(--border-color-dark)]/70 transition-colors"
         aria-label="Resize details panel"
         title="Resize details panel"
       />
       {/* Header */}
-      <div className={`p-3 border-b border-slate-200 dark:border-slate-800 ${colors.bg}`}>
+      <div className={`p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)] ${colors.bg}`}>
         <div className="flex items-start justify-between">
           <div>
-            <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold ${colors.text} ${colors.bg} border ${colors.border}`}>
+            <span className={`inline-block px-2 py-0.5 rounded-lg text-[11px] font-semibold ${colors.text} ${colors.bg} border ${colors.border}`}>
               {category}
             </span>
             <div className="mt-2 flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 text-xs font-bold flex items-center justify-center">
+              <span className="w-6 h-6 rounded-md bg-cyan-600 text-white text-xs font-bold flex items-center justify-center">
                 {node.id}
               </span>
-              <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100">
+              <h3 className="font-semibold text-sm text-[var(--text-primary)] dark:text-[var(--text-primary-dark)]">
                 <HighlightText text={node.operation} query={searchText} />
               </h3>
             </div>
@@ -440,19 +440,19 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           <div className="flex items-center gap-1">
             <button
               onClick={() => setIsCollapsed(true)}
-              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
+              className="p-1 hover:bg-[var(--surface-raised)] dark:hover:bg-[var(--surface-raised-dark)] rounded-lg"
               title="Collapse panel"
             >
-              <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
               </svg>
             </button>
             <button
               onClick={() => selectNode(null)}
-              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
+              className="p-1 hover:bg-[var(--surface-raised)] dark:hover:bg-[var(--surface-raised-dark)] rounded-lg"
               title="Close"
             >
-              <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -460,7 +460,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         </div>
 
         {node.objectName && (
-          <div className="mt-2 font-mono text-xs text-slate-600 dark:text-slate-400">
+          <div className="mt-2 font-mono text-xs text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">
             <HighlightText text={node.objectName} query={searchText} />
           </div>
         )}
@@ -468,12 +468,12 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         {(node.queryBlock || node.objectAlias) && (
           <div className="mt-2 flex flex-wrap gap-2">
             {node.queryBlock && (
-              <span className="px-2 py-0.5 rounded text-xs font-medium bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
+              <span className="px-2 py-0.5 rounded-lg text-xs font-medium bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
                 {node.queryBlock}
               </span>
             )}
             {node.objectAlias && (
-              <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
+              <span className="px-2 py-0.5 rounded-lg text-xs font-medium bg-[var(--surface-raised)] dark:bg-[var(--surface-card-dark)] text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">
                 {node.objectAlias}
               </span>
             )}
@@ -484,7 +484,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         {(() => {
           const tip = getOperationTooltip(node.operation);
           return tip ? (
-            <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400 italic leading-snug">
+            <div className="mt-2 text-[11px] text-[var(--text-muted)] dark:text-[var(--text-muted-dark)] italic leading-snug">
               {tip}
             </div>
           ) : null;
@@ -509,7 +509,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         const label = formatCardinalityRatio(ratio);
         if (severity === 'good' || !label) return null;
         return (
-          <div className={`p-3 border-b border-slate-200 dark:border-slate-800 ${
+          <div className={`p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)] ${
             severity === 'bad'
               ? 'bg-red-50 dark:bg-red-950/30'
               : 'bg-amber-50 dark:bg-amber-950/30'
@@ -526,7 +526,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
                   : 'text-amber-600 dark:text-amber-400'
               }`}>{label}</span>
             </div>
-            <div className="text-xs text-slate-600 dark:text-slate-400">
+            <div className="text-xs text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">
               E-Rows: {formatNumberShort(node.rows)} → A-Rows: {formatNumberShort(node.actualRows)}
             </div>
           </div>
@@ -535,7 +535,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
       {/* Spill Warning */}
       {node.tempUsed !== undefined && node.tempUsed > 0 && (
-        <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-yellow-50 dark:bg-yellow-950/30">
+        <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)] bg-yellow-50 dark:bg-yellow-950/30">
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-semibold tracking-wide text-yellow-700 dark:text-yellow-300">
               Spill to Disk
@@ -548,13 +548,13 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
       )}
 
       {/* Node indicator */}
-      <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+      <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-wide">{indicator.title}</span>
-          <span className="text-xs text-slate-600 dark:text-slate-400">{indicator.percentText}% {indicator.referenceLabel}</span>
+          <span className="text-xs font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] tracking-wide">{indicator.title}</span>
+          <span className="text-xs text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">{indicator.percentText}% {indicator.referenceLabel}</span>
         </div>
-        <div className="mb-2 text-xs font-medium text-slate-700 dark:text-slate-300">{indicator.formattedValue}</div>
-        <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+        <div className="mb-2 text-xs font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">{indicator.formattedValue}</div>
+        <div className="h-2.5 bg-[var(--border-color)] dark:bg-[var(--border-color-dark)] rounded-full overflow-hidden">
           <div
             className={`h-full ${indicator.color} transition-all duration-300`}
             style={{ width: `${Math.min(100, indicator.ratio * 100)}%` }}
@@ -564,8 +564,8 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
       {/* Actual Statistics (SQL Monitor) */}
       {parsedPlan?.hasActualStats && (
-        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">Actual Statistics</h4>
+        <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+          <h4 className="text-xs font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] mb-2 tracking-wide">Actual Statistics</h4>
           <div className="grid grid-cols-2 gap-3">
             <StatItem label="A-Rows" value={formatNumberShort(node.actualRows)} highlight="blue" />
             <StatItem label="A-Time" value={formatTimeDetailed(node.actualTime)} highlight="purple" />
@@ -578,8 +578,8 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
       )}
 
       {/* Estimated Statistics */}
-      <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-        <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">
+      <div className="p-3 border-b border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+        <h4 className="text-xs font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] mb-2 tracking-wide">
           {parsedPlan?.hasActualStats ? 'Estimated Statistics' : 'Statistics'}
         </h4>
         <div className="grid grid-cols-2 gap-3">
@@ -595,17 +595,17 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
       {/* Predicates */}
       {(node.accessPredicates || node.filterPredicates) && (
         <div className="p-3">
-          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">Predicates</h4>
+          <h4 className="text-xs font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] mb-2 tracking-wide">Predicates</h4>
 
           {node.accessPredicates && (
             <div className="mb-3">
               <div className="flex items-center gap-2 mb-1">
-                <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs rounded font-medium">
+                <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs rounded-lg font-medium">
                   Access
                 </span>
                 <CopyButton text={node.accessPredicates} label="Copy access predicate" />
               </div>
-              <code className="block text-xs bg-slate-50 dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-mono whitespace-pre-wrap break-all">
+              <code className="block text-xs bg-[var(--surface-raised)] dark:bg-[var(--surface-card-dark)] p-2 rounded-lg border border-[var(--border-color)] dark:border-[var(--border-color-dark)] text-[var(--text-primary)] dark:text-[var(--text-primary-dark)] font-mono whitespace-pre-wrap break-all">
                 <HighlightText text={node.accessPredicates} query={searchText} />
               </code>
             </div>
@@ -614,12 +614,12 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           {node.filterPredicates && (
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs rounded font-medium">
+                <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs rounded-lg font-medium">
                   Filter
                 </span>
                 <CopyButton text={node.filterPredicates} label="Copy filter predicate" />
               </div>
-              <code className="block text-xs bg-slate-50 dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-mono whitespace-pre-wrap break-all">
+              <code className="block text-xs bg-[var(--surface-raised)] dark:bg-[var(--surface-card-dark)] p-2 rounded-lg border border-[var(--border-color)] dark:border-[var(--border-color-dark)] text-[var(--text-primary)] dark:text-[var(--text-primary-dark)] font-mono whitespace-pre-wrap break-all">
                 <HighlightText text={node.filterPredicates} query={searchText} />
               </code>
             </div>
@@ -632,8 +632,8 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         node.tempUsed !== undefined ||
         node.physicalReads !== undefined ||
         node.logicalReads !== undefined) && (
-        <div className="p-3 border-t border-slate-200 dark:border-slate-800">
-          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 tracking-wide">Memory & I/O</h4>
+        <div className="p-3 border-t border-[var(--border-color)] dark:border-[var(--border-color-dark)]">
+          <h4 className="text-xs font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] mb-2 tracking-wide">Memory & I/O</h4>
           <div className="grid grid-cols-2 gap-3">
             <StatItem label="Memory" value={formatBytes(node.memoryUsed)} />
             <StatItem label="Temp Used" value={formatBytes(node.tempUsed)} />
@@ -663,9 +663,9 @@ function StatItem({ label, value, highlight }: { label: string; value?: string; 
   };
 
   return (
-    <div className={`rounded-md p-2 border border-slate-200 dark:border-slate-700 ${highlight ? highlightStyles[highlight] : 'bg-slate-50 dark:bg-slate-950'}`}>
-      <div className="text-[11px] text-slate-500 dark:text-slate-400 tracking-wide">{label}</div>
-      <div className={`text-xs font-semibold ${highlight ? valueStyles[highlight] : 'text-slate-900 dark:text-slate-100'}`}>{value}</div>
+    <div className={`rounded-lg p-2 border border-[var(--border-color)] dark:border-[var(--border-color-dark)] ${highlight ? highlightStyles[highlight] : 'bg-[var(--surface-raised)] dark:bg-[var(--surface-card-dark)]'}`}>
+      <div className="text-[11px] text-[var(--text-muted)] dark:text-[var(--text-muted-dark)] tracking-wide">{label}</div>
+      <div className={`text-xs font-semibold ${highlight ? valueStyles[highlight] : 'text-[var(--text-primary)] dark:text-[var(--text-primary-dark)]'}`}>{value}</div>
     </div>
   );
 }
@@ -682,7 +682,7 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
+      className="p-1 hover:bg-[var(--surface-raised)] dark:hover:bg-slate-700 rounded-lg transition-colors"
       title={label || 'Copy to clipboard'}
     >
       {copied ? (
@@ -690,7 +690,7 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
         </svg>
       ) : (
-        <svg className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-3.5 h-3.5 text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
         </svg>
       )}

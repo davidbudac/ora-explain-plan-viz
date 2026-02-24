@@ -1,31 +1,47 @@
 @import "tailwindcss";
 
-/* Enable class-based dark mode for Tailwind v4 */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   :root {
-    --color-primary: #3b82f6;
-    --color-secondary: #6366f1;
-    --color-success: #22c55e;
-    --color-warning: #f59e0b;
-    --color-danger: #ef4444;
-    --app-bg: #f2f4f7;
-    --app-bg-dark: #020617;
+    --color-primary: #06b6d4;
+    --color-secondary: #8b5cf6;
+    --color-accent: #f472b6;
+    --color-success: #34d399;
+    --color-warning: #fbbf24;
+    --color-danger: #f87171;
+    --app-bg: #f1f5f9;
+    --app-bg-dark: #030712;
+    --surface: #ffffff;
+    --surface-dark: #0a101f;
+    --surface-raised: #f8fafc;
+    --surface-raised-dark: #111827;
+    --surface-card: #ffffff;
+    --surface-card-dark: #0f172a;
+    --border-color: #e2e8f0;
+    --border-color-dark: #1e293b;
+    --text-primary: #0f172a;
+    --text-primary-dark: #f1f5f9;
+    --text-secondary: #475569;
+    --text-secondary-dark: #94a3b8;
+    --text-muted: #94a3b8;
+    --text-muted-dark: #475569;
   }
 
   html {
-    font-family: Manrope, "Avenir Next", "Segoe UI", sans-serif;
+    font-family: "Inter", system-ui, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
   body {
-    @apply text-slate-900 dark:text-slate-100;
+    color: var(--text-primary);
     background: var(--app-bg);
     margin: 0;
     min-height: 100vh;
   }
 
   .dark body {
+    color: var(--text-primary-dark);
     background: var(--app-bg-dark);
   }
 
@@ -34,36 +50,52 @@
     display: flex;
     flex-direction: column;
   }
+
+  pre, code, .font-mono, textarea {
+    font-family: "Geist Mono", "Cascadia Code", monospace \!important;
+  }
+
+  /* Dashboard scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    background: var(--border-color-dark);
+  }
 }
 
-/* React Flow custom styles for dark mode */
+/* React Flow dashboard */
+.react-flow__background {
+  background-color: var(--app-bg) \!important;
+}
 .dark .react-flow__background {
-  background-color: #0f172a;
-}
-
-.dark .react-flow__controls button {
-  background-color: #1e293b;
-  border-color: #334155;
-  color: #f9fafb;
-}
-
-.dark .react-flow__controls button:hover {
-  background-color: #334155;
+  background-color: var(--app-bg-dark) \!important;
 }
 
 .react-flow__controls button {
-  border-radius: 8px;
-  border-color: #cbd5e1;
-  background-color: #ffffff;
-  color: #334155;
+  background-color: var(--surface) \!important;
+  border-color: var(--border-color) \!important;
+  color: var(--text-primary) \!important;
+  border-radius: 6px \!important;
+}
+.dark .react-flow__controls button {
+  background-color: var(--surface-card-dark) \!important;
+  border-color: var(--border-color-dark) \!important;
+  color: var(--text-primary-dark) \!important;
 }
 
-/* Reverse animation direction for edges (data flows from children to parent) */
 .react-flow__edge.animated path {
   animation-direction: reverse;
 }
 
-/* Vertical text for collapsed panels */
 .writing-mode-vertical {
   writing-mode: vertical-rl;
   text-orientation: mixed;
