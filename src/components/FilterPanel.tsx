@@ -18,6 +18,10 @@ const DEFAULT_NODE_DISPLAY_OPTIONS: NodeDisplayOptions = {
   showActualRows: true,
   showActualTime: true,
   showStarts: true,
+  showHotspotBadge: true,
+  showSpillBadge: true,
+  showCardinalityBadge: true,
+  showAnnotations: true,
 };
 
 interface FilterPanelProps {
