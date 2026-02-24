@@ -461,9 +461,7 @@ function HierarchicalViewContent() {
         // Calculate row flow for edge thickness
         let rowFlow: number;
         if (parsedPlan!.hasActualStats && child.actualRows !== undefined) {
-          // Row flow = parent starts * child actual rows
-          const parentStarts = node.starts || 1;
-          rowFlow = parentStarts * child.actualRows;
+          rowFlow = child.actualRows;
         } else {
           // Fall back to estimated rows
           rowFlow = child.rows || 1;
