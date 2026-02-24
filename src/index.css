@@ -58,6 +58,10 @@
   color: #333333;
 }
 
+/* Edge animation flows from child to parent (upward) */
+.react-flow__edge.animated path {
+  animation-direction: reverse !important;
+}
 
 /* Vertical text for collapsed panels */
 .writing-mode-vertical {
