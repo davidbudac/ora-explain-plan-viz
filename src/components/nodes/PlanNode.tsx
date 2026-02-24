@@ -183,7 +183,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
         {/* Object name if present */}
         {options.showObjectName && node.objectName && (
-          <div className="text-sm font-semibold font-mono text-slate-700 dark:text-slate-200 mb-2 truncate">
+          <div className="text-sm font-semibold font-mono text-neutral-700 dark:text-neutral-200 mb-2 truncate">
             <HighlightText text={node.objectName} query={searchText} />
           </div>
         )}
@@ -193,13 +193,13 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           <div className="flex flex-wrap gap-1 mb-2">
             <span className={`px-1.5 py-0.5 text-xs rounded font-mono ${
               isMono
-                ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                ? 'bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
                 : 'bg-violet-200 dark:bg-violet-800 text-violet-800 dark:text-violet-200'
             }`}>
               {node.queryBlock}
             </span>
             {node.objectAlias && (
-              <span className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs rounded font-mono">
+              <span className="px-1.5 py-0.5 bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 text-xs rounded font-mono">
                 {node.objectAlias}
               </span>
             )}
@@ -266,7 +266,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             {node.accessPredicates && (
               <span className={`px-1.5 py-0.5 text-xs rounded ${
                 isMono
-                  ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                  ? 'bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
                   : 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200'
               }`}>
                 Access
@@ -275,7 +275,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             {node.filterPredicates && (
               <span className={`px-1.5 py-0.5 text-xs rounded ${
                 isMono
-                  ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                  ? 'bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
                   : 'bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200'
               }`}>
                 Filter
@@ -289,7 +289,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           <div className="mt-2 space-y-1">
             {node.accessPredicates && (
               <div className="text-xs">
-                <span className={`font-medium ${isMono ? 'text-slate-500 dark:text-slate-400' : 'text-green-700 dark:text-green-300'}`}>A: </span>
+                <span className={`font-medium ${isMono ? 'text-neutral-500 dark:text-neutral-400' : 'text-green-700 dark:text-green-300'}`}>A: </span>
                 <code className="text-gray-600 dark:text-gray-400 break-all">
                   <HighlightText text={node.accessPredicates} query={searchText} />
                 </code>
@@ -297,7 +297,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             )}
             {node.filterPredicates && (
               <div className="text-xs">
-                <span className={`font-medium ${isMono ? 'text-slate-500 dark:text-slate-400' : 'text-amber-700 dark:text-amber-300'}`}>F: </span>
+                <span className={`font-medium ${isMono ? 'text-neutral-500 dark:text-neutral-400' : 'text-amber-700 dark:text-amber-300'}`}>F: </span>
                 <code className="text-gray-600 dark:text-gray-400 break-all">
                   <HighlightText text={node.filterPredicates} query={searchText} />
                 </code>
@@ -310,7 +310,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         {showAnnotationsOverlay && annotationText && (
           <div
             className={`mt-2 text-[11px] italic truncate ${
-              highlightColor ? getHighlightColorDef(highlightColor).text : 'text-slate-500 dark:text-slate-400'
+              highlightColor ? getHighlightColorDef(highlightColor).text : 'text-neutral-500 dark:text-neutral-400'
             }`}
             style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
             title={annotationText}

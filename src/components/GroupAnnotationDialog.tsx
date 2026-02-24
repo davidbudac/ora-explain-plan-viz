@@ -41,16 +41,16 @@ export function GroupAnnotationDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50">
       <form
         onSubmit={handleSubmit}
-        className="bg-white dark:bg-slate-900 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 p-4 w-80 max-w-[90vw]"
+        className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl border border-neutral-200 dark:border-neutral-700 p-4 w-80 max-w-[90vw]"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">
+        <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-3">
           {existingGroup ? 'Edit Group' : 'Create Group'}
         </h3>
 
         <div className="space-y-3">
           <div>
-            <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1 uppercase tracking-wide">
+            <label className="block text-[11px] font-medium text-neutral-600 dark:text-neutral-400 mb-1 uppercase tracking-wide">
               Name
             </label>
             <input
@@ -59,12 +59,12 @@ export function GroupAnnotationDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Join path bottleneck"
-              className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60"
+              className="w-full px-2.5 py-1.5 text-xs border border-neutral-200 dark:border-neutral-700 rounded-md bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1 uppercase tracking-wide">
+            <label className="block text-[11px] font-medium text-neutral-600 dark:text-neutral-400 mb-1 uppercase tracking-wide">
               Color
             </label>
             <div className="flex items-center gap-1.5">
@@ -83,7 +83,7 @@ export function GroupAnnotationDialog({
           </div>
 
           <div>
-            <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1 uppercase tracking-wide">
+            <label className="block text-[11px] font-medium text-neutral-600 dark:text-neutral-400 mb-1 uppercase tracking-wide">
               Note (optional)
             </label>
             <textarea
@@ -91,16 +91,16 @@ export function GroupAnnotationDialog({
               onChange={(e) => setNote(e.target.value)}
               placeholder="Add context..."
               rows={2}
-              className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 resize-y"
+              className="w-full px-2.5 py-1.5 text-xs border border-neutral-200 dark:border-neutral-700 rounded-md bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 resize-y"
             />
           </div>
 
-          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+          <div className="text-[11px] text-neutral-500 dark:text-neutral-400">
             {nodeIds.length} node{nodeIds.length !== 1 ? 's' : ''} selected
           </div>
         </div>
 
-        <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-neutral-200 dark:border-neutral-700">
           <div>
             {existingGroup && onDelete && (
               <button
@@ -116,7 +116,7 @@ export function GroupAnnotationDialog({
             <button
               type="button"
               onClick={onClose}
-              className="px-2.5 py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+              className="px-2.5 py-1.5 text-xs text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded transition-colors"
             >
               Cancel
             </button>

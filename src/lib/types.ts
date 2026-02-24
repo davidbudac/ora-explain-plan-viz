@@ -269,35 +269,35 @@ const COLORS_MUTED: Record<string, { bg: string; border: string; text: string }>
   'Filter/View': { bg: 'bg-teal-50 dark:bg-teal-950/40', border: 'border-teal-300 dark:border-teal-700', text: 'text-teal-800 dark:text-teal-200' },
   'Partition': { bg: 'bg-indigo-50 dark:bg-indigo-950/40', border: 'border-indigo-300 dark:border-indigo-700', text: 'text-indigo-800 dark:text-indigo-200' },
   'Parallelism': { bg: 'bg-rose-50 dark:bg-rose-950/40', border: 'border-rose-300 dark:border-rose-700', text: 'text-rose-800 dark:text-rose-200' },
-  'Other': { bg: 'bg-slate-50 dark:bg-slate-900', border: 'border-slate-300 dark:border-slate-600', text: 'text-slate-700 dark:text-slate-300' },
+  'Other': { bg: 'bg-neutral-50 dark:bg-neutral-900', border: 'border-neutral-300 dark:border-neutral-600', text: 'text-neutral-700 dark:text-neutral-300' },
 };
 
 // Option B: Professional - slate backgrounds with subtle colored accents
 const COLORS_PROFESSIONAL: Record<string, { bg: string; border: string; text: string }> = {
-  'Table Access': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-amber-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
-  'Index Operations': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-emerald-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
-  'Join Operations': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-blue-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
-  'Set Operations': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-violet-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
-  'Aggregation': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-pink-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
-  'Sort Operations': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-yellow-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
-  'Filter/View': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-cyan-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
-  'Partition': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-indigo-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
-  'Parallelism': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-rose-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
-  'Other': { bg: 'bg-slate-50 dark:bg-slate-800/80', border: 'border-l-4 border-l-slate-400 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
+  'Table Access': { bg: 'bg-neutral-50 dark:bg-neutral-800/80', border: 'border-l-4 border-l-amber-500 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Index Operations': { bg: 'bg-neutral-50 dark:bg-neutral-800/80', border: 'border-l-4 border-l-emerald-500 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Join Operations': { bg: 'bg-neutral-50 dark:bg-neutral-800/80', border: 'border-l-4 border-l-blue-500 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Set Operations': { bg: 'bg-neutral-50 dark:bg-neutral-800/80', border: 'border-l-4 border-l-violet-500 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Aggregation': { bg: 'bg-neutral-50 dark:bg-neutral-800/80', border: 'border-l-4 border-l-pink-500 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Sort Operations': { bg: 'bg-neutral-50 dark:bg-neutral-800/80', border: 'border-l-4 border-l-yellow-500 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Filter/View': { bg: 'bg-neutral-50 dark:bg-neutral-800/80', border: 'border-l-4 border-l-cyan-500 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Partition': { bg: 'bg-neutral-50 dark:bg-neutral-800/80', border: 'border-l-4 border-l-indigo-500 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Parallelism': { bg: 'bg-neutral-50 dark:bg-neutral-800/80', border: 'border-l-4 border-l-rose-500 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Other': { bg: 'bg-neutral-50 dark:bg-neutral-800/80', border: 'border-l-4 border-l-neutral-400 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-700 dark:text-neutral-200' },
 };
 
 // Option C: Monochrome - uniform neutral nodes; color reserved for indicators & annotations
 const COLORS_MONOCHROME: Record<string, { bg: string; border: string; text: string }> = {
-  'Table Access': { bg: 'bg-gray-50 dark:bg-slate-800/80', border: 'border-slate-200 dark:border-slate-600', text: 'text-slate-700 dark:text-slate-200' },
-  'Index Operations': { bg: 'bg-gray-50 dark:bg-slate-800/80', border: 'border-slate-200 dark:border-slate-600', text: 'text-slate-700 dark:text-slate-200' },
-  'Join Operations': { bg: 'bg-gray-50 dark:bg-slate-800/80', border: 'border-slate-200 dark:border-slate-600', text: 'text-slate-700 dark:text-slate-200' },
-  'Set Operations': { bg: 'bg-gray-50 dark:bg-slate-800/80', border: 'border-slate-200 dark:border-slate-600', text: 'text-slate-700 dark:text-slate-200' },
-  'Aggregation': { bg: 'bg-gray-50 dark:bg-slate-800/80', border: 'border-slate-200 dark:border-slate-600', text: 'text-slate-700 dark:text-slate-200' },
-  'Sort Operations': { bg: 'bg-gray-50 dark:bg-slate-800/80', border: 'border-slate-200 dark:border-slate-600', text: 'text-slate-700 dark:text-slate-200' },
-  'Filter/View': { bg: 'bg-gray-50 dark:bg-slate-800/80', border: 'border-slate-200 dark:border-slate-600', text: 'text-slate-700 dark:text-slate-200' },
-  'Partition': { bg: 'bg-gray-50 dark:bg-slate-800/80', border: 'border-slate-200 dark:border-slate-600', text: 'text-slate-700 dark:text-slate-200' },
-  'Parallelism': { bg: 'bg-gray-50 dark:bg-slate-800/80', border: 'border-slate-200 dark:border-slate-600', text: 'text-slate-700 dark:text-slate-200' },
-  'Other': { bg: 'bg-gray-50 dark:bg-slate-800/80', border: 'border-slate-200 dark:border-slate-600', text: 'text-slate-700 dark:text-slate-200' },
+  'Table Access': { bg: 'bg-gray-50 dark:bg-neutral-800/80', border: 'border-neutral-200 dark:border-neutral-600', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Index Operations': { bg: 'bg-gray-50 dark:bg-neutral-800/80', border: 'border-neutral-200 dark:border-neutral-600', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Join Operations': { bg: 'bg-gray-50 dark:bg-neutral-800/80', border: 'border-neutral-200 dark:border-neutral-600', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Set Operations': { bg: 'bg-gray-50 dark:bg-neutral-800/80', border: 'border-neutral-200 dark:border-neutral-600', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Aggregation': { bg: 'bg-gray-50 dark:bg-neutral-800/80', border: 'border-neutral-200 dark:border-neutral-600', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Sort Operations': { bg: 'bg-gray-50 dark:bg-neutral-800/80', border: 'border-neutral-200 dark:border-neutral-600', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Filter/View': { bg: 'bg-gray-50 dark:bg-neutral-800/80', border: 'border-neutral-200 dark:border-neutral-600', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Partition': { bg: 'bg-gray-50 dark:bg-neutral-800/80', border: 'border-neutral-200 dark:border-neutral-600', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Parallelism': { bg: 'bg-gray-50 dark:bg-neutral-800/80', border: 'border-neutral-200 dark:border-neutral-600', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Other': { bg: 'bg-gray-50 dark:bg-neutral-800/80', border: 'border-neutral-200 dark:border-neutral-600', text: 'text-neutral-700 dark:text-neutral-200' },
 };
 
 export const COLOR_SCHEMES: Record<ColorScheme, Record<string, { bg: string; border: string; text: string }>> = {
