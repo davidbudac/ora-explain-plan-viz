@@ -8,7 +8,7 @@ export function PlanTabs() {
   const bothParsed = plans.every(p => p.parsedPlan);
 
   return (
-    <div className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+    <div className="flex items-center gap-1 px-3 py-1.5 bg-[var(--surface)] border-b border-[var(--border-color)]">
       {plans.map((slot, index) => {
         const isActive = index === activePlanIndex && viewMode !== 'compare';
         const phv = slot.parsedPlan?.planHashValue;
@@ -18,8 +18,8 @@ export function PlanTabs() {
             className={`
               flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border cursor-pointer
               ${isActive
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                ? 'bg-emerald-600 text-white border-emerald-600'
+                : 'text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--surface-raised)]'
               }
             `}
           >
@@ -32,12 +32,12 @@ export function PlanTabs() {
             >
               <span>{slot.label}</span>
               {phv && (
-                <span className={`font-mono text-[10px] ${isActive ? 'text-blue-200' : 'text-slate-400 dark:text-slate-500'}`}>
+                <span className={`font-mono text-[10px] ${isActive ? 'text-emerald-200' : 'text-[var(--text-muted)]'}`}>
                   PHV: {phv}
                 </span>
               )}
               {!slot.parsedPlan && (
-                <span className={`text-[10px] italic ${isActive ? 'text-blue-200' : 'text-slate-400 dark:text-slate-500'}`}>
+                <span className={`text-[10px] italic ${isActive ? 'text-emerald-200' : 'text-[var(--text-muted)]'}`}>
                   (empty)
                 </span>
               )}
@@ -50,8 +50,8 @@ export function PlanTabs() {
               className={`
                 ml-1 p-0.5 rounded transition-colors
                 ${isActive
-                  ? 'hover:bg-blue-500 text-blue-200'
-                  : 'hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500'
+                  ? 'hover:bg-emerald-500 text-emerald-200'
+                  : 'hover:bg-[var(--border-highlight)] text-[var(--text-muted)]'
                 }
               `}
               title={`Remove ${slot.label}`}
@@ -66,14 +66,14 @@ export function PlanTabs() {
 
       {bothParsed && (
         <>
-          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" />
+          <div className="w-px h-5 bg-[var(--border-color)] mx-1" />
           <button
             onClick={() => setViewMode('compare')}
             className={`
               flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border
               ${viewMode === 'compare'
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                ? 'bg-emerald-600 text-white border-emerald-600'
+                : 'text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--surface-raised)]'
               }
             `}
           >

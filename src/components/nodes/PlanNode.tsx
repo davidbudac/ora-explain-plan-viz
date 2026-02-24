@@ -124,11 +124,11 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
       `}
       style={{ opacity }}
     >
-      <Handle type="target" position={Position.Top} className="!bg-gray-400 !w-3 !h-3" />
+      <Handle type="target" position={Position.Top} className="!bg-emerald-500 !w-3 !h-3" />
 
       {/* Metric indicator bar */}
       <div
-        className="absolute top-0 left-0 right-0 h-1 rounded-t-md overflow-hidden bg-gray-200 dark:bg-gray-700"
+        className="absolute top-0 left-0 right-0 h-1 rounded-t-md overflow-hidden bg-[var(--border-color)]"
         title={
           nodeIndicatorMetric === 'cost'
             ? `${indicator.label}: ${indicator.formattedValue}`
@@ -143,7 +143,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
       <div className="p-3 pt-4">
         {/* Operation ID badge */}
-        <div className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-gray-700 dark:bg-gray-300 text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shadow">
+        <div className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center shadow">
           {node.id}
         </div>
 
@@ -209,17 +209,17 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         {/* Stats row - Estimated statistics */}
         <div className="flex flex-wrap gap-2 text-xs">
           {options.showRows && node.rows !== undefined && (
-            <span className="px-1.5 py-0.5 bg-white/50 dark:bg-black/20 rounded text-gray-700 dark:text-gray-300">
+            <span className="px-1.5 py-0.5 bg-[var(--app-bg)]/60 rounded text-[var(--text-secondary)]">
               {rowsLabel}: {formatNumberShort(node.rows)}
             </span>
           )}
           {options.showCost && node.cost !== undefined && (
-            <span className="px-1.5 py-0.5 bg-white/50 dark:bg-black/20 rounded text-gray-700 dark:text-gray-300">
+            <span className="px-1.5 py-0.5 bg-[var(--app-bg)]/60 rounded text-[var(--text-secondary)]">
               Cost: {node.cost}
             </span>
           )}
           {options.showBytes && node.bytes !== undefined && (
-            <span className="px-1.5 py-0.5 bg-white/50 dark:bg-black/20 rounded text-gray-700 dark:text-gray-300">
+            <span className="px-1.5 py-0.5 bg-[var(--app-bg)]/60 rounded text-[var(--text-secondary)]">
               {formatBytes(node.bytes)}
             </span>
           )}
@@ -231,7 +231,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             {options.showActualRows && node.actualRows !== undefined && (
               <span className={`px-1.5 py-0.5 rounded font-medium ${
                 isMono
-                  ? 'bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300'
+                  ? 'bg-[var(--app-bg)]/60 text-[var(--text-secondary)]'
                   : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
               }`}>
                 A-Rows: {formatNumberShort(node.actualRows)}
@@ -240,7 +240,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             {options.showActualTime && node.actualTime !== undefined && (
               <span className={`px-1.5 py-0.5 rounded font-medium ${
                 isMono
-                  ? 'bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300'
+                  ? 'bg-[var(--app-bg)]/60 text-[var(--text-secondary)]'
                   : 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
               }`}>
                 A-Time: {formatTimeCompact(node.actualTime)}
@@ -249,7 +249,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             {options.showStarts && node.starts !== undefined && (
               <span className={`px-1.5 py-0.5 rounded font-medium ${
                 isMono
-                  ? 'bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300'
+                  ? 'bg-[var(--app-bg)]/60 text-[var(--text-secondary)]'
                   : node.starts >= 1000
                     ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
                     : 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300'
@@ -310,7 +310,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         {showAnnotationsOverlay && annotationText && (
           <div
             className={`mt-2 text-[11px] italic truncate ${
-              highlightColor ? getHighlightColorDef(highlightColor).text : 'text-slate-500 dark:text-slate-400'
+              highlightColor ? getHighlightColorDef(highlightColor).text : 'text-[var(--text-muted)]'
             }`}
             style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
             title={annotationText}
@@ -320,7 +320,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         )}
       </div>
 
-      <Handle type="source" position={Position.Bottom} className="!bg-gray-400 !w-3 !h-3" />
+      <Handle type="source" position={Position.Bottom} className="!bg-emerald-500 !w-3 !h-3" />
     </div>
   );
 }
@@ -376,7 +376,7 @@ function computeIndicatorMetric(
     ratio: Math.min(1, ratio),
     label,
     formattedValue,
-    color: ratio === 0 ? 'bg-gray-200 dark:bg-gray-700' : getMetricColor(ratio),
+    color: ratio === 0 ? 'bg-[var(--border-color)]' : getMetricColor(ratio),
   };
 }
 
