@@ -17,6 +17,8 @@ export interface HighlightColorDef {
   groupBorder: string;
   /** Tailwind classes for annotation group bounding box background */
   groupBg: string;
+  /** Tailwind classes for annotation text color */
+  text: string;
 }
 
 export const HIGHLIGHT_COLORS: HighlightColorDef[] = [
@@ -28,6 +30,7 @@ export const HIGHLIGHT_COLORS: HighlightColorDef[] = [
     chipActive: 'bg-red-500 dark:bg-red-400 ring-2 ring-red-300 dark:ring-red-600',
     groupBorder: 'border-red-400 dark:border-red-500',
     groupBg: 'bg-red-50/30 dark:bg-red-900/10',
+    text: 'text-red-600 dark:text-red-400',
   },
   {
     name: 'orange',
@@ -37,6 +40,7 @@ export const HIGHLIGHT_COLORS: HighlightColorDef[] = [
     chipActive: 'bg-orange-500 dark:bg-orange-400 ring-2 ring-orange-300 dark:ring-orange-600',
     groupBorder: 'border-orange-400 dark:border-orange-500',
     groupBg: 'bg-orange-50/30 dark:bg-orange-900/10',
+    text: 'text-orange-600 dark:text-orange-400',
   },
   {
     name: 'yellow',
@@ -46,6 +50,7 @@ export const HIGHLIGHT_COLORS: HighlightColorDef[] = [
     chipActive: 'bg-yellow-500 dark:bg-yellow-400 ring-2 ring-yellow-300 dark:ring-yellow-600',
     groupBorder: 'border-yellow-400 dark:border-yellow-500',
     groupBg: 'bg-yellow-50/30 dark:bg-yellow-900/10',
+    text: 'text-yellow-600 dark:text-yellow-400',
   },
   {
     name: 'green',
@@ -55,6 +60,7 @@ export const HIGHLIGHT_COLORS: HighlightColorDef[] = [
     chipActive: 'bg-green-500 dark:bg-green-400 ring-2 ring-green-300 dark:ring-green-600',
     groupBorder: 'border-green-400 dark:border-green-500',
     groupBg: 'bg-green-50/30 dark:bg-green-900/10',
+    text: 'text-green-600 dark:text-green-400',
   },
   {
     name: 'blue',
@@ -64,6 +70,7 @@ export const HIGHLIGHT_COLORS: HighlightColorDef[] = [
     chipActive: 'bg-blue-500 dark:bg-blue-400 ring-2 ring-blue-300 dark:ring-blue-600',
     groupBorder: 'border-blue-400 dark:border-blue-500',
     groupBg: 'bg-blue-50/30 dark:bg-blue-900/10',
+    text: 'text-blue-600 dark:text-blue-400',
   },
   {
     name: 'purple',
@@ -73,6 +80,7 @@ export const HIGHLIGHT_COLORS: HighlightColorDef[] = [
     chipActive: 'bg-purple-500 dark:bg-purple-400 ring-2 ring-purple-300 dark:ring-purple-600',
     groupBorder: 'border-purple-400 dark:border-purple-500',
     groupBg: 'bg-purple-50/30 dark:bg-purple-900/10',
+    text: 'text-purple-600 dark:text-purple-400',
   },
   {
     name: 'pink',
@@ -82,6 +90,7 @@ export const HIGHLIGHT_COLORS: HighlightColorDef[] = [
     chipActive: 'bg-pink-500 dark:bg-pink-400 ring-2 ring-pink-300 dark:ring-pink-600',
     groupBorder: 'border-pink-400 dark:border-pink-500',
     groupBg: 'bg-pink-50/30 dark:bg-pink-900/10',
+    text: 'text-pink-600 dark:text-pink-400',
   },
 ];
 

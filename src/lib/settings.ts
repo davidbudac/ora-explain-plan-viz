@@ -50,6 +50,10 @@ const defaultNodeDisplayOptions: NodeDisplayOptions = {
   showActualRows: true,
   showActualTime: true,
   showStarts: true,
+  showHotspotBadge: true,
+  showSpillBadge: true,
+  showCardinalityBadge: true,
+  showAnnotations: true,
 };
 
 const defaultSettings: UserSettings = {

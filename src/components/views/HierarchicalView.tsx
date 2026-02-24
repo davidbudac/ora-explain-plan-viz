@@ -141,9 +141,9 @@ function calculateNodeHeight(
     }
   }
 
-  // Annotation preview text
-  if (displayOptions.showAnnotationPreviews && hasAnnotation) {
-    height += 18;
+  // Annotation preview text (always shown when present)
+  if (hasAnnotation) {
+    height += 20;
   }
 
   return height;
@@ -673,7 +673,6 @@ function HierarchicalViewContent() {
             isHotNode: hottestNodeId !== null && parseInt(node.id) === hottestNodeId,
             annotationText: annotations.nodeAnnotations.get(parseInt(node.id))?.text,
             highlightColor: annotations.nodeHighlights.get(parseInt(node.id))?.color,
-            showAnnotationPreviews: filters.nodeDisplayOptions.showAnnotationPreviews,
           },
         };
       })

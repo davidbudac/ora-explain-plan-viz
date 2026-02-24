@@ -80,7 +80,12 @@ const initialFilters: FilterState = {
     showActualRows: true,
     showActualTime: true,
     showStarts: true,
-    showAnnotationPreviews: false,
+    // Warning badges
+    showHotspotBadge: true,
+    showSpillBadge: true,
+    showCardinalityBadge: true,
+    // Annotations overlay
+    showAnnotations: true,
   },
   // SQL Monitor actual statistics filters
   minActualRows: 0,
