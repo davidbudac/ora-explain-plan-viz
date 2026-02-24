@@ -8,7 +8,7 @@ export function PlanTabs() {
   const bothParsed = plans.every(p => p.parsedPlan);
 
   return (
-    <div className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+    <div className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
       {plans.map((slot, index) => {
         const isActive = index === activePlanIndex && viewMode !== 'compare';
         const phv = slot.parsedPlan?.planHashValue;
@@ -19,7 +19,7 @@ export function PlanTabs() {
               flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border cursor-pointer
               ${isActive
                 ? 'bg-blue-600 text-white border-blue-600'
-                : 'text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                : 'text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800'
               }
             `}
           >
@@ -32,12 +32,12 @@ export function PlanTabs() {
             >
               <span>{slot.label}</span>
               {phv && (
-                <span className={`font-mono text-[10px] ${isActive ? 'text-blue-200' : 'text-slate-400 dark:text-slate-500'}`}>
+                <span className={`font-mono text-[10px] ${isActive ? 'text-blue-200' : 'text-neutral-400 dark:text-neutral-500'}`}>
                   PHV: {phv}
                 </span>
               )}
               {!slot.parsedPlan && (
-                <span className={`text-[10px] italic ${isActive ? 'text-blue-200' : 'text-slate-400 dark:text-slate-500'}`}>
+                <span className={`text-[10px] italic ${isActive ? 'text-blue-200' : 'text-neutral-400 dark:text-neutral-500'}`}>
                   (empty)
                 </span>
               )}
@@ -51,7 +51,7 @@ export function PlanTabs() {
                 ml-1 p-0.5 rounded transition-colors
                 ${isActive
                   ? 'hover:bg-blue-500 text-blue-200'
-                  : 'hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500'
+                  : 'hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-400 dark:text-neutral-500'
                 }
               `}
               title={`Remove ${slot.label}`}
@@ -66,14 +66,14 @@ export function PlanTabs() {
 
       {bothParsed && (
         <>
-          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" />
+          <div className="w-px h-5 bg-neutral-200 dark:bg-neutral-700 mx-1" />
           <button
             onClick={() => setViewMode('compare')}
             className={`
               flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border
               ${viewMode === 'compare'
                 ? 'bg-blue-600 text-white border-blue-600'
-                : 'text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                : 'text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800'
               }
             `}
           >

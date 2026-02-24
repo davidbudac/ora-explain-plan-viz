@@ -23,7 +23,7 @@ export function CompareMetricSelector() {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Metrics:</span>
+      <span className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">Metrics:</span>
       <div className="flex flex-wrap gap-1">
         {availableMetrics.map(metric => {
           const isActive = compareMetrics.includes(metric);
@@ -35,7 +35,7 @@ export function CompareMetricSelector() {
                 px-2 py-0.5 text-[11px] font-medium rounded-full transition-colors border
                 ${isActive
                   ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700'
-                  : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  : 'bg-neutral-50 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-700'
                 }
               `}
             >
