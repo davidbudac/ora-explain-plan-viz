@@ -58,7 +58,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   const schemeColors = COLOR_SCHEMES[colorScheme];
   const colors = schemeColors[category] || schemeColors['Other'];
   const isMono = colorScheme === 'monochrome';
-  const borderClass = colorScheme === 'professional' ? '' : isMono ? 'border' : 'border-2';
+  const borderClass = 'border';
 
   const indicator = computeIndicatorMetric(node, nodeIndicatorMetric, totalCost, maxActualRows, maxStarts, totalElapsedTime);
 
@@ -115,7 +115,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   return (
     <div
       className={`
-        relative w-[260px] rounded-lg ${borderClass} ${isMono ? 'shadow-sm' : 'shadow-md'} transition-all duration-200
+        relative w-[260px] rounded-xl ${borderClass} ${isMono ? 'shadow-sm' : 'shadow-sm'} transition-all duration-200
         ${colors.bg} ${colors.border}
         ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900 scale-105' : ''}
         ${isInFocusPath && !(highlightColor && showAnnotationsOverlay) ? 'ring-1 ring-blue-300/60' : ''}
@@ -124,11 +124,11 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
       `}
       style={{ opacity }}
     >
-      <Handle type="target" position={Position.Top} className="!bg-gray-400 !w-3 !h-3" />
+      <Handle type="target" position={Position.Top} className="!bg-indigo-400 !w-3 !h-3" />
 
       {/* Metric indicator bar */}
       <div
-        className="absolute top-0 left-0 right-0 h-1 rounded-t-md overflow-hidden bg-gray-200 dark:bg-gray-700"
+        className="absolute top-0 left-0 right-0 h-1 rounded-t-xl overflow-hidden bg-gray-200 dark:bg-gray-700"
         title={
           nodeIndicatorMetric === 'cost'
             ? `${indicator.label}: ${indicator.formattedValue}`
@@ -143,7 +143,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
       <div className="p-3 pt-4">
         {/* Operation ID badge */}
-        <div className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-gray-700 dark:bg-gray-300 text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shadow">
+        <div className="absolute -top-2 -left-2 w-6 h-6 rounded-lg bg-indigo-500 text-white text-xs font-bold flex items-center justify-center shadow">
           {node.id}
         </div>
 
@@ -183,7 +183,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
         {/* Object name if present */}
         {options.showObjectName && node.objectName && (
-          <div className="text-sm font-semibold font-mono text-slate-700 dark:text-slate-200 mb-2 truncate">
+          <div className="text-sm font-semibold font-mono text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] mb-2 truncate">
             <HighlightText text={node.objectName} query={searchText} />
           </div>
         )}
@@ -193,13 +193,13 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           <div className="flex flex-wrap gap-1 mb-2">
             <span className={`px-1.5 py-0.5 text-xs rounded font-mono ${
               isMono
-                ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                ? 'bg-[var(--surface-raised)] dark:bg-[var(--surface-raised-dark)] text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]'
                 : 'bg-violet-200 dark:bg-violet-800 text-violet-800 dark:text-violet-200'
             }`}>
               {node.queryBlock}
             </span>
             {node.objectAlias && (
-              <span className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs rounded font-mono">
+              <span className="px-1.5 py-0.5 bg-[var(--surface-raised)] dark:bg-[var(--surface-raised-dark)] text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] text-xs rounded font-mono">
                 {node.objectAlias}
               </span>
             )}
@@ -209,17 +209,17 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         {/* Stats row - Estimated statistics */}
         <div className="flex flex-wrap gap-2 text-xs">
           {options.showRows && node.rows !== undefined && (
-            <span className="px-1.5 py-0.5 bg-white/50 dark:bg-black/20 rounded text-gray-700 dark:text-gray-300">
+            <span className="px-1.5 py-0.5 bg-[var(--surface-raised)] dark:bg-[var(--surface-raised-dark)] rounded-md text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">
               {rowsLabel}: {formatNumberShort(node.rows)}
             </span>
           )}
           {options.showCost && node.cost !== undefined && (
-            <span className="px-1.5 py-0.5 bg-white/50 dark:bg-black/20 rounded text-gray-700 dark:text-gray-300">
+            <span className="px-1.5 py-0.5 bg-[var(--surface-raised)] dark:bg-[var(--surface-raised-dark)] rounded-md text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">
               Cost: {node.cost}
             </span>
           )}
           {options.showBytes && node.bytes !== undefined && (
-            <span className="px-1.5 py-0.5 bg-white/50 dark:bg-black/20 rounded text-gray-700 dark:text-gray-300">
+            <span className="px-1.5 py-0.5 bg-[var(--surface-raised)] dark:bg-[var(--surface-raised-dark)] rounded-md text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]">
               {formatBytes(node.bytes)}
             </span>
           )}
@@ -231,8 +231,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             {options.showActualRows && node.actualRows !== undefined && (
               <span className={`px-1.5 py-0.5 rounded font-medium ${
                 isMono
-                  ? 'bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300'
-                  : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                  ? 'bg-white/50 dark:bg-black/20 text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]'
+                  : 'bg-blue-100 dark:bg-blue-900/40 text-indigo-600 dark:text-indigo-400'
               }`}>
                 A-Rows: {formatNumberShort(node.actualRows)}
               </span>
@@ -240,7 +240,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             {options.showActualTime && node.actualTime !== undefined && (
               <span className={`px-1.5 py-0.5 rounded font-medium ${
                 isMono
-                  ? 'bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300'
+                  ? 'bg-white/50 dark:bg-black/20 text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]'
                   : 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
               }`}>
                 A-Time: {formatTimeCompact(node.actualTime)}
@@ -249,7 +249,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             {options.showStarts && node.starts !== undefined && (
               <span className={`px-1.5 py-0.5 rounded font-medium ${
                 isMono
-                  ? 'bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300'
+                  ? 'bg-white/50 dark:bg-black/20 text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]'
                   : node.starts >= 1000
                     ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
                     : 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300'
@@ -266,7 +266,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             {node.accessPredicates && (
               <span className={`px-1.5 py-0.5 text-xs rounded ${
                 isMono
-                  ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                  ? 'bg-[var(--surface-raised)] dark:bg-[var(--surface-raised-dark)] text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]'
                   : 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200'
               }`}>
                 Access
@@ -275,7 +275,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             {node.filterPredicates && (
               <span className={`px-1.5 py-0.5 text-xs rounded ${
                 isMono
-                  ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                  ? 'bg-[var(--surface-raised)] dark:bg-[var(--surface-raised-dark)] text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)]'
                   : 'bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200'
               }`}>
                 Filter
@@ -289,16 +289,16 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           <div className="mt-2 space-y-1">
             {node.accessPredicates && (
               <div className="text-xs">
-                <span className={`font-medium ${isMono ? 'text-slate-500 dark:text-slate-400' : 'text-green-700 dark:text-green-300'}`}>A: </span>
-                <code className="text-gray-600 dark:text-gray-400 break-all">
+                <span className={`font-medium ${isMono ? 'text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]' : 'text-green-700 dark:text-green-300'}`}>A: </span>
+                <code className="text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] break-all">
                   <HighlightText text={node.accessPredicates} query={searchText} />
                 </code>
               </div>
             )}
             {node.filterPredicates && (
               <div className="text-xs">
-                <span className={`font-medium ${isMono ? 'text-slate-500 dark:text-slate-400' : 'text-amber-700 dark:text-amber-300'}`}>F: </span>
-                <code className="text-gray-600 dark:text-gray-400 break-all">
+                <span className={`font-medium ${isMono ? 'text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]' : 'text-amber-700 dark:text-amber-300'}`}>F: </span>
+                <code className="text-[var(--text-secondary)] dark:text-[var(--text-secondary-dark)] break-all">
                   <HighlightText text={node.filterPredicates} query={searchText} />
                 </code>
               </div>
@@ -310,7 +310,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         {showAnnotationsOverlay && annotationText && (
           <div
             className={`mt-2 text-[11px] italic truncate ${
-              highlightColor ? getHighlightColorDef(highlightColor).text : 'text-slate-500 dark:text-slate-400'
+              highlightColor ? getHighlightColorDef(highlightColor).text : 'text-[var(--text-muted)] dark:text-[var(--text-muted-dark)]'
             }`}
             style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
             title={annotationText}
@@ -320,7 +320,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         )}
       </div>
 
-      <Handle type="source" position={Position.Bottom} className="!bg-gray-400 !w-3 !h-3" />
+      <Handle type="source" position={Position.Bottom} className="!bg-indigo-400 !w-3 !h-3" />
     </div>
   );
 }

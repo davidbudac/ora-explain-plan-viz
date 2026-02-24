@@ -1,31 +1,46 @@
 @import "tailwindcss";
 
-/* Enable class-based dark mode for Tailwind v4 */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   :root {
-    --color-primary: #3b82f6;
-    --color-secondary: #6366f1;
+    --color-primary: #6366f1;
+    --color-secondary: #818cf8;
+    --color-accent: #6366f1;
     --color-success: #22c55e;
     --color-warning: #f59e0b;
     --color-danger: #ef4444;
-    --app-bg: #f2f4f7;
-    --app-bg-dark: #020617;
+    --app-bg: #faf9f7;
+    --app-bg-dark: #18181b;
+    --surface: #ffffff;
+    --surface-dark: #1f1f23;
+    --surface-raised: #f5f4f1;
+    --surface-raised-dark: #27272a;
+    --border-color: #e8e5e0;
+    --border-color-dark: #303036;
+    --text-primary: #1a1a1e;
+    --text-primary-dark: #ededef;
+    --text-secondary: #6b6b76;
+    --text-secondary-dark: #9999a3;
+    --text-muted: #b0b0b8;
+    --text-muted-dark: #52525b;
   }
 
   html {
-    font-family: Manrope, "Avenir Next", "Segoe UI", sans-serif;
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
   body {
-    @apply text-slate-900 dark:text-slate-100;
+    color: var(--text-primary);
     background: var(--app-bg);
     margin: 0;
     min-height: 100vh;
   }
 
   .dark body {
+    color: var(--text-primary-dark);
     background: var(--app-bg-dark);
   }
 
@@ -34,36 +49,53 @@
     display: flex;
     flex-direction: column;
   }
+
+  pre, code, .font-mono, textarea {
+    font-family: "Fragment Mono", "SF Mono", monospace \!important;
+  }
+
+  /* Minimal scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 99px;
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    background: var(--border-color-dark);
+  }
 }
 
-/* React Flow custom styles for dark mode */
+/* React Flow */
+.react-flow__background {
+  background-color: var(--app-bg) \!important;
+}
 .dark .react-flow__background {
-  background-color: #0f172a;
-}
-
-.dark .react-flow__controls button {
-  background-color: #1e293b;
-  border-color: #334155;
-  color: #f9fafb;
-}
-
-.dark .react-flow__controls button:hover {
-  background-color: #334155;
+  background-color: var(--app-bg-dark) \!important;
 }
 
 .react-flow__controls button {
-  border-radius: 8px;
-  border-color: #cbd5e1;
-  background-color: #ffffff;
-  color: #334155;
+  background-color: var(--surface) \!important;
+  border-color: var(--border-color) \!important;
+  color: var(--text-primary) \!important;
+  border-radius: 8px \!important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04) \!important;
+}
+.dark .react-flow__controls button {
+  background-color: var(--surface-dark) \!important;
+  border-color: var(--border-color-dark) \!important;
+  color: var(--text-primary-dark) \!important;
 }
 
-/* Reverse animation direction for edges (data flows from children to parent) */
 .react-flow__edge.animated path {
   animation-direction: reverse;
 }
 
-/* Vertical text for collapsed panels */
 .writing-mode-vertical {
   writing-mode: vertical-rl;
   text-orientation: mixed;
