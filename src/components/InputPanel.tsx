@@ -86,7 +86,7 @@ export function InputPanel() {
                 </span>
               )}
               <span className="text-xs text-neutral-500 dark:text-neutral-400">
-                ({parsedPlan.allNodes.length} operations, Cost: {parsedPlan.totalCost}{parsedPlan.hasActualStats && parsedPlan.rootNode?.actualRows != null ? `, A-Rows: ${formatNumberShort(parsedPlan.rootNode.actualRows)}` : ''}{parsedPlan.hasActualStats && parsedPlan.totalElapsedTime != null ? `, A-Time: ${formatTimeShort(parsedPlan.totalElapsedTime)}` : ''})
+                ({parsedPlan.allNodes.length} operations{parsedPlan.rootNode?.cost != null ? `, Cost: ${formatNumberShort(parsedPlan.rootNode.cost)}` : ''}{parsedPlan.hasActualStats && parsedPlan.rootNode?.actualRows != null ? `, A-Rows: ${formatNumberShort(parsedPlan.rootNode.actualRows)}` : ''}{parsedPlan.hasActualStats && parsedPlan.rootNode?.actualTime != null ? `, A-Time: ${formatTimeShort(parsedPlan.rootNode.actualTime)}` : ''})
               </span>
             </div>
           )}
@@ -181,7 +181,7 @@ export function InputPanel() {
                   {parsedPlan.allNodes.length} operations
                 </span>
                 <span>
-                  Total Cost: {parsedPlan.totalCost}
+                  Cost: {parsedPlan.rootNode?.cost != null ? formatNumberShort(parsedPlan.rootNode.cost) : '—'}
                 </span>
                 {parsedPlan.planHashValue && (
                   <span>
