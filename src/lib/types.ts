@@ -96,7 +96,7 @@ export interface FilterState {
   minCardinalityMismatch: number;
 }
 
-export type ViewMode = 'hierarchical' | 'sankey' | 'text' | 'compare';
+export type ViewMode = 'hierarchical' | 'sankey' | 'tabular' | 'text' | 'compare';
 export type SankeyMetric = 'rows' | 'cost' | 'actualRows' | 'actualTime';
 export type Theme = 'light' | 'dark';
 

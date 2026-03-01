@@ -2,15 +2,25 @@ import { usePlan } from '../hooks/usePlanContext';
 import type { ViewMode, NodeIndicatorMetric } from '../lib/types';
 import { HierarchicalView } from './views/HierarchicalView';
 import { SankeyView } from './views/SankeyView';
+import { TabularView } from './views/TabularView';
 import { CompareView } from './views/CompareView';
 
 const tabs: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
   {
     id: 'hierarchical',
-    label: 'Hierarchical',
+    label: 'Tree',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'tabular',
+    label: 'Tabular',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18M3 6h18M3 18h18M9 6v12M15 6v12" />
       </svg>
     ),
   },
@@ -210,6 +220,7 @@ export function VisualizationTabs() {
       <div className="flex-1 min-h-0 h-full">
         {viewMode === 'hierarchical' && <HierarchicalView />}
         {viewMode === 'sankey' && <SankeyView />}
+        {viewMode === 'tabular' && <TabularView />}
         {viewMode === 'text' && (
           <div className="h-full overflow-auto bg-neutral-50 dark:bg-neutral-950 p-4">
             <pre className="text-xs font-mono text-neutral-800 dark:text-neutral-200 whitespace-pre leading-relaxed">
