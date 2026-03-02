@@ -8,13 +8,11 @@ A browser-based tool for analyzing Oracle SQL execution plans. Paste your plan o
 
 Oracle execution plans are hard to read in text form, especially large ones with dozens of operations. This tool turns them into interactive visualizations where you can:
 
-- **Spot the bottleneck instantly** - the hottest node (highest actual time) is automatically highlighted
-- **Find cardinality misestimates** - see where the optimizer's row estimates were off by 10x or more, a common cause of bad plans
+- **Visualize plans in may ways** - search through them, filter by all kinds of properties
 - **Compare two plans side by side** - load Plan A and Plan B to see what changed: which operations got faster, which got slower, and by how much
-- **Trace data flow** - the Sankey view shows how rows flow through the plan, making it easy to see where volume explodes or gets filtered down
 - **Annotate and share** - add notes and color highlights to specific nodes, then export the annotated plan as JSON to share with your team
 
-Everything runs in your browser. No backend, no data upload, no account required.
+> Everything runs in your browser. Nothing leaves your computer. No backend, no data upload, no account required.
 
 ## Supported Input Formats
 
@@ -64,15 +62,6 @@ The tool auto-detects the format - just paste and go.
 - **Tabular View** - sortable spreadsheet-style view with collapsible nodes
 - **Plan Text** - raw plan output for quick reference
 - **Compare View** - side-by-side comparison of two plans with delta calculations across 8 metrics
-
-## Analysis Features
-
-- **Hot Node Detection** - automatically identifies the most expensive node and shows a top-5 hotspots summary
-- **Cardinality Mismatch Analysis** - flags nodes where estimated vs. actual rows diverge (warning at 3x, critical at 10x), with a filter slider to focus on the worst offenders
-- **Spill-to-Disk Warnings** - visual badges on nodes that use temp space
-- **Operation Tooltips** - expert descriptions for ~50 Oracle operations explaining what each one does and what to watch for
-- **Predicate Display** - view access and filter predicates per node with copy-to-clipboard
-- **Plan Comparison** - 3-pass node matching algorithm (exact ID, heuristic, unmatched) with improvement/regression indicators
 
 ## Annotations
 
