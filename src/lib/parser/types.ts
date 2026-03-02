@@ -23,4 +23,4 @@ export interface PlanParser {
 /**
  * Detected format of the input.
  */
-export type DetectedFormat = 'dbms_xplan' | 'sql_monitor_text' | 'sql_monitor_xml' | 'unknown';
+export type DetectedFormat = 'dbms_xplan' | 'sql_monitor_text' | 'sql_monitor_xml' | 'json' | 'unknown';
