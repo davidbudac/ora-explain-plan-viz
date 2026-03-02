@@ -2,12 +2,15 @@ import type { ParsedPlan } from '../types';
 import type { DetectedFormat, PlanParser } from './types';
 import { dbmsXplanParser } from './dbmsXplanParser';
 import { sqlMonitorTextParser, sqlMonitorXmlParser } from './sqlMonitorParser';
+import { jsonPlanParser } from './jsonPlanParser';
 
 /**
  * List of available parsers in priority order.
- * XML parser is checked first as it has the most distinctive markers.
+ * JSON parser is checked first as it has the most unambiguous detection (starts with '[').
+ * XML parser is next as it has distinctive markers.
  */
 const parsers: Array<{ format: DetectedFormat; parser: PlanParser }> = [
+  { format: 'json', parser: jsonPlanParser },
   { format: 'sql_monitor_xml', parser: sqlMonitorXmlParser },
   { format: 'sql_monitor_text', parser: sqlMonitorTextParser },
   { format: 'dbms_xplan', parser: dbmsXplanParser },
@@ -69,6 +72,8 @@ export function getSourceDisplayName(source: ParsedPlan['source']): string {
       return 'SQL Monitor (Text)';
     case 'sql_monitor_xml':
       return 'SQL Monitor (XML)';
+    case 'json':
+      return 'JSON (V$SQL_PLAN)';
     default:
       return 'Unknown';
   }
@@ -80,3 +85,4 @@ export type { DetectedFormat, PlanParser } from './types';
 // Re-export individual parsers for direct use if needed
 export { dbmsXplanParser } from './dbmsXplanParser';
 export { sqlMonitorTextParser, sqlMonitorXmlParser } from './sqlMonitorParser';
+export { jsonPlanParser } from './jsonPlanParser';

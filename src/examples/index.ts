@@ -19,7 +19,7 @@
 
 export interface SamplePlan {
   name: string;
-  category: 'dbms_xplan' | 'sql_monitor';
+  category: 'dbms_xplan' | 'sql_monitor' | 'json';
   data: string;
 }
 
@@ -31,7 +31,7 @@ const exampleFiles = import.meta.glob<string>('./*.txt', {
 });
 
 // Parse filename to extract metadata
-function parseFilename(path: string): { order: number; category: 'dbms_xplan' | 'sql_monitor'; name: string } | null {
+function parseFilename(path: string): { order: number; category: SamplePlan['category']; name: string } | null {
   // Extract filename from path (e.g., "./01-dbms_xplan-Simple Plan.txt" -> "01-dbms_xplan-Simple Plan.txt")
   const filename = path.split('/').pop()?.replace('.txt', '') || '';
 
@@ -45,8 +45,8 @@ function parseFilename(path: string): { order: number; category: 'dbms_xplan' | 
   const [, orderStr, category, name] = match;
   const order = parseInt(orderStr, 10);
 
-  if (category !== 'dbms_xplan' && category !== 'sql_monitor') {
-    console.warn(`Invalid category in filename: ${category}. Expected: dbms_xplan or sql_monitor`);
+  if (category !== 'dbms_xplan' && category !== 'sql_monitor' && category !== 'json') {
+    console.warn(`Invalid category in filename: ${category}. Expected: dbms_xplan, sql_monitor, or json`);
     return null;
   }
 
@@ -71,4 +71,5 @@ export const SAMPLE_PLANS: SamplePlan[] = Object.entries(exampleFiles)
 export const SAMPLE_PLANS_BY_CATEGORY = {
   dbms_xplan: SAMPLE_PLANS.filter((p) => p.category === 'dbms_xplan'),
   sql_monitor: SAMPLE_PLANS.filter((p) => p.category === 'sql_monitor'),
+  json: SAMPLE_PLANS.filter((p) => p.category === 'json'),
 };
