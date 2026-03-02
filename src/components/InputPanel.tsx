@@ -129,6 +129,23 @@ export function InputPanel() {
                     {sample.name}
                   </button>
                 ))}
+                {SAMPLE_PLANS_BY_CATEGORY.json.length > 0 && (
+                  <>
+                    <div className="border-t border-neutral-200 dark:border-neutral-700 my-1" />
+                    <div className="px-3 py-1.5 text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
+                      JSON (V$SQL_PLAN)
+                    </div>
+                    {SAMPLE_PLANS_BY_CATEGORY.json.map((sample) => (
+                      <button
+                        key={sample.name}
+                        onClick={() => handleLoadSample(sample)}
+                        className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                      >
+                        {sample.name}
+                      </button>
+                    ))}
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -141,7 +158,7 @@ export function InputPanel() {
           <textarea
             value={rawInput}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Paste your DBMS_XPLAN output or SQL Monitor report here..."
+            placeholder="Paste your DBMS_XPLAN output, SQL Monitor report, or JSON plan here..."
             className="w-full h-36 p-2.5 font-mono text-xs bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-blue-500/60 text-neutral-900 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-neutral-400"
           />
 

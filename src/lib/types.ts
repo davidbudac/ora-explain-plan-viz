@@ -32,7 +32,7 @@ export interface PlanNode {
   children: PlanNode[];
 }
 
-export type PlanSource = 'dbms_xplan' | 'sql_monitor_text' | 'sql_monitor_xml';
+export type PlanSource = 'dbms_xplan' | 'sql_monitor_text' | 'sql_monitor_xml' | 'json';
 export type NodeIndicatorMetric = 'cost' | 'actualRows' | 'actualTime' | 'starts' | 'activityPercent';
 
 export interface ParsedPlan {
