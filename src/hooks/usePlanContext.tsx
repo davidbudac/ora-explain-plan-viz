@@ -457,8 +457,8 @@ interface PlanContextValue {
   // Share URL
   sharePlan: () => Promise<{ ok: true; url: string } | { ok: false; error: string }>;
 
-  // Export PNG
-  exportContainerRef: React.RefObject<HTMLDivElement | null>;
+  // Export PNG — HierarchicalView registers a capture function, Header calls it
+  exportPngFnRef: React.MutableRefObject<(() => Promise<void>) | null>;
 }
 
 const PlanContext = createContext<PlanContextValue | null>(null);
@@ -466,7 +466,7 @@ const PlanContext = createContext<PlanContextValue | null>(null);
 export function PlanProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(planReducer, undefined, getInitialState);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const exportContainerRef = useRef<HTMLDivElement | null>(null);
+  const exportPngFnRef = useRef<(() => Promise<void>) | null>(null);
 
   // Derive active slot values for backward compatibility
   const activeSlot = state.plans[state.activePlanIndex];
@@ -948,7 +948,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     sharePlan,
 
     // Export PNG
-    exportContainerRef,
+    exportPngFnRef,
   };
 
   return <PlanContext.Provider value={value}>{children}</PlanContext.Provider>;

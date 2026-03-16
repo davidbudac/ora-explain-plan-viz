@@ -1,5 +1,4 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
-import { toPng } from 'html-to-image';
 import { usePlan } from '../hooks/usePlanContext';
 import type { ColorScheme } from '../lib/types';
 import { hasAnnotations } from '../lib/annotations';
@@ -22,7 +21,7 @@ export function Header() {
     hasUnsavedAnnotations,
     exportAnnotatedPlan,
     importAnnotatedPlan,
-    exportContainerRef,
+    exportPngFnRef,
     sharePlan,
     rawInput,
   } = usePlan();
@@ -36,22 +35,17 @@ export function Header() {
   };
 
   const handleExportPng = useCallback(async () => {
-    const el = exportContainerRef.current;
-    if (!el) return;
+    const fn = exportPngFnRef.current;
+    if (!fn) return;
     setExporting(true);
     try {
-      const bgColor = theme === 'dark' ? '#171717' : '#ffffff';
-      const dataUrl = await toPng(el, { backgroundColor: bgColor, pixelRatio: 2 });
-      const link = document.createElement('a');
-      link.download = `plan-${Date.now()}.png`;
-      link.href = dataUrl;
-      link.click();
+      await fn();
     } catch {
       // Silently fail — nothing critical
     } finally {
       setExporting(false);
     }
-  }, [exportContainerRef, theme]);
+  }, [exportPngFnRef]);
 
   const handleShare = useCallback(async () => {
     const result = await sharePlan();
