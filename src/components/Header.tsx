@@ -1,4 +1,5 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState, useEffect } from 'react';
+import { toPng } from 'html-to-image';
 import { usePlan } from '../hooks/usePlanContext';
 import type { ColorScheme } from '../lib/types';
 import { hasAnnotations } from '../lib/annotations';
@@ -21,12 +22,57 @@ export function Header() {
     hasUnsavedAnnotations,
     exportAnnotatedPlan,
     importAnnotatedPlan,
+    exportContainerRef,
+    sharePlan,
+    rawInput,
   } = usePlan();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [exporting, setExporting] = useState(false);
+  const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [shareError, setShareError] = useState<string | null>(null);
 
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
+
+  const handleExportPng = useCallback(async () => {
+    const el = exportContainerRef.current;
+    if (!el) return;
+    setExporting(true);
+    try {
+      const bgColor = theme === 'dark' ? '#171717' : '#ffffff';
+      const dataUrl = await toPng(el, { backgroundColor: bgColor, pixelRatio: 2 });
+      const link = document.createElement('a');
+      link.download = `plan-${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch {
+      // Silently fail — nothing critical
+    } finally {
+      setExporting(false);
+    }
+  }, [exportContainerRef, theme]);
+
+  const handleShare = useCallback(async () => {
+    const result = await sharePlan();
+    if (result.ok) {
+      setShareStatus('copied');
+      setShareError(null);
+    } else {
+      setShareStatus('error');
+      setShareError(result.error);
+    }
+  }, [sharePlan]);
+
+  // Reset share status after a delay
+  useEffect(() => {
+    if (shareStatus === 'idle') return;
+    const timer = setTimeout(() => {
+      setShareStatus('idle');
+      setShareError(null);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [shareStatus]);
 
   const handleLoad = useCallback(() => {
     fileInputRef.current?.click();
@@ -103,6 +149,50 @@ export function Header() {
             </svg>
           </button>
         )}
+
+        {/* Export as PNG */}
+        <button
+          onClick={handleExportPng}
+          disabled={!parsedPlan || exporting}
+          className="h-8 w-8 flex items-center justify-center rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Export plan as PNG"
+        >
+          <svg className="w-4 h-4 text-neutral-700 dark:text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </button>
+
+        {/* Share plan via URL */}
+        <div className="relative">
+          <button
+            onClick={handleShare}
+            disabled={!rawInput}
+            className={`h-8 w-8 flex items-center justify-center rounded-md border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+              shareStatus === 'copied'
+                ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30'
+                : shareStatus === 'error'
+                  ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30'
+                  : 'border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700'
+            }`}
+            title={shareStatus === 'copied' ? 'URL copied to clipboard!' : shareStatus === 'error' ? shareError ?? 'Error' : 'Share plan via URL'}
+          >
+            {shareStatus === 'copied' ? (
+              <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 text-neutral-700 dark:text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+            )}
+          </button>
+          {shareStatus === 'error' && shareError && (
+            <div className="absolute right-0 top-full mt-1 z-50 w-64 p-2 text-xs text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-800 rounded-md shadow-lg">
+              {shareError}
+            </div>
+          )}
+        </div>
 
         <select
           value={colorScheme}

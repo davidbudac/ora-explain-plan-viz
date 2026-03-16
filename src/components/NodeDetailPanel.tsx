@@ -189,6 +189,37 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           </div>
         )}
 
+        {/* Bind Variables */}
+        {parsedPlan?.bindVariables && parsedPlan.bindVariables.length > 0 && (
+          <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
+            <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">
+              Bind Variables ({parsedPlan.bindVariables.length})
+            </h4>
+            <div className="space-y-1.5">
+              {parsedPlan.bindVariables.map((bind, idx) => (
+                <div key={bind.name + idx} className="flex items-start gap-2 text-xs">
+                  <span className="font-mono text-blue-600 dark:text-blue-400 shrink-0">{bind.name}</span>
+                  {bind.type && (
+                    <span className="px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 rounded text-[10px] font-medium shrink-0">
+                      {bind.type}
+                    </span>
+                  )}
+                  <span className="flex-1 min-w-0 flex items-center gap-1">
+                    {bind.value === null ? (
+                      <span className="italic text-neutral-400 dark:text-neutral-500">NULL</span>
+                    ) : (
+                      <>
+                        <code className="font-mono text-neutral-800 dark:text-neutral-200 truncate block">{bind.value}</code>
+                        <CopyButton text={bind.value} label={`Copy ${bind.name} value`} />
+                      </>
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Annotation Groups */}
         {annotations.groups.length > 0 && (
           <div className="p-3">

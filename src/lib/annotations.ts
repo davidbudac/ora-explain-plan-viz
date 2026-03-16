@@ -140,7 +140,7 @@ export function hasAnnotations(state: AnnotationState): boolean {
 
 // --- Serialization ---
 
-interface SerializedAnnotationState {
+export interface SerializedAnnotationState {
   nodeAnnotations: Record<string, NodeAnnotation>;
   nodeHighlights: Record<string, NodeHighlight>;
   groups: AnnotationGroup[];
