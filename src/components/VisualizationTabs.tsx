@@ -4,6 +4,7 @@ import { HierarchicalView } from './views/HierarchicalView';
 import { SankeyView } from './views/SankeyView';
 import { TabularView } from './views/TabularView';
 import { CompareView } from './views/CompareView';
+import { SqlTextView } from './views/SqlTextView';
 
 const tabs: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
   {
@@ -39,6 +40,15 @@ const tabs: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'sql',
+    label: 'SQL',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
       </svg>
     ),
   },
@@ -88,7 +98,7 @@ export function VisualizationTabs() {
       {/* Tab bar */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 gap-2">
         <div className="flex gap-1">
-          {tabs.filter(tab => tab.id !== 'compare').map((tab) => (
+          {tabs.filter(tab => tab.id !== 'compare' && (tab.id !== 'sql' || parsedPlan.sqlText)).map((tab) => (
             <button
               key={tab.id}
               onClick={() => setViewMode(tab.id)}
@@ -228,6 +238,7 @@ export function VisualizationTabs() {
             </pre>
           </div>
         )}
+        {viewMode === 'sql' && <SqlTextView />}
       </div>
     </div>
   );
