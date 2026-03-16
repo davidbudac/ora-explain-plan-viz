@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, memo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, memo, type RefCallback } from 'react';
 import {
   ReactFlow,
   Background,
@@ -347,8 +347,12 @@ function fallbackDagreLayout(
 }
 
 function HierarchicalViewContent() {
-  const { parsedPlan, selectedNodeId, selectedNodeIds, selectNode, theme, filters, colorScheme, nodeIndicatorMetric, filteredNodeIds, nodeById, hottestNodeId, annotations } = usePlan();
+  const { parsedPlan, selectedNodeId, selectedNodeIds, selectNode, theme, filters, colorScheme, nodeIndicatorMetric, filteredNodeIds, nodeById, hottestNodeId, annotations, exportContainerRef } = usePlan();
   const containerRef = useRef<HTMLDivElement>(null);
+  const combinedRef: RefCallback<HTMLDivElement> = useCallback((el: HTMLDivElement | null) => {
+    containerRef.current = el;
+    exportContainerRef.current = el;
+  }, [exportContainerRef]);
   const { fitView, setNodes: rfSetNodes } = useReactFlow();
   const selectedNodeIdSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
 
@@ -882,7 +886,7 @@ function HierarchicalViewContent() {
   }
 
   return (
-    <div ref={containerRef} className="w-full h-full">
+    <div ref={combinedRef} className="w-full h-full">
       <ReactFlow
         nodes={nodes}
         edges={edges}
