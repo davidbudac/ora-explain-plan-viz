@@ -7,8 +7,10 @@ import { parseExplainPlan } from '../lib/parser';
 import { loadSettings, saveSettings, extractFilterSettings, applySettingsToFilters } from '../lib/settings';
 import { SAMPLE_PLANS } from '../examples';
 import { matchesFilters } from '../lib/filtering';
+import { getPlanFromUrl, clearPlanFromUrl, buildShareUrl } from '../lib/url';
+import type { SharePayload } from '../lib/url';
 import type { AnnotationState, AnnotationGroup, HighlightColor, AnnotatedPlanExport } from '../lib/annotations';
-import { createEmptyAnnotationState, serializeAnnotations, deserializeAnnotations, validateExport, downloadAnnotatedPlan, generateGroupId } from '../lib/annotations';
+import { createEmptyAnnotationState, hasAnnotations, serializeAnnotations, deserializeAnnotations, validateExport, downloadAnnotatedPlan, generateGroupId } from '../lib/annotations';
 
 interface PlanState {
   plans: PlanSlot[];
@@ -451,6 +453,12 @@ interface PlanContextValue {
   exportAnnotatedPlan: () => void;
   importAnnotatedPlan: (file: File) => Promise<void>;
   clearAnnotations: () => void;
+
+  // Share URL
+  sharePlan: () => Promise<{ ok: true; url: string } | { ok: false; error: string }>;
+
+  // Export PNG
+  exportContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 const PlanContext = createContext<PlanContextValue | null>(null);
@@ -458,6 +466,7 @@ const PlanContext = createContext<PlanContextValue | null>(null);
 export function PlanProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(planReducer, undefined, getInitialState);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const exportContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Derive active slot values for backward compatibility
   const activeSlot = state.plans[state.activePlanIndex];
@@ -524,11 +533,77 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('theme', state.theme);
   }, [state.theme]);
 
-  // Load default example on first mount
+  // Load plan from URL param or default example on first mount
   const hasLoadedDefaultRef = useRef(false);
   useEffect(() => {
     if (hasLoadedDefaultRef.current) return;
     hasLoadedDefaultRef.current = true;
+
+    // Check URL for shared plan first
+    const urlData = getPlanFromUrl();
+    if (urlData) {
+      clearPlanFromUrl();
+
+      if (urlData.type === 'legacy') {
+        // Old format: plain text string → load as Plan A only
+        dispatch({ type: 'SET_INPUT', payload: urlData.planText });
+        try {
+          const parsed = parseExplainPlan(urlData.planText);
+          if (parsed.rootNode) {
+            dispatch({ type: 'SET_PARSED_PLAN', payload: parsed });
+            dispatch({ type: 'SET_INPUT_PANEL_COLLAPSED', payload: true });
+          }
+        } catch {
+          // Plan from URL failed to parse — leave input for user to see
+        }
+      } else {
+        // New format: JSON payload with plans[] and optional annotations
+        const { plans, annotations } = urlData.payload;
+
+        // Restore Plan A
+        if (plans[0]?.rawInput) {
+          dispatch({ type: 'SET_ACTIVE_PLAN', payload: 0 });
+          dispatch({ type: 'SET_INPUT', payload: plans[0].rawInput });
+          try {
+            const parsed = parseExplainPlan(plans[0].rawInput);
+            if (parsed.rootNode) {
+              dispatch({ type: 'SET_PARSED_PLAN', payload: parsed });
+              dispatch({ type: 'SET_INPUT_PANEL_COLLAPSED', payload: true });
+            }
+          } catch {
+            // Plan A from URL failed to parse
+          }
+        }
+
+        // Restore Plan B (if present)
+        if (plans[1]?.rawInput) {
+          dispatch({ type: 'ADD_PLAN_SLOT' });
+          dispatch({ type: 'SET_ACTIVE_PLAN', payload: 1 });
+          dispatch({ type: 'SET_INPUT', payload: plans[1].rawInput });
+          try {
+            const parsed = parseExplainPlan(plans[1].rawInput);
+            if (parsed.rootNode) {
+              dispatch({ type: 'SET_PARSED_PLAN', payload: parsed });
+            }
+          } catch {
+            // Plan B from URL failed to parse
+          }
+          // Switch back to Plan A as active
+          dispatch({ type: 'SET_ACTIVE_PLAN', payload: 0 });
+        }
+
+        // Restore annotations (if present)
+        if (annotations) {
+          try {
+            const annotationState = deserializeAnnotations(annotations);
+            dispatch({ type: 'LOAD_ANNOTATIONS', payload: annotationState });
+          } catch {
+            // Annotations from URL failed to deserialize
+          }
+        }
+      }
+      return;
+    }
 
     // Find the default example and load it
     const defaultExample = SAMPLE_PLANS.find((p) => p.name === 'SQL Monitor XML (Nested Loops)');
@@ -762,6 +837,37 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const sharePlan = useCallback(async (): Promise<{ ok: true; url: string } | { ok: false; error: string }> => {
+    // Need at least one plan with input
+    const hasAnyInput = state.plans.some(slot => slot.rawInput);
+    if (!hasAnyInput) {
+      return { ok: false, error: 'No plan to share.' };
+    }
+
+    // Build payload with all plan slots that have input
+    const payload: SharePayload = {
+      plans: state.plans
+        .filter(slot => slot.rawInput)
+        .map(slot => ({ rawInput: slot.rawInput })),
+    };
+
+    // Include annotations if any exist
+    if (hasAnnotations(state.annotations)) {
+      payload.annotations = serializeAnnotations(state.annotations);
+    }
+
+    const result = buildShareUrl(payload);
+    if (result.ok) {
+      window.history.replaceState(null, '', result.url);
+      try {
+        await navigator.clipboard.writeText(result.url);
+      } catch {
+        // Clipboard write may fail in some contexts — URL is still in address bar
+      }
+    }
+    return result;
+  }, [state.plans, state.annotations]);
+
   const getSelectedNode = useCallback((): PlanNode | null => selectedNode, [selectedNode]);
 
   const getFilteredNodes = useCallback((): PlanNode[] => filteredNodes, [filteredNodes]);
@@ -837,6 +943,12 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     exportAnnotatedPlan,
     importAnnotatedPlan,
     clearAnnotations,
+
+    // Share URL
+    sharePlan,
+
+    // Export PNG
+    exportContainerRef,
   };
 
   return <PlanContext.Provider value={value}>{children}</PlanContext.Provider>;

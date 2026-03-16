@@ -1,3 +1,6 @@
+import type { BindVariable } from './parser/types';
+export type { BindVariable } from './parser/types';
+
 export interface PlanNode {
   id: number;
   depth: number;
@@ -52,6 +55,9 @@ export interface ParsedPlan {
   sqlId?: string;
   sqlText?: string;
   totalElapsedTime?: number;  // total execution time in milliseconds
+
+  // Bind variables from SQL Monitor XML
+  bindVariables?: BindVariable[];
 }
 
 export type PredicateType = 'access' | 'filter' | 'none';
@@ -96,7 +102,7 @@ export interface FilterState {
   minCardinalityMismatch: number;
 }
 
-export type ViewMode = 'hierarchical' | 'sankey' | 'tabular' | 'text' | 'compare';
+export type ViewMode = 'hierarchical' | 'sankey' | 'tabular' | 'text' | 'sql' | 'compare';
 export type SankeyMetric = 'rows' | 'cost' | 'actualRows' | 'actualTime';
 export type Theme = 'light' | 'dark';
 

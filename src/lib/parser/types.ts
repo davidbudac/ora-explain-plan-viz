@@ -1,5 +1,12 @@
 import type { ParsedPlan } from '../types';
 
+export interface BindVariable {
+  name: string;
+  type?: string;
+  value: string | null;
+  position?: number;
+}
+
 /**
  * Interface for plan parsers.
  * Each parser handles a specific input format.

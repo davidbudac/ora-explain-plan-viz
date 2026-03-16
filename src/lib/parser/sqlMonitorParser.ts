@@ -1,5 +1,5 @@
 import type { PlanNode, ParsedPlan } from '../types';
-import type { PlanParser } from './types';
+import type { PlanParser, BindVariable } from './types';
 
 /**
  * Parser for Oracle SQL Monitor text report output.
@@ -675,6 +675,9 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
     ? globalElapsedTimeUs / 1000
     : (rootNode?.actualTime || 0);
 
+  // Parse bind variables
+  const bindVariables = parseBindVariables(doc);
+
   return {
     planHashValue,
     sqlId,
@@ -688,6 +691,7 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
     source: 'sql_monitor_xml',
     hasActualStats,
     totalElapsedTime,
+    bindVariables: bindVariables.length > 0 ? bindVariables : undefined,
   };
 }
 
@@ -943,6 +947,56 @@ function getDirectChildInt(parent: Element, tagName: string): number | undefined
   if (!el?.textContent) return undefined;
   const num = parseInt(el.textContent.trim(), 10);
   return isNaN(num) ? undefined : num;
+}
+
+/**
+ * Parse bind variables from SQL Monitor XML.
+ * Looks in <target><bind_list><bind> and <binds><bind> at the report level.
+ */
+function parseBindVariables(doc: Document): BindVariable[] {
+  const binds: BindVariable[] = [];
+  const seen = new Set<string>();
+
+  // Collect <bind> elements from both locations
+  const bindElements: Element[] = [];
+
+  // Location 1: <target><bind_list><bind>
+  const bindList = doc.querySelector('target > bind_list');
+  if (bindList) {
+    bindList.querySelectorAll(':scope > bind').forEach(el => bindElements.push(el));
+  }
+
+  // Location 2: <binds><bind> at report level
+  const bindsSection = doc.querySelector('binds');
+  if (bindsSection) {
+    bindsSection.querySelectorAll(':scope > bind').forEach(el => bindElements.push(el));
+  }
+
+  for (const el of bindElements) {
+    const name = el.getAttribute('name') || el.getAttribute('nam');
+    if (!name) continue;
+
+    // Deduplicate by name
+    if (seen.has(name)) continue;
+    seen.add(name);
+
+    const type = el.getAttribute('type_string') || el.getAttribute('type') || undefined;
+    const pos = el.getAttribute('pos');
+    const position = pos ? parseInt(pos, 10) : undefined;
+
+    // Value: text content of the <bind> element, null if empty or absent
+    const rawValue = el.textContent?.trim();
+    const value = rawValue && rawValue.length > 0 ? rawValue : null;
+
+    binds.push({ name, type, value, position: isNaN(position as number) ? undefined : position });
+  }
+
+  // Sort by position if available, otherwise preserve document order
+  if (binds.some(b => b.position !== undefined)) {
+    binds.sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity));
+  }
+
+  return binds;
 }
 
 // ============================================================
