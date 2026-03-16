@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, memo, type RefCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import {
   ReactFlow,
   Background,
@@ -8,9 +8,12 @@ import {
   useReactFlow,
   ReactFlowProvider,
   BackgroundVariant,
+  getNodesBounds,
+  getViewportForBounds,
 } from '@xyflow/react';
 import type { Node, Edge, NodeTypes } from '@xyflow/react';
 import dagre from '@dagrejs/dagre';
+import { toPng } from 'html-to-image';
 import '@xyflow/react/dist/style.css';
 
 import { usePlan } from '../../hooks/usePlanContext';
@@ -347,13 +350,68 @@ function fallbackDagreLayout(
 }
 
 function HierarchicalViewContent() {
-  const { parsedPlan, selectedNodeId, selectedNodeIds, selectNode, theme, filters, colorScheme, nodeIndicatorMetric, filteredNodeIds, nodeById, hottestNodeId, annotations, exportContainerRef } = usePlan();
+  const { parsedPlan, selectedNodeId, selectedNodeIds, selectNode, theme, filters, colorScheme, nodeIndicatorMetric, filteredNodeIds, nodeById, hottestNodeId, annotations, exportPngFnRef } = usePlan();
   const containerRef = useRef<HTMLDivElement>(null);
-  const combinedRef: RefCallback<HTMLDivElement> = useCallback((el: HTMLDivElement | null) => {
-    containerRef.current = el;
-    exportContainerRef.current = el;
-  }, [exportContainerRef]);
-  const { fitView, setNodes: rfSetNodes } = useReactFlow();
+  const { fitView, setNodes: rfSetNodes, getNodes } = useReactFlow();
+
+  // PNG export state: when true, onlyRenderVisibleElements is disabled so all nodes render
+  const [isExporting, setIsExporting] = useState(false);
+  const exportResolveRef = useRef<(() => void) | null>(null);
+
+  // Register the full-graph PNG export function so the Header button can call it
+  useEffect(() => {
+    exportPngFnRef.current = async () => {
+      // Phase 1: disable virtualization so all nodes render in the DOM
+      await new Promise<void>((resolve) => {
+        exportResolveRef.current = resolve;
+        setIsExporting(true);
+      });
+
+      // Phase 2: all nodes are now in the DOM — capture the full graph
+      try {
+        const allNodes = getNodes();
+        const nodesBounds = getNodesBounds(allNodes);
+        const padding = 50;
+        const imageWidth = nodesBounds.width + padding * 2;
+        const imageHeight = nodesBounds.height + padding * 2;
+        const viewport = getViewportForBounds(nodesBounds, imageWidth, imageHeight, 0.5, 2, padding);
+
+        const viewportEl = containerRef.current?.querySelector('.react-flow__viewport') as HTMLElement | null;
+        if (!viewportEl) return;
+
+        const bgColor = theme === 'dark' ? '#171717' : '#ffffff';
+        const dataUrl = await toPng(viewportEl, {
+          backgroundColor: bgColor,
+          width: imageWidth,
+          height: imageHeight,
+          style: {
+            width: `${imageWidth}px`,
+            height: `${imageHeight}px`,
+            transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+          },
+        });
+        const link = document.createElement('a');
+        link.download = `plan-${Date.now()}.png`;
+        link.href = dataUrl;
+        link.click();
+      } finally {
+        setIsExporting(false);
+      }
+    };
+    return () => { exportPngFnRef.current = null; };
+  }, [exportPngFnRef, getNodes, theme]);
+
+  // When isExporting flips to true and React has rendered, resolve the promise
+  useEffect(() => {
+    if (isExporting && exportResolveRef.current) {
+      // Wait one frame to ensure React Flow has rendered all nodes
+      requestAnimationFrame(() => {
+        exportResolveRef.current?.();
+        exportResolveRef.current = null;
+      });
+    }
+  }, [isExporting]);
+
   const selectedNodeIdSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
 
   // Destructure filter values for explicit dependency tracking
@@ -886,7 +944,7 @@ function HierarchicalViewContent() {
   }
 
   return (
-    <div ref={combinedRef} className="w-full h-full">
+    <div ref={containerRef} className="w-full h-full">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -899,7 +957,7 @@ function HierarchicalViewContent() {
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.1}
         maxZoom={2}
-        onlyRenderVisibleElements
+        onlyRenderVisibleElements={!isExporting}
       >
         <Background
           variant={BackgroundVariant.Dots}
