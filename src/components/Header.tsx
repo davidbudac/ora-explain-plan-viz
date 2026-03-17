@@ -23,7 +23,9 @@ export function Header() {
     importAnnotatedPlan,
     exportPngFnRef,
     sharePlan,
-    rawInput,
+    plans,
+    viewMode,
+    treeCompareEnabled,
   } = usePlan();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [exporting, setExporting] = useState(false);
@@ -86,6 +88,8 @@ export function Header() {
 
   const showSave = parsedPlan !== null;
   const hasSomethingToSave = showSave && (hasAnnotations(annotations) || hasUnsavedAnnotations);
+  const hasAnyInput = plans.some((slot) => slot.rawInput.trim().length > 0);
+  const canExportPng = parsedPlan !== null && viewMode === 'hierarchical' && !treeCompareEnabled;
 
   return (
     <header className="h-[52px] flex items-center justify-between gap-3 px-3 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
@@ -147,7 +151,7 @@ export function Header() {
         {/* Export as PNG */}
         <button
           onClick={handleExportPng}
-          disabled={!parsedPlan || exporting}
+          disabled={!canExportPng || exporting}
           className="h-8 w-8 flex items-center justify-center rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           title="Export plan as PNG"
         >
@@ -161,7 +165,7 @@ export function Header() {
         <div className="relative">
           <button
             onClick={handleShare}
-            disabled={!rawInput}
+            disabled={!hasAnyInput}
             className={`h-8 w-8 flex items-center justify-center rounded-md border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
               shareStatus === 'copied'
                 ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30'

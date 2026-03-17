@@ -5,10 +5,10 @@ export function PlanTabs() {
 
   if (!hasMultiplePlans) return null;
 
-  const bothParsed = plans.every(p => p.parsedPlan);
+  const parsedPlanCount = plans.filter((slot) => slot.parsedPlan).length;
 
   return (
-    <div className="flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
+    <div className="flex items-center gap-1 overflow-x-auto px-3 py-1.5 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
       {plans.map((slot, index) => {
         const isActive = index === activePlanIndex && viewMode !== 'compare';
         const phv = slot.parsedPlan?.planHashValue;
@@ -16,7 +16,7 @@ export function PlanTabs() {
           <div
             key={slot.id}
             className={`
-              flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border cursor-pointer
+              shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border cursor-pointer
               ${isActive
                 ? 'bg-blue-600 text-white border-blue-600'
                 : 'text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800'
@@ -26,7 +26,9 @@ export function PlanTabs() {
             <button
               onClick={() => {
                 setActivePlan(index);
-                if (viewMode === 'compare') setViewMode('hierarchical');
+                if (viewMode === 'compare') {
+                  setViewMode('hierarchical');
+                }
               }}
               className="flex items-center gap-1.5"
             >
@@ -43,8 +45,8 @@ export function PlanTabs() {
               )}
             </button>
             <button
-              onClick={(e) => {
-                e.stopPropagation();
+              onClick={(event) => {
+                event.stopPropagation();
                 removePlanSlot(index);
               }}
               className={`
@@ -64,13 +66,13 @@ export function PlanTabs() {
         );
       })}
 
-      {bothParsed && (
+      {parsedPlanCount >= 2 && (
         <>
-          <div className="w-px h-5 bg-neutral-200 dark:bg-neutral-700 mx-1" />
+          <div className="w-px h-5 bg-neutral-200 dark:bg-neutral-700 mx-1 shrink-0" />
           <button
             onClick={() => setViewMode('compare')}
             className={`
-              flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border
+              shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border
               ${viewMode === 'compare'
                 ? 'bg-blue-600 text-white border-blue-600'
                 : 'text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800'
@@ -80,7 +82,7 @@ export function PlanTabs() {
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
-            Compare
+            Compare Table
           </button>
         </>
       )}
