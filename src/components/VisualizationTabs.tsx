@@ -129,23 +129,43 @@ export function VisualizationTabs() {
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-1.5 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
-        <div className="flex flex-wrap gap-1">
-          {visibleTabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setViewMode(tab.id)}
-              className={`
-                flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border
-                ${viewMode === tab.id
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800'}
-              `}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-1">
+            {visibleTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setViewMode(tab.id)}
+                className={`
+                  flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border
+                  ${viewMode === tab.id
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800'}
+                `}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setVisualizationMaximized(!visualizationMaximized)}
+            className="h-8 w-8 flex items-center justify-center rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+            title={visualizationMaximized ? 'Exit fullscreen visualization' : 'Maximize visualization'}
+            aria-label={visualizationMaximized ? 'Exit fullscreen visualization' : 'Maximize visualization'}
+          >
+            {visualizationMaximized ? (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 4H4v4m0 8v4h4m8-16h4v4m0 8v4h-4" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 9V4h5M20 9V4h-5M4 15v5h5m11-5v5h-5" />
+              </svg>
+            )}
+          </button>
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -230,23 +250,6 @@ export function VisualizationTabs() {
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={() => setVisualizationMaximized(!visualizationMaximized)}
-            className="h-8 w-8 flex items-center justify-center rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
-            title={visualizationMaximized ? 'Exit fullscreen visualization' : 'Maximize visualization'}
-            aria-label={visualizationMaximized ? 'Exit fullscreen visualization' : 'Maximize visualization'}
-          >
-            {visualizationMaximized ? (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 4H4v4m0 8v4h4m8-16h4v4m0 8v4h-4" />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 9V4h5M20 9V4h-5M4 15v5h5m11-5v5h-5" />
-              </svg>
-            )}
-          </button>
         </div>
       </div>
 
