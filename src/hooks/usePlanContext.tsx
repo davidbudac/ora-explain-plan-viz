@@ -1,9 +1,10 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useReducer, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, NodeIndicatorMetric, Theme, ColorScheme } from '../lib/types';
 import type { PlanSlot, CompareMetric } from '../lib/compare';
-import { createEmptySlot, DEFAULT_COMPARE_METRICS } from '../lib/compare';
-import { parseExplainPlan } from '../lib/parser';
+import { createEmptySlot, DEFAULT_COMPARE_METRICS, getPlanSlotLabel } from '../lib/compare';
+import { parseExplainPlan, splitDbmsXplanPlanBatches } from '../lib/parser';
 import { loadSettings, saveSettings, extractFilterSettings, applySettingsToFilters } from '../lib/settings';
 import { SAMPLE_PLANS } from '../examples';
 import { matchesFilters } from '../lib/filtering';
@@ -15,8 +16,10 @@ import { createEmptyAnnotationState, hasAnnotations, serializeAnnotations, deser
 interface PlanState {
   plans: PlanSlot[];
   activePlanIndex: number;
+  comparePlanIndices: [number, number];
   compareMetrics: CompareMetric[];
   viewMode: ViewMode;
+  treeCompareEnabled: boolean;
   sankeyMetric: SankeyMetric;
   nodeIndicatorMetric: NodeIndicatorMetric;
   colorScheme: ColorScheme;
@@ -26,16 +29,20 @@ interface PlanState {
   legendVisible: boolean;
   inputPanelCollapsed: boolean;
   filterPanelCollapsed: boolean;
+  visualizationMaximized: boolean;
   // Annotations (overlay, not persisted to localStorage)
   annotations: AnnotationState;
   hasUnsavedAnnotations: boolean;
 }
 
 type PlanAction =
+  | { type: 'REPLACE_PLANS'; payload: { plans: PlanSlot[]; activePlanIndex?: number } }
   | { type: 'SET_INPUT'; payload: string }
   | { type: 'SET_PARSED_PLAN'; payload: ParsedPlan }
   | { type: 'SELECT_NODE'; payload: { id: number | null; additive?: boolean } }
+  | { type: 'SELECT_NODE_FOR_PLAN'; payload: { index: number; id: number | null; additive?: boolean } }
   | { type: 'SET_VIEW_MODE'; payload: ViewMode }
+  | { type: 'SET_TREE_COMPARE_ENABLED'; payload: boolean }
   | { type: 'SET_SANKEY_METRIC'; payload: SankeyMetric }
   | { type: 'SET_NODE_INDICATOR_METRIC'; payload: NodeIndicatorMetric }
   | { type: 'SET_COLOR_SCHEME'; payload: ColorScheme }
@@ -46,9 +53,12 @@ type PlanAction =
   | { type: 'SET_LEGEND_VISIBLE'; payload: boolean }
   | { type: 'SET_INPUT_PANEL_COLLAPSED'; payload: boolean }
   | { type: 'SET_FILTER_PANEL_COLLAPSED'; payload: boolean }
+  | { type: 'SET_VISUALIZATION_MAXIMIZED'; payload: boolean }
   | { type: 'ADD_PLAN_SLOT' }
   | { type: 'REMOVE_PLAN_SLOT'; payload: number }
   | { type: 'SET_ACTIVE_PLAN'; payload: number }
+  | { type: 'SET_COMPARE_PLAN_INDICES'; payload: [number, number] }
+  | { type: 'SWAP_COMPARE_PLAN_INDICES' }
   | { type: 'SET_COMPARE_METRICS'; payload: CompareMetric[] }
   | { type: 'SET_NODE_ANNOTATION'; payload: { nodeId: number; text: string } }
   | { type: 'REMOVE_NODE_ANNOTATION'; payload: number }
@@ -105,13 +115,101 @@ const getInitialTheme = (): Theme => {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 };
 
+function getParsedPlanIndices(plans: PlanSlot[]): number[] {
+  return plans.reduce<number[]>((indices, slot, index) => {
+    if (slot.parsedPlan) {
+      indices.push(index);
+    }
+    return indices;
+  }, []);
+}
+
+function relabelPlanSlots(plans: PlanSlot[]): PlanSlot[] {
+  return plans.map((slot, index) => ({
+    ...slot,
+    id: `plan-${index}`,
+    label: getPlanSlotLabel(index),
+  }));
+}
+
+function normalizePlanState(
+  nextState: PlanState,
+  options?: { preserveTreeCompare?: boolean }
+): PlanState {
+  const plans = relabelPlanSlots(nextState.plans);
+  const activePlanIndex = Math.min(nextState.activePlanIndex, Math.max(0, plans.length - 1));
+  const parsedPlanIndices = getParsedPlanIndices(plans);
+  const comparePlanIndices = normalizeComparePlanIndices(plans, nextState.comparePlanIndices);
+  const hasComparablePair = parsedPlanIndices.length >= 2;
+
+  return {
+    ...nextState,
+    plans,
+    activePlanIndex,
+    comparePlanIndices,
+    treeCompareEnabled: hasComparablePair && (options?.preserveTreeCompare ?? nextState.treeCompareEnabled),
+    viewMode: hasComparablePair || nextState.viewMode !== 'compare' ? nextState.viewMode : 'hierarchical',
+  };
+}
+
+function getDefaultComparePlanIndices(plans: PlanSlot[]): [number, number] {
+  const parsedPlanIndices = getParsedPlanIndices(plans);
+
+  if (parsedPlanIndices.length >= 2) {
+    return [parsedPlanIndices[0], parsedPlanIndices[1]];
+  }
+
+  if (plans.length >= 2) {
+    return [0, 1];
+  }
+
+  return [0, 0];
+}
+
+function normalizeComparePlanIndices(
+  plans: PlanSlot[],
+  comparePlanIndices: [number, number]
+): [number, number] {
+  if (plans.length === 0) {
+    return [0, 0];
+  }
+
+  const parsedPlanIndices = getParsedPlanIndices(plans);
+  const availableIndices = parsedPlanIndices.length >= 2
+    ? parsedPlanIndices
+    : plans.map((_, index) => index);
+
+  if (availableIndices.length < 2) {
+    return [availableIndices[0] ?? 0, availableIndices[0] ?? 0];
+  }
+
+  let [leftIndex, rightIndex] = comparePlanIndices;
+
+  if (!availableIndices.includes(leftIndex)) {
+    leftIndex = availableIndices[0];
+  }
+
+  if (!availableIndices.includes(rightIndex) || rightIndex === leftIndex) {
+    rightIndex = availableIndices.find((index) => index !== leftIndex) ?? availableIndices[0];
+  }
+
+  if (leftIndex === rightIndex) {
+    return getDefaultComparePlanIndices(plans);
+  }
+
+  return [leftIndex, rightIndex];
+}
+
 const getInitialState = (): PlanState => {
   const settings = loadSettings();
+  const initialPlans = [createEmptySlot(0)];
   return {
-    plans: [createEmptySlot(0)],
+    plans: initialPlans,
     activePlanIndex: 0,
+    comparePlanIndices: getDefaultComparePlanIndices(initialPlans),
     compareMetrics: settings.compareMetrics ?? DEFAULT_COMPARE_METRICS,
     viewMode: settings.viewMode,
+    treeCompareEnabled: false,
     sankeyMetric: settings.sankeyMetric,
     nodeIndicatorMetric: settings.nodeIndicatorMetric,
     colorScheme: settings.colorScheme ?? 'muted',
@@ -120,20 +218,70 @@ const getInitialState = (): PlanState => {
     legendVisible: settings.legendVisible,
     inputPanelCollapsed: settings.inputPanelCollapsed,
     filterPanelCollapsed: settings.filterPanelCollapsed,
+    visualizationMaximized: false,
     annotations: createEmptyAnnotationState(),
     hasUnsavedAnnotations: false,
   };
 };
 
 function updateActiveSlot(state: PlanState, updater: (slot: PlanSlot) => PlanSlot): PlanState {
-  const plans = state.plans.map((slot, i) =>
-    i === state.activePlanIndex ? updater(slot) : slot
+  const plans = state.plans.map((slot, index) =>
+    index === state.activePlanIndex ? updater(slot) : slot
   );
   return { ...state, plans };
 }
 
+function updatePlanSlot(state: PlanState, index: number, updater: (slot: PlanSlot) => PlanSlot): PlanState {
+  const plans = state.plans.map((slot, slotIndex) =>
+    slotIndex === index ? updater(slot) : slot
+  );
+  return { ...state, plans };
+}
+
+function updateSlotSelection(slot: PlanSlot, id: number | null, additive?: boolean): PlanSlot {
+  if (id === null) {
+    return { ...slot, selectedNodeId: null, selectedNodeIds: [] };
+  }
+
+  if (!additive) {
+    return { ...slot, selectedNodeId: id, selectedNodeIds: [id] };
+  }
+
+  const isAlreadySelected = slot.selectedNodeIds.includes(id);
+  if (isAlreadySelected) {
+    const nextSelectedNodeIds = slot.selectedNodeIds.filter((nodeId) => nodeId !== id);
+    const nextPrimaryId = nextSelectedNodeIds.length > 0
+      ? nextSelectedNodeIds[nextSelectedNodeIds.length - 1]
+      : null;
+    return {
+      ...slot,
+      selectedNodeId: slot.selectedNodeId === id ? nextPrimaryId : slot.selectedNodeId,
+      selectedNodeIds: nextSelectedNodeIds,
+    };
+  }
+
+  return {
+    ...slot,
+    selectedNodeId: id,
+    selectedNodeIds: [...slot.selectedNodeIds, id],
+  };
+}
+
 function planReducer(state: PlanState, action: PlanAction): PlanState {
   switch (action.type) {
+    case 'REPLACE_PLANS': {
+      const incomingPlans = action.payload.plans.length > 0 ? action.payload.plans : [createEmptySlot(0)];
+      return normalizePlanState({
+        ...state,
+        plans: incomingPlans,
+        activePlanIndex: action.payload.activePlanIndex ?? 0,
+        comparePlanIndices: getDefaultComparePlanIndices(incomingPlans),
+        inputPanelCollapsed: incomingPlans.some((slot) => slot.parsedPlan) ? state.inputPanelCollapsed : false,
+        annotations: createEmptyAnnotationState(),
+        hasUnsavedAnnotations: false,
+      });
+    }
+
     case 'SET_INPUT':
       return updateActiveSlot(state, slot => ({ ...slot, rawInput: action.payload, error: null }));
 
@@ -141,15 +289,20 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
       const newMetric = !action.payload.hasActualStats && state.nodeIndicatorMetric !== 'cost'
         ? 'cost' as NodeIndicatorMetric
         : state.nodeIndicatorMetric;
+      const nextState = updateActiveSlot(state, slot => ({
+        ...slot,
+        parsedPlan: action.payload,
+        error: null,
+        selectedNodeId: null,
+        selectedNodeIds: [],
+      }));
+      const comparePlanIndices = normalizeComparePlanIndices(nextState.plans, state.comparePlanIndices);
+      const parsedPlanCount = nextState.plans.filter((slot) => slot.parsedPlan).length;
       return {
-        ...updateActiveSlot(state, slot => ({
-          ...slot,
-          parsedPlan: action.payload,
-          error: null,
-          selectedNodeId: null,
-          selectedNodeIds: [],
-        })),
+        ...nextState,
         nodeIndicatorMetric: newMetric,
+        comparePlanIndices,
+        treeCompareEnabled: parsedPlanCount >= 2 && state.treeCompareEnabled,
         annotations: createEmptyAnnotationState(),
         hasUnsavedAnnotations: false,
       };
@@ -157,35 +310,22 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
 
     case 'SELECT_NODE': {
       const { id, additive } = action.payload;
-      return updateActiveSlot(state, slot => {
-        if (id === null) {
-          return { ...slot, selectedNodeId: null, selectedNodeIds: [] };
-        }
-        if (!additive) {
-          return { ...slot, selectedNodeId: id, selectedNodeIds: [id] };
-        }
-        const isAlreadySelected = slot.selectedNodeIds.includes(id);
-        if (isAlreadySelected) {
-          const nextSelectedNodeIds = slot.selectedNodeIds.filter(nodeId => nodeId !== id);
-          const nextPrimaryId = nextSelectedNodeIds.length > 0
-            ? nextSelectedNodeIds[nextSelectedNodeIds.length - 1]
-            : null;
-          return {
-            ...slot,
-            selectedNodeId: slot.selectedNodeId === id ? nextPrimaryId : slot.selectedNodeId,
-            selectedNodeIds: nextSelectedNodeIds,
-          };
-        }
-        return {
-          ...slot,
-          selectedNodeId: id,
-          selectedNodeIds: [...slot.selectedNodeIds, id],
-        };
-      });
+      return updateActiveSlot(state, slot => updateSlotSelection(slot, id, additive));
+    }
+
+    case 'SELECT_NODE_FOR_PLAN': {
+      const { index, id, additive } = action.payload;
+      return updatePlanSlot(state, index, (slot) => updateSlotSelection(slot, id, additive));
     }
 
     case 'SET_VIEW_MODE':
       return { ...state, viewMode: action.payload };
+
+    case 'SET_TREE_COMPARE_ENABLED':
+      return {
+        ...state,
+        treeCompareEnabled: action.payload && getParsedPlanIndices(state.plans).length >= 2,
+      };
 
     case 'SET_SANKEY_METRIC':
       return { ...state, sankeyMetric: action.payload };
@@ -209,19 +349,28 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
       return updateActiveSlot(state, slot => ({ ...slot, error: action.payload }));
 
     case 'CLEAR_PLAN':
-      return {
-        ...updateActiveSlot(state, slot => ({
+      {
+        const nextState = updateActiveSlot(state, slot => ({
           ...slot,
           rawInput: '',
           parsedPlan: null,
           selectedNodeId: null,
           selectedNodeIds: [],
           error: null,
-        })),
-        filters: applySettingsToFilters(initialFilters, loadSettings()),
-        annotations: createEmptyAnnotationState(),
-        hasUnsavedAnnotations: false,
-      };
+        }));
+        const parsedPlanCount = nextState.plans.filter((slot) => slot.parsedPlan).length;
+        return {
+          ...nextState,
+          comparePlanIndices: normalizeComparePlanIndices(nextState.plans, state.comparePlanIndices),
+          treeCompareEnabled: parsedPlanCount >= 2 && state.treeCompareEnabled,
+          viewMode: parsedPlanCount < 2 && state.viewMode === 'compare'
+            ? 'hierarchical'
+            : state.viewMode,
+          filters: applySettingsToFilters(initialFilters, loadSettings()),
+          annotations: createEmptyAnnotationState(),
+          hasUnsavedAnnotations: false,
+        };
+      }
 
     case 'SET_LEGEND_VISIBLE':
       return { ...state, legendVisible: action.payload };
@@ -232,45 +381,53 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
     case 'SET_FILTER_PANEL_COLLAPSED':
       return { ...state, filterPanelCollapsed: action.payload };
 
+    case 'SET_VISUALIZATION_MAXIMIZED':
+      return { ...state, visualizationMaximized: action.payload };
+
     case 'ADD_PLAN_SLOT': {
-      if (state.plans.length >= 2) return state;
-      const newSlot = createEmptySlot(1);
-      return {
+      const newSlot = createEmptySlot(state.plans.length);
+      const nextPlans = [...state.plans, newSlot];
+      return normalizePlanState({
         ...state,
-        plans: [...state.plans, newSlot],
-        activePlanIndex: 1,
+        plans: nextPlans,
+        activePlanIndex: nextPlans.length - 1,
         inputPanelCollapsed: false,
-      };
+      });
     }
 
     case 'REMOVE_PLAN_SLOT': {
       const removeIndex = action.payload;
       if (state.plans.length <= 1) return state;
       const newPlans = state.plans.filter((_, i) => i !== removeIndex);
-      // Re-label remaining slots
       const relabeled = newPlans.map((slot, i) => ({
         ...slot,
         id: `plan-${i}`,
-        label: i === 0 ? 'Plan A' : 'Plan B',
+        label: getPlanSlotLabel(i),
       }));
       let newActiveIndex = state.activePlanIndex;
       if (removeIndex <= state.activePlanIndex) {
         newActiveIndex = Math.max(0, state.activePlanIndex - 1);
       }
       newActiveIndex = Math.min(newActiveIndex, relabeled.length - 1);
-      return {
+      return normalizePlanState({
         ...state,
         plans: relabeled,
         activePlanIndex: newActiveIndex,
-        // Exit compare view if going back to single plan
-        viewMode: relabeled.length < 2 && state.viewMode === 'compare'
-          ? 'hierarchical'
-          : state.viewMode,
-      };
+        comparePlanIndices: state.comparePlanIndices.map((index) => {
+          if (index === removeIndex) return -1;
+          return index > removeIndex ? index - 1 : index;
+        }) as [number, number],
+      });
     }
 
     case 'SET_ACTIVE_PLAN':
-      return { ...state, activePlanIndex: Math.min(action.payload, state.plans.length - 1) };
+      return { ...state, activePlanIndex: Math.max(0, Math.min(action.payload, state.plans.length - 1)) };
+
+    case 'SET_COMPARE_PLAN_INDICES':
+      return { ...state, comparePlanIndices: normalizeComparePlanIndices(state.plans, action.payload) };
+
+    case 'SWAP_COMPARE_PLAN_INDICES':
+      return { ...state, comparePlanIndices: [state.comparePlanIndices[1], state.comparePlanIndices[0]] };
 
     case 'SET_COMPARE_METRICS':
       return { ...state, compareMetrics: action.payload };
@@ -400,10 +557,13 @@ interface PlanContextValue {
   legendVisible: boolean;
   inputPanelCollapsed: boolean;
   filterPanelCollapsed: boolean;
+  treeCompareEnabled: boolean;
+  visualizationMaximized: boolean;
 
   // Multi-plan state
   plans: PlanSlot[];
   activePlanIndex: number;
+  comparePlanIndices: [number, number];
   canAddPlan: boolean;
   hasMultiplePlans: boolean;
   compareMetrics: CompareMetric[];
@@ -413,7 +573,9 @@ interface PlanContextValue {
   parsePlan: () => void;
   loadAndParsePlan: (input: string) => void;
   selectNode: (id: number | null, options?: { additive?: boolean }) => void;
+  selectNodeForPlan: (index: number, id: number | null, options?: { additive?: boolean }) => void;
   setViewMode: (mode: ViewMode) => void;
+  setTreeCompareEnabled: (enabled: boolean) => void;
   setSankeyMetric: (metric: SankeyMetric) => void;
   setNodeIndicatorMetric: (metric: NodeIndicatorMetric) => void;
   setColorScheme: (scheme: ColorScheme) => void;
@@ -431,6 +593,7 @@ interface PlanContextValue {
   setLegendVisible: (visible: boolean) => void;
   setInputPanelCollapsed: (collapsed: boolean) => void;
   setFilterPanelCollapsed: (collapsed: boolean) => void;
+  setVisualizationMaximized: (maximized: boolean) => void;
 
   // Annotations
   annotations: AnnotationState;
@@ -440,6 +603,8 @@ interface PlanContextValue {
   addPlanSlot: () => void;
   removePlanSlot: (index: number) => void;
   setActivePlan: (index: number) => void;
+  setComparePlanIndices: (indices: [number, number]) => void;
+  swapComparePlans: () => void;
   setCompareMetrics: (metrics: CompareMetric[]) => void;
 
   // Annotation methods
@@ -468,6 +633,72 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const exportPngFnRef = useRef<(() => Promise<void>) | null>(null);
 
+  const createPlanSlotFromInput = useCallback((input: string, index: number): PlanSlot => {
+    const slot = createEmptySlot(index);
+
+    try {
+      const parsed = parseExplainPlan(input);
+      return {
+        ...slot,
+        rawInput: input,
+        parsedPlan: parsed.rootNode ? parsed : null,
+        error: parsed.rootNode ? null : 'Could not parse the execution plan. Please check the format.',
+      };
+    } catch (err) {
+      return {
+        ...slot,
+        rawInput: input,
+        error: `Parse error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      };
+    }
+  }, []);
+
+  const buildPlanSlotsFromInputs = useCallback((inputs: string[]): PlanSlot[] => {
+    const meaningfulInputs = inputs
+      .map((input) => input.trim())
+      .filter(Boolean);
+
+    if (meaningfulInputs.length === 0) {
+      return [createEmptySlot(0)];
+    }
+
+    return meaningfulInputs.map((input, index) => createPlanSlotFromInput(input, index));
+  }, [createPlanSlotFromInput]);
+
+  const importPlanInput = useCallback((input: string, options?: { replaceAll?: boolean }) => {
+    const splitInputs = splitDbmsXplanPlanBatches(input).filter((batch) => batch.trim());
+    const shouldReplaceAll = options?.replaceAll ?? splitInputs.length > 1;
+    const slots = buildPlanSlotsFromInputs(shouldReplaceAll ? splitInputs : [input]);
+    const parsedPlanCount = slots.filter((slot) => slot.parsedPlan).length;
+
+    if (shouldReplaceAll) {
+      dispatch({ type: 'REPLACE_PLANS', payload: { plans: slots, activePlanIndex: 0 } });
+      dispatch({ type: 'CLEAR_ANNOTATIONS' });
+      dispatch({ type: 'SET_INPUT_PANEL_COLLAPSED', payload: parsedPlanCount > 0 });
+      if (parsedPlanCount === 0) {
+        dispatch({
+          type: 'SET_ERROR',
+          payload: 'Could not parse any execution plans from the input. Please check the format.',
+        });
+      }
+      return;
+    }
+
+    const [slot] = slots;
+    dispatch({ type: 'SET_INPUT', payload: input });
+
+    if (!slot?.parsedPlan) {
+      dispatch({
+        type: 'SET_ERROR',
+        payload: slot?.error ?? 'Could not parse the execution plan. Please check the format.',
+      });
+      return;
+    }
+
+    dispatch({ type: 'SET_PARSED_PLAN', payload: slot.parsedPlan });
+    dispatch({ type: 'SET_INPUT_PANEL_COLLAPSED', payload: true });
+  }, [buildPlanSlotsFromInputs]);
+
   // Derive active slot values for backward compatibility
   const activeSlot = state.plans[state.activePlanIndex];
   const rawInput = activeSlot.rawInput;
@@ -476,7 +707,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const selectedNodeIds = activeSlot.selectedNodeIds;
   const error = activeSlot.error;
 
-  const canAddPlan = state.plans.length < 2;
+  const canAddPlan = true;
   const hasMultiplePlans = state.plans.length > 1;
 
   const nodeById = useMemo(() => {
@@ -545,52 +776,15 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       clearPlanFromUrl();
 
       if (urlData.type === 'legacy') {
-        // Old format: plain text string → load as Plan A only
-        dispatch({ type: 'SET_INPUT', payload: urlData.planText });
-        try {
-          const parsed = parseExplainPlan(urlData.planText);
-          if (parsed.rootNode) {
-            dispatch({ type: 'SET_PARSED_PLAN', payload: parsed });
-            dispatch({ type: 'SET_INPUT_PANEL_COLLAPSED', payload: true });
-          }
-        } catch {
-          // Plan from URL failed to parse — leave input for user to see
-        }
+        importPlanInput(urlData.planText);
       } else {
-        // New format: JSON payload with plans[] and optional annotations
         const { plans, annotations } = urlData.payload;
-
-        // Restore Plan A
-        if (plans[0]?.rawInput) {
-          dispatch({ type: 'SET_ACTIVE_PLAN', payload: 0 });
-          dispatch({ type: 'SET_INPUT', payload: plans[0].rawInput });
-          try {
-            const parsed = parseExplainPlan(plans[0].rawInput);
-            if (parsed.rootNode) {
-              dispatch({ type: 'SET_PARSED_PLAN', payload: parsed });
-              dispatch({ type: 'SET_INPUT_PANEL_COLLAPSED', payload: true });
-            }
-          } catch {
-            // Plan A from URL failed to parse
-          }
-        }
-
-        // Restore Plan B (if present)
-        if (plans[1]?.rawInput) {
-          dispatch({ type: 'ADD_PLAN_SLOT' });
-          dispatch({ type: 'SET_ACTIVE_PLAN', payload: 1 });
-          dispatch({ type: 'SET_INPUT', payload: plans[1].rawInput });
-          try {
-            const parsed = parseExplainPlan(plans[1].rawInput);
-            if (parsed.rootNode) {
-              dispatch({ type: 'SET_PARSED_PLAN', payload: parsed });
-            }
-          } catch {
-            // Plan B from URL failed to parse
-          }
-          // Switch back to Plan A as active
-          dispatch({ type: 'SET_ACTIVE_PLAN', payload: 0 });
-        }
+        const restoredPlans = buildPlanSlotsFromInputs(plans.map((plan) => plan.rawInput));
+        dispatch({ type: 'REPLACE_PLANS', payload: { plans: restoredPlans, activePlanIndex: 0 } });
+        dispatch({
+          type: 'SET_INPUT_PANEL_COLLAPSED',
+          payload: restoredPlans.some((slot) => slot.parsedPlan),
+        });
 
         // Restore annotations (if present)
         if (annotations) {
@@ -608,18 +802,9 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     // Find the default example and load it
     const defaultExample = SAMPLE_PLANS.find((p) => p.name === 'SQL Monitor XML (Nested Loops)');
     if (defaultExample) {
-      dispatch({ type: 'SET_INPUT', payload: defaultExample.data });
-      try {
-        const parsed = parseExplainPlan(defaultExample.data);
-        if (parsed.rootNode) {
-          dispatch({ type: 'SET_PARSED_PLAN', payload: parsed });
-          dispatch({ type: 'SET_INPUT_PANEL_COLLAPSED', payload: true });
-        }
-      } catch {
-        // Silently fail - user can load manually
-      }
+      importPlanInput(defaultExample.data);
     }
-  }, []);
+  }, [buildPlanSlotsFromInputs, importPlanInput]);
 
   // Persist settings when they change (debounced)
   useEffect(() => {
@@ -654,11 +839,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     state.inputPanelCollapsed,
     state.filterPanelCollapsed,
     state.compareMetrics,
-    state.filters.animateEdges,
-    state.filters.focusSelection,
-    state.filters.nodeDisplayOptions,
-    state.filters.predicateTypes,
-    state.filters.operationTypes,
+    state.filters,
   ]);
 
   const setInput = useCallback((input: string) => {
@@ -666,50 +847,27 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const parsePlan = useCallback(() => {
-    try {
-      const parsed = parseExplainPlan(rawInput);
-      if (!parsed.rootNode) {
-        dispatch({
-          type: 'SET_ERROR',
-          payload: 'Could not parse the execution plan. Please check the format.',
-        });
-        return;
-      }
-      dispatch({ type: 'SET_PARSED_PLAN', payload: parsed });
-    } catch (err) {
-      dispatch({
-        type: 'SET_ERROR',
-        payload: `Parse error: ${err instanceof Error ? err.message : 'Unknown error'}`,
-      });
-    }
-  }, [rawInput]);
+    importPlanInput(rawInput);
+  }, [importPlanInput, rawInput]);
 
   const loadAndParsePlan = useCallback((input: string) => {
-    dispatch({ type: 'SET_INPUT', payload: input });
-    try {
-      const parsed = parseExplainPlan(input);
-      if (!parsed.rootNode) {
-        dispatch({
-          type: 'SET_ERROR',
-          payload: 'Could not parse the execution plan. Please check the format.',
-        });
-        return;
-      }
-      dispatch({ type: 'SET_PARSED_PLAN', payload: parsed });
-    } catch (err) {
-      dispatch({
-        type: 'SET_ERROR',
-        payload: `Parse error: ${err instanceof Error ? err.message : 'Unknown error'}`,
-      });
-    }
-  }, []);
+    importPlanInput(input);
+  }, [importPlanInput]);
 
   const selectNode = useCallback((id: number | null, options?: { additive?: boolean }) => {
     dispatch({ type: 'SELECT_NODE', payload: { id, additive: options?.additive } });
   }, []);
 
+  const selectNodeForPlan = useCallback((index: number, id: number | null, options?: { additive?: boolean }) => {
+    dispatch({ type: 'SELECT_NODE_FOR_PLAN', payload: { index, id, additive: options?.additive } });
+  }, []);
+
   const setViewMode = useCallback((mode: ViewMode) => {
     dispatch({ type: 'SET_VIEW_MODE', payload: mode });
+  }, []);
+
+  const setTreeCompareEnabled = useCallback((enabled: boolean) => {
+    dispatch({ type: 'SET_TREE_COMPARE_ENABLED', payload: enabled });
   }, []);
 
   const setSankeyMetric = useCallback((metric: SankeyMetric) => {
@@ -748,6 +906,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_FILTER_PANEL_COLLAPSED', payload: collapsed });
   }, []);
 
+  const setVisualizationMaximized = useCallback((maximized: boolean) => {
+    dispatch({ type: 'SET_VISUALIZATION_MAXIMIZED', payload: maximized });
+  }, []);
+
   const addPlanSlot = useCallback(() => {
     dispatch({ type: 'ADD_PLAN_SLOT' });
   }, []);
@@ -758,6 +920,14 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   const setActivePlan = useCallback((index: number) => {
     dispatch({ type: 'SET_ACTIVE_PLAN', payload: index });
+  }, []);
+
+  const setComparePlanIndices = useCallback((indices: [number, number]) => {
+    dispatch({ type: 'SET_COMPARE_PLAN_INDICES', payload: indices });
+  }, []);
+
+  const swapComparePlans = useCallback(() => {
+    dispatch({ type: 'SWAP_COMPARE_PLAN_INDICES' });
   }, []);
 
   const setCompareMetrics = useCallback((metrics: CompareMetric[]) => {
@@ -890,10 +1060,13 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     legendVisible: state.legendVisible,
     inputPanelCollapsed: state.inputPanelCollapsed,
     filterPanelCollapsed: state.filterPanelCollapsed,
+    treeCompareEnabled: state.treeCompareEnabled,
+    visualizationMaximized: state.visualizationMaximized,
 
     // Multi-plan state
     plans: state.plans,
     activePlanIndex: state.activePlanIndex,
+    comparePlanIndices: state.comparePlanIndices,
     canAddPlan,
     hasMultiplePlans,
     compareMetrics: state.compareMetrics,
@@ -903,7 +1076,9 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     parsePlan,
     loadAndParsePlan,
     selectNode,
+    selectNodeForPlan,
     setViewMode,
+    setTreeCompareEnabled,
     setSankeyMetric,
     setNodeIndicatorMetric,
     setColorScheme,
@@ -921,6 +1096,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setLegendVisible,
     setInputPanelCollapsed,
     setFilterPanelCollapsed,
+    setVisualizationMaximized,
 
     // Annotations
     annotations: state.annotations,
@@ -930,6 +1106,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     addPlanSlot,
     removePlanSlot,
     setActivePlan,
+    setComparePlanIndices,
+    swapComparePlans,
     setCompareMetrics,
 
     // Annotation methods

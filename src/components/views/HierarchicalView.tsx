@@ -20,7 +20,8 @@ import { usePlan } from '../../hooks/usePlanContext';
 import { PlanNodeMemo } from '../nodes/PlanNode';
 import { formatNumberShort, computeCardinalityRatio, cardinalityRatioSeverity } from '../../lib/format';
 import type { PlanNode, NodeDisplayOptions } from '../../lib/types';
-import { getHighlightColorDef } from '../../lib/annotations';
+import { createEmptyAnnotationState, getHighlightColorDef } from '../../lib/annotations';
+import { matchesFilters } from '../../lib/filtering';
 
 // Query block group component
 interface QueryBlockGroupData extends Record<string, unknown> {
@@ -157,6 +158,7 @@ function calculateNodeHeight(
 // Extra padding to ensure query block groups don't overlap
 const NODE_H_SPACING = 80;
 const NODE_V_SPACING = 80;
+const EMPTY_SELECTED_NODE_IDS: number[] = [];
 
 // Custom tree layout that ensures subtrees never overlap
 // Each subtree gets its own horizontal region based on its total width
@@ -349,10 +351,66 @@ function fallbackDagreLayout(
   return { nodes: layoutedNodes, edges };
 }
 
-function HierarchicalViewContent() {
-  const { parsedPlan, selectedNodeId, selectedNodeIds, selectNode, theme, filters, colorScheme, nodeIndicatorMetric, filteredNodeIds, nodeById, hottestNodeId, annotations, exportPngFnRef } = usePlan();
+interface HierarchicalViewContentProps {
+  planIndex?: number;
+  registerExport?: boolean;
+  showAnnotations?: boolean;
+}
+
+function HierarchicalViewContent({
+  planIndex,
+  registerExport = true,
+  showAnnotations = true,
+}: HierarchicalViewContentProps) {
+  const {
+    plans,
+    activePlanIndex,
+    selectNodeForPlan,
+    setActivePlan,
+    theme,
+    filters,
+    colorScheme,
+    nodeIndicatorMetric,
+    annotations,
+    exportPngFnRef,
+  } = usePlan();
+  const resolvedPlanIndex = planIndex ?? activePlanIndex;
+  const slot = plans[resolvedPlanIndex];
+  const parsedPlan = slot?.parsedPlan ?? null;
+  const selectedNodeId = slot?.selectedNodeId ?? null;
+  const selectedNodeIds = slot?.selectedNodeIds ?? EMPTY_SELECTED_NODE_IDS;
   const containerRef = useRef<HTMLDivElement>(null);
   const { fitView, setNodes: rfSetNodes, getNodes } = useReactFlow();
+  const nodeById = useMemo(() => {
+    if (!parsedPlan) return new Map<number, PlanNode>();
+    return new Map(parsedPlan.allNodes.map((node) => [node.id, node]));
+  }, [parsedPlan]);
+  const filteredNodeIds = useMemo(() => {
+    if (!parsedPlan) return new Set<number>();
+    const hasActualStats = parsedPlan.hasActualStats ?? false;
+    return new Set(
+      parsedPlan.allNodes
+        .filter((node) => matchesFilters(node, filters, hasActualStats))
+        .map((node) => node.id)
+    );
+  }, [parsedPlan, filters]);
+  const hottestNodeId = useMemo((): number | null => {
+    if (!parsedPlan?.hasActualStats) return null;
+    let maxTime = 0;
+    let hotId: number | null = null;
+    for (const node of parsedPlan.allNodes) {
+      if (node.parentId === undefined) continue;
+      if (node.actualTime !== undefined && node.actualTime > maxTime) {
+        maxTime = node.actualTime;
+        hotId = node.id;
+      }
+    }
+    return hotId;
+  }, [parsedPlan]);
+  const effectiveAnnotations = useMemo(
+    () => (showAnnotations ? annotations : createEmptyAnnotationState()),
+    [annotations, showAnnotations]
+  );
 
   // PNG export state: when true, onlyRenderVisibleElements is disabled so all nodes render
   const [isExporting, setIsExporting] = useState(false);
@@ -360,6 +418,10 @@ function HierarchicalViewContent() {
 
   // Register the full-graph PNG export function so the Header button can call it
   useEffect(() => {
+    if (!registerExport) {
+      return;
+    }
+
     exportPngFnRef.current = async () => {
       // Phase 1: disable virtualization so all nodes render in the DOM
       await new Promise<void>((resolve) => {
@@ -399,7 +461,7 @@ function HierarchicalViewContent() {
       }
     };
     return () => { exportPngFnRef.current = null; };
-  }, [exportPngFnRef, getNodes, theme]);
+  }, [exportPngFnRef, getNodes, registerExport, theme]);
 
   // When isExporting flips to true and React has rendered, resolve the promise
   useEffect(() => {
@@ -483,7 +545,7 @@ function HierarchicalViewContent() {
 
     function traverse(node: PlanNode) {
       const hasActualStats = parsedPlan!.hasActualStats || false;
-      const hasAnnotation = annotations.nodeAnnotations.has(node.id);
+      const hasAnnotation = effectiveAnnotations.nodeAnnotations.has(node.id);
       // Calculate dynamic height for this node
       const height = calculateNodeHeight(node, filters.nodeDisplayOptions, hasActualStats, hasAnnotation);
       nodeDimensions.set(node.id.toString(), { width: NODE_WIDTH, height });
@@ -632,11 +694,11 @@ function HierarchicalViewContent() {
 
     // Annotation group overlay nodes
     const annotationGroupNodes: Node[] = [];
-    if (annotations.groups.length > 0) {
+    if (effectiveAnnotations.groups.length > 0) {
       const padding = 20;
       const visualBuffer = 14;
 
-      for (const group of annotations.groups) {
+      for (const group of effectiveAnnotations.groups) {
         // Find positioned plan nodes that belong to this group
         const memberNodes = group.nodeIds
           .map((id) => layoutedResult.nodes.find((n) => n.id === id.toString()))
@@ -678,7 +740,7 @@ function HierarchicalViewContent() {
       nodes: [...groupNodes, ...annotationGroupNodes, ...layoutedResult.nodes],
       edges: edgesWithThickness,
     };
-  }, [parsedPlan, filters.nodeDisplayOptions, annotations.groups, annotations.nodeAnnotations]);
+  }, [effectiveAnnotations.groups, effectiveAnnotations.nodeAnnotations, filters.nodeDisplayOptions, parsedPlan]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutData.edges);
@@ -731,8 +793,8 @@ function HierarchicalViewContent() {
             searchText,
             filterKey, // Include filterKey to force React Flow to detect changes
             isHotNode: hottestNodeId !== null && parseInt(node.id) === hottestNodeId,
-            annotationText: annotations.nodeAnnotations.get(parseInt(node.id))?.text,
-            highlightColor: annotations.nodeHighlights.get(parseInt(node.id))?.color,
+            annotationText: effectiveAnnotations.nodeAnnotations.get(parseInt(node.id))?.text,
+            highlightColor: effectiveAnnotations.nodeHighlights.get(parseInt(node.id))?.color,
           },
         };
       })
@@ -756,8 +818,8 @@ function HierarchicalViewContent() {
     selectionSets.descendantIds,
     searchText,
     hottestNodeId,
-    annotations.nodeAnnotations,
-    annotations.nodeHighlights,
+    effectiveAnnotations.nodeAnnotations,
+    effectiveAnnotations.nodeHighlights,
   ]);
 
   // Update edge styles separately - only create new objects when values change
@@ -841,29 +903,34 @@ function HierarchicalViewContent() {
     (event: React.MouseEvent, node: Node) => {
       // Ignore clicks on group overlay nodes — treat as pane click (deselect)
       if (node.type === 'queryBlockGroup' || node.type === 'annotationGroup') {
-        selectNode(null);
+        selectNodeForPlan(resolvedPlanIndex, null);
         return;
       }
       const additive = event.metaKey || event.ctrlKey;
-      selectNode(parseInt(node.id), { additive });
+      setActivePlan(resolvedPlanIndex);
+      selectNodeForPlan(resolvedPlanIndex, parseInt(node.id), { additive });
     },
-    [selectNode]
+    [resolvedPlanIndex, selectNodeForPlan, setActivePlan]
   );
 
   const onPaneClick = useCallback(() => {
-    selectNode(null);
-  }, [selectNode]);
+    selectNodeForPlan(resolvedPlanIndex, null);
+  }, [resolvedPlanIndex, selectNodeForPlan]);
 
   // Keyboard navigation: arrow keys to move between nodes
   useEffect(() => {
+    if (resolvedPlanIndex !== activePlanIndex) {
+      return undefined;
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!parsedPlan || selectedNodeId === null) {
-        // Escape clears selection regardless
-        if (e.key === 'Escape') {
-          selectNode(null);
+        if (!parsedPlan || selectedNodeId === null) {
+          // Escape clears selection regardless
+          if (e.key === 'Escape') {
+            selectNodeForPlan(resolvedPlanIndex, null);
+          }
+          return;
         }
-        return;
-      }
 
       const node = nodeById.get(selectedNodeId);
       if (!node) return;
@@ -872,7 +939,7 @@ function HierarchicalViewContent() {
 
       switch (e.key) {
         case 'Escape':
-          selectNode(null);
+          selectNodeForPlan(resolvedPlanIndex, null);
           return;
         case 'ArrowUp': {
           // Go to parent
@@ -913,13 +980,13 @@ function HierarchicalViewContent() {
 
       if (targetId !== null) {
         e.preventDefault();
-        selectNode(targetId);
+        selectNodeForPlan(resolvedPlanIndex, targetId);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [parsedPlan, selectedNodeId, nodeById, selectNode]);
+  }, [activePlanIndex, nodeById, parsedPlan, resolvedPlanIndex, selectNodeForPlan, selectedNodeId]);
 
   // Handle container resize
   useEffect(() => {
@@ -944,7 +1011,7 @@ function HierarchicalViewContent() {
   }
 
   return (
-    <div ref={containerRef} className="w-full h-full">
+    <div ref={containerRef} className="w-full h-full min-h-[320px] min-w-0">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -971,8 +1038,20 @@ function HierarchicalViewContent() {
   );
 }
 
-export function HierarchicalView() {
-  const { parsedPlan } = usePlan();
+interface HierarchicalViewProps {
+  planIndex?: number;
+  registerExport?: boolean;
+  showAnnotations?: boolean;
+}
+
+export function HierarchicalView({
+  planIndex,
+  registerExport = true,
+  showAnnotations = true,
+}: HierarchicalViewProps) {
+  const { plans, activePlanIndex } = usePlan();
+  const resolvedPlanIndex = planIndex ?? activePlanIndex;
+  const parsedPlan = plans[resolvedPlanIndex]?.parsedPlan ?? null;
 
   // Create a unique key that changes when the plan changes to force complete remount
   // This ensures useNodesState/useEdgesState hooks are reset with fresh state
@@ -982,7 +1061,11 @@ export function HierarchicalView() {
 
   return (
     <ReactFlowProvider key={planKey}>
-      <HierarchicalViewContent />
+      <HierarchicalViewContent
+        planIndex={resolvedPlanIndex}
+        registerExport={registerExport}
+        showAnnotations={showAnnotations}
+      />
     </ReactFlowProvider>
   );
 }

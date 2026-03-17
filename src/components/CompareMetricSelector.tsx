@@ -3,9 +3,12 @@ import { ALL_COMPARE_METRICS, getMetricLabel } from '../lib/compare';
 import type { CompareMetric } from '../lib/compare';
 
 export function CompareMetricSelector() {
-  const { compareMetrics, setCompareMetrics, plans } = usePlan();
+  const { compareMetrics, setCompareMetrics, plans, comparePlanIndices } = usePlan();
 
-  const bothHaveActualStats = plans.every(p => p.parsedPlan?.hasActualStats);
+  const selectedPlans = comparePlanIndices
+    .map((index) => plans[index]?.parsedPlan)
+    .filter((plan) => Boolean(plan));
+  const bothHaveActualStats = selectedPlans.length === 2 && selectedPlans.every((plan) => plan?.hasActualStats);
 
   const availableMetrics = ALL_COMPARE_METRICS.filter(m => {
     if (['actualRows', 'actualTime', 'starts'].includes(m)) return bothHaveActualStats;

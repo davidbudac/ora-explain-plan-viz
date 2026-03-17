@@ -21,7 +21,7 @@ export function InputPanel() {
       setIsCollapsed(true);
       wasParsingRef.current = false;
     }
-  }, [parsedPlan, error]);
+  }, [error, parsedPlan, setIsCollapsed]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -163,9 +163,13 @@ export function InputPanel() {
           <textarea
             value={rawInput}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Paste your DBMS_XPLAN output, SQL Monitor report, or JSON plan here..."
+            placeholder="Paste DBMS_XPLAN output, SQL Monitor text/XML, or JSON here. Repeated DBMS_XPLAN sections with different plan hash values will be imported as separate plan tabs."
             className="w-full h-36 p-2.5 font-mono text-xs bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-blue-500/60 text-neutral-900 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-neutral-400"
           />
+
+          <div className="text-[11px] text-neutral-500 dark:text-neutral-400">
+            Repeated DBMS_XPLAN outputs in one paste are split into separate plan tabs by plan hash value.
+          </div>
 
           {error && (
             <div className="p-2 text-xs bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-red-700 dark:text-red-400">
@@ -222,7 +226,7 @@ export function InputPanel() {
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              Add Plan for Comparison
+              Add Empty Plan Tab
             </button>
           )}
         </div>

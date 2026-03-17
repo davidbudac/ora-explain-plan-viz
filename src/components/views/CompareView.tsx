@@ -73,11 +73,19 @@ function SummaryCard({ label, plan, cost, time, nodeCount, phv }: {
   nodeCount: number;
   phv?: string;
 }) {
-  const color = plan === 'A' ? 'blue' : 'violet';
+  const styles = plan === 'A'
+    ? {
+        panel: 'border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30',
+        label: 'text-blue-600 dark:text-blue-400',
+      }
+    : {
+        panel: 'border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/30',
+        label: 'text-violet-600 dark:text-violet-400',
+      };
   return (
-    <div className={`flex-1 rounded-lg border border-${color}-200 dark:border-${color}-800 bg-${color}-50/50 dark:bg-${color}-950/30 p-3`}>
+    <div className={`flex-1 rounded-lg border p-3 ${styles.panel}`}>
       <div className="flex items-center gap-2 mb-2">
-        <span className={`text-xs font-bold text-${color}-600 dark:text-${color}-400`}>{label}</span>
+        <span className={`text-xs font-bold ${styles.label}`}>{label}</span>
         {phv && <span className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400">PHV: {phv}</span>}
       </div>
       <div className="grid grid-cols-3 gap-2 text-xs">
@@ -129,10 +137,11 @@ function DeltaArrow({ delta, deltaPercent, label, lowerIsBetter = true }: {
 }
 
 export function CompareView() {
-  const { plans, compareMetrics, setActivePlan, selectNode, setViewMode } = usePlan();
+  const { plans, compareMetrics, comparePlanIndices, setActivePlan, selectNodeForPlan, setTreeCompareEnabled, setViewMode } = usePlan();
 
-  const planA = plans[0]?.parsedPlan;
-  const planB = plans[1]?.parsedPlan;
+  const [leftIndex, rightIndex] = comparePlanIndices;
+  const planA = plans[leftIndex]?.parsedPlan;
+  const planB = plans[rightIndex]?.parsedPlan;
 
   const { matches, summary } = useMemo(() => {
     if (!planA || !planB) return { matches: [] as NodeMatch[], summary: null };
@@ -151,12 +160,13 @@ export function CompareView() {
 
   const handleRowClick = (match: NodeMatch) => {
     if (match.planANode) {
-      setActivePlan(0);
-      selectNode(match.planANode.id);
+      setActivePlan(leftIndex);
+      selectNodeForPlan(leftIndex, match.planANode.id);
     } else if (match.planBNode) {
-      setActivePlan(1);
-      selectNode(match.planBNode.id);
+      setActivePlan(rightIndex);
+      selectNodeForPlan(rightIndex, match.planBNode.id);
     }
+    setTreeCompareEnabled(false);
     setViewMode('hierarchical');
   };
 
@@ -165,7 +175,7 @@ export function CompareView() {
       {/* Summary header */}
       <div className="flex items-center gap-3">
         <SummaryCard
-          label="Plan A"
+          label={plans[leftIndex]?.label ?? 'Plan A'}
           plan="A"
           cost={summary.totalCostA}
           time={summary.totalElapsedTimeA}
@@ -179,7 +189,7 @@ export function CompareView() {
           )}
         </div>
         <SummaryCard
-          label="Plan B"
+          label={plans[rightIndex]?.label ?? 'Plan B'}
           plan="B"
           cost={summary.totalCostB}
           time={summary.totalElapsedTimeB}

@@ -47,15 +47,15 @@ function getMaxRightWidth(viewportWidth: number, leftWidth: number): number {
 
 function clampPanelWidths(widths: PanelWidths, viewportWidth: number): PanelWidths {
   let left = clamp(widths.left, LEFT_PANEL_MIN, getMaxLeftWidth(viewportWidth, widths.right));
-  let right = clamp(widths.right, RIGHT_PANEL_MIN, getMaxRightWidth(viewportWidth, left));
+  const right = clamp(widths.right, RIGHT_PANEL_MIN, getMaxRightWidth(viewportWidth, left));
   left = clamp(left, LEFT_PANEL_MIN, getMaxLeftWidth(viewportWidth, right));
   return { left, right };
 }
 
 function AppContent() {
-  const { plans, viewMode } = usePlan();
+  const { plans, viewMode, treeCompareEnabled, visualizationMaximized } = usePlan();
   const anyPlanParsed = plans.some(p => p.parsedPlan);
-  const isCompareView = viewMode === 'compare';
+  const isComparisonWorkspace = viewMode === 'compare' || treeCompareEnabled;
   const [panelWidths, setPanelWidths] = useState<PanelWidths>({
     left: DEFAULT_LEFT_PANEL_WIDTH,
     right: DEFAULT_RIGHT_PANEL_WIDTH,
@@ -126,13 +126,13 @@ function AppContent() {
 
   return (
     <div className="flex flex-col h-screen bg-neutral-100 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
-      <Header />
-      <InputPanel />
-      <PlanTabs />
+      {!visualizationMaximized && <Header />}
+      {!visualizationMaximized && <InputPanel />}
+      {!visualizationMaximized && <PlanTabs />}
 
       {anyPlanParsed && (
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          {!isCompareView && (
+          {!visualizationMaximized && !isComparisonWorkspace && (
             <FilterPanel
               panelWidth={panelWidths.left}
               onResizeStart={startResize('left')}
@@ -140,9 +140,9 @@ function AppContent() {
           )}
           <div className="flex-1 flex flex-col relative min-w-0 bg-neutral-50 dark:bg-neutral-900 border-r border-l border-neutral-200 dark:border-neutral-800">
             <VisualizationTabs />
-            <Legend />
+            {!visualizationMaximized && <Legend />}
           </div>
-          {!isCompareView && (
+          {!visualizationMaximized && !isComparisonWorkspace && (
             <NodeDetailPanel
               panelWidth={panelWidths.right}
               onResizeStart={startResize('right')}
@@ -170,10 +170,10 @@ function AppContent() {
             No Execution Plan Loaded
           </h2>
           <p className="text-center max-w-md mb-4">
-            Paste your Oracle DBMS_XPLAN output in the text area above, or load one of the sample plans to get started.
+            Paste Oracle DBMS_XPLAN output in the text area above, or load one of the sample plans to get started.
           </p>
           <div className="text-sm text-neutral-400 dark:text-neutral-500">
-            Supports standard DBMS_XPLAN.DISPLAY output format
+            Repeated DBMS_XPLAN sections with different plan hash values are imported as separate plan tabs.
           </div>
         </div>
       )}
