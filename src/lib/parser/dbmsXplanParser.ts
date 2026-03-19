@@ -80,6 +80,42 @@ export const dbmsXplanParser: PlanParser = {
   },
 };
 
+export function extractDbmsXplanSegments(input: string): string[] {
+  const normalized = input.trim();
+  if (!normalized) return [];
+
+  const lines = normalized.split('\n');
+  const segmentStarts: number[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    if (/Plan hash value:\s*\d+/i.test(lines[i])) {
+      segmentStarts.push(i);
+    }
+  }
+
+  if (segmentStarts.length < 2) {
+    return dbmsXplanParser.canParse(normalized) ? [normalized] : [];
+  }
+
+  const segments: string[] = [];
+
+  for (let i = 0; i < segmentStarts.length; i++) {
+    const start = segmentStarts[i];
+    const end = segmentStarts[i + 1] ?? lines.length;
+    const segment = lines.slice(start, end).join('\n').trim();
+
+    if (segment && dbmsXplanParser.canParse(segment)) {
+      segments.push(segment);
+    }
+  }
+
+  return segments;
+}
+
+export function parseDbmsXplanPlans(input: string): ParsedPlan[] {
+  return extractDbmsXplanSegments(input).map((segment) => dbmsXplanParser.parse(segment));
+}
+
 function extractPlanHashValue(lines: string[]): string | undefined {
   for (const line of lines) {
     const match = line.match(/Plan hash value:\s*(\d+)/i);

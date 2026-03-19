@@ -1,8 +1,8 @@
 import type { ParsedPlan, PlanNode } from './types';
 
 export interface PlanSlot {
-  id: string;              // 'plan-0' | 'plan-1'
-  label: string;           // 'Plan A' | 'Plan B'
+  id: string;
+  label: string;
   rawInput: string;
   parsedPlan: ParsedPlan | null;
   error: string | null;
@@ -201,10 +201,26 @@ export const ALL_COMPARE_METRICS: CompareMetric[] = [
 
 export const DEFAULT_COMPARE_METRICS: CompareMetric[] = ['cost', 'actualRows', 'actualTime'];
 
+function getAlphaLabel(index: number): string {
+  let label = '';
+  let value = index;
+
+  do {
+    label = String.fromCharCode(65 + (value % 26)) + label;
+    value = Math.floor(value / 26) - 1;
+  } while (value >= 0);
+
+  return label;
+}
+
+export function getPlanSlotLabel(index: number): string {
+  return `Plan ${getAlphaLabel(index)}`;
+}
+
 export function createEmptySlot(index: number): PlanSlot {
   return {
     id: `plan-${index}`,
-    label: index === 0 ? 'Plan A' : 'Plan B',
+    label: getPlanSlotLabel(index),
     rawInput: '',
     parsedPlan: null,
     error: null,
