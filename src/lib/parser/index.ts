@@ -1,6 +1,6 @@
 import type { ParsedPlan } from '../types';
 import type { DetectedFormat, PlanParser } from './types';
-import { dbmsXplanParser } from './dbmsXplanParser';
+import { dbmsXplanParser, extractDbmsXplanSegments } from './dbmsXplanParser';
 import { sqlMonitorTextParser, sqlMonitorXmlParser } from './sqlMonitorParser';
 import { jsonPlanParser } from './jsonPlanParser';
 
@@ -50,6 +50,14 @@ export function parsePlan(input: string): ParsedPlan {
   return dbmsXplanParser.parse(input);
 }
 
+export const splitDbmsXplanPlanBatches = extractDbmsXplanSegments;
+
+export function parsePlans(input: string): ParsedPlan[] {
+  return splitDbmsXplanPlanBatches(input)
+    .map((batch) => parsePlan(batch))
+    .filter((plan) => Boolean(plan.rootNode));
+}
+
 /**
  * Check if the parsed plan has actual runtime statistics available.
  * @param plan Parsed plan
@@ -84,5 +92,6 @@ export type { DetectedFormat, PlanParser } from './types';
 
 // Re-export individual parsers for direct use if needed
 export { dbmsXplanParser } from './dbmsXplanParser';
+export { extractDbmsXplanSegments, parseDbmsXplanPlans } from './dbmsXplanParser';
 export { sqlMonitorTextParser, sqlMonitorXmlParser } from './sqlMonitorParser';
 export { jsonPlanParser } from './jsonPlanParser';
