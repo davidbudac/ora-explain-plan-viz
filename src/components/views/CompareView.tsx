@@ -175,7 +175,7 @@ export function CompareView() {
       {/* Summary header */}
       <div className="flex items-center gap-3">
         <SummaryCard
-          label={plans[leftIndex]?.label ?? 'Plan A'}
+          label={plans[leftIndex]?.customLabel || plans[leftIndex]?.label || 'Plan A'}
           plan="A"
           cost={summary.totalCostA}
           time={summary.totalElapsedTimeA}
@@ -189,7 +189,7 @@ export function CompareView() {
           )}
         </div>
         <SummaryCard
-          label={plans[rightIndex]?.label ?? 'Plan B'}
+          label={plans[rightIndex]?.customLabel || plans[rightIndex]?.label || 'Plan B'}
           plan="B"
           cost={summary.totalCostB}
           time={summary.totalElapsedTimeB}

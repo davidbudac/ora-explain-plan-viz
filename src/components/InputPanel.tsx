@@ -65,7 +65,7 @@ export function InputPanel() {
           </svg>
           <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
             {hasMultiplePlans && (
-              <span className="text-blue-600 dark:text-blue-400 mr-1.5">{plans[activePlanIndex].label}:</span>
+              <span className="text-blue-600 dark:text-blue-400 mr-1.5">{plans[activePlanIndex].customLabel || plans[activePlanIndex].label}:</span>
             )}
             {parsedPlan && (parsedPlan.sqlId || parsedPlan.planHashValue)
               ? [
