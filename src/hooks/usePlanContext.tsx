@@ -56,6 +56,7 @@ type PlanAction =
   | { type: 'SET_VISUALIZATION_MAXIMIZED'; payload: boolean }
   | { type: 'ADD_PLAN_SLOT' }
   | { type: 'REMOVE_PLAN_SLOT'; payload: number }
+  | { type: 'RENAME_PLAN_SLOT'; payload: { index: number; customLabel: string } }
   | { type: 'SET_ACTIVE_PLAN'; payload: number }
   | { type: 'SET_COMPARE_PLAN_INDICES'; payload: [number, number] }
   | { type: 'SWAP_COMPARE_PLAN_INDICES' }
@@ -129,6 +130,7 @@ function relabelPlanSlots(plans: PlanSlot[]): PlanSlot[] {
     ...slot,
     id: `plan-${index}`,
     label: getPlanSlotLabel(index),
+    customLabel: slot.customLabel,
   }));
 }
 
@@ -395,6 +397,15 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
       });
     }
 
+    case 'RENAME_PLAN_SLOT': {
+      const { index, customLabel } = action.payload;
+      if (index < 0 || index >= state.plans.length) return state;
+      return updatePlanSlot(state, index, (slot) => ({
+        ...slot,
+        customLabel: customLabel.trim() || undefined,
+      }));
+    }
+
     case 'REMOVE_PLAN_SLOT': {
       const removeIndex = action.payload;
       if (state.plans.length <= 1) return state;
@@ -403,6 +414,7 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
         ...slot,
         id: `plan-${i}`,
         label: getPlanSlotLabel(i),
+        customLabel: slot.customLabel,
       }));
       let newActiveIndex = state.activePlanIndex;
       if (removeIndex <= state.activePlanIndex) {
@@ -602,6 +614,7 @@ interface PlanContextValue {
   // Multi-plan actions
   addPlanSlot: () => void;
   removePlanSlot: (index: number) => void;
+  renamePlanSlot: (index: number, customLabel: string) => void;
   setActivePlan: (index: number) => void;
   setComparePlanIndices: (indices: [number, number]) => void;
   swapComparePlans: () => void;
@@ -918,6 +931,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'REMOVE_PLAN_SLOT', payload: index });
   }, []);
 
+  const renamePlanSlot = useCallback((index: number, customLabel: string) => {
+    dispatch({ type: 'RENAME_PLAN_SLOT', payload: { index, customLabel } });
+  }, []);
+
   const setActivePlan = useCallback((index: number) => {
     dispatch({ type: 'SET_ACTIVE_PLAN', payload: index });
   }, []);
@@ -1105,6 +1122,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     // Multi-plan actions
     addPlanSlot,
     removePlanSlot,
+    renamePlanSlot,
     setActivePlan,
     setComparePlanIndices,
     swapComparePlans,

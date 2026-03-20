@@ -46,7 +46,7 @@ export function ComparePlanPicker() {
       >
         {comparablePlans.map(({ slot, index }) => (
           <option key={`left-${slot.id}`} value={index}>
-            {formatPlanOptionLabel(slot.label, slot.parsedPlan?.sqlId, slot.parsedPlan?.planHashValue)}
+            {formatPlanOptionLabel(slot.customLabel || slot.label, slot.parsedPlan?.sqlId, slot.parsedPlan?.planHashValue)}
           </option>
         ))}
       </select>
@@ -69,7 +69,7 @@ export function ComparePlanPicker() {
       >
         {comparablePlans.map(({ slot, index }) => (
           <option key={`right-${slot.id}`} value={index}>
-            {formatPlanOptionLabel(slot.label, slot.parsedPlan?.sqlId, slot.parsedPlan?.planHashValue)}
+            {formatPlanOptionLabel(slot.customLabel || slot.label, slot.parsedPlan?.sqlId, slot.parsedPlan?.planHashValue)}
           </option>
         ))}
       </select>

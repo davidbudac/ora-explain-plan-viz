@@ -3,6 +3,7 @@ import type { ParsedPlan, PlanNode } from './types';
 export interface PlanSlot {
   id: string;
   label: string;
+  customLabel?: string;
   rawInput: string;
   parsedPlan: ParsedPlan | null;
   error: string | null;
