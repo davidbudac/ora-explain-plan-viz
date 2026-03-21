@@ -36,8 +36,8 @@ const QueryBlockGroupNode = memo(({ data }: { data: QueryBlockGroupData }) => {
       className="border-2 border-dashed border-violet-400 dark:border-violet-500 rounded-lg bg-violet-50/30 dark:bg-violet-900/10"
       style={{ width: data.width, height: data.height }}
     >
-      <div className="absolute -top-3 left-3 px-2 bg-white dark:bg-gray-900 text-violet-600 dark:text-violet-400 text-xs font-mono">
-        {data.label}
+      <div className="query-block-drag-handle absolute -top-3 left-3 px-2 py-0.5 bg-white dark:bg-gray-900 text-violet-600 dark:text-violet-400 text-xs font-mono cursor-grab active:cursor-grabbing select-none">
+        ⠿ {data.label}
       </div>
     </div>
   );
@@ -685,6 +685,7 @@ function HierarchicalViewContent({
 
     // Create query block groups if enabled
     const groupNodes: Node[] = [];
+    const nodeParentInfo = new Map<string, { parentId: string; offsetX: number; offsetY: number }>();
     if (effectiveDisplayOptions.showQueryBlockGrouping && nodeQueryBlocks.size > 0) {
       // Group nodes by query block
       const queryBlockGroups = new Map<string, Node[]>();
@@ -716,19 +717,29 @@ function HierarchicalViewContent({
           maxY = Math.max(maxY, node.position.y + dims.height + visualBuffer);
         }
 
+        const groupId = `group-${queryBlock}`;
+        const groupX = minX - padding;
+        const groupY = minY - padding;
+
         groupNodes.push({
-          id: `group-${queryBlock}`,
+          id: groupId,
           type: 'queryBlockGroup',
-          position: { x: minX - padding, y: minY - padding },
+          position: { x: groupX, y: groupY },
           data: {
             label: queryBlock,
             width: maxX - minX + padding * 2,
             height: maxY - minY + padding * 2,
           },
           selectable: false,
-          draggable: false,
-          zIndex: -1,
+          draggable: true,
+          dragHandle: '.query-block-drag-handle',
+          zIndex: 0,
         });
+
+        // Record parent info so member nodes get relative positions
+        for (const node of groupedNodes) {
+          nodeParentInfo.set(node.id, { parentId: groupId, offsetX: groupX, offsetY: groupY });
+        }
       });
     }
 
@@ -775,9 +786,26 @@ function HierarchicalViewContent({
       }
     }
 
+    // Adjust plan nodes that belong to query block groups:
+    // set parentId and convert positions to be relative to the group
+    const adjustedPlanNodes = layoutedResult.nodes.map(node => {
+      const parentInfo = nodeParentInfo.get(node.id);
+      if (parentInfo) {
+        return {
+          ...node,
+          parentId: parentInfo.parentId,
+          position: {
+            x: node.position.x - parentInfo.offsetX,
+            y: node.position.y - parentInfo.offsetY,
+          },
+        };
+      }
+      return node;
+    });
+
     // Group nodes should be rendered first (behind plan nodes)
     return {
-      nodes: [...groupNodes, ...annotationGroupNodes, ...layoutedResult.nodes],
+      nodes: [...groupNodes, ...annotationGroupNodes, ...adjustedPlanNodes],
       edges: edgesWithThickness,
     };
   }, [effectiveAnnotations.groups, effectiveAnnotations.nodeAnnotations, effectiveDisplayOptions, parsedPlan, colorScheme]);
