@@ -25,8 +25,8 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
     setNodeAnnotation, removeNodeAnnotation, setNodeHighlight, removeNodeHighlight,
     addAnnotationGroup, updateAnnotationGroup, removeAnnotationGroup,
     hotspotsEnabled, setHotspotsEnabled,
+    detailPanelCollapsed: isCollapsed, setDetailPanelCollapsed: setIsCollapsed,
   } = usePlan();
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const searchText = filters.searchText;
   const [showGroupDialog, setShowGroupDialog] = useState(false);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
