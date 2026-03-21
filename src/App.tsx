@@ -7,6 +7,7 @@ import { FilterPanel } from './components/FilterPanel';
 import { VisualizationTabs } from './components/VisualizationTabs';
 import { NodeDetailPanel } from './components/NodeDetailPanel';
 import { Legend } from './components/Legend';
+import { CommandPalette } from './components/CommandPalette';
 
 const LEFT_PANEL_MIN = 220;
 const RIGHT_PANEL_MIN = 260;
@@ -140,6 +141,7 @@ function AppContent() {
 
   return (
     <div className="flex flex-col h-screen bg-neutral-100 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
+      <CommandPalette />
       {!visualizationMaximized && <Header />}
       {!visualizationMaximized && <InputPanel />}
       {!visualizationMaximized && <PlanTabs />}
