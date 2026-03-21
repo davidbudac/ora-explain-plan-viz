@@ -209,6 +209,19 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
         </div>
       </div>
 
+      {/* View Customization */}
+      <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
+        <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 uppercase tracking-wide">
+          View
+        </label>
+        <CustomizeViewMenu
+          filters={filters}
+          setFilters={setFilters}
+          hasActualStats={parsedPlan.hasActualStats}
+          defaultNodeDisplayOptions={DEFAULT_NODE_DISPLAY_OPTIONS}
+        />
+      </div>
+
       {/* Search */}
       <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
         <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 uppercase tracking-wide">
@@ -248,19 +261,6 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
             )}
           </div>
         )}
-      </div>
-
-      {/* View Customization */}
-      <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
-        <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 uppercase tracking-wide">
-          View
-        </label>
-        <CustomizeViewMenu
-          filters={filters}
-          setFilters={setFilters}
-          hasActualStats={parsedPlan.hasActualStats}
-          defaultNodeDisplayOptions={DEFAULT_NODE_DISPLAY_OPTIONS}
-        />
       </div>
 
       {/* Predicate Types */}

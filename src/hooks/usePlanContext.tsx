@@ -29,7 +29,9 @@ interface PlanState {
   legendVisible: boolean;
   inputPanelCollapsed: boolean;
   filterPanelCollapsed: boolean;
+  detailPanelCollapsed: boolean;
   visualizationMaximized: boolean;
+  _preMaxPanelState: { filter: boolean; detail: boolean } | null;
   // Annotations (overlay, not persisted to localStorage)
   annotations: AnnotationState;
   hasUnsavedAnnotations: boolean;
@@ -54,6 +56,7 @@ type PlanAction =
   | { type: 'SET_LEGEND_VISIBLE'; payload: boolean }
   | { type: 'SET_INPUT_PANEL_COLLAPSED'; payload: boolean }
   | { type: 'SET_FILTER_PANEL_COLLAPSED'; payload: boolean }
+  | { type: 'SET_DETAIL_PANEL_COLLAPSED'; payload: boolean }
   | { type: 'SET_VISUALIZATION_MAXIMIZED'; payload: boolean }
   | { type: 'REMOVE_PLAN_SLOT'; payload: number }
   | { type: 'RENAME_PLAN_SLOT'; payload: { index: number; customLabel: string } }
@@ -221,7 +224,9 @@ const getInitialState = (): PlanState => {
     legendVisible: settings.legendVisible,
     inputPanelCollapsed: initialPlans.some((slot) => slot.parsedPlan) ? settings.inputPanelCollapsed : false,
     filterPanelCollapsed: settings.filterPanelCollapsed,
+    detailPanelCollapsed: false,
     visualizationMaximized: false,
+    _preMaxPanelState: null,
     annotations: createEmptyAnnotationState(),
     hasUnsavedAnnotations: false,
   };
@@ -387,8 +392,28 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
     case 'SET_FILTER_PANEL_COLLAPSED':
       return { ...state, filterPanelCollapsed: action.payload };
 
-    case 'SET_VISUALIZATION_MAXIMIZED':
-      return { ...state, visualizationMaximized: action.payload };
+    case 'SET_DETAIL_PANEL_COLLAPSED':
+      return { ...state, detailPanelCollapsed: action.payload };
+
+    case 'SET_VISUALIZATION_MAXIMIZED': {
+      if (action.payload) {
+        return {
+          ...state,
+          visualizationMaximized: true,
+          _preMaxPanelState: { filter: state.filterPanelCollapsed, detail: state.detailPanelCollapsed },
+          filterPanelCollapsed: true,
+          detailPanelCollapsed: true,
+        };
+      }
+      const saved = state._preMaxPanelState;
+      return {
+        ...state,
+        visualizationMaximized: false,
+        filterPanelCollapsed: saved?.filter ?? state.filterPanelCollapsed,
+        detailPanelCollapsed: saved?.detail ?? state.detailPanelCollapsed,
+        _preMaxPanelState: null,
+      };
+    }
 
     case 'RENAME_PLAN_SLOT': {
       const { index, customLabel } = action.payload;
@@ -562,6 +587,7 @@ interface PlanContextValue {
   legendVisible: boolean;
   inputPanelCollapsed: boolean;
   filterPanelCollapsed: boolean;
+  detailPanelCollapsed: boolean;
   treeCompareEnabled: boolean;
   visualizationMaximized: boolean;
 
@@ -599,6 +625,7 @@ interface PlanContextValue {
   setLegendVisible: (visible: boolean) => void;
   setInputPanelCollapsed: (collapsed: boolean) => void;
   setFilterPanelCollapsed: (collapsed: boolean) => void;
+  setDetailPanelCollapsed: (collapsed: boolean) => void;
   setVisualizationMaximized: (maximized: boolean) => void;
 
   // Annotations
@@ -912,6 +939,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_FILTER_PANEL_COLLAPSED', payload: collapsed });
   }, []);
 
+  const setDetailPanelCollapsed = useCallback((collapsed: boolean) => {
+    dispatch({ type: 'SET_DETAIL_PANEL_COLLAPSED', payload: collapsed });
+  }, []);
+
   const setVisualizationMaximized = useCallback((maximized: boolean) => {
     dispatch({ type: 'SET_VISUALIZATION_MAXIMIZED', payload: maximized });
   }, []);
@@ -1066,6 +1097,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     legendVisible: state.legendVisible,
     inputPanelCollapsed: state.inputPanelCollapsed,
     filterPanelCollapsed: state.filterPanelCollapsed,
+    detailPanelCollapsed: state.detailPanelCollapsed,
     treeCompareEnabled: state.treeCompareEnabled,
     visualizationMaximized: state.visualizationMaximized,
 
@@ -1103,6 +1135,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setLegendVisible,
     setInputPanelCollapsed,
     setFilterPanelCollapsed,
+    setDetailPanelCollapsed,
     setVisualizationMaximized,
 
     // Annotations
