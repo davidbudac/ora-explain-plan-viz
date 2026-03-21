@@ -216,7 +216,7 @@ const getInitialState = (): PlanState => {
     theme: getInitialTheme(),
     filters: applySettingsToFilters(initialFilters, settings),
     legendVisible: settings.legendVisible,
-    inputPanelCollapsed: settings.inputPanelCollapsed,
+    inputPanelCollapsed: initialPlans.some((slot) => slot.parsedPlan) ? settings.inputPanelCollapsed : false,
     filterPanelCollapsed: settings.filterPanelCollapsed,
     visualizationMaximized: false,
     annotations: createEmptyAnnotationState(),
