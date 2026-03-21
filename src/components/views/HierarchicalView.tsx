@@ -398,7 +398,7 @@ function HierarchicalViewContent({
     filters,
     colorScheme,
     nodeIndicatorMetric,
-    annotations,
+    getAnnotationsForPlan,
     exportPngFnRef,
     hotspotsEnabled,
     highlightStyle,
@@ -437,9 +437,10 @@ function HierarchicalViewContent({
     }
     return hotId;
   }, [parsedPlan, hotspotsEnabled]);
+  const planAnnotations = getAnnotationsForPlan(resolvedPlanIndex);
   const effectiveAnnotations = useMemo(
-    () => (showAnnotations ? annotations : createEmptyAnnotationState()),
-    [annotations, showAnnotations]
+    () => (showAnnotations ? planAnnotations : createEmptyAnnotationState()),
+    [planAnnotations, showAnnotations]
   );
 
   // PNG export state: when true, onlyRenderVisibleElements is disabled so all nodes render
