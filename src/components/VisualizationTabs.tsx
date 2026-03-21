@@ -102,7 +102,6 @@ export function VisualizationTabs() {
     rawInput,
     plans,
     treeCompareEnabled,
-    setTreeCompareEnabled,
     visualizationMaximized,
     setVisualizationMaximized,
     exportPngFnRef,
@@ -169,28 +168,6 @@ export function VisualizationTabs() {
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {viewMode === 'hierarchical' && comparablePlanCount >= 2 && (
-            <>
-              <div className="flex bg-neutral-100 dark:bg-neutral-800 rounded-md p-0.5 border border-neutral-200 dark:border-neutral-700">
-                <button
-                  type="button"
-                  onClick={() => setTreeCompareEnabled(false)}
-                  className={`px-2.5 py-1 text-xs rounded-md transition-colors font-medium ${!treeCompareEnabled ? 'bg-blue-600 text-white shadow-sm' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700'}`}
-                >
-                  Single
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTreeCompareEnabled(true)}
-                  className={`px-2.5 py-1 text-xs rounded-md transition-colors font-medium ${treeCompareEnabled ? 'bg-blue-600 text-white shadow-sm' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700'}`}
-                >
-                  Split Compare
-                </button>
-              </div>
-              {treeCompareEnabled && <ComparePlanPicker />}
-            </>
-          )}
-
           {viewMode === 'compare' && <ComparePlanPicker />}
 
           {viewMode === 'hierarchical' && parsedPlan && !treeCompareEnabled && (

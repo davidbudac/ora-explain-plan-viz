@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
+import { ComparePlanPicker } from './ComparePlanPicker';
 
 function InlineRenameLabel({
   slot,
@@ -89,7 +90,7 @@ function InlineRenameLabel({
 }
 
 export function PlanTabs() {
-  const { plans, activePlanIndex, setActivePlan, removePlanSlot, renamePlanSlot, hasMultiplePlans, viewMode, setViewMode } = usePlan();
+  const { plans, activePlanIndex, setActivePlan, removePlanSlot, renamePlanSlot, hasMultiplePlans, viewMode, setViewMode, treeCompareEnabled, setTreeCompareEnabled } = usePlan();
 
   if (!hasMultiplePlans) return null;
 
@@ -177,6 +178,28 @@ export function PlanTabs() {
             </svg>
             Compare Table
           </button>
+          {viewMode === 'hierarchical' && (
+            <>
+              <div className="w-px h-5 bg-neutral-200 dark:bg-neutral-700 mx-1 shrink-0" />
+              <div className="flex bg-neutral-100 dark:bg-neutral-800 rounded-md p-0.5 border border-neutral-200 dark:border-neutral-700 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setTreeCompareEnabled(false)}
+                  className={`px-2.5 py-1 text-xs rounded-md transition-colors font-medium ${!treeCompareEnabled ? 'bg-blue-600 text-white shadow-sm' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700'}`}
+                >
+                  Single
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTreeCompareEnabled(true)}
+                  className={`px-2.5 py-1 text-xs rounded-md transition-colors font-medium ${treeCompareEnabled ? 'bg-blue-600 text-white shadow-sm' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700'}`}
+                >
+                  Split Compare
+                </button>
+              </div>
+              {treeCompareEnabled && <ComparePlanPicker />}
+            </>
+          )}
         </>
       )}
     </div>
