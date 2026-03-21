@@ -401,6 +401,7 @@ function HierarchicalViewContent({
     annotations,
     exportPngFnRef,
     hotspotsEnabled,
+    highlightStyle,
   } = usePlan();
   const resolvedPlanIndex = planIndex ?? activePlanIndex;
   const slot = plans[resolvedPlanIndex];
@@ -834,6 +835,7 @@ function HierarchicalViewContent({
             isHotNode: hottestNodeId !== null && parseInt(node.id) === hottestNodeId,
             annotationText: effectiveAnnotations.nodeAnnotations.get(parseInt(node.id))?.text,
             highlightColor: effectiveAnnotations.nodeHighlights.get(parseInt(node.id))?.color,
+            highlightStyle,
           },
         };
       })
@@ -859,6 +861,7 @@ function HierarchicalViewContent({
     hottestNodeId,
     effectiveAnnotations.nodeAnnotations,
     effectiveAnnotations.nodeHighlights,
+    highlightStyle,
   ]);
 
   // Update edge styles separately - only create new objects when values change
