@@ -134,7 +134,7 @@ export function VisualizationTabs() {
             type="button"
             onClick={() => setVisualizationMaximized(!visualizationMaximized)}
             className="h-8 w-8 flex items-center justify-center rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
-            title={visualizationMaximized ? 'Exit fullscreen visualization' : 'Maximize visualization'}
+            title={visualizationMaximized ? 'Exit fullscreen visualization (F)' : 'Maximize visualization (F)'}
             aria-label={visualizationMaximized ? 'Exit fullscreen visualization' : 'Maximize visualization'}
           >
             {visualizationMaximized ? (
