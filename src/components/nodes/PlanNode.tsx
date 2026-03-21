@@ -58,7 +58,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   const schemeColors = COLOR_SCHEMES[colorScheme];
   const colors = schemeColors[category] || schemeColors['Other'];
   const isMono = colorScheme === 'monochrome';
-  const borderClass = colorScheme === 'professional' ? '' : isMono ? 'border' : 'border-2';
+  const isReadable = colorScheme === 'readable';
+  const borderClass = colorScheme === 'professional' ? '' : isReadable ? '' : isMono ? 'border' : 'border-2';
 
   const indicator = computeIndicatorMetric(node, nodeIndicatorMetric, totalCost, maxActualRows, maxStarts, totalElapsedTime);
 
@@ -115,7 +116,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   return (
     <div
       className={`
-        relative w-[260px] rounded-lg ${borderClass} ${isMono ? 'shadow-sm' : 'shadow-md'} transition-all duration-200
+        relative ${isReadable ? 'w-[290px]' : 'w-[260px]'} rounded-lg ${borderClass} ${isMono ? 'shadow-sm' : 'shadow-md'} transition-all duration-200
         ${colors.bg} ${colors.border}
         ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900 scale-105' : ''}
         ${isInFocusPath && !(highlightColor && showAnnotationsOverlay) ? 'ring-1 ring-blue-300/60' : ''}
@@ -143,7 +144,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
       <div className="p-3 pt-4">
         {/* Operation ID badge */}
-        <div className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-gray-700 dark:bg-gray-300 text-white dark:text-gray-900 text-xs font-bold flex items-center justify-center shadow">
+        <div className={`absolute -top-2 -left-2 ${isReadable ? 'w-7 h-7 text-sm' : 'w-6 h-6 text-xs'} rounded-full bg-gray-700 dark:bg-gray-300 text-white dark:text-gray-900 font-bold flex items-center justify-center shadow`}>
           {node.id}
         </div>
 
@@ -177,13 +178,13 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         )}
 
         {/* Operation name */}
-        <div className={`font-semibold text-sm leading-tight mb-1 ${colors.text}`} title={tooltip}>
+        <div className={`${isReadable ? 'font-bold text-base' : 'font-semibold text-sm'} leading-tight mb-1 ${colors.text}`} title={tooltip}>
           <HighlightText text={node.operation} query={searchText} />
         </div>
 
         {/* Object name if present */}
         {options.showObjectName && node.objectName && (
-          <div className="text-sm font-semibold font-mono text-neutral-700 dark:text-neutral-200 mb-2 truncate">
+          <div className={`${isReadable ? 'text-base' : 'text-sm'} font-semibold font-mono text-neutral-700 dark:text-neutral-200 mb-2 truncate`}>
             <HighlightText text={node.objectName} query={searchText} />
           </div>
         )}
@@ -206,77 +207,137 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           </div>
         )}
 
-        {/* Stats row - Estimated statistics */}
-        <div className="flex flex-wrap gap-2 text-xs">
-          {options.showRows && node.rows !== undefined && (
-            <span className="px-1.5 py-0.5 bg-white/50 dark:bg-black/20 rounded text-gray-700 dark:text-gray-300">
-              {rowsLabel}: {formatNumberShort(node.rows)}
-            </span>
-          )}
-          {options.showCost && node.cost !== undefined && (
-            <span className="px-1.5 py-0.5 bg-white/50 dark:bg-black/20 rounded text-gray-700 dark:text-gray-300">
-              Cost: {node.cost}
-            </span>
-          )}
-          {options.showBytes && node.bytes !== undefined && (
-            <span className="px-1.5 py-0.5 bg-white/50 dark:bg-black/20 rounded text-gray-700 dark:text-gray-300">
-              {formatBytes(node.bytes)}
-            </span>
-          )}
-        </div>
+        {/* Stats - Estimated & Actual statistics */}
+        {isReadable ? (
+          /* Readable mode: two-column grid layout, one stat per row */
+          <div className="mt-1 rounded bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+            {/* Estimated stats */}
+            {((options.showRows && node.rows !== undefined) || (options.showCost && node.cost !== undefined) || (options.showBytes && node.bytes !== undefined)) && (
+              <div className="grid grid-cols-[auto_1fr] text-sm">
+                {options.showRows && node.rows !== undefined && (
+                  <>
+                    <span className="px-2.5 py-1 text-neutral-500 dark:text-neutral-400 border-b border-neutral-200 dark:border-neutral-700">{rowsLabel}</span>
+                    <span className="px-2.5 py-1 text-right font-bold text-neutral-900 dark:text-neutral-100 tabular-nums border-b border-neutral-200 dark:border-neutral-700">{formatNumberShort(node.rows)}</span>
+                  </>
+                )}
+                {options.showCost && node.cost !== undefined && (
+                  <>
+                    <span className="px-2.5 py-1 text-neutral-500 dark:text-neutral-400 border-b border-neutral-200 dark:border-neutral-700">Cost</span>
+                    <span className="px-2.5 py-1 text-right font-bold text-neutral-900 dark:text-neutral-100 tabular-nums border-b border-neutral-200 dark:border-neutral-700">{node.cost}</span>
+                  </>
+                )}
+                {options.showBytes && node.bytes !== undefined && (
+                  <>
+                    <span className="px-2.5 py-1 text-neutral-500 dark:text-neutral-400 border-b border-neutral-200 dark:border-neutral-700">Bytes</span>
+                    <span className="px-2.5 py-1 text-right font-bold text-neutral-900 dark:text-neutral-100 tabular-nums border-b border-neutral-200 dark:border-neutral-700">{formatBytes(node.bytes)}</span>
+                  </>
+                )}
+              </div>
+            )}
 
-        {/* Actual runtime statistics (SQL Monitor) */}
-        {hasActualStats && (
-          <div className="flex flex-wrap gap-2 text-xs mt-1">
-            {options.showActualRows && node.actualRows !== undefined && (
-              <span className={`px-1.5 py-0.5 rounded font-medium ${
-                isMono
-                  ? 'bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300'
-                  : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
-              }`}>
-                A-Rows: {formatNumberShort(node.actualRows)}
-              </span>
-            )}
-            {options.showActualTime && node.actualTime !== undefined && (
-              <span className={`px-1.5 py-0.5 rounded font-medium ${
-                isMono
-                  ? 'bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300'
-                  : 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-              }`}>
-                A-Time: {formatTimeCompact(node.actualTime)}
-              </span>
-            )}
-            {options.showStarts && node.starts !== undefined && (
-              <span className={`px-1.5 py-0.5 rounded font-medium ${
-                isMono
-                  ? 'bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300'
-                  : node.starts >= 1000
-                    ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
-                    : 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300'
-              }`}>
-                Starts: {formatNumberShort(node.starts)}
-              </span>
+            {/* Actual runtime stats — separated by a thicker divider */}
+            {hasActualStats && ((options.showActualRows && node.actualRows !== undefined) || (options.showActualTime && node.actualTime !== undefined) || (options.showStarts && node.starts !== undefined)) && (
+              <div className="grid grid-cols-[auto_1fr] text-sm border-t-2 border-blue-300 dark:border-blue-700">
+                {options.showActualRows && node.actualRows !== undefined && (
+                  <>
+                    <span className="px-2.5 py-1 text-blue-600 dark:text-blue-400 font-medium border-b border-neutral-200 dark:border-neutral-700">A-Rows</span>
+                    <span className="px-2.5 py-1 text-right font-bold text-neutral-900 dark:text-neutral-100 tabular-nums border-b border-neutral-200 dark:border-neutral-700">{formatNumberShort(node.actualRows)}</span>
+                  </>
+                )}
+                {options.showActualTime && node.actualTime !== undefined && (
+                  <>
+                    <span className="px-2.5 py-1 text-blue-600 dark:text-blue-400 font-medium border-b border-neutral-200 dark:border-neutral-700">A-Time</span>
+                    <span className="px-2.5 py-1 text-right font-bold text-neutral-900 dark:text-neutral-100 tabular-nums border-b border-neutral-200 dark:border-neutral-700">{formatTimeCompact(node.actualTime)}</span>
+                  </>
+                )}
+                {options.showStarts && node.starts !== undefined && (
+                  <>
+                    <span className="px-2.5 py-1 text-blue-600 dark:text-blue-400 font-medium border-b border-neutral-200 dark:border-neutral-700">Starts</span>
+                    <span className="px-2.5 py-1 text-right font-bold text-neutral-900 dark:text-neutral-100 tabular-nums border-b border-neutral-200 dark:border-neutral-700">{formatNumberShort(node.starts)}</span>
+                  </>
+                )}
+              </div>
             )}
           </div>
+        ) : (
+          /* Standard modes: inline badge layout */
+          <>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {options.showRows && node.rows !== undefined && (
+                <span className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300">
+                  {rowsLabel}: {formatNumberShort(node.rows)}
+                </span>
+              )}
+              {options.showCost && node.cost !== undefined && (
+                <span className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300">
+                  Cost: {node.cost}
+                </span>
+              )}
+              {options.showBytes && node.bytes !== undefined && (
+                <span className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300">
+                  {formatBytes(node.bytes)}
+                </span>
+              )}
+            </div>
+
+            {/* Actual runtime statistics (SQL Monitor) */}
+            {hasActualStats && (
+              <div className="flex flex-wrap gap-2 text-xs mt-1">
+                {options.showActualRows && node.actualRows !== undefined && (
+                  <span className={`px-1.5 py-0.5 rounded font-medium ${
+                    isMono
+                      ? 'bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300'
+                      : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                  }`}>
+                    A-Rows: {formatNumberShort(node.actualRows)}
+                  </span>
+                )}
+                {options.showActualTime && node.actualTime !== undefined && (
+                  <span className={`px-1.5 py-0.5 rounded font-medium ${
+                    isMono
+                      ? 'bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300'
+                      : 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
+                  }`}>
+                    A-Time: {formatTimeCompact(node.actualTime)}
+                  </span>
+                )}
+                {options.showStarts && node.starts !== undefined && (
+                  <span className={`px-1.5 py-0.5 rounded font-medium ${
+                    isMono
+                      ? 'bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300'
+                      : node.starts >= 1000
+                        ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+                        : 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300'
+                  }`}>
+                    Starts: {formatNumberShort(node.starts)}
+                  </span>
+                )}
+              </div>
+            )}
+          </>
         )}
 
         {/* Predicate indicators */}
         {options.showPredicateIndicators && (node.accessPredicates || node.filterPredicates) && (
-          <div className="flex gap-1 mt-2">
+          <div className={`flex gap-1 mt-2 ${isReadable ? 'gap-1.5' : ''}`}>
             {node.accessPredicates && (
-              <span className={`px-1.5 py-0.5 text-xs rounded ${
-                isMono
-                  ? 'bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
-                  : 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200'
+              <span className={`rounded font-semibold ${
+                isReadable
+                  ? 'px-2 py-1 text-sm bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 border border-green-300 dark:border-green-700'
+                  : isMono
+                    ? 'px-1.5 py-0.5 text-xs bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
+                    : 'px-1.5 py-0.5 text-xs bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200'
               }`}>
                 Access
               </span>
             )}
             {node.filterPredicates && (
-              <span className={`px-1.5 py-0.5 text-xs rounded ${
-                isMono
-                  ? 'bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
-                  : 'bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200'
+              <span className={`rounded font-semibold ${
+                isReadable
+                  ? 'px-2 py-1 text-sm bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700'
+                  : isMono
+                    ? 'px-1.5 py-0.5 text-xs bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
+                    : 'px-1.5 py-0.5 text-xs bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200'
               }`}>
                 Filter
               </span>
