@@ -19,7 +19,7 @@
 
 export interface SamplePlan {
   name: string;
-  category: 'dbms_xplan' | 'sql_monitor' | 'json';
+  category: 'dbms_xplan' | 'sql_monitor' | 'json' | 'xbi';
   data: string;
 }
 
@@ -45,8 +45,8 @@ function parseFilename(path: string): { order: number; category: SamplePlan['cat
   const [, orderStr, category, name] = match;
   const order = parseInt(orderStr, 10);
 
-  if (category !== 'dbms_xplan' && category !== 'sql_monitor' && category !== 'json') {
-    console.warn(`Invalid category in filename: ${category}. Expected: dbms_xplan, sql_monitor, or json`);
+  if (category !== 'dbms_xplan' && category !== 'sql_monitor' && category !== 'json' && category !== 'xbi') {
+    console.warn(`Invalid category in filename: ${category}. Expected: dbms_xplan, sql_monitor, json, or xbi`);
     return null;
   }
 
@@ -72,4 +72,5 @@ export const SAMPLE_PLANS_BY_CATEGORY = {
   dbms_xplan: SAMPLE_PLANS.filter((p) => p.category === 'dbms_xplan'),
   sql_monitor: SAMPLE_PLANS.filter((p) => p.category === 'sql_monitor'),
   json: SAMPLE_PLANS.filter((p) => p.category === 'json'),
+  xbi: SAMPLE_PLANS.filter((p) => p.category === 'xbi'),
 };
