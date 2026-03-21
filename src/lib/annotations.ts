@@ -22,7 +22,7 @@ export const HIGHLIGHT_STYLES: HighlightStyleDef[] = [
 
 // --- Highlight Colors ---
 
-export type HighlightColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'pink';
+export type HighlightColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'pink' | 'white' | 'black';
 
 export interface HighlightColorDef {
   name: HighlightColor;
@@ -130,6 +130,30 @@ export const HIGHLIGHT_COLORS: HighlightColorDef[] = [
     groupBg: 'bg-pink-50/30 dark:bg-pink-900/10',
     text: 'text-pink-600 dark:text-pink-400',
   },
+  {
+    name: 'white',
+    label: 'White',
+    hex: '#e5e7eb',
+    hexDark: '#f9fafb',
+    ring: 'ring-2 ring-gray-300 dark:ring-gray-100 ring-offset-1 dark:ring-offset-gray-900',
+    chip: 'bg-white dark:bg-gray-100 border border-gray-300 dark:border-gray-400',
+    chipActive: 'bg-white dark:bg-gray-100 ring-2 ring-gray-400 dark:ring-gray-300 border border-gray-300',
+    groupBorder: 'border-gray-300 dark:border-gray-200',
+    groupBg: 'bg-white/30 dark:bg-gray-100/10',
+    text: 'text-gray-500 dark:text-gray-200',
+  },
+  {
+    name: 'black',
+    label: 'Black',
+    hex: '#374151',
+    hexDark: '#9ca3af',
+    ring: 'ring-2 ring-gray-700 dark:ring-gray-400 ring-offset-1 dark:ring-offset-gray-900',
+    chip: 'bg-gray-700 dark:bg-gray-500',
+    chipActive: 'bg-gray-800 dark:bg-gray-400 ring-2 ring-gray-500 dark:ring-gray-600',
+    groupBorder: 'border-gray-700 dark:border-gray-400',
+    groupBg: 'bg-gray-900/10 dark:bg-gray-400/10',
+    text: 'text-gray-700 dark:text-gray-400',
+  },
 ];
 
 export function getHighlightColorDef(color: HighlightColor): HighlightColorDef {
@@ -232,7 +256,7 @@ export function deserializeAnnotations(data: SerializedAnnotationState): Annotat
 
 // --- Validation ---
 
-const VALID_HIGHLIGHT_COLORS: Set<string> = new Set(['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink']);
+const VALID_HIGHLIGHT_COLORS: Set<string> = new Set(['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'white', 'black']);
 
 export function validateExport(data: unknown): data is AnnotatedPlanExport {
   if (!data || typeof data !== 'object') return false;
