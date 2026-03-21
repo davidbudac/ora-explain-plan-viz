@@ -4,7 +4,7 @@ import { formatNumberShort, formatBytes, formatTimeCompact, formatCardinalityRat
 import type { PlanNode as PlanNodeType, NodeDisplayOptions, ColorScheme, NodeIndicatorMetric } from '../../lib/types';
 import { HighlightText } from '../HighlightText';
 import { getHighlightColorDef } from '../../lib/annotations';
-import type { HighlightColor } from '../../lib/annotations';
+import type { HighlightColor, HighlightStyle } from '../../lib/annotations';
 
 export interface PlanNodeData extends Record<string, unknown> {
   label: string;
@@ -28,6 +28,7 @@ export interface PlanNodeData extends Record<string, unknown> {
   isHotNode?: boolean; // Node with highest A-Time
   annotationText?: string;
   highlightColor?: HighlightColor;
+  highlightStyle?: HighlightStyle;
 }
 
 interface PlanNodeProps {
@@ -53,6 +54,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     isHotNode,
     annotationText,
     highlightColor,
+    highlightStyle = 'circle',
   } = data;
   const category = getOperationCategory(node.operation);
   const schemeColors = COLOR_SCHEMES[colorScheme];
@@ -108,11 +110,17 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   const showHot = isHotNode && options.showHotspotBadge;
   const showAnnotationsOverlay = options.showAnnotations;
 
-  // Highlight ring priority: selected (blue) > hotNode (red) > highlight (color) > focusPath (faint blue)
-  const highlightRingClass = highlightColor && showAnnotationsOverlay && !isSelected && !showHot
-    ? getHighlightColorDef(highlightColor).ring
-    : '';
+  // Highlight is active when: has color, annotations visible, not overridden by hot node
+  const showHighlight = !!(highlightColor && showAnnotationsOverlay && !showHot);
+  const colorDef = highlightColor ? getHighlightColorDef(highlightColor) : null;
+  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+  const hexColor = colorDef ? (isDark ? colorDef.hexDark : colorDef.hex) : '';
 
+  // Style-specific classes for the outer div
+  const glowStyle = showHighlight && highlightStyle === 'glow'
+    ? { boxShadow: `0 0 16px 4px ${hexColor}80, 0 0 4px 1px ${hexColor}60` } : {};
+  const tintStyle = showHighlight && highlightStyle === 'tint'
+    ? { backgroundColor: `${hexColor}18` } : {};
   return (
     <div
       className={`
@@ -121,10 +129,68 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900 scale-105' : ''}
         ${isInFocusPath && !(highlightColor && showAnnotationsOverlay) ? 'ring-1 ring-blue-300/60' : ''}
         ${showHot && !isSelected ? 'ring-2 ring-red-500/70 ring-offset-1 dark:ring-offset-gray-900' : ''}
-        ${highlightRingClass}
       `}
-      style={{ opacity }}
+      style={{ opacity, ...glowStyle, ...tintStyle }}
     >
+      {/* Circle: hand-drawn marker stroke */}
+      {showHighlight && highlightStyle === 'circle' && (
+        <div
+          className={`absolute pointer-events-none z-10 ${colorDef!.text}`}
+          style={{ inset: '-10px' }}
+        >
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            className="w-full h-full highlight-breathe"
+            fill="none"
+            overflow="visible"
+            style={{ transform: 'rotate(-2deg)' }}
+          >
+            <path
+              d="M 18,6 C 40,2 70,1 88,5 C 100,8 104,18 102,32 C 103,58 102,76 99,88 C 96,100 86,103 72,101 C 52,103 28,102 14,98 C 2,95 -2,84 1,70 C -1,48 0,28 3,16 C 5,6 12,4 24,8"
+              stroke="currentColor"
+              strokeWidth="5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+              opacity="0.75"
+            />
+          </svg>
+        </div>
+      )}
+
+      {/* Hachure: hand-drawn diagonal hatching fill */}
+      {showHighlight && highlightStyle === 'hachure' && (
+        <svg
+          className="absolute inset-0 w-full h-full pointer-events-none z-[1] rounded-lg overflow-hidden"
+          preserveAspectRatio="none"
+        >
+          <defs>
+            <pattern
+              id={`hachure-${node.id}`}
+              patternUnits="userSpaceOnUse"
+              width="12"
+              height="12"
+              patternTransform="rotate(-45)"
+            >
+              <line x1="0" y1="2" x2="12" y2="2" stroke={hexColor} strokeWidth="2.5" strokeLinecap="round" opacity="0.35" />
+              <line x1="0" y1="6.5" x2="12" y2="7" stroke={hexColor} strokeWidth="1.5" strokeLinecap="round" opacity="0.2" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" rx="8" fill={`url(#hachure-${node.id})`} />
+        </svg>
+      )}
+
+      {/* Dot: pulsing colored circle in top-right corner */}
+      {showHighlight && highlightStyle === 'dot' && (
+        <div
+          className="absolute -top-1.5 -right-1.5 z-10 pointer-events-none highlight-breathe"
+          style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: hexColor, boxShadow: `0 0 6px 2px ${hexColor}80` }}
+        />
+      )}
+
+      {/* Underline: marker stroke under the operation name — rendered inside the node below */}
+
       <Handle type="target" position={Position.Top} className="!bg-gray-400 !w-3 !h-3" />
 
       {/* Metric indicator bar */}
@@ -178,8 +244,28 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         )}
 
         {/* Operation name */}
-        <div className={`${isReadable ? 'font-bold text-base' : 'font-semibold text-sm'} leading-tight mb-1 ${colors.text}`} title={tooltip}>
-          <HighlightText text={node.operation} query={searchText} />
+        <div className="relative">
+          <div className={`${isReadable ? 'font-bold text-base' : 'font-semibold text-sm'} leading-tight mb-1 ${colors.text}`} title={tooltip}>
+            <HighlightText text={node.operation} query={searchText} />
+          </div>
+          {showHighlight && highlightStyle === 'underline' && (
+            <svg
+              className="absolute bottom-0 left-0 w-full pointer-events-none"
+              height="6"
+              preserveAspectRatio="none"
+              viewBox="0 0 200 6"
+              overflow="visible"
+            >
+              <path
+                d="M 2,3 C 40,1 80,5 120,2 C 160,0 180,4 198,3"
+                fill="none"
+                stroke={hexColor}
+                strokeWidth="3"
+                strokeLinecap="round"
+                opacity="0.7"
+              />
+            </svg>
+          )}
         </div>
 
         {/* Object name if present */}

@@ -26,6 +26,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
     addAnnotationGroup, updateAnnotationGroup, removeAnnotationGroup,
     hotspotsEnabled, setHotspotsEnabled,
     detailPanelCollapsed: isCollapsed, setDetailPanelCollapsed: setIsCollapsed,
+    highlightStyle, setHighlightStyle,
   } = usePlan();
   const searchText = filters.searchText;
   const [showGroupDialog, setShowGroupDialog] = useState(false);
@@ -547,6 +548,8 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         nodeId={node.id}
         annotationText={annotations.nodeAnnotations.get(node.id)?.text || ''}
         highlightColor={annotations.nodeHighlights.get(node.id)?.color}
+        highlightStyle={highlightStyle}
+        onHighlightStyleChange={setHighlightStyle}
         onTextChange={setNodeAnnotation}
         onTextRemove={removeNodeAnnotation}
         onHighlightChange={setNodeHighlight}

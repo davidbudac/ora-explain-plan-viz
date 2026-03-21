@@ -1,5 +1,6 @@
 import type { FilterState, ViewMode, SankeyMetric, NodeIndicatorMetric, NodeDisplayOptions, ColorScheme } from './types';
 import type { CompareMetric } from './compare';
+import type { HighlightStyle } from './annotations';
 
 const SETTINGS_KEY = 'ora-explain-viz-settings';
 const SETTINGS_VERSION = 1;
@@ -39,6 +40,9 @@ export interface UserSettings {
 
   // Comparison metrics
   compareMetrics: CompareMetric[];
+
+  // Highlight style
+  highlightStyle: HighlightStyle;
 }
 
 const defaultNodeDisplayOptions: NodeDisplayOptions = {
@@ -75,6 +79,7 @@ const defaultSettings: UserSettings = {
   predicateTypes: [],
   operationTypes: [],
   compareMetrics: ['cost', 'actualRows', 'actualTime'],
+  highlightStyle: 'circle',
 };
 
 /**

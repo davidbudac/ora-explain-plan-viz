@@ -1,5 +1,25 @@
 import type { PlanSource } from './types';
 
+// --- Highlight Styles ---
+
+export type HighlightStyle = 'circle' | 'tint' | 'glow' | 'dot' | 'underline' | 'hachure';
+
+export interface HighlightStyleDef {
+  name: HighlightStyle;
+  label: string;
+  /** Short description for tooltip */
+  description: string;
+}
+
+export const HIGHLIGHT_STYLES: HighlightStyleDef[] = [
+  { name: 'circle', label: 'Circle', description: 'Hand-drawn marker circle' },
+  { name: 'tint', label: 'Tint', description: 'Background color wash' },
+  { name: 'glow', label: 'Glow', description: 'Colored shadow glow' },
+  { name: 'dot', label: 'Dot', description: 'Pulsing corner dot' },
+  { name: 'underline', label: 'Underline', description: 'Marker underline' },
+  { name: 'hachure', label: 'Hachure', description: 'Hand-drawn diagonal hatching fill' },
+];
+
 // --- Highlight Colors ---
 
 export type HighlightColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'pink';
@@ -7,6 +27,10 @@ export type HighlightColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'p
 export interface HighlightColorDef {
   name: HighlightColor;
   label: string;
+  /** Hex color for light mode (used by SVG strokes, box-shadows, etc.) */
+  hex: string;
+  /** Hex color for dark mode */
+  hexDark: string;
   /** Tailwind classes for the ring around a plan node */
   ring: string;
   /** Tailwind classes for a small color chip button */
@@ -25,6 +49,8 @@ export const HIGHLIGHT_COLORS: HighlightColorDef[] = [
   {
     name: 'red',
     label: 'Red',
+    hex: '#ef4444',
+    hexDark: '#f87171',
     ring: 'ring-2 ring-red-500 dark:ring-red-400 ring-offset-1 dark:ring-offset-gray-900',
     chip: 'bg-red-400 dark:bg-red-500',
     chipActive: 'bg-red-500 dark:bg-red-400 ring-2 ring-red-300 dark:ring-red-600',
@@ -35,6 +61,8 @@ export const HIGHLIGHT_COLORS: HighlightColorDef[] = [
   {
     name: 'orange',
     label: 'Orange',
+    hex: '#f97316',
+    hexDark: '#fb923c',
     ring: 'ring-2 ring-orange-500 dark:ring-orange-400 ring-offset-1 dark:ring-offset-gray-900',
     chip: 'bg-orange-400 dark:bg-orange-500',
     chipActive: 'bg-orange-500 dark:bg-orange-400 ring-2 ring-orange-300 dark:ring-orange-600',
@@ -45,6 +73,8 @@ export const HIGHLIGHT_COLORS: HighlightColorDef[] = [
   {
     name: 'yellow',
     label: 'Yellow',
+    hex: '#eab308',
+    hexDark: '#facc15',
     ring: 'ring-2 ring-yellow-500 dark:ring-yellow-400 ring-offset-1 dark:ring-offset-gray-900',
     chip: 'bg-yellow-400 dark:bg-yellow-500',
     chipActive: 'bg-yellow-500 dark:bg-yellow-400 ring-2 ring-yellow-300 dark:ring-yellow-600',
@@ -55,6 +85,8 @@ export const HIGHLIGHT_COLORS: HighlightColorDef[] = [
   {
     name: 'green',
     label: 'Green',
+    hex: '#22c55e',
+    hexDark: '#4ade80',
     ring: 'ring-2 ring-green-500 dark:ring-green-400 ring-offset-1 dark:ring-offset-gray-900',
     chip: 'bg-green-400 dark:bg-green-500',
     chipActive: 'bg-green-500 dark:bg-green-400 ring-2 ring-green-300 dark:ring-green-600',
@@ -65,6 +97,8 @@ export const HIGHLIGHT_COLORS: HighlightColorDef[] = [
   {
     name: 'blue',
     label: 'Blue',
+    hex: '#3b82f6',
+    hexDark: '#60a5fa',
     ring: 'ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-1 dark:ring-offset-gray-900',
     chip: 'bg-blue-400 dark:bg-blue-500',
     chipActive: 'bg-blue-500 dark:bg-blue-400 ring-2 ring-blue-300 dark:ring-blue-600',
@@ -75,6 +109,8 @@ export const HIGHLIGHT_COLORS: HighlightColorDef[] = [
   {
     name: 'purple',
     label: 'Purple',
+    hex: '#a855f7',
+    hexDark: '#c084fc',
     ring: 'ring-2 ring-purple-500 dark:ring-purple-400 ring-offset-1 dark:ring-offset-gray-900',
     chip: 'bg-purple-400 dark:bg-purple-500',
     chipActive: 'bg-purple-500 dark:bg-purple-400 ring-2 ring-purple-300 dark:ring-purple-600',
@@ -85,6 +121,8 @@ export const HIGHLIGHT_COLORS: HighlightColorDef[] = [
   {
     name: 'pink',
     label: 'Pink',
+    hex: '#ec4899',
+    hexDark: '#f472b6',
     ring: 'ring-2 ring-pink-500 dark:ring-pink-400 ring-offset-1 dark:ring-offset-gray-900',
     chip: 'bg-pink-400 dark:bg-pink-500',
     chipActive: 'bg-pink-500 dark:bg-pink-400 ring-2 ring-pink-300 dark:ring-pink-600',

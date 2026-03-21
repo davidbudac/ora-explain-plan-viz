@@ -9,7 +9,7 @@ import { loadSettings, saveSettings, extractFilterSettings, applySettingsToFilte
 import { matchesFilters } from '../lib/filtering';
 import { getPlanFromUrl, clearPlanFromUrl, buildShareUrl } from '../lib/url';
 import type { SharePayload } from '../lib/url';
-import type { AnnotationState, AnnotationGroup, HighlightColor, AnnotatedPlanExport } from '../lib/annotations';
+import type { AnnotationState, AnnotationGroup, HighlightColor, HighlightStyle, AnnotatedPlanExport } from '../lib/annotations';
 import { createEmptyAnnotationState, hasAnnotations, serializeAnnotations, deserializeAnnotations, validateExport, downloadAnnotatedPlan, generateGroupId } from '../lib/annotations';
 
 interface PlanState {
@@ -32,6 +32,8 @@ interface PlanState {
   detailPanelCollapsed: boolean;
   visualizationMaximized: boolean;
   _preMaxPanelState: { filter: boolean; detail: boolean } | null;
+  // Highlight style
+  highlightStyle: HighlightStyle;
   // Annotations (overlay, not persisted to localStorage)
   annotations: AnnotationState;
   hasUnsavedAnnotations: boolean;
@@ -64,6 +66,7 @@ type PlanAction =
   | { type: 'SET_COMPARE_PLAN_INDICES'; payload: [number, number] }
   | { type: 'SWAP_COMPARE_PLAN_INDICES' }
   | { type: 'SET_COMPARE_METRICS'; payload: CompareMetric[] }
+  | { type: 'SET_HIGHLIGHT_STYLE'; payload: HighlightStyle }
   | { type: 'SET_NODE_ANNOTATION'; payload: { nodeId: number; text: string } }
   | { type: 'REMOVE_NODE_ANNOTATION'; payload: number }
   | { type: 'SET_NODE_HIGHLIGHT'; payload: { nodeId: number; color: HighlightColor } }
@@ -220,6 +223,7 @@ const getInitialState = (): PlanState => {
     colorScheme: settings.colorScheme ?? 'muted',
     theme: getInitialTheme(),
     filters: applySettingsToFilters(initialFilters, settings),
+    highlightStyle: settings.highlightStyle ?? 'circle',
     hotspotsEnabled: settings.hotspotsEnabled ?? true,
     legendVisible: settings.legendVisible,
     inputPanelCollapsed: initialPlans.some((slot) => slot.parsedPlan) ? settings.inputPanelCollapsed : false,
@@ -379,6 +383,9 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
           hasUnsavedAnnotations: false,
         };
       }
+
+    case 'SET_HIGHLIGHT_STYLE':
+      return { ...state, highlightStyle: action.payload };
 
     case 'SET_HOTSPOTS_ENABLED':
       return { ...state, hotspotsEnabled: action.payload };
@@ -620,6 +627,8 @@ interface PlanContextValue {
   filteredNodeIds: Set<number>;
   nodeById: Map<number, PlanNode>;
   hottestNodeId: number | null;
+  highlightStyle: HighlightStyle;
+  setHighlightStyle: (style: HighlightStyle) => void;
   hotspotsEnabled: boolean;
   setHotspotsEnabled: (enabled: boolean) => void;
   setLegendVisible: (visible: boolean) => void;
@@ -844,6 +853,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         sankeyMetric: state.sankeyMetric,
         nodeIndicatorMetric: state.nodeIndicatorMetric,
         colorScheme: state.colorScheme,
+        highlightStyle: state.highlightStyle,
         hotspotsEnabled: state.hotspotsEnabled,
         legendVisible: state.legendVisible,
         inputPanelCollapsed: state.inputPanelCollapsed,
@@ -863,6 +873,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     state.sankeyMetric,
     state.nodeIndicatorMetric,
     state.colorScheme,
+    state.highlightStyle,
     state.hotspotsEnabled,
     state.legendVisible,
     state.inputPanelCollapsed,
@@ -921,6 +932,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   const clearPlan = useCallback(() => {
     dispatch({ type: 'CLEAR_PLAN' });
+  }, []);
+
+  const setHighlightStyle = useCallback((style: HighlightStyle) => {
+    dispatch({ type: 'SET_HIGHLIGHT_STYLE', payload: style });
   }, []);
 
   const setHotspotsEnabled = useCallback((enabled: boolean) => {
@@ -1130,6 +1145,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     filteredNodeIds,
     nodeById,
     hottestNodeId,
+    highlightStyle: state.highlightStyle,
+    setHighlightStyle,
     hotspotsEnabled: state.hotspotsEnabled,
     setHotspotsEnabled,
     setLegendVisible,

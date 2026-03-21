@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { HIGHLIGHT_COLORS, getHighlightColorDef } from '../lib/annotations';
-import type { HighlightColor } from '../lib/annotations';
+import { HIGHLIGHT_COLORS, HIGHLIGHT_STYLES, getHighlightColorDef } from '../lib/annotations';
+import type { HighlightColor, HighlightStyle } from '../lib/annotations';
 
 interface AnnotationEditorProps {
   nodeId: number;
   annotationText: string;
   highlightColor?: HighlightColor;
+  highlightStyle: HighlightStyle;
+  onHighlightStyleChange: (style: HighlightStyle) => void;
   onTextChange: (nodeId: number, text: string) => void;
   onTextRemove: (nodeId: number) => void;
   onHighlightChange: (nodeId: number, color: HighlightColor) => void;
@@ -16,6 +18,8 @@ export function AnnotationEditor({
   nodeId,
   annotationText,
   highlightColor,
+  highlightStyle,
+  onHighlightStyleChange,
   onTextChange,
   onTextRemove,
   onHighlightChange,
@@ -103,12 +107,32 @@ export function AnnotationEditor({
       </div>
 
       {highlightColor && (
-        <div className="mt-1.5 flex items-center gap-1">
-          <div className={`w-2.5 h-2.5 rounded-full ${getHighlightColorDef(highlightColor).chip}`} />
-          <span className="text-[11px] text-neutral-500 dark:text-neutral-400">
-            {getHighlightColorDef(highlightColor).label} highlight
-          </span>
-        </div>
+        <>
+          <div className="mt-1.5 flex items-center gap-1">
+            <div className={`w-2.5 h-2.5 rounded-full ${getHighlightColorDef(highlightColor).chip}`} />
+            <span className="text-[11px] text-neutral-500 dark:text-neutral-400">
+              {getHighlightColorDef(highlightColor).label} highlight
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1 mt-2 flex-wrap">
+            <span className="text-[11px] text-neutral-500 dark:text-neutral-400 mr-0.5">Style:</span>
+            {HIGHLIGHT_STYLES.map((styleDef) => (
+              <button
+                key={styleDef.name}
+                onClick={() => onHighlightStyleChange(styleDef.name)}
+                className={`px-1.5 py-0.5 text-[11px] rounded transition-all ${
+                  highlightStyle === styleDef.name
+                    ? 'bg-neutral-700 dark:bg-neutral-200 text-white dark:text-neutral-900 font-semibold'
+                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+                }`}
+                title={styleDef.description}
+              >
+                {styleDef.label}
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
