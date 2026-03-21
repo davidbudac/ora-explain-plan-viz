@@ -88,8 +88,14 @@ function calculateNodeHeight(
   displayOptions: NodeDisplayOptions,
   hasActualStats: boolean,
   hasAnnotation?: boolean,
+  isReadable?: boolean,
 ): number {
   let height = NODE_BASE_HEIGHT;
+
+  // Readable mode: larger operation name + object name
+  if (isReadable) {
+    height += 6; // extra space for text-base font
+  }
 
   // Warning badges row (hotspot, spill, cardinality mismatch)
   const hasSpill = (node.tempUsed !== undefined && node.tempUsed > 0);
@@ -102,7 +108,7 @@ function calculateNodeHeight(
 
   // Object name row
   if (displayOptions.showObjectName && node.objectName) {
-    height += 20;
+    height += isReadable ? 24 : 20;
   }
 
   // Query block badge row
@@ -110,29 +116,50 @@ function calculateNodeHeight(
     height += 24;
   }
 
-  // Estimated stats row (rows, cost, bytes)
-  const hasEstimatedStats =
-    (displayOptions.showRows && node.rows !== undefined) ||
-    (displayOptions.showCost && node.cost !== undefined) ||
-    (displayOptions.showBytes && node.bytes !== undefined);
-  if (hasEstimatedStats) {
-    height += 26;
+  // Estimated stats (rows, cost, bytes)
+  if (isReadable) {
+    // Grid layout: each stat gets its own row (~28px each) + container border/padding (~6px)
+    let estCount = 0;
+    if (displayOptions.showRows && node.rows !== undefined) estCount++;
+    if (displayOptions.showCost && node.cost !== undefined) estCount++;
+    if (displayOptions.showBytes && node.bytes !== undefined) estCount++;
+    if (estCount > 0) {
+      height += estCount * 28 + 6;
+    }
+  } else {
+    const hasEstimatedStats =
+      (displayOptions.showRows && node.rows !== undefined) ||
+      (displayOptions.showCost && node.cost !== undefined) ||
+      (displayOptions.showBytes && node.bytes !== undefined);
+    if (hasEstimatedStats) {
+      height += 26;
+    }
   }
 
-  // Actual stats row (A-Rows, A-Time, Starts)
+  // Actual stats (A-Rows, A-Time, Starts)
   if (hasActualStats) {
-    const hasActualStatsToShow =
-      (displayOptions.showActualRows && node.actualRows !== undefined) ||
-      (displayOptions.showActualTime && node.actualTime !== undefined) ||
-      (displayOptions.showStarts && node.starts !== undefined);
-    if (hasActualStatsToShow) {
-      height += 26;
+    if (isReadable) {
+      let actCount = 0;
+      if (displayOptions.showActualRows && node.actualRows !== undefined) actCount++;
+      if (displayOptions.showActualTime && node.actualTime !== undefined) actCount++;
+      if (displayOptions.showStarts && node.starts !== undefined) actCount++;
+      if (actCount > 0) {
+        height += actCount * 28 + 4; // rows + blue divider
+      }
+    } else {
+      const hasActualStatsToShow =
+        (displayOptions.showActualRows && node.actualRows !== undefined) ||
+        (displayOptions.showActualTime && node.actualTime !== undefined) ||
+        (displayOptions.showStarts && node.starts !== undefined);
+      if (hasActualStatsToShow) {
+        height += 26;
+      }
     }
   }
 
   // Predicate indicators row
   if (displayOptions.showPredicateIndicators && (node.accessPredicates || node.filterPredicates)) {
-    height += 28;
+    height += isReadable ? 36 : 28;
   }
 
   // Predicate details (can be multiple lines)
@@ -539,6 +566,9 @@ function HierarchicalViewContent({
       return { nodes: [] as Node[], edges: [] as Edge[] };
     }
 
+    const isReadable = colorScheme === 'readable';
+    const effectiveNodeWidth = isReadable ? 290 : NODE_WIDTH;
+
     const planNodes: Node[] = [];
     const edges: Edge[] = [];
     const nodeQueryBlocks: Map<string, string> = new Map();
@@ -549,8 +579,8 @@ function HierarchicalViewContent({
       const hasActualStats = parsedPlan!.hasActualStats || false;
       const hasAnnotation = effectiveAnnotations.nodeAnnotations.has(node.id);
       // Calculate dynamic height for this node
-      const height = calculateNodeHeight(node, filters.nodeDisplayOptions, hasActualStats, hasAnnotation);
-      nodeDimensions.set(node.id.toString(), { width: NODE_WIDTH, height });
+      const height = calculateNodeHeight(node, filters.nodeDisplayOptions, hasActualStats, hasAnnotation, isReadable);
+      nodeDimensions.set(node.id.toString(), { width: effectiveNodeWidth, height });
 
       // Keep query block envelopes stable across predicate-detail toggles by
       // sizing groups against the expanded node-height baseline.
@@ -558,9 +588,10 @@ function HierarchicalViewContent({
         node,
         { ...filters.nodeDisplayOptions, showPredicateDetails: true },
         hasActualStats,
-        hasAnnotation
+        hasAnnotation,
+        isReadable,
       );
-      nodeGroupDimensions.set(node.id.toString(), { width: NODE_WIDTH, height: groupHeight });
+      nodeGroupDimensions.set(node.id.toString(), { width: effectiveNodeWidth, height: groupHeight });
 
       planNodes.push({
         id: node.id.toString(),
@@ -574,7 +605,7 @@ function HierarchicalViewContent({
           isFiltered: false,
           displayOptions: filters.nodeDisplayOptions,
           hasActualStats: parsedPlan!.hasActualStats,
-          width: NODE_WIDTH,
+          width: effectiveNodeWidth,
           height,
         },
       });
@@ -742,7 +773,7 @@ function HierarchicalViewContent({
       nodes: [...groupNodes, ...annotationGroupNodes, ...layoutedResult.nodes],
       edges: edgesWithThickness,
     };
-  }, [effectiveAnnotations.groups, effectiveAnnotations.nodeAnnotations, filters.nodeDisplayOptions, parsedPlan]);
+  }, [effectiveAnnotations.groups, effectiveAnnotations.nodeAnnotations, filters.nodeDisplayOptions, parsedPlan, colorScheme]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutData.edges);
@@ -1051,15 +1082,16 @@ export function HierarchicalView({
   registerExport = true,
   showAnnotations = true,
 }: HierarchicalViewProps) {
-  const { plans, activePlanIndex } = usePlan();
+  const { plans, activePlanIndex, colorScheme } = usePlan();
   const resolvedPlanIndex = planIndex ?? activePlanIndex;
   const parsedPlan = plans[resolvedPlanIndex]?.parsedPlan ?? null;
 
-  // Create a unique key that changes when the plan changes to force complete remount
-  // This ensures useNodesState/useEdgesState hooks are reset with fresh state
+  // Create a unique key that changes when the plan or color scheme changes to force
+  // complete remount. This ensures useNodesState/useEdgesState hooks are reset with
+  // fresh state and node dimensions are recalculated from scratch.
   const planKey = parsedPlan
-    ? `${parsedPlan.planHashValue ?? 'nohash'}-${parsedPlan.allNodes.length}-${parsedPlan.rootNode?.operation ?? ''}`
-    : 'no-plan';
+    ? `${parsedPlan.planHashValue ?? 'nohash'}-${parsedPlan.allNodes.length}-${parsedPlan.rootNode?.operation ?? ''}-${colorScheme}`
+    : `no-plan-${colorScheme}`;
 
   return (
     <ReactFlowProvider key={planKey}>
