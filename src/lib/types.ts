@@ -197,7 +197,7 @@ export function getOperationCategory(operation: string): string {
   return 'Other';
 }
 
-export type ColorScheme = 'vibrant' | 'muted' | 'professional' | 'monochrome';
+export type ColorScheme = 'vibrant' | 'muted' | 'professional' | 'monochrome' | 'readable';
 
 export const COLOR_SCHEME_PALETTES: Record<ColorScheme, Record<string, string>> = {
   vibrant: {
@@ -247,6 +247,18 @@ export const COLOR_SCHEME_PALETTES: Record<ColorScheme, Record<string, string>> 
     'Partition': '#94a3b8',
     'Parallelism': '#94a3b8',
     'Other': '#94a3b8',
+  },
+  readable: {
+    'Table Access': '#b45309',
+    'Index Operations': '#047857',
+    'Join Operations': '#1d4ed8',
+    'Set Operations': '#6d28d9',
+    'Aggregation': '#be185d',
+    'Sort Operations': '#a16207',
+    'Filter/View': '#0e7490',
+    'Partition': '#4338ca',
+    'Parallelism': '#be123c',
+    'Other': '#64748b',
   },
 };
 
@@ -306,11 +318,26 @@ const COLORS_MONOCHROME: Record<string, { bg: string; border: string; text: stri
   'Other': { bg: 'bg-gray-50 dark:bg-neutral-800/80', border: 'border-neutral-200 dark:border-neutral-600', text: 'text-neutral-700 dark:text-neutral-200' },
 };
 
+// Option D: Readable - maximum readability with bold left border stripe and neutral high-contrast text
+const COLORS_READABLE: Record<string, { bg: string; border: string; text: string }> = {
+  'Table Access': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-amber-500 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
+  'Index Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-emerald-500 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
+  'Join Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-blue-500 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
+  'Set Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-violet-500 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
+  'Aggregation': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-pink-500 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
+  'Sort Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-yellow-500 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
+  'Filter/View': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-cyan-500 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
+  'Partition': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-indigo-500 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
+  'Parallelism': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-rose-500 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
+  'Other': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-neutral-400 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
+};
+
 export const COLOR_SCHEMES: Record<ColorScheme, Record<string, { bg: string; border: string; text: string }>> = {
   vibrant: COLORS_VIBRANT,
   muted: COLORS_MUTED,
   professional: COLORS_PROFESSIONAL,
   monochrome: COLORS_MONOCHROME,
+  readable: COLORS_READABLE,
 };
 
 // Default export for backward compatibility
