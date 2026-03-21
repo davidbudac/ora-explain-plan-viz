@@ -1,4 +1,6 @@
 import type { ParsedPlan, PlanNode } from './types';
+import type { AnnotationState } from './annotations';
+import { createEmptyAnnotationState } from './annotations';
 
 export interface PlanSlot {
   id: string;
@@ -9,6 +11,7 @@ export interface PlanSlot {
   error: string | null;
   selectedNodeId: number | null;
   selectedNodeIds: number[];
+  annotations: AnnotationState;
 }
 
 export type CompareMetric = 'cost' | 'rows' | 'bytes' | 'actualRows' | 'actualTime' | 'starts' | 'tempSpace' | 'memoryUsed';
@@ -227,5 +230,6 @@ export function createEmptySlot(index: number): PlanSlot {
     error: null,
     selectedNodeId: null,
     selectedNodeIds: [],
+    annotations: createEmptyAnnotationState(),
   };
 }

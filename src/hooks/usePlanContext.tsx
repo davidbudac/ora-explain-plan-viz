@@ -34,9 +34,6 @@ interface PlanState {
   _preMaxPanelState: { filter: boolean; detail: boolean } | null;
   // Highlight style
   highlightStyle: HighlightStyle;
-  // Annotations (overlay, not persisted to localStorage)
-  annotations: AnnotationState;
-  hasUnsavedAnnotations: boolean;
 }
 
 type PlanAction =
@@ -231,8 +228,6 @@ const getInitialState = (): PlanState => {
     detailPanelCollapsed: false,
     visualizationMaximized: false,
     _preMaxPanelState: null,
-    annotations: createEmptyAnnotationState(),
-    hasUnsavedAnnotations: false,
   };
 };
 
@@ -289,8 +284,6 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
         activePlanIndex: action.payload.activePlanIndex ?? 0,
         comparePlanIndices: getDefaultComparePlanIndices(incomingPlans),
         inputPanelCollapsed: incomingPlans.some((slot) => slot.parsedPlan) ? state.inputPanelCollapsed : false,
-        annotations: createEmptyAnnotationState(),
-        hasUnsavedAnnotations: false,
       });
     }
 
@@ -307,6 +300,7 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
         error: null,
         selectedNodeId: null,
         selectedNodeIds: [],
+        annotations: createEmptyAnnotationState(),
       }));
       const comparePlanIndices = normalizeComparePlanIndices(nextState.plans, state.comparePlanIndices);
       const parsedPlanCount = nextState.plans.filter((slot) => slot.parsedPlan).length;
@@ -315,8 +309,6 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
         nodeIndicatorMetric: newMetric,
         comparePlanIndices,
         treeCompareEnabled: parsedPlanCount >= 2 && state.treeCompareEnabled,
-        annotations: createEmptyAnnotationState(),
-        hasUnsavedAnnotations: false,
       };
     }
 
@@ -369,6 +361,7 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
           selectedNodeId: null,
           selectedNodeIds: [],
           error: null,
+          annotations: createEmptyAnnotationState(),
         }));
         const parsedPlanCount = nextState.plans.filter((slot) => slot.parsedPlan).length;
         return {
@@ -379,8 +372,6 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
             ? 'hierarchical'
             : state.viewMode,
           filters: applySettingsToFilters(initialFilters, loadSettings()),
-          annotations: createEmptyAnnotationState(),
-          hasUnsavedAnnotations: false,
         };
       }
 
@@ -471,51 +462,43 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
 
     case 'SET_NODE_ANNOTATION': {
       const { nodeId, text } = action.payload;
-      const newAnnotations = new Map(state.annotations.nodeAnnotations);
-      const now = new Date().toISOString();
-      const existing = newAnnotations.get(nodeId);
-      newAnnotations.set(nodeId, {
-        nodeId,
-        text,
-        createdAt: existing?.createdAt || now,
-        updatedAt: now,
+      return updateActiveSlot(state, slot => {
+        const newAnnotations = new Map(slot.annotations.nodeAnnotations);
+        const now = new Date().toISOString();
+        const existing = newAnnotations.get(nodeId);
+        newAnnotations.set(nodeId, {
+          nodeId,
+          text,
+          createdAt: existing?.createdAt || now,
+          updatedAt: now,
+        });
+        return { ...slot, annotations: { ...slot.annotations, nodeAnnotations: newAnnotations } };
       });
-      return {
-        ...state,
-        annotations: { ...state.annotations, nodeAnnotations: newAnnotations },
-        hasUnsavedAnnotations: true,
-      };
     }
 
     case 'REMOVE_NODE_ANNOTATION': {
-      const newAnnotations = new Map(state.annotations.nodeAnnotations);
-      newAnnotations.delete(action.payload);
-      return {
-        ...state,
-        annotations: { ...state.annotations, nodeAnnotations: newAnnotations },
-        hasUnsavedAnnotations: true,
-      };
+      return updateActiveSlot(state, slot => {
+        const newAnnotations = new Map(slot.annotations.nodeAnnotations);
+        newAnnotations.delete(action.payload);
+        return { ...slot, annotations: { ...slot.annotations, nodeAnnotations: newAnnotations } };
+      });
     }
 
     case 'SET_NODE_HIGHLIGHT': {
       const { nodeId, color } = action.payload;
-      const newHighlights = new Map(state.annotations.nodeHighlights);
-      newHighlights.set(nodeId, { nodeId, color });
-      return {
-        ...state,
-        annotations: { ...state.annotations, nodeHighlights: newHighlights },
-        hasUnsavedAnnotations: true,
-      };
+      return updateActiveSlot(state, slot => {
+        const newHighlights = new Map(slot.annotations.nodeHighlights);
+        newHighlights.set(nodeId, { nodeId, color });
+        return { ...slot, annotations: { ...slot.annotations, nodeHighlights: newHighlights } };
+      });
     }
 
     case 'REMOVE_NODE_HIGHLIGHT': {
-      const newHighlights = new Map(state.annotations.nodeHighlights);
-      newHighlights.delete(action.payload);
-      return {
-        ...state,
-        annotations: { ...state.annotations, nodeHighlights: newHighlights },
-        hasUnsavedAnnotations: true,
-      };
+      return updateActiveSlot(state, slot => {
+        const newHighlights = new Map(slot.annotations.nodeHighlights);
+        newHighlights.delete(action.payload);
+        return { ...slot, annotations: { ...slot.annotations, nodeHighlights: newHighlights } };
+      });
     }
 
     case 'ADD_ANNOTATION_GROUP': {
@@ -523,53 +506,48 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
         ...action.payload,
         id: generateGroupId(),
       };
-      return {
-        ...state,
+      return updateActiveSlot(state, slot => ({
+        ...slot,
         annotations: {
-          ...state.annotations,
-          groups: [...state.annotations.groups, newGroup],
+          ...slot.annotations,
+          groups: [...slot.annotations.groups, newGroup],
         },
-        hasUnsavedAnnotations: true,
-      };
+      }));
     }
 
     case 'UPDATE_ANNOTATION_GROUP': {
-      return {
-        ...state,
+      return updateActiveSlot(state, slot => ({
+        ...slot,
         annotations: {
-          ...state.annotations,
-          groups: state.annotations.groups.map((g) =>
+          ...slot.annotations,
+          groups: slot.annotations.groups.map((g) =>
             g.id === action.payload.id ? action.payload : g
           ),
         },
-        hasUnsavedAnnotations: true,
-      };
+      }));
     }
 
     case 'REMOVE_ANNOTATION_GROUP': {
-      return {
-        ...state,
+      return updateActiveSlot(state, slot => ({
+        ...slot,
         annotations: {
-          ...state.annotations,
-          groups: state.annotations.groups.filter((g) => g.id !== action.payload),
+          ...slot.annotations,
+          groups: slot.annotations.groups.filter((g) => g.id !== action.payload),
         },
-        hasUnsavedAnnotations: true,
-      };
+      }));
     }
 
     case 'LOAD_ANNOTATIONS':
-      return {
-        ...state,
+      return updateActiveSlot(state, slot => ({
+        ...slot,
         annotations: action.payload,
-        hasUnsavedAnnotations: false,
-      };
+      }));
 
     case 'CLEAR_ANNOTATIONS':
-      return {
-        ...state,
+      return updateActiveSlot(state, slot => ({
+        ...slot,
         annotations: createEmptyAnnotationState(),
-        hasUnsavedAnnotations: false,
-      };
+      }));
 
     default:
       return state;
@@ -640,6 +618,7 @@ interface PlanContextValue {
   // Annotations
   annotations: AnnotationState;
   hasUnsavedAnnotations: boolean;
+  getAnnotationsForPlan: (index: number) => AnnotationState;
 
   // Multi-plan actions
   removePlanSlot: (index: number) => void;
@@ -820,18 +799,31 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       if (urlData.type === 'legacy') {
         importPlanInput(urlData.planText);
       } else {
-        const { plans, annotations } = urlData.payload;
+        const { plans, annotations: legacyAnnotations } = urlData.payload;
         const restoredPlans = buildPlanSlotsFromInputs(plans.map((plan) => plan.rawInput));
+
+        // Restore per-plan annotations from URL
+        for (let i = 0; i < restoredPlans.length && i < plans.length; i++) {
+          const planAnnotations = plans[i].annotations;
+          if (planAnnotations) {
+            try {
+              restoredPlans[i] = { ...restoredPlans[i], annotations: deserializeAnnotations(planAnnotations) };
+            } catch {
+              // Per-plan annotations failed to deserialize
+            }
+          }
+        }
+
         dispatch({ type: 'REPLACE_PLANS', payload: { plans: restoredPlans, activePlanIndex: 0 } });
         dispatch({
           type: 'SET_INPUT_PANEL_COLLAPSED',
           payload: restoredPlans.some((slot) => slot.parsedPlan),
         });
 
-        // Restore annotations (if present)
-        if (annotations) {
+        // Legacy: restore global annotations to active plan (older share URLs)
+        if (legacyAnnotations && !plans.some(p => p.annotations)) {
           try {
-            const annotationState = deserializeAnnotations(annotations);
+            const annotationState = deserializeAnnotations(legacyAnnotations);
             dispatch({ type: 'LOAD_ANNOTATIONS', payload: annotationState });
           } catch {
             // Annotations from URL failed to deserialize
@@ -1018,6 +1010,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'CLEAR_ANNOTATIONS' });
   }, []);
 
+  const getAnnotationsForPlan = useCallback((index: number): AnnotationState => {
+    return state.plans[index]?.annotations ?? createEmptyAnnotationState();
+  }, [state.plans]);
+
   const exportAnnotatedPlan = useCallback(() => {
     if (!parsedPlan) return;
     const exportData: AnnotatedPlanExport = {
@@ -1027,10 +1023,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       planSource: parsedPlan.source,
       planHashValue: parsedPlan.planHashValue,
       sqlId: parsedPlan.sqlId,
-      annotations: serializeAnnotations(state.annotations),
+      annotations: serializeAnnotations(state.plans[state.activePlanIndex]?.annotations ?? createEmptyAnnotationState()),
     };
     downloadAnnotatedPlan(exportData);
-  }, [parsedPlan, rawInput, state.annotations]);
+  }, [parsedPlan, rawInput, state.plans, state.activePlanIndex]);
 
   const importAnnotatedPlan = useCallback(async (file: File) => {
     try {
@@ -1066,17 +1062,18 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       return { ok: false, error: 'No plan to share.' };
     }
 
-    // Build payload with all plan slots that have input
+    // Build payload with all plan slots that have input, including per-plan annotations
     const payload: SharePayload = {
       plans: state.plans
         .filter(slot => slot.rawInput)
-        .map(slot => ({ rawInput: slot.rawInput })),
+        .map(slot => {
+          const entry: SharePayload['plans'][number] = { rawInput: slot.rawInput };
+          if (hasAnnotations(slot.annotations)) {
+            entry.annotations = serializeAnnotations(slot.annotations);
+          }
+          return entry;
+        }),
     };
-
-    // Include annotations if any exist
-    if (hasAnnotations(state.annotations)) {
-      payload.annotations = serializeAnnotations(state.annotations);
-    }
 
     const result = buildShareUrl(payload);
     if (result.ok) {
@@ -1088,7 +1085,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       }
     }
     return result;
-  }, [state.plans, state.annotations]);
+  }, [state.plans]);
 
   const getSelectedNode = useCallback((): PlanNode | null => selectedNode, [selectedNode]);
 
@@ -1155,9 +1152,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setDetailPanelCollapsed,
     setVisualizationMaximized,
 
-    // Annotations
-    annotations: state.annotations,
-    hasUnsavedAnnotations: state.hasUnsavedAnnotations,
+    // Annotations (derived from active plan slot)
+    annotations: state.plans[state.activePlanIndex]?.annotations ?? createEmptyAnnotationState(),
+    hasUnsavedAnnotations: state.plans.some(slot => hasAnnotations(slot.annotations)),
+    getAnnotationsForPlan,
 
     // Multi-plan actions
     removePlanSlot,
