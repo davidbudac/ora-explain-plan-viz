@@ -132,11 +132,11 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
       `}
       style={{ opacity, ...glowStyle, ...tintStyle }}
     >
-      {/* Circle: hand-drawn marker stroke */}
+      {/* Circle: hand-drawn marker strokes (three overlapping passes) */}
       {showHighlight && highlightStyle === 'circle' && (
         <div
           className={`absolute pointer-events-none z-10 ${colorDef!.text}`}
-          style={{ inset: '-10px' }}
+          style={{ inset: '-18px' }}
         >
           <svg
             viewBox="0 0 100 100"
@@ -144,16 +144,37 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             className="w-full h-full highlight-breathe"
             fill="none"
             overflow="visible"
-            style={{ transform: 'rotate(-2deg)' }}
+            style={{ transform: 'rotate(-3deg)' }}
           >
+            {/* First marker pass — loose, slightly wobbly */}
             <path
-              d="M 18,6 C 40,2 70,1 88,5 C 100,8 104,18 102,32 C 103,58 102,76 99,88 C 96,100 86,103 72,101 C 52,103 28,102 14,98 C 2,95 -2,84 1,70 C -1,48 0,28 3,16 C 5,6 12,4 24,8"
+              d="M 20,5 C 38,1 65,-1 85,4 C 98,7 105,16 103,30 C 104,55 103,74 100,87 C 97,101 87,105 70,102 C 48,104 26,103 12,99 C 0,95 -3,83 0,68 C -2,46 -1,26 2,14 C 5,4 13,2 22,6"
+              stroke="currentColor"
+              strokeWidth="4.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+              opacity="0.4"
+            />
+            {/* Second marker pass — tighter, shifted inward */}
+            <path
+              d="M 24,9 C 44,4 66,3 84,8 C 96,12 101,22 99,35 C 100,57 99,73 96,84 C 93,96 83,100 68,98 C 50,100 32,99 18,95 C 6,91 1,81 3,66 C 2,48 3,30 6,18 C 9,8 16,5 28,10"
               stroke="currentColor"
               strokeWidth="5"
               strokeLinecap="round"
               strokeLinejoin="round"
               vectorEffect="non-scaling-stroke"
-              opacity="0.75"
+              opacity="0.5"
+            />
+            {/* Third marker pass — most pressure, slight wobble outward */}
+            <path
+              d="M 16,7 C 36,0 62,0 82,5 C 97,9 104,19 102,33 C 103,56 102,75 98,88 C 95,99 85,103 71,101 C 51,103 29,102 14,97 C 2,94 -2,84 1,69 C -1,47 0,27 3,15 C 6,5 12,3 20,8"
+              stroke="currentColor"
+              strokeWidth="5.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+              opacity="0.45"
             />
           </svg>
         </div>
