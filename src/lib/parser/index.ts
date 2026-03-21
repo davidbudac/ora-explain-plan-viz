@@ -3,6 +3,7 @@ import type { DetectedFormat, PlanParser } from './types';
 import { dbmsXplanParser, extractDbmsXplanSegments } from './dbmsXplanParser';
 import { sqlMonitorTextParser, sqlMonitorXmlParser } from './sqlMonitorParser';
 import { jsonPlanParser } from './jsonPlanParser';
+import { xbiParser } from './xbiParser';
 
 /**
  * List of available parsers in priority order.
@@ -13,6 +14,7 @@ const parsers: Array<{ format: DetectedFormat; parser: PlanParser }> = [
   { format: 'json', parser: jsonPlanParser },
   { format: 'sql_monitor_xml', parser: sqlMonitorXmlParser },
   { format: 'sql_monitor_text', parser: sqlMonitorTextParser },
+  { format: 'xbi', parser: xbiParser },
   { format: 'dbms_xplan', parser: dbmsXplanParser },
 ];
 
@@ -82,6 +84,8 @@ export function getSourceDisplayName(source: ParsedPlan['source']): string {
       return 'SQL Monitor (XML)';
     case 'json':
       return 'JSON (V$SQL_PLAN)';
+    case 'xbi':
+      return 'XBI (Tanel Poder)';
     default:
       return 'Unknown';
   }
@@ -95,3 +99,4 @@ export { dbmsXplanParser } from './dbmsXplanParser';
 export { extractDbmsXplanSegments, parseDbmsXplanPlans } from './dbmsXplanParser';
 export { sqlMonitorTextParser, sqlMonitorXmlParser } from './sqlMonitorParser';
 export { jsonPlanParser } from './jsonPlanParser';
+export { xbiParser } from './xbiParser';
