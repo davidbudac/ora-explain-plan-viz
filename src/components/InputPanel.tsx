@@ -151,6 +151,23 @@ export function InputPanel() {
                     ))}
                   </>
                 )}
+                {SAMPLE_PLANS_BY_CATEGORY.xbi.length > 0 && (
+                  <>
+                    <div className="border-t border-neutral-200 dark:border-neutral-700 my-1" />
+                    <div className="px-3 py-1.5 text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
+                      XBI (Tanel Poder)
+                    </div>
+                    {SAMPLE_PLANS_BY_CATEGORY.xbi.map((sample) => (
+                      <button
+                        key={sample.name}
+                        onClick={() => handleLoadSample(sample)}
+                        className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                      >
+                        {sample.name}
+                      </button>
+                    ))}
+                  </>
+                )}
               </div>
             </div>
           )}

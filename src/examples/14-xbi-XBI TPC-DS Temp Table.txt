@@ -1,0 +1,43 @@
+-- xbi.sql: eXplain Better v1.01 for sql_id=bpt7vm7wbsn42 child=0 - by Tanel Poder (https://blog.tanelpoder.com)
+
+         SQL_ID         CHLD ADDRESS          Plan Hash Value First Load Time
+-------- ------------- ----- ---------------- --------------- ------
+Cursor:  bpt7vm7wbsn42     0 00000004B23CC150      3847201918 Statement first parsed at: 2022-03-17/01:35:44 - 890 seconds ago
+
+ Pred    Op  Par.  #Sib                                           Query Block             ms spent in Consistent  Rowsource  Real #rows     Est. rows      Opt. Card.    Current   Physical   Physical        Memory Workarea        Optimizer
+ #Col    ID    ID  ling Row Source                                name                 this operation       gets     starts    returned         total     misestimate       gets  read blks write blks     used (MB) Passes               Cost
+----- ----- ----- ----- ----------------------------------------- -------------------- -------------- ---------- ---------- ----------- ------------- --------------- ---------- ---------- ---------- ------------- ------------- -----------
+          0             SELECT STATEMENT                          >>> Plan totals >>>        2,901.67     170271          1          20                                        2     153524          0                                   44144
+          1     0     1  TEMP TABLE TRANSFORMATION                SEL$2980E977                    .06          0          1          20                                        1          0          0
+          2     1     1   LOAD AS SELECT                           SEL$F6D5D92C                  22.31          0          1           0                                        1          0          0           .00 OPTIMAL
+          3     2     1    HASH GROUP BY                                                       246.10          0          1       64004       2096755             33x          0          0          0         75.58 OPTIMAL             37556
+    A     4     3     1     HASH JOIN                                                          253.99          1          1     2057505       2096755              1x          0          0          0          1.69 OPTIMAL             23776
+          5     4     1      VIEW [VW_GBF_7]                      SEL$7502D05D                    .02          0          1         365           365              1x          0          0          0                                     229
+    F     6     5     1       TABLE ACCESS FULL [DATE_DIM]        SEL$7502D05D                   4.35       1456          1         365           365              1x          0          0          0                                     229
+          7     4     2      PARTITION RANGE ALL                                                10.82          0          1    11500560      11500560              1x          0          0          0                                   23491
+          8     7     1       TABLE ACCESS FULL [STORE_RETURNS]   SEL$F6D5D92C               2,254.94     153827         22    11500560     253012320             22x          0     153524          0                                   23491
+          9     1     2   SORT ORDER BY                                                          5.03          0          1          20        100470           5024x          0          0          0           .84 OPTIMAL              6588
+    A    10     9     1    HASH JOIN                                                             7.16          1          1       25597        100470              4x          0          0          0          1.22 OPTIMAL              5271
+    F    11    10     1     TABLE ACCESS FULL [STORE]             SEL$2980E977                    .04         18          1          12            12              1x          0          0          0                                      20
+    A    12    10     2     HASH JOIN                                                           31.20          1          1       25597        104838              4x          0          0          0          4.00 OPTIMAL              5251
+   FA    13    12     1      HASH JOIN                                                           4.19          1          1       25597        104838              4x          0          0          0          1.21 OPTIMAL              2535
+         14    13     1       VIEW [VW_SQ_1]                      SEL$8F9407EC                    .02          0          1          11            11              1x          0          0          0                                    1311
+         15    14     1        HASH GROUP BY                      SEL$8F9407EC                   6.07          0          1          11            11              1x          0          0          0          1.01 OPTIMAL              1311
+         16    15     1         VIEW                              SEL$D67CB2D2                    .05          0          1       64004       2096755             33x          0          0          0                                    1213
+         17    16     1          TABLE ACCESS FULL [SYS_TEMP]     SEL$D67CB2D2                   1.86          0          1       64004       2096755             33x          0          0          0                                    1213
+         18    13     2       VIEW                                SEL$D67CB2D3                    .05          0          1       64004       2096755             33x          0          0          0                                    1213
+         19    18     1        TABLE ACCESS FULL [SYS_TEMP]       SEL$D67CB2D3                   1.79          0          1       64004       2096755             33x          0          0          0                                    1213
+         20    12     2      TABLE ACCESS FULL [CUSTOMER]         SEL$2980E977                  51.62      14966          1      709015        709015              1x          0          0          0                                    2284
+
+   Op Query Block
+   ID name                  Predicate Information (identified by operation id):
+----- -------------------- - ----------------------------------------------------------------------------------------------------
+    4                       - access("ITEM_SK"="SR_ITEM_SK" AND "D_DATE_SK"="SR_RETURNED_DATE_SK")
+    6  SEL$7502D05D         - filter("D_YEAR"=2000)
+    8  SEL$F6D5D92C         - filter(INTERNAL_FUNCTION("SR_RETURN_AMT")>10000)
+   10                       - access("STORE_SK"="S_STORE_SK")
+   11  SEL$2980E977         - filter("S_STATE"='TN')
+   12                       - access("C_CUSTOMER_SK"="CUSTOMER_SK")
+   13                       - filter("CUST_CNT"<=20)
+   13                       - access("ITEM_SK"="SR_ITEM_SK")
+   20  SEL$2980E977         - filter(LNNVL("C_CUSTOMER_SK"<>"CUSTOMER_SK"))

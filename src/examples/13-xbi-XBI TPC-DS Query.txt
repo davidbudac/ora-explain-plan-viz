@@ -1,0 +1,27 @@
+-- xbi.sql: eXplain Better v1.01 for sql_id=czxpthmzk8nnd child=0 - by Tanel Poder (https://blog.tanelpoder.com)
+
+         SQL_ID         CHLD ADDRESS          Plan Hash Value First Load Time
+-------- ------------- ----- ---------------- --------------- ------
+Cursor:  czxpthmzk8nnd     0 000000049451AFB8      2501019660 Statement first parsed at: 2022-03-17/01:21:20 - 1234 seconds ago
+
+ Pred    Op  Par.  #Sib                                              Query Block             ms spent in Consistent  Rowsource  Real #rows     Est. rows      Opt. Card.    Current   Physical   Physical        Memory Workarea        Optimizer
+ #Col    ID    ID  ling Row Source                                   name                 this operation       gets     starts    returned         total     misestimate       gets  read blks write blks     used (MB) Passes               Cost
+----- ----- ----- ----- -------------------------------------------- -------------------- -------------- ---------- ---------- ----------- ------------- --------------- ---------- ---------- ---------- ------------- ------------- -----------
+          0             SELECT STATEMENT                             >>> Plan totals >>>        3,220.09     125211          1          20                                        0       9391          0                                  121263
+          1     0     1  SORT ORDER BY                               SEL$1                           .07          0          1          20        114030           5701x          0          0          0           .00 OPTIMAL            121263
+          2     1     1   HASH GROUP BY                                                             3.89          0          1         245        114030            465x          0          0          0          5.54 OPTIMAL            121263
+    A     3     2     1    HASH JOIN                                                               28.78          0          1        9056        114030             13x          0          0          0          1.63 OPTIMAL            117113
+    F     4     3     1     TABLE ACCESS FULL [DATE_DIM]             SEL$1                          4.02       1456          1        6000          6000              1x          0          0          0                                     229
+          5     3     2     NESTED LOOPS                                                           39.05          0          1      112576        114030              1x          0          0          0                                  116883
+          6     5     1      NESTED LOOPS                                                          13.67          0          1      112576        114345              1x          0          0          0                                  116883
+    F     7     6     1       TABLE ACCESS FULL [ITEM]               SEL$1                         31.71      10374          1         160           165              1x          0          0          0                                    1670
+  A#1     8     6     2       INDEX RANGE SCAN [STORE_SALES_PK_IDX]  SEL$1                         43.44        866        160      112576        110880             -1x          0         77          0                                       5
+          9     5     2      TABLE ACCESS BY GLOBAL INDEX ROWID      SEL$1                      3,055.46     112515     112576      112576      78015168            693x          0       9314          0                                     698
+
+   Op Query Block
+   ID name                  Predicate Information (identified by operation id):
+----- -------------------- - ----------------------------------------------------------------------------------------------------
+    3                       - access("SS"."SS_SOLD_DATE_SK"="D"."D_DATE_SK")
+    4  SEL$1                - filter("D"."D_YEAR" BETWEEN 1998 AND 2001)
+    7  SEL$1                - filter("I"."I_MANUFACT_ID" BETWEEN 738 AND 742)
+    8  SEL$1                - access("SS"."SS_ITEM_SK"="I"."I_ITEM_SK")
