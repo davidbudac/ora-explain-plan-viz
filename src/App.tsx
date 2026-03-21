@@ -132,7 +132,7 @@ function AppContent() {
 
       {anyPlanParsed && (
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          {!visualizationMaximized && !isComparisonWorkspace && (
+          {!isComparisonWorkspace && (
             <FilterPanel
               panelWidth={panelWidths.left}
               onResizeStart={startResize('left')}
@@ -142,7 +142,7 @@ function AppContent() {
             <VisualizationTabs />
             {!visualizationMaximized && <Legend />}
           </div>
-          {!visualizationMaximized && !isComparisonWorkspace && (
+          {!isComparisonWorkspace && (
             <NodeDetailPanel
               panelWidth={panelWidths.right}
               onResizeStart={startResize('right')}
