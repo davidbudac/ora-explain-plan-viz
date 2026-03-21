@@ -53,7 +53,7 @@ function clampPanelWidths(widths: PanelWidths, viewportWidth: number): PanelWidt
 }
 
 function AppContent() {
-  const { plans, viewMode, treeCompareEnabled, visualizationMaximized } = usePlan();
+  const { plans, viewMode, treeCompareEnabled, visualizationMaximized, setVisualizationMaximized } = usePlan();
   const anyPlanParsed = plans.some(p => p.parsedPlan);
   const isComparisonWorkspace = viewMode === 'compare' || treeCompareEnabled;
   const [panelWidths, setPanelWidths] = useState<PanelWidths>({
@@ -112,6 +112,20 @@ function AppContent() {
       window.removeEventListener('pointerup', onPointerUp);
     };
   }, [resizeState]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'f' || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+      if (!anyPlanParsed) return;
+      const tag = (event.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if ((event.target as HTMLElement)?.isContentEditable) return;
+      event.preventDefault();
+      setVisualizationMaximized(!visualizationMaximized);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [anyPlanParsed, visualizationMaximized, setVisualizationMaximized]);
 
   const startResize = (side: ResizeSide) => (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.button !== 0) return;
