@@ -561,6 +561,12 @@ function HierarchicalViewContent({
     return { ancestorIds, descendantIds };
   }, [parsedPlan, selectedNodeId, selectedNodeIds.length, nodeById]);
 
+  // When Quick Analysis is disabled, also hide cardinality mismatch badges on nodes
+  const effectiveDisplayOptions = useMemo(() => {
+    if (hotspotsEnabled) return filters.nodeDisplayOptions;
+    return { ...filters.nodeDisplayOptions, showCardinalityBadge: false };
+  }, [filters.nodeDisplayOptions, hotspotsEnabled]);
+
   const layoutData = useMemo(() => {
     if (!parsedPlan?.rootNode) {
       return { nodes: [] as Node[], edges: [] as Edge[] };
@@ -579,14 +585,14 @@ function HierarchicalViewContent({
       const hasActualStats = parsedPlan!.hasActualStats || false;
       const hasAnnotation = effectiveAnnotations.nodeAnnotations.has(node.id);
       // Calculate dynamic height for this node
-      const height = calculateNodeHeight(node, filters.nodeDisplayOptions, hasActualStats, hasAnnotation, isReadable);
+      const height = calculateNodeHeight(node, effectiveDisplayOptions, hasActualStats, hasAnnotation, isReadable);
       nodeDimensions.set(node.id.toString(), { width: effectiveNodeWidth, height });
 
       // Keep query block envelopes stable across predicate-detail toggles by
       // sizing groups against the expanded node-height baseline.
       const groupHeight = calculateNodeHeight(
         node,
-        { ...filters.nodeDisplayOptions, showPredicateDetails: true },
+        { ...effectiveDisplayOptions, showPredicateDetails: true },
         hasActualStats,
         hasAnnotation,
         isReadable,
@@ -603,7 +609,7 @@ function HierarchicalViewContent({
           totalCost: parsedPlan!.totalCost,
           isSelected: false, // Updated by useEffect when selectedNodeId changes
           isFiltered: false,
-          displayOptions: filters.nodeDisplayOptions,
+          displayOptions: effectiveDisplayOptions,
           hasActualStats: parsedPlan!.hasActualStats,
           width: effectiveNodeWidth,
           height,
@@ -678,7 +684,7 @@ function HierarchicalViewContent({
 
     // Create query block groups if enabled
     const groupNodes: Node[] = [];
-    if (filters.nodeDisplayOptions.showQueryBlockGrouping && nodeQueryBlocks.size > 0) {
+    if (effectiveDisplayOptions.showQueryBlockGrouping && nodeQueryBlocks.size > 0) {
       // Group nodes by query block
       const queryBlockGroups = new Map<string, Node[]>();
       for (const node of layoutedResult.nodes) {
@@ -773,7 +779,7 @@ function HierarchicalViewContent({
       nodes: [...groupNodes, ...annotationGroupNodes, ...layoutedResult.nodes],
       edges: edgesWithThickness,
     };
-  }, [effectiveAnnotations.groups, effectiveAnnotations.nodeAnnotations, filters.nodeDisplayOptions, parsedPlan, colorScheme]);
+  }, [effectiveAnnotations.groups, effectiveAnnotations.nodeAnnotations, effectiveDisplayOptions, parsedPlan, colorScheme]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutData.edges);
@@ -816,7 +822,7 @@ function HierarchicalViewContent({
               focusEnabled &&
               !selectionSets.ancestorIds.has(parseInt(node.id)) &&
               !selectionSets.descendantIds.has(parseInt(node.id)),
-            displayOptions: filters.nodeDisplayOptions,
+            displayOptions: effectiveDisplayOptions,
             hasActualStats: parsedPlan?.hasActualStats,
             colorScheme,
             nodeIndicatorMetric,
@@ -837,7 +843,7 @@ function HierarchicalViewContent({
     selectedNodeIds.length,
     selectedNodeIdSet,
     filteredNodeIds,
-    filters.nodeDisplayOptions,
+    effectiveDisplayOptions,
     filters.focusSelection,
     parsedPlan?.hasActualStats,
     colorScheme,
