@@ -64,6 +64,16 @@
   animation-direction: reverse !important;
 }
 
+/* Hand-drawn highlight breathing animation */
+@keyframes highlight-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.highlight-breathe {
+  animation: highlight-breathe 3s ease-in-out infinite;
+}
+
 /* Vertical text for collapsed panels */
 .writing-mode-vertical {
   writing-mode: vertical-rl;
