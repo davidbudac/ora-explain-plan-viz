@@ -24,6 +24,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
     colorScheme, filters, nodeIndicatorMetric, annotations,
     setNodeAnnotation, removeNodeAnnotation, setNodeHighlight, removeNodeHighlight,
     addAnnotationGroup, updateAnnotationGroup, removeAnnotationGroup,
+    hotspotsEnabled, setHotspotsEnabled,
   } = usePlan();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const searchText = filters.searchText;
@@ -100,7 +101,22 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         />
         <div className="p-3 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950/40">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">Hotspots</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">Quick Analysis</h3>
+              <button
+                role="switch"
+                aria-checked={hotspotsEnabled}
+                onClick={() => setHotspotsEnabled(!hotspotsEnabled)}
+                className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
+                  hotspotsEnabled ? 'bg-red-500' : 'bg-neutral-300 dark:bg-neutral-600'
+                }`}
+                title={hotspotsEnabled ? 'Disable hotspot detection' : 'Enable hotspot detection'}
+              >
+                <span className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${
+                  hotspotsEnabled ? 'translate-x-3.5' : 'translate-x-0.5'
+                }`} />
+              </button>
+            </div>
             <button
               onClick={() => setIsCollapsed(true)}
               className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded transition-colors"
@@ -114,79 +130,83 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-1">Click a row to select, or Cmd/Ctrl-click nodes for multi-select</p>
         </div>
 
-        {/* Worst by A-Time */}
-        {worstNodes.byTime.length > 0 && (
-          <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
-            <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide flex items-center gap-1">
-              <svg className="w-3.5 h-3.5 text-red-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" /></svg>
-              Slowest by A-Time
-            </h4>
-            <div className="space-y-1">
-              {worstNodes.byTime.map(n => (
-                <button
-                  key={n.id}
-                  onClick={() => selectNode(n.id)}
-                  className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors flex items-center justify-between gap-2"
-                >
-                  <span className="flex items-center gap-1.5 truncate">
-                    <span className="w-5 h-5 rounded-full bg-neutral-700 dark:bg-neutral-300 text-white dark:text-neutral-900 text-[10px] font-bold flex items-center justify-center shrink-0">{n.id}</span>
-                    <span className="truncate text-neutral-700 dark:text-neutral-300">{n.operation}</span>
-                  </span>
-                  <span className="text-purple-600 dark:text-purple-400 font-medium whitespace-nowrap">{formatTimeCompact(n.actualTime)}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        {hotspotsEnabled && (
+          <>
+            {/* Worst by A-Time */}
+            {worstNodes.byTime.length > 0 && (
+              <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
+                <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5 text-red-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" /></svg>
+                  Slowest by A-Time
+                </h4>
+                <div className="space-y-1">
+                  {worstNodes.byTime.map(n => (
+                    <button
+                      key={n.id}
+                      onClick={() => selectNode(n.id)}
+                      className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors flex items-center justify-between gap-2"
+                    >
+                      <span className="flex items-center gap-1.5 truncate">
+                        <span className="w-5 h-5 rounded-full bg-neutral-700 dark:bg-neutral-300 text-white dark:text-neutral-900 text-[10px] font-bold flex items-center justify-center shrink-0">{n.id}</span>
+                        <span className="truncate text-neutral-700 dark:text-neutral-300">{n.operation}</span>
+                      </span>
+                      <span className="text-purple-600 dark:text-purple-400 font-medium whitespace-nowrap">{formatTimeCompact(n.actualTime)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-        {/* Worst by Cost */}
-        {worstNodes.byCost.length > 0 && (
-          <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
-            <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Highest Cost</h4>
-            <div className="space-y-1">
-              {worstNodes.byCost.map(n => (
-                <button
-                  key={n.id}
-                  onClick={() => selectNode(n.id)}
-                  className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors flex items-center justify-between gap-2"
-                >
-                  <span className="flex items-center gap-1.5 truncate">
-                    <span className="w-5 h-5 rounded-full bg-neutral-700 dark:bg-neutral-300 text-white dark:text-neutral-900 text-[10px] font-bold flex items-center justify-center shrink-0">{n.id}</span>
-                    <span className="truncate text-neutral-700 dark:text-neutral-300">{n.operation}</span>
-                  </span>
-                  <span className="text-neutral-600 dark:text-neutral-400 font-medium whitespace-nowrap">{n.cost}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+            {/* Worst by Cost */}
+            {worstNodes.byCost.length > 0 && (
+              <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
+                <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Highest Cost</h4>
+                <div className="space-y-1">
+                  {worstNodes.byCost.map(n => (
+                    <button
+                      key={n.id}
+                      onClick={() => selectNode(n.id)}
+                      className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors flex items-center justify-between gap-2"
+                    >
+                      <span className="flex items-center gap-1.5 truncate">
+                        <span className="w-5 h-5 rounded-full bg-neutral-700 dark:bg-neutral-300 text-white dark:text-neutral-900 text-[10px] font-bold flex items-center justify-center shrink-0">{n.id}</span>
+                        <span className="truncate text-neutral-700 dark:text-neutral-300">{n.operation}</span>
+                      </span>
+                      <span className="text-neutral-600 dark:text-neutral-400 font-medium whitespace-nowrap">{n.cost}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-        {/* Worst Cardinality Mismatches */}
-        {worstNodes.byCardinalityMismatch.length > 0 && (
-          <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
-            <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Worst Cardinality Mismatches</h4>
-            <div className="space-y-1">
-              {worstNodes.byCardinalityMismatch.map(({ node: n, ratio }) => {
-                const severity = cardinalityRatioSeverity(ratio);
-                const label = formatCardinalityRatio(ratio);
-                return (
-                  <button
-                    key={n.id}
-                    onClick={() => selectNode(n.id)}
-                    className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors flex items-center justify-between gap-2"
-                  >
-                    <span className="flex items-center gap-1.5 truncate">
-                      <span className="w-5 h-5 rounded-full bg-neutral-700 dark:bg-neutral-300 text-white dark:text-neutral-900 text-[10px] font-bold flex items-center justify-center shrink-0">{n.id}</span>
-                      <span className="truncate text-neutral-700 dark:text-neutral-300">{n.operation}</span>
-                    </span>
-                    <span className={`font-medium whitespace-nowrap ${
-                      severity === 'bad' ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
-                    }`}>{label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+            {/* Worst Cardinality Mismatches */}
+            {worstNodes.byCardinalityMismatch.length > 0 && (
+              <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
+                <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Worst Cardinality Mismatches</h4>
+                <div className="space-y-1">
+                  {worstNodes.byCardinalityMismatch.map(({ node: n, ratio }) => {
+                    const severity = cardinalityRatioSeverity(ratio);
+                    const label = formatCardinalityRatio(ratio);
+                    return (
+                      <button
+                        key={n.id}
+                        onClick={() => selectNode(n.id)}
+                        className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors flex items-center justify-between gap-2"
+                      >
+                        <span className="flex items-center gap-1.5 truncate">
+                          <span className="w-5 h-5 rounded-full bg-neutral-700 dark:bg-neutral-300 text-white dark:text-neutral-900 text-[10px] font-bold flex items-center justify-center shrink-0">{n.id}</span>
+                          <span className="truncate text-neutral-700 dark:text-neutral-300">{n.operation}</span>
+                        </span>
+                        <span className={`font-medium whitespace-nowrap ${
+                          severity === 'bad' ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
+                        }`}>{label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* Bind Variables */}

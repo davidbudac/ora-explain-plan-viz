@@ -25,6 +25,7 @@ interface PlanState {
   theme: Theme;
   filters: FilterState;
   // UI panel states (persisted)
+  hotspotsEnabled: boolean;
   legendVisible: boolean;
   inputPanelCollapsed: boolean;
   filterPanelCollapsed: boolean;
@@ -49,6 +50,7 @@ type PlanAction =
   | { type: 'SET_FILTERS'; payload: Partial<FilterState> }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'CLEAR_PLAN' }
+  | { type: 'SET_HOTSPOTS_ENABLED'; payload: boolean }
   | { type: 'SET_LEGEND_VISIBLE'; payload: boolean }
   | { type: 'SET_INPUT_PANEL_COLLAPSED'; payload: boolean }
   | { type: 'SET_FILTER_PANEL_COLLAPSED'; payload: boolean }
@@ -215,6 +217,7 @@ const getInitialState = (): PlanState => {
     colorScheme: settings.colorScheme ?? 'muted',
     theme: getInitialTheme(),
     filters: applySettingsToFilters(initialFilters, settings),
+    hotspotsEnabled: settings.hotspotsEnabled ?? true,
     legendVisible: settings.legendVisible,
     inputPanelCollapsed: initialPlans.some((slot) => slot.parsedPlan) ? settings.inputPanelCollapsed : false,
     filterPanelCollapsed: settings.filterPanelCollapsed,
@@ -371,6 +374,9 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
           hasUnsavedAnnotations: false,
         };
       }
+
+    case 'SET_HOTSPOTS_ENABLED':
+      return { ...state, hotspotsEnabled: action.payload };
 
     case 'SET_LEGEND_VISIBLE':
       return { ...state, legendVisible: action.payload };
@@ -588,6 +594,8 @@ interface PlanContextValue {
   filteredNodeIds: Set<number>;
   nodeById: Map<number, PlanNode>;
   hottestNodeId: number | null;
+  hotspotsEnabled: boolean;
+  setHotspotsEnabled: (enabled: boolean) => void;
   setLegendVisible: (visible: boolean) => void;
   setInputPanelCollapsed: (collapsed: boolean) => void;
   setFilterPanelCollapsed: (collapsed: boolean) => void;
@@ -736,6 +744,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   // Hottest node: the non-root node with the highest A-Time
   const hottestNodeId = useMemo((): number | null => {
+    if (!state.hotspotsEnabled) return null;
     if (!parsedPlan?.hasActualStats) return null;
     let maxTime = 0;
     let hotId: number | null = null;
@@ -748,7 +757,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       }
     }
     return hotId;
-  }, [parsedPlan]);
+  }, [parsedPlan, state.hotspotsEnabled]);
 
   // Apply theme to document
   useEffect(() => {
@@ -808,6 +817,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         sankeyMetric: state.sankeyMetric,
         nodeIndicatorMetric: state.nodeIndicatorMetric,
         colorScheme: state.colorScheme,
+        hotspotsEnabled: state.hotspotsEnabled,
         legendVisible: state.legendVisible,
         inputPanelCollapsed: state.inputPanelCollapsed,
         filterPanelCollapsed: state.filterPanelCollapsed,
@@ -826,6 +836,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     state.sankeyMetric,
     state.nodeIndicatorMetric,
     state.colorScheme,
+    state.hotspotsEnabled,
     state.legendVisible,
     state.inputPanelCollapsed,
     state.filterPanelCollapsed,
@@ -883,6 +894,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   const clearPlan = useCallback(() => {
     dispatch({ type: 'CLEAR_PLAN' });
+  }, []);
+
+  const setHotspotsEnabled = useCallback((enabled: boolean) => {
+    dispatch({ type: 'SET_HOTSPOTS_ENABLED', payload: enabled });
   }, []);
 
   const setLegendVisible = useCallback((visible: boolean) => {
@@ -1083,6 +1098,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     filteredNodeIds,
     nodeById,
     hottestNodeId,
+    hotspotsEnabled: state.hotspotsEnabled,
+    setHotspotsEnabled,
     setLegendVisible,
     setInputPanelCollapsed,
     setFilterPanelCollapsed,

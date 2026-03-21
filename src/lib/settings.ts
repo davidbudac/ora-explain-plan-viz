@@ -34,6 +34,9 @@ export interface UserSettings {
   // Operation type filters
   operationTypes: string[];
 
+  // Hotspots
+  hotspotsEnabled: boolean;
+
   // Comparison metrics
   compareMetrics: CompareMetric[];
 }
@@ -62,6 +65,7 @@ const defaultSettings: UserSettings = {
   sankeyMetric: 'rows',
   nodeIndicatorMetric: 'cost',
   colorScheme: 'muted',
+  hotspotsEnabled: true,
   legendVisible: false,
   inputPanelCollapsed: false,
   filterPanelCollapsed: false,
