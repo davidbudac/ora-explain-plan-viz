@@ -373,6 +373,7 @@ function HierarchicalViewContent({
     nodeIndicatorMetric,
     annotations,
     exportPngFnRef,
+    hotspotsEnabled,
   } = usePlan();
   const resolvedPlanIndex = planIndex ?? activePlanIndex;
   const slot = plans[resolvedPlanIndex];
@@ -395,6 +396,7 @@ function HierarchicalViewContent({
     );
   }, [parsedPlan, filters]);
   const hottestNodeId = useMemo((): number | null => {
+    if (!hotspotsEnabled) return null;
     if (!parsedPlan?.hasActualStats) return null;
     let maxTime = 0;
     let hotId: number | null = null;
@@ -406,7 +408,7 @@ function HierarchicalViewContent({
       }
     }
     return hotId;
-  }, [parsedPlan]);
+  }, [parsedPlan, hotspotsEnabled]);
   const effectiveAnnotations = useMemo(
     () => (showAnnotations ? annotations : createEmptyAnnotationState()),
     [annotations, showAnnotations]
