@@ -6,7 +6,6 @@ import type { PlanSlot, CompareMetric } from '../lib/compare';
 import { createEmptySlot, DEFAULT_COMPARE_METRICS, getPlanSlotLabel } from '../lib/compare';
 import { parseExplainPlan, splitDbmsXplanPlanBatches } from '../lib/parser';
 import { loadSettings, saveSettings, extractFilterSettings, applySettingsToFilters } from '../lib/settings';
-import { SAMPLE_PLANS } from '../examples';
 import { matchesFilters } from '../lib/filtering';
 import { getPlanFromUrl, clearPlanFromUrl, buildShareUrl } from '../lib/url';
 import type { SharePayload } from '../lib/url';
@@ -54,7 +53,6 @@ type PlanAction =
   | { type: 'SET_INPUT_PANEL_COLLAPSED'; payload: boolean }
   | { type: 'SET_FILTER_PANEL_COLLAPSED'; payload: boolean }
   | { type: 'SET_VISUALIZATION_MAXIMIZED'; payload: boolean }
-  | { type: 'ADD_PLAN_SLOT' }
   | { type: 'REMOVE_PLAN_SLOT'; payload: number }
   | { type: 'RENAME_PLAN_SLOT'; payload: { index: number; customLabel: string } }
   | { type: 'SET_ACTIVE_PLAN'; payload: number }
@@ -386,17 +384,6 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
     case 'SET_VISUALIZATION_MAXIMIZED':
       return { ...state, visualizationMaximized: action.payload };
 
-    case 'ADD_PLAN_SLOT': {
-      const newSlot = createEmptySlot(state.plans.length);
-      const nextPlans = [...state.plans, newSlot];
-      return normalizePlanState({
-        ...state,
-        plans: nextPlans,
-        activePlanIndex: nextPlans.length - 1,
-        inputPanelCollapsed: false,
-      });
-    }
-
     case 'RENAME_PLAN_SLOT': {
       const { index, customLabel } = action.payload;
       if (index < 0 || index >= state.plans.length) return state;
@@ -576,7 +563,6 @@ interface PlanContextValue {
   plans: PlanSlot[];
   activePlanIndex: number;
   comparePlanIndices: [number, number];
-  canAddPlan: boolean;
   hasMultiplePlans: boolean;
   compareMetrics: CompareMetric[];
 
@@ -612,7 +598,6 @@ interface PlanContextValue {
   hasUnsavedAnnotations: boolean;
 
   // Multi-plan actions
-  addPlanSlot: () => void;
   removePlanSlot: (index: number) => void;
   renamePlanSlot: (index: number, customLabel: string) => void;
   setActivePlan: (index: number) => void;
@@ -720,7 +705,6 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const selectedNodeIds = activeSlot.selectedNodeIds;
   const error = activeSlot.error;
 
-  const canAddPlan = true;
   const hasMultiplePlans = state.plans.length > 1;
 
   const nodeById = useMemo(() => {
@@ -810,12 +794,6 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         }
       }
       return;
-    }
-
-    // Find the default example and load it
-    const defaultExample = SAMPLE_PLANS.find((p) => p.name === 'SQL Monitor XML (Nested Loops)');
-    if (defaultExample) {
-      importPlanInput(defaultExample.data);
     }
   }, [buildPlanSlotsFromInputs, importPlanInput]);
 
@@ -921,10 +899,6 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   const setVisualizationMaximized = useCallback((maximized: boolean) => {
     dispatch({ type: 'SET_VISUALIZATION_MAXIMIZED', payload: maximized });
-  }, []);
-
-  const addPlanSlot = useCallback(() => {
-    dispatch({ type: 'ADD_PLAN_SLOT' });
   }, []);
 
   const removePlanSlot = useCallback((index: number) => {
@@ -1084,7 +1058,6 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     plans: state.plans,
     activePlanIndex: state.activePlanIndex,
     comparePlanIndices: state.comparePlanIndices,
-    canAddPlan,
     hasMultiplePlans,
     compareMetrics: state.compareMetrics,
 
@@ -1120,7 +1093,6 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     hasUnsavedAnnotations: state.hasUnsavedAnnotations,
 
     // Multi-plan actions
-    addPlanSlot,
     removePlanSlot,
     renamePlanSlot,
     setActivePlan,
