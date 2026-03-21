@@ -74,7 +74,7 @@ const defaultSettings: UserSettings = {
   inputPanelCollapsed: false,
   filterPanelCollapsed: false,
   animateEdges: false,
-  focusSelection: false,
+  focusSelection: true,
   nodeDisplayOptions: defaultNodeDisplayOptions,
   predicateTypes: [],
   operationTypes: [],
