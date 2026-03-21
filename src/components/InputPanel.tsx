@@ -5,7 +5,7 @@ import { formatNumberShort, formatTimeShort } from '../lib/format';
 import { SAMPLE_PLANS_BY_CATEGORY, type SamplePlan } from '../examples';
 
 export function InputPanel() {
-  const { rawInput, setInput, parsePlan, loadAndParsePlan, clearPlan, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, canAddPlan, addPlanSlot, hasMultiplePlans, plans, activePlanIndex } = usePlan();
+  const { rawInput, setInput, parsePlan, loadAndParsePlan, clearPlan, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex } = usePlan();
   const [showSampleMenu, setShowSampleMenu] = useState(false);
   const wasParsingRef = useRef(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -163,13 +163,9 @@ export function InputPanel() {
           <textarea
             value={rawInput}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Paste DBMS_XPLAN output, SQL Monitor text/XML, or JSON here. Repeated DBMS_XPLAN sections with different plan hash values will be imported as separate plan tabs."
-            className="w-full h-36 p-2.5 font-mono text-xs bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-blue-500/60 text-neutral-900 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-neutral-400"
+            placeholder={"Paste an Oracle execution plan here - or click on Load Example on the right --> \n\nSupported formats:\n  \u2022 DBMS_XPLAN output\n  \u2022 SQL Monitor text report\n  \u2022 SQL Monitor XML report\n  \u2022 V$SQL_PLAN JSON\n\nMultiple plans in one paste are split into separate tabs."}
+            className="w-full h-36 p-2.5 font-mono text-xs bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-blue-500/60 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500"
           />
-
-          <div className="text-[11px] text-neutral-500 dark:text-neutral-400">
-            Repeated DBMS_XPLAN outputs in one paste are split into separate plan tabs by plan hash value.
-          </div>
 
           {error && (
             <div className="p-2 text-xs bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-red-700 dark:text-red-400">
@@ -218,17 +214,6 @@ export function InputPanel() {
             )}
           </div>
 
-          {parsedPlan && canAddPlan && (
-            <button
-              onClick={addPlanSlot}
-              className="h-8 px-3 border border-dashed border-neutral-300 dark:border-neutral-600 bg-neutral-50 dark:bg-neutral-800/50 text-neutral-600 dark:text-neutral-400 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:border-neutral-400 dark:hover:border-neutral-500 transition-colors font-medium text-xs flex items-center gap-1.5"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add Empty Plan Tab
-            </button>
-          )}
         </div>
       )}
     </div>
