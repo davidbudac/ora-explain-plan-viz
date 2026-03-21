@@ -202,7 +202,7 @@ export function InputPanel() {
               disabled={!rawInput.trim()}
               className="h-8 px-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold text-xs"
             >
-              Parse <kbd className="ml-1 text-[10px] opacity-70 font-normal">{navigator.platform?.includes('Mac') ? '\u2318' : 'Ctrl'}\u23CE</kbd>
+              Parse <kbd className="ml-1 text-[10px] opacity-70 font-normal">{navigator.platform?.includes('Mac') ? '\u2318' : 'Ctrl'}{'\u23CE'}</kbd>
             </button>
             {parsedPlan && (
               <button
