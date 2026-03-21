@@ -53,9 +53,9 @@ function clampPanelWidths(widths: PanelWidths, viewportWidth: number): PanelWidt
 }
 
 function AppContent() {
-  const { plans, viewMode, treeCompareEnabled, visualizationMaximized, setVisualizationMaximized } = usePlan();
+  const { plans, viewMode, visualizationMaximized, setVisualizationMaximized } = usePlan();
   const anyPlanParsed = plans.some(p => p.parsedPlan);
-  const isComparisonWorkspace = viewMode === 'compare' || treeCompareEnabled;
+  const isComparisonWorkspace = viewMode === 'compare';
   const [panelWidths, setPanelWidths] = useState<PanelWidths>({
     left: DEFAULT_LEFT_PANEL_WIDTH,
     right: DEFAULT_RIGHT_PANEL_WIDTH,

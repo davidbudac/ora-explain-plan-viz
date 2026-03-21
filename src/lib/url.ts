@@ -9,7 +9,8 @@ const MAX_URL_LENGTH = 8000;
  * Each plan slot only needs its rawInput text.
  */
 export interface SharePayload {
-  plans: { rawInput: string }[];
+  plans: { rawInput: string; annotations?: SerializedAnnotationState }[];
+  /** @deprecated Global annotations from older shares — migrated to per-plan on load */
   annotations?: SerializedAnnotationState;
 }
 

@@ -48,7 +48,7 @@ function CompareTreePane({
         <HierarchicalView
           planIndex={index}
           registerExport={false}
-          showAnnotations={false}
+          showAnnotations={true}
         />
       </div>
     </div>
