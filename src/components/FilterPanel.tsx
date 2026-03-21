@@ -335,10 +335,17 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
         </div>
       </div>
 
+      {/* Highlight by thresholds */}
+      <div className="px-3 pt-3 pb-1">
+        <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
+          Highlight by:
+        </label>
+      </div>
+
       {/* Cost Range */}
       <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
-        <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 uppercase tracking-wide">
-          Minimum Cost: {filters.minCost}
+        <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
+          Minimum cost: {filters.minCost}
         </label>
         <input
           type="range"
@@ -357,7 +364,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       {/* SQL Monitor: Actual Rows Range */}
       {parsedPlan?.hasActualStats && maxActualRows > 0 && (
         <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
-          <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 uppercase tracking-wide">
+          <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
             Minimum A-Rows: {formatNumberShort(filters.minActualRows, { infinity: '∞' })}
           </label>
           <input
@@ -378,7 +385,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       {/* SQL Monitor: Actual Time Range */}
       {parsedPlan?.hasActualStats && maxActualTime > 0 && (
         <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
-          <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 uppercase tracking-wide">
+          <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
             Minimum A-Time: {formatTimeCompact(filters.minActualTime, { infinity: '∞' })}
           </label>
           <input
@@ -399,8 +406,8 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       {/* Cardinality Mismatch Filter */}
       {parsedPlan?.hasActualStats && (
         <div className="p-3">
-          <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 uppercase tracking-wide">
-            Min Cardinality Mismatch: {filters.minCardinalityMismatch > 0 ? `${filters.minCardinalityMismatch}x` : 'Off'}
+          <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
+            Min cardinality mismatch: {filters.minCardinalityMismatch > 0 ? `${filters.minCardinalityMismatch}x` : 'Off'}
           </label>
           <input
             type="range"
