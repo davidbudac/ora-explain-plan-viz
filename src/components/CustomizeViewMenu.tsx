@@ -346,7 +346,7 @@ export function CustomizeViewMenu({
         onClick={() => setOpen((value) => !value)}
         className="w-full h-8 px-2.5 rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-xs font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors flex items-center justify-between"
       >
-        <span>Customize view</span>
+        <span>Customize view <kbd className="ml-1 text-[10px] opacity-70 font-normal">{navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl+'}K</kbd></span>
         <svg
           className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`}
           fill="none"
