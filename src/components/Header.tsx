@@ -8,6 +8,7 @@ const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
   professional: 'Professional',
   vibrant: 'Vibrant',
   monochrome: 'Monochrome',
+  readable: 'Readable',
 };
 
 export function Header() {
