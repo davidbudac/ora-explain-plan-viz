@@ -1,0 +1,9 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        APP_BASE_PATH: ${APP_BASE_PATH:-/}
+    ports:
+      - "${PORT:-8080}:80"
+    restart: unless-stopped

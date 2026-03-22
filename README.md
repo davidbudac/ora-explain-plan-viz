@@ -106,7 +106,51 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173/ora-explain-plan-viz/
+Open http://localhost:5173/
+
+## Deploy with Docker
+
+Build and run the production image locally:
+
+```bash
+npm run docker:build
+npm run docker:run
+```
+
+Then open http://localhost:8080/
+
+Or use Docker Compose:
+
+```bash
+npm run docker:compose:up
+```
+
+Stop it with:
+
+```bash
+npm run docker:compose:down
+```
+
+### Base Path Configuration
+
+The app now supports a build-time `APP_BASE_PATH` environment variable for production builds:
+
+- Unset or `/` builds for root deployment, which is the default for Docker and self-hosting.
+- `/ora-explain-plan-viz/` builds for GitHub Pages.
+
+GitHub Pages still uses the existing subpath deployment via the Actions workflow, which now runs:
+
+```bash
+npm run build:pages
+```
+
+For a subpath deployment behind a reverse proxy, rebuild with a custom base path:
+
+```bash
+APP_BASE_PATH=/ora-explain-plan-viz/ docker compose up --build
+```
+
+`APP_BASE_PATH` is a build-time setting. If you change it, rebuild the app image or rerun the production build.
 
 ## License
 
