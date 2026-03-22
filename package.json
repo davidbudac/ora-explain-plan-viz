@@ -6,8 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:pages": "APP_BASE_PATH=/ora-explain-plan-viz/ npm run build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "docker:build": "docker build -t ora-explain-plan-viz .",
+    "docker:run": "docker run --rm -p 8080:80 ora-explain-plan-viz",
+    "docker:compose:up": "docker compose up --build",
+    "docker:compose:down": "docker compose down"
   },
   "dependencies": {
     "@dagrejs/dagre": "^1.1.8",
