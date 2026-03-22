@@ -211,7 +211,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
 
       {/* View Customization */}
       <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
-        <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 uppercase tracking-wide">
+        <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-2">
           View
         </label>
         <CustomizeViewMenu
@@ -224,7 +224,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
 
       {/* Search */}
       <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
-        <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 uppercase tracking-wide">
+        <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-2">
           Search
         </label>
         <input
@@ -265,8 +265,8 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
 
       {/* Predicate Types */}
       <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
-        <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-3 uppercase tracking-wide">
-          Predicate Types
+        <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-3">
+          Predicate types
         </label>
         <div className="space-y-2">
           {([
@@ -302,8 +302,8 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
 
       {/* Operation Categories */}
       <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
-        <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-3 uppercase tracking-wide">
-          Operation Types
+        <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-3">
+          Operation types
         </label>
         <div className="space-y-2">
           {Object.keys(OPERATION_CATEGORIES).map((category) => {
@@ -335,100 +335,113 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
         </div>
       </div>
 
-      {/* Highlight by thresholds */}
-      <div className="px-3 pt-3 pb-1">
-        <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
-          Highlight by:
+      {/* Thresholds */}
+      <div className="p-3">
+        <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-3">
+          Highlight by
         </label>
-      </div>
-
-      {/* Cost Range */}
-      <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
-        <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
-          Minimum cost: {filters.minCost}
-        </label>
-        <input
-          type="range"
-          min={0}
-          max={maxCost}
-          value={filters.minCost}
-          onChange={(e) => setFilters({ minCost: parseInt(e.target.value) })}
-          className="w-full accent-blue-600"
-        />
-        <div className="flex justify-between text-[11px] text-neutral-500 dark:text-neutral-400 mt-1">
-          <span>0</span>
-          <span>{maxCost}</span>
-        </div>
-      </div>
-
-      {/* SQL Monitor: Actual Rows Range */}
-      {parsedPlan?.hasActualStats && maxActualRows > 0 && (
-        <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
-          <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
-            Minimum A-Rows: {formatNumberShort(filters.minActualRows, { infinity: '∞' })}
-          </label>
-          <input
-            type="range"
-            min={0}
-            max={maxActualRows}
-            value={filters.minActualRows === Infinity ? maxActualRows : filters.minActualRows}
-            onChange={(e) => setFilters({ minActualRows: parseInt(e.target.value) })}
-            className="w-full accent-blue-600"
-          />
-          <div className="flex justify-between text-[11px] text-neutral-500 dark:text-neutral-400 mt-1">
-            <span>0</span>
-            <span>{formatNumberShort(maxActualRows, { infinity: '∞' })}</span>
+        <div className="space-y-4">
+          {/* Cost Range */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] text-neutral-600 dark:text-neutral-400">Cost</span>
+              <span className="text-[11px] font-medium text-neutral-700 dark:text-neutral-300 tabular-nums">
+                {filters.minCost > 0 ? `≥ ${filters.minCost}` : 'All'}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={maxCost}
+              value={filters.minCost}
+              onChange={(e) => setFilters({ minCost: parseInt(e.target.value) })}
+              className="w-full accent-blue-600"
+            />
+            <div className="flex justify-between text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">
+              <span>0</span>
+              <span>{maxCost}</span>
+            </div>
           </div>
-        </div>
-      )}
 
-      {/* SQL Monitor: Actual Time Range */}
-      {parsedPlan?.hasActualStats && maxActualTime > 0 && (
-        <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
-          <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
-            Minimum A-Time: {formatTimeCompact(filters.minActualTime, { infinity: '∞' })}
-          </label>
-          <input
-            type="range"
-            min={0}
-            max={maxActualTime}
-            value={filters.minActualTime === Infinity ? maxActualTime : filters.minActualTime}
-            onChange={(e) => setFilters({ minActualTime: parseInt(e.target.value) })}
-            className="w-full accent-blue-600"
-          />
-          <div className="flex justify-between text-[11px] text-neutral-500 dark:text-neutral-400 mt-1">
-            <span>0</span>
-            <span>{formatTimeCompact(maxActualTime, { infinity: '∞' })}</span>
-          </div>
-        </div>
-      )}
+          {/* SQL Monitor: Actual Rows Range */}
+          {parsedPlan?.hasActualStats && maxActualRows > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] text-neutral-600 dark:text-neutral-400">A-Rows</span>
+                <span className="text-[11px] font-medium text-neutral-700 dark:text-neutral-300 tabular-nums">
+                  {filters.minActualRows > 0 ? `≥ ${formatNumberShort(filters.minActualRows, { infinity: '∞' })}` : 'All'}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={maxActualRows}
+                value={filters.minActualRows === Infinity ? maxActualRows : filters.minActualRows}
+                onChange={(e) => setFilters({ minActualRows: parseInt(e.target.value) })}
+                className="w-full accent-blue-600"
+              />
+              <div className="flex justify-between text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">
+                <span>0</span>
+                <span>{formatNumberShort(maxActualRows, { infinity: '∞' })}</span>
+              </div>
+            </div>
+          )}
 
-      {/* Cardinality Mismatch Filter */}
-      {parsedPlan?.hasActualStats && (
-        <div className="p-3">
-          <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
-            Min cardinality mismatch: {filters.minCardinalityMismatch > 0 ? `${filters.minCardinalityMismatch}x` : 'Off'}
-          </label>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            step={1}
-            value={filters.minCardinalityMismatch}
-            onChange={(e) => setFilters({ minCardinalityMismatch: parseInt(e.target.value) })}
-            className="w-full accent-blue-600"
-          />
-          <div className="flex justify-between text-[11px] text-neutral-500 dark:text-neutral-400 mt-1">
-            <span>Off</span>
-            <span>100x</span>
-          </div>
-          {filters.minCardinalityMismatch > 0 && (
-            <div className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400">
-              Showing only nodes where E-Rows/A-Rows differ by {filters.minCardinalityMismatch}x+
+          {/* SQL Monitor: Actual Time Range */}
+          {parsedPlan?.hasActualStats && maxActualTime > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] text-neutral-600 dark:text-neutral-400">A-Time</span>
+                <span className="text-[11px] font-medium text-neutral-700 dark:text-neutral-300 tabular-nums">
+                  {filters.minActualTime > 0 ? `≥ ${formatTimeCompact(filters.minActualTime, { infinity: '∞' })}` : 'All'}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={maxActualTime}
+                value={filters.minActualTime === Infinity ? maxActualTime : filters.minActualTime}
+                onChange={(e) => setFilters({ minActualTime: parseInt(e.target.value) })}
+                className="w-full accent-blue-600"
+              />
+              <div className="flex justify-between text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">
+                <span>0</span>
+                <span>{formatTimeCompact(maxActualTime, { infinity: '∞' })}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Cardinality Mismatch Filter */}
+          {parsedPlan?.hasActualStats && (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] text-neutral-600 dark:text-neutral-400">Cardinality mismatch</span>
+                <span className="text-[11px] font-medium text-neutral-700 dark:text-neutral-300 tabular-nums">
+                  {filters.minCardinalityMismatch > 0 ? `≥ ${filters.minCardinalityMismatch}x` : 'Off'}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={filters.minCardinalityMismatch}
+                onChange={(e) => setFilters({ minCardinalityMismatch: parseInt(e.target.value) })}
+                className="w-full accent-blue-600"
+              />
+              <div className="flex justify-between text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">
+                <span>Off</span>
+                <span>100x</span>
+              </div>
+              {filters.minCardinalityMismatch > 0 && (
+                <div className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
+                  E-Rows/A-Rows differ by {filters.minCardinalityMismatch}x+
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
