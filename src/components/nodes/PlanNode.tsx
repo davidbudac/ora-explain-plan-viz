@@ -488,7 +488,9 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         )}
       </div>
 
-      <Handle type="source" position={Position.Bottom} className="!bg-gray-400 !w-3 !h-3" />
+      {node.children.length > 0 && (
+        <Handle type="source" position={Position.Bottom} className="!bg-gray-400 !w-3 !h-3" />
+      )}
     </div>
   );
 }
