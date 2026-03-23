@@ -3,6 +3,7 @@ import {
   ReactFlow,
   Background,
   Controls,
+  Panel,
   useNodesState,
   useEdgesState,
   useReactFlow,
@@ -828,6 +829,13 @@ function HierarchicalViewContent({
     return () => clearTimeout(timer);
   }, [layoutData, fitView]);
 
+  // Reset all nodes/edges back to the computed layout positions
+  const resetLayout = useCallback(() => {
+    setNodes(layoutData.nodes);
+    setEdges(layoutData.edges);
+    setTimeout(() => fitView({ padding: 0.2 }), 50);
+  }, [layoutData, setNodes, setEdges, fitView]);
+
   // Update node data properties separately (selection, filtering, display options)
   // Use rfSetNodes from useReactFlow to ensure React Flow detects the change
   useEffect(() => {
@@ -1104,6 +1112,19 @@ function HierarchicalViewContent({
           color={theme === 'dark' ? '#374151' : '#e5e7eb'}
         />
         <Controls className="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-700" />
+        <Panel position="top-right">
+          <button
+            type="button"
+            onClick={resetLayout}
+            className="p-1.5 rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-sm"
+            title="Reset layout"
+            aria-label="Reset layout"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h5M20 20v-5h-5M5.64 19.36A9 9 0 0020 12M4 12a9 9 0 0014.36-7.36" />
+            </svg>
+          </button>
+        </Panel>
       </ReactFlow>
     </div>
   );
