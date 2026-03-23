@@ -666,9 +666,11 @@ function HierarchicalViewContent({
     // Update edge stroke widths based on row flow and add labels
     const edgesWithThickness = layoutedResult.edges.map(edge => {
       const rowFlow = (edge.data as { rowFlow: number })?.rowFlow || 1;
-      // Linear scale between min and max stroke width
+      // Linear scale between min and max stroke width (when scaling enabled)
       const normalizedFlow = rowFlowRange > 0 ? (rowFlow - minRowFlow) / rowFlowRange : 0.5;
-      const strokeWidth = MIN_STROKE_WIDTH + normalizedFlow * (MAX_STROKE_WIDTH - MIN_STROKE_WIDTH);
+      const strokeWidth = filters.scaleEdgeWidth
+        ? MIN_STROKE_WIDTH + normalizedFlow * (MAX_STROKE_WIDTH - MIN_STROKE_WIDTH)
+        : MIN_STROKE_WIDTH;
       // Format row flow in human-readable format (e.g., 1.2M, 3.5K)
       const formattedRowFlow = formatNumberShort(rowFlow) ?? rowFlow.toString();
       return {
@@ -810,7 +812,7 @@ function HierarchicalViewContent({
       nodes: [...groupNodes, ...annotationGroupNodes, ...adjustedPlanNodes],
       edges: edgesWithThickness,
     };
-  }, [effectiveAnnotations.groups, effectiveAnnotations.nodeAnnotations, effectiveDisplayOptions, parsedPlan, colorScheme]);
+  }, [effectiveAnnotations.groups, effectiveAnnotations.nodeAnnotations, effectiveDisplayOptions, parsedPlan, colorScheme, filters.scaleEdgeWidth]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutData.edges);
