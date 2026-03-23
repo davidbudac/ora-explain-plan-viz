@@ -82,6 +82,7 @@ const initialFilters: FilterState = {
   showPredicates: true,
   predicateTypes: [],
   animateEdges: false,
+  scaleEdgeWidth: true,
   focusSelection: false,
   nodeDisplayOptions: {
     showRows: true,

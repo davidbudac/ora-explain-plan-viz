@@ -21,7 +21,7 @@ type NodeOptionKey =
   | 'showCardinalityBadge'
   | 'showAnnotations';
 
-type CommandKey = 'animateEdges' | 'focusSelection' | NodeOptionKey;
+type CommandKey = 'animateEdges' | 'scaleEdgeWidth' | 'focusSelection' | NodeOptionKey;
 
 interface ViewCommand {
   key: CommandKey;
@@ -47,6 +47,12 @@ function buildCommands(hasActualStats: boolean): ViewCommand[] {
       section: 'Behavior',
       label: 'Animate edges',
       keywords: ['animate', 'edges', 'motion', 'flow'],
+    },
+    {
+      key: 'scaleEdgeWidth',
+      section: 'Behavior',
+      label: 'Scale edge width by rows',
+      keywords: ['scale', 'edge', 'width', 'thick', 'thickness', 'rows', 'flow'],
     },
     {
       key: 'focusSelection',
@@ -154,6 +160,7 @@ function buildCommands(hasActualStats: boolean): ViewCommand[] {
 
 function isCommandEnabled(commandKey: CommandKey, filters: FilterState): boolean {
   if (commandKey === 'animateEdges') return filters.animateEdges;
+  if (commandKey === 'scaleEdgeWidth') return filters.scaleEdgeWidth;
   if (commandKey === 'focusSelection') return filters.focusSelection;
   return filters.nodeDisplayOptions[commandKey] ?? false;
 }
@@ -271,6 +278,10 @@ export function CustomizeViewMenu({
       setFilters({ animateEdges: nextValue });
       return;
     }
+    if (commandKey === 'scaleEdgeWidth') {
+      setFilters({ scaleEdgeWidth: nextValue });
+      return;
+    }
     if (commandKey === 'focusSelection') {
       setFilters({ focusSelection: nextValue });
       return;
@@ -285,12 +296,15 @@ export function CustomizeViewMenu({
 
   const setAllVisible = (enabled: boolean) => {
     let nextAnimateEdges = filters.animateEdges;
+    let nextScaleEdgeWidth = filters.scaleEdgeWidth;
     let nextFocusSelection = filters.focusSelection;
     const nextNodeDisplayOptions = { ...filters.nodeDisplayOptions };
 
     for (const command of availableCommands) {
       if (command.key === 'animateEdges') {
         nextAnimateEdges = enabled;
+      } else if (command.key === 'scaleEdgeWidth') {
+        nextScaleEdgeWidth = enabled;
       } else if (command.key === 'focusSelection') {
         nextFocusSelection = enabled;
       } else {
@@ -300,6 +314,7 @@ export function CustomizeViewMenu({
 
     setFilters({
       animateEdges: nextAnimateEdges,
+      scaleEdgeWidth: nextScaleEdgeWidth,
       focusSelection: nextFocusSelection,
       nodeDisplayOptions: nextNodeDisplayOptions,
     });
@@ -307,12 +322,15 @@ export function CustomizeViewMenu({
 
   const toggleSectionAll = (items: ViewCommand[], enabled: boolean) => {
     let nextAnimateEdges = filters.animateEdges;
+    let nextScaleEdgeWidth = filters.scaleEdgeWidth;
     let nextFocusSelection = filters.focusSelection;
     const nextNodeDisplayOptions = { ...filters.nodeDisplayOptions };
 
     for (const command of items) {
       if (command.key === 'animateEdges') {
         nextAnimateEdges = enabled;
+      } else if (command.key === 'scaleEdgeWidth') {
+        nextScaleEdgeWidth = enabled;
       } else if (command.key === 'focusSelection') {
         nextFocusSelection = enabled;
       } else {
@@ -322,6 +340,7 @@ export function CustomizeViewMenu({
 
     setFilters({
       animateEdges: nextAnimateEdges,
+      scaleEdgeWidth: nextScaleEdgeWidth,
       focusSelection: nextFocusSelection,
       nodeDisplayOptions: nextNodeDisplayOptions,
     });
@@ -330,6 +349,7 @@ export function CustomizeViewMenu({
   const resetDefaults = () => {
     setFilters({
       animateEdges: false,
+      scaleEdgeWidth: true,
       focusSelection: false,
       nodeDisplayOptions: { ...defaultNodeDisplayOptions },
     });
