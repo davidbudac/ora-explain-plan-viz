@@ -91,6 +91,7 @@ export interface FilterState {
   showPredicates: boolean;
   predicateTypes: PredicateType[];
   animateEdges: boolean;
+  scaleEdgeWidth: boolean;
   focusSelection: boolean;
   nodeDisplayOptions: NodeDisplayOptions;
   // SQL Monitor actual statistics filters
