@@ -5,6 +5,7 @@ import type { PlanNode } from '../../lib/types';
 import { formatNumberShort, formatBytes, formatTimeCompact, computeCardinalityRatio, formatCardinalityRatio, cardinalityRatioSeverity } from '../../lib/format';
 import { HighlightText } from '../HighlightText';
 import { getHighlightColorDef } from '../../lib/annotations';
+import type { AnnotationGroup } from '../../lib/annotations';
 
 type SortColumn = 'id' | 'cost' | 'rows' | 'bytes' | 'actualRows' | 'actualTime' | 'starts' | 'memoryUsed' | 'tempUsed';
 type SortDirection = 'asc' | 'desc';
@@ -56,7 +57,7 @@ export function TabularView() {
 
   const planAnnotations = getAnnotationsForPlan(activePlanIndex);
   const effectiveAnnotations = useMemo(
-    () => showAnnotations ? planAnnotations : { nodeAnnotations: new Map(), nodeHighlights: new Map(), groups: [] },
+    () => showAnnotations ? planAnnotations : { nodeAnnotations: new Map(), nodeHighlights: new Map(), groups: [] as AnnotationGroup[] },
     [planAnnotations, showAnnotations]
   );
 
