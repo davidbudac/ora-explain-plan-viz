@@ -4,6 +4,7 @@ import { COLOR_SCHEME_PALETTES, getOperationCategory } from '../../lib/types';
 import type { PlanNode } from '../../lib/types';
 import { formatNumberShort, formatBytes, formatTimeCompact, computeCardinalityRatio, formatCardinalityRatio, cardinalityRatioSeverity } from '../../lib/format';
 import { HighlightText } from '../HighlightText';
+import { getHighlightColorDef } from '../../lib/annotations';
 
 type SortColumn = 'id' | 'cost' | 'rows' | 'bytes' | 'actualRows' | 'actualTime' | 'starts' | 'memoryUsed' | 'tempUsed';
 type SortDirection = 'asc' | 'desc';
@@ -35,6 +36,8 @@ export function TabularView() {
     colorScheme,
     filters,
     nodeById,
+    activePlanIndex,
+    getAnnotationsForPlan,
   } = usePlan();
 
   const [sortColumn, setSortColumn] = useState<SortColumn>('id');
@@ -49,6 +52,26 @@ export function TabularView() {
   const selectedNodeIdSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
   const searchText = filters.searchText?.trim() ?? '';
   const hasActualStats = parsedPlan?.hasActualStats ?? false;
+  const showAnnotations = filters.nodeDisplayOptions?.showAnnotations ?? true;
+
+  const planAnnotations = getAnnotationsForPlan(activePlanIndex);
+  const effectiveAnnotations = useMemo(
+    () => showAnnotations ? planAnnotations : { nodeAnnotations: new Map(), nodeHighlights: new Map(), groups: [] },
+    [planAnnotations, showAnnotations]
+  );
+
+  // Build a map of nodeId -> groups it belongs to
+  const nodeGroupMap = useMemo(() => {
+    const map = new Map<number, typeof effectiveAnnotations.groups>();
+    for (const group of effectiveAnnotations.groups) {
+      for (const nodeId of group.nodeIds) {
+        const existing = map.get(nodeId);
+        if (existing) existing.push(group);
+        else map.set(nodeId, [group]);
+      }
+    }
+    return map;
+  }, [effectiveAnnotations.groups]);
 
   // Build a set of all IDs hidden by collapsed parents
   const hiddenByCollapse = useMemo(() => {
@@ -142,7 +165,9 @@ export function TabularView() {
   const handleRowMouseEnter = useCallback((node: PlanNode, event: React.MouseEvent) => {
     setHoveredNodeId(node.id);
     if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
-    if (node.accessPredicates || node.filterPredicates) {
+    const hasPredicates = node.accessPredicates || node.filterPredicates;
+    const hasAnnotation = effectiveAnnotations.nodeAnnotations.has(node.id);
+    if (hasPredicates || hasAnnotation) {
       const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
       const containerRect = tableRef.current?.getBoundingClientRect();
       if (containerRect) {
@@ -155,7 +180,7 @@ export function TabularView() {
     } else {
       setTooltip(null);
     }
-  }, []);
+  }, [effectiveAnnotations.nodeAnnotations]);
 
   const handleRowMouseLeave = useCallback(() => {
     tooltipTimerRef.current = setTimeout(() => setTooltip(null), 100);
@@ -237,10 +262,13 @@ export function TabularView() {
       onKeyDown={handleKeyDown}
       onMouseLeave={() => { setHoveredNodeId(null); setTooltip(null); }}
     >
-      {/* Predicate tooltip */}
+      {/* Predicate & annotation tooltip */}
       {tooltip && (() => {
         const node = nodeById.get(tooltip.nodeId);
         if (!node) return null;
+        const tooltipAnnotation = effectiveAnnotations.nodeAnnotations.get(tooltip.nodeId);
+        const tooltipHighlight = effectiveAnnotations.nodeHighlights.get(tooltip.nodeId);
+        const tooltipColorDef = tooltipHighlight ? getHighlightColorDef(tooltipHighlight.color) : null;
         return (
           <div
             className="absolute z-30 max-w-md bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-md shadow-lg p-2 text-xs pointer-events-none"
@@ -256,6 +284,12 @@ export function TabularView() {
               <div>
                 <span className="font-semibold text-amber-600 dark:text-amber-400">Filter: </span>
                 <span className="text-neutral-700 dark:text-neutral-300 font-mono whitespace-pre-wrap">{node.filterPredicates}</span>
+              </div>
+            )}
+            {tooltipAnnotation && (
+              <div className={`${node.accessPredicates || node.filterPredicates ? 'mt-1.5 pt-1.5 border-t border-neutral-200 dark:border-neutral-700' : ''}`}>
+                <span className={`font-semibold ${tooltipColorDef ? tooltipColorDef.text : 'text-neutral-500 dark:text-neutral-400'}`}>Note: </span>
+                <span className="text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap">{tooltipAnnotation.text}</span>
               </div>
             )}
           </div>
@@ -317,6 +351,9 @@ export function TabularView() {
             const timeRatio = totalElapsedTime > 0 ? (node.actualTime ?? 0) / totalElapsedTime : 0;
             const cardRatio = computeCardinalityRatio(node.rows, node.actualRows);
             const cardSeverity = cardinalityRatioSeverity(cardRatio);
+            const highlight = effectiveAnnotations.nodeHighlights.get(node.id);
+            const annotation = effectiveAnnotations.nodeAnnotations.get(node.id);
+            const highlightColorDef = highlight ? getHighlightColorDef(highlight.color) : null;
 
             return (
               <tr
@@ -334,6 +371,7 @@ export function TabularView() {
                       : ''}
                   ${isFiltered ? 'opacity-30' : ''}
                 `}
+                style={highlightColorDef ? { borderLeft: `3px solid ${highlightColorDef.hex}` } : undefined}
               >
                 {/* Id */}
                 <td className="px-2 py-1 text-right font-mono text-neutral-500 dark:text-neutral-400 tabular-nums">
@@ -401,6 +439,30 @@ export function TabularView() {
                         HOT
                       </span>
                     )}
+                    {/* Annotation note indicator */}
+                    {annotation && (
+                      <span
+                        className={`flex-shrink-0 ${highlightColorDef ? highlightColorDef.text : 'text-neutral-400 dark:text-neutral-500'}`}
+                        title={annotation.text}
+                      >
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 13V5a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2h3l3 3 3-3h3a2 2 0 002-2z" clipRule="evenodd" />
+                        </svg>
+                      </span>
+                    )}
+                    {/* Annotation group badges */}
+                    {nodeGroupMap.get(node.id)?.map((group) => {
+                      const groupColorDef = getHighlightColorDef(group.color);
+                      return (
+                        <span
+                          key={group.id}
+                          className={`px-1 py-0 text-[9px] font-medium rounded border ${groupColorDef.groupBorder} ${groupColorDef.text}`}
+                          title={group.note ? `${group.name}: ${group.note}` : group.name}
+                        >
+                          {group.name}
+                        </span>
+                      );
+                    })}
                   </div>
                 </td>
 
