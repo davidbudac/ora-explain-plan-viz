@@ -59,6 +59,14 @@
   color: #333333;
 }
 
+/* Query block groups: click-through so canvas panning works inside them */
+.react-flow__node-queryBlockGroup {
+  pointer-events: none !important;
+}
+.react-flow__node-queryBlockGroup .query-block-drag-handle {
+  pointer-events: auto;
+}
+
 /* Edge animation flows from child to parent (upward) */
 .react-flow__edge.animated path {
   animation-direction: reverse !important;
