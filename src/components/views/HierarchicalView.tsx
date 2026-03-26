@@ -34,10 +34,10 @@ interface QueryBlockGroupData extends Record<string, unknown> {
 const QueryBlockGroupNode = memo(({ data }: { data: QueryBlockGroupData }) => {
   return (
     <div
-      className="border-2 border-dashed border-violet-400 dark:border-violet-500 rounded-lg bg-violet-50/30 dark:bg-violet-900/10"
+      className="border-2 border-dashed border-violet-400 dark:border-violet-500 rounded-lg bg-violet-50/30 dark:bg-violet-900/10 pointer-events-none"
       style={{ width: data.width, height: data.height }}
     >
-      <div className="query-block-drag-handle absolute -top-3 left-3 px-2 py-0.5 bg-white dark:bg-gray-900 text-violet-600 dark:text-violet-400 text-xs font-mono cursor-grab active:cursor-grabbing select-none">
+      <div className="query-block-drag-handle absolute -top-3 left-3 px-2 py-0.5 bg-white dark:bg-gray-900 text-violet-600 dark:text-violet-400 text-xs font-mono cursor-grab active:cursor-grabbing select-none pointer-events-auto">
         ⠿ {data.label}
       </div>
     </div>
