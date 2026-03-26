@@ -103,6 +103,15 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         <div className="p-3 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950/40">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsCollapsed(true)}
+                className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded transition-colors"
+                title="Collapse panel"
+              >
+                <svg className="w-4 h-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                </svg>
+              </button>
               <h3 className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">Quick Analysis</h3>
               <button
                 role="switch"
@@ -118,15 +127,6 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
                 }`} />
               </button>
             </div>
-            <button
-              onClick={() => setIsCollapsed(true)}
-              className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded transition-colors"
-              title="Collapse panel"
-            >
-              <svg className="w-4 h-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-              </svg>
-            </button>
           </div>
           <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-1">Click a row to select, or Cmd/Ctrl-click nodes for multi-select</p>
         </div>
@@ -317,27 +317,29 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
         <div className="p-3 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950/40">
           <div className="flex items-start justify-between">
-            <div>
-              <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 bg-white dark:bg-neutral-900">
-                Multi Selection
-              </span>
-              <h3 className="mt-2 font-semibold text-sm text-neutral-900 dark:text-neutral-100">
-                {selectedNodes.length} nodes selected
-              </h3>
-              <div className="mt-1 text-[11px] text-neutral-600 dark:text-neutral-400 break-all">
-                IDs: {selectedIdPreview}{hasMoreIds ? ', ...' : ''}
-              </div>
-            </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-start gap-2">
               <button
                 onClick={() => setIsCollapsed(true)}
-                className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded"
+                className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded mt-0.5"
                 title="Collapse panel"
               >
                 <svg className="w-4 h-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                 </svg>
               </button>
+              <div>
+                <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 bg-white dark:bg-neutral-900">
+                  Multi Selection
+                </span>
+                <h3 className="mt-2 font-semibold text-sm text-neutral-900 dark:text-neutral-100">
+                  {selectedNodes.length} nodes selected
+                </h3>
+                <div className="mt-1 text-[11px] text-neutral-600 dark:text-neutral-400 break-all">
+                  IDs: {selectedIdPreview}{hasMoreIds ? ', ...' : ''}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
               <button
                 onClick={() => selectNode(null)}
                 className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded"
@@ -476,29 +478,31 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
       {/* Header */}
       <div className={`p-3 border-b border-neutral-200 dark:border-neutral-800 ${colors.bg}`}>
         <div className="flex items-start justify-between">
-          <div>
-            <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold ${colors.text} ${colors.bg} border ${colors.border}`}>
-              {category}
-            </span>
-            <div className="mt-2 flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-neutral-700 dark:bg-neutral-300 text-white dark:text-neutral-900 text-xs font-bold flex items-center justify-center">
-                {node.id}
-              </span>
-              <h3 className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">
-                <HighlightText text={node.operation} query={searchText} />
-              </h3>
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-start gap-2">
             <button
               onClick={() => setIsCollapsed(true)}
-              className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded"
+              className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded mt-0.5"
               title="Collapse panel"
             >
               <svg className="w-4 h-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
               </svg>
             </button>
+            <div>
+              <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold ${colors.text} ${colors.bg} border ${colors.border}`}>
+                {category}
+              </span>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-neutral-700 dark:bg-neutral-300 text-white dark:text-neutral-900 text-xs font-bold flex items-center justify-center">
+                  {node.id}
+                </span>
+                <h3 className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">
+                  <HighlightText text={node.operation} query={searchText} />
+                </h3>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
             <button
               onClick={() => selectNode(null)}
               className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded"

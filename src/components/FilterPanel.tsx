@@ -186,7 +186,15 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">Filters</h3>
             <button
+              onClick={clearFilters}
+              className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Clear all
+            </button>
+          </div>
+          <button
               onClick={() => setIsCollapsed(true)}
               className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded transition-colors"
               title="Collapse panel"
@@ -195,14 +203,6 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
               </svg>
             </button>
-            <h3 className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">Filters</h3>
-          </div>
-          <button
-            onClick={clearFilters}
-            className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            Clear all
-          </button>
         </div>
         <div className="text-xs text-neutral-600 dark:text-neutral-400">
           Showing {filteredCount} of {totalCount} nodes
