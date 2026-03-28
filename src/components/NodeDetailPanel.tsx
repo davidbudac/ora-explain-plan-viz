@@ -502,17 +502,6 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => selectNode(null)}
-              className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded"
-              title="Close"
-            >
-              <svg className="w-4 h-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
         </div>
 
         {node.objectName && (

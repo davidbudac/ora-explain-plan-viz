@@ -3,9 +3,9 @@ import { usePlan } from '../../hooks/usePlanContext';
 import { COLOR_SCHEME_PALETTES, getOperationCategory } from '../../lib/types';
 import type { PlanNode } from '../../lib/types';
 import { formatNumberShort, formatBytes, formatTimeCompact, computeCardinalityRatio, formatCardinalityRatio, cardinalityRatioSeverity } from '../../lib/format';
-import { HighlightText } from '../HighlightText';
 import { getHighlightColorDef } from '../../lib/annotations';
 import type { AnnotationGroup } from '../../lib/annotations';
+import { HighlightText } from '../HighlightText';
 
 type SortColumn = 'id' | 'cost' | 'rows' | 'bytes' | 'actualRows' | 'actualTime' | 'starts' | 'memoryUsed' | 'tempUsed';
 type SortDirection = 'asc' | 'desc';
@@ -37,6 +37,7 @@ export function TabularView() {
     colorScheme,
     filters,
     nodeById,
+    hotspotsEnabled,
     activePlanIndex,
     getAnnotationsForPlan,
   } = usePlan();
@@ -93,6 +94,26 @@ export function TabularView() {
     collectDescendantIds(node, ids);
     return ids;
   }, [hoveredNodeId, nodeById]);
+
+  // Pre-compute tree line data: for each node, which depths have continuing siblings
+  const treeLineData = useMemo(() => {
+    const data = new Map<number, Set<number>>();
+    for (const node of parsedPlan?.allNodes ?? []) {
+      const continuing = new Set<number>();
+      let current: PlanNode | undefined = node;
+      while (current && current.parentId !== undefined) {
+        const parent = nodeById.get(current.parentId);
+        if (!parent) break;
+        const isLastChild = parent.children[parent.children.length - 1].id === current.id;
+        if (!isLastChild) continuing.add(current.depth);
+        current = parent;
+      }
+      data.set(node.id, continuing);
+    }
+    return data;
+  }, [parsedPlan, nodeById]);
+
+  const isTreeOrder = sortColumn === 'id' && sortDirection === 'asc';
 
   const flatNodes = useMemo(() => {
     if (!parsedPlan?.allNodes) return [];
@@ -166,15 +187,14 @@ export function TabularView() {
   const handleRowMouseEnter = useCallback((node: PlanNode, event: React.MouseEvent) => {
     setHoveredNodeId(node.id);
     if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
-    const hasPredicates = node.accessPredicates || node.filterPredicates;
     const hasAnnotation = effectiveAnnotations.nodeAnnotations.has(node.id);
-    if (hasPredicates || hasAnnotation) {
+    if (hasAnnotation) {
       const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
       const containerRect = tableRef.current?.getBoundingClientRect();
       if (containerRect) {
         setTooltip({
           nodeId: node.id,
-          x: rect.left - containerRect.left + 40,
+          x: event.clientX - containerRect.left + tableRef.current!.scrollLeft,
           y: rect.bottom - containerRect.top + tableRef.current!.scrollTop,
         });
       }
@@ -263,36 +283,26 @@ export function TabularView() {
       onKeyDown={handleKeyDown}
       onMouseLeave={() => { setHoveredNodeId(null); setTooltip(null); }}
     >
-      {/* Predicate & annotation tooltip */}
+      {/* Annotation tooltip */}
       {tooltip && (() => {
-        const node = nodeById.get(tooltip.nodeId);
-        if (!node) return null;
         const tooltipAnnotation = effectiveAnnotations.nodeAnnotations.get(tooltip.nodeId);
+        if (!tooltipAnnotation?.text) return null;
         const tooltipHighlight = effectiveAnnotations.nodeHighlights.get(tooltip.nodeId);
         const tooltipColorDef = tooltipHighlight ? getHighlightColorDef(tooltipHighlight.color) : null;
         return (
           <div
-            className="absolute z-30 max-w-md bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-md shadow-lg p-2 text-xs pointer-events-none"
-            style={{ left: tooltip.x, top: tooltip.y + 2 }}
+            className="absolute z-50 max-w-sm rounded-md shadow-lg px-2.5 py-1.5 text-xs pointer-events-none bg-white dark:bg-neutral-800"
+            style={{
+              left: tooltip.x,
+              top: tooltip.y + 2,
+              isolation: 'isolate',
+              borderLeft: `3px solid ${tooltipColorDef ? tooltipColorDef.hex : '#a3a3a3'}`,
+              borderTop: '1px solid var(--border-color, #e5e7eb)',
+              borderRight: '1px solid var(--border-color, #e5e7eb)',
+              borderBottom: '1px solid var(--border-color, #e5e7eb)',
+            }}
           >
-            {node.accessPredicates && (
-              <div className="mb-1">
-                <span className="font-semibold text-blue-600 dark:text-blue-400">Access: </span>
-                <span className="text-neutral-700 dark:text-neutral-300 font-mono whitespace-pre-wrap">{node.accessPredicates}</span>
-              </div>
-            )}
-            {node.filterPredicates && (
-              <div>
-                <span className="font-semibold text-amber-600 dark:text-amber-400">Filter: </span>
-                <span className="text-neutral-700 dark:text-neutral-300 font-mono whitespace-pre-wrap">{node.filterPredicates}</span>
-              </div>
-            )}
-            {tooltipAnnotation && (
-              <div className={`${node.accessPredicates || node.filterPredicates ? 'mt-1.5 pt-1.5 border-t border-neutral-200 dark:border-neutral-700' : ''}`}>
-                <span className={`font-semibold ${tooltipColorDef ? tooltipColorDef.text : 'text-neutral-500 dark:text-neutral-400'}`}>Note: </span>
-                <span className="text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap">{tooltipAnnotation.text}</span>
-              </div>
-            )}
+            <span className="text-neutral-800 dark:text-neutral-200 whitespace-pre-wrap">{tooltipAnnotation.text}</span>
           </div>
         );
       })()}
@@ -331,15 +341,17 @@ export function TabularView() {
                 <th className={`${thSortableClass} ${thRightClass}`} onClick={() => handleSort('tempUsed')}>
                   Temp<SortArrow column="tempUsed" sortColumn={sortColumn} sortDirection={sortDirection} />
                 </th>
-                <th className={`${thClass} text-center`}>
-                  Card.
-                </th>
+                {hotspotsEnabled && (
+                  <th className={`${thClass} text-center`}>
+                    Card.
+                  </th>
+                )}
               </>
             )}
           </tr>
         </thead>
         <tbody>
-          {sortedNodes.map((node) => {
+          {sortedNodes.map((node, rowIndex) => {
             const isSelected = selectedNodeIdSet.has(node.id);
             const isFiltered = filteredNodeIds.size > 0 && !filteredNodeIds.has(node.id);
             const isHot = node.id === hottestNodeId;
@@ -352,9 +364,11 @@ export function TabularView() {
             const timeRatio = totalElapsedTime > 0 ? (node.actualTime ?? 0) / totalElapsedTime : 0;
             const cardRatio = computeCardinalityRatio(node.rows, node.actualRows);
             const cardSeverity = cardinalityRatioSeverity(cardRatio);
+            const continuing = treeLineData.get(node.id) ?? new Set<number>();
             const highlight = effectiveAnnotations.nodeHighlights.get(node.id);
             const annotation = effectiveAnnotations.nodeAnnotations.get(node.id);
             const highlightColorDef = highlight ? getHighlightColorDef(highlight.color) : null;
+            const hasAnnotationOrHighlight = !!annotation || !!highlight;
 
             return (
               <tr
@@ -363,126 +377,169 @@ export function TabularView() {
                 onClick={(e) => handleRowClick(node, e)}
                 onMouseEnter={(e) => handleRowMouseEnter(node, e)}
                 onMouseLeave={handleRowMouseLeave}
+                style={hasAnnotationOrHighlight ? {
+                  outline: `1.5px solid ${highlightColorDef ? highlightColorDef.hex + '50' : '#a3a3a340'}`,
+                  outlineOffset: '-1.5px',
+                } : undefined}
                 className={`
                   border-b border-neutral-100 dark:border-neutral-800 cursor-pointer transition-colors
                   ${isSelected
-                    ? 'bg-blue-50 dark:bg-blue-950/40'
+                    ? 'bg-blue-50/60 dark:bg-blue-950/25'
                     : isHoverHighlighted
-                      ? 'bg-neutral-100 dark:bg-neutral-800/60'
+                      ? 'bg-neutral-50 dark:bg-neutral-800/30'
                       : ''}
                   ${isFiltered ? 'opacity-30' : ''}
                 `}
-                style={highlightColorDef ? { borderLeft: `3px solid ${highlightColorDef.hex}` } : undefined}
               >
                 {/* Id */}
-                <td className="px-2 py-1 text-right font-mono text-neutral-500 dark:text-neutral-400 tabular-nums">
+                <td className="px-2 py-1.5 text-right font-mono text-neutral-500 dark:text-neutral-400 tabular-nums">
                   {node.id}
                 </td>
 
                 {/* Operation */}
-                <td className="px-2 py-1 sticky left-0 bg-inherit">
-                  <div className="flex items-center gap-1" style={{ paddingLeft: `${node.depth * 16}px` }}>
-                    {/* Collapse indicator */}
-                    {hasChildren ? (
-                      <span className="w-3.5 h-3.5 flex items-center justify-center flex-shrink-0 text-neutral-400 dark:text-neutral-500">
-                        <svg
-                          className={`w-3 h-3 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2.5}
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                        </svg>
-                      </span>
-                    ) : (
-                      <span className="w-3.5 flex-shrink-0" />
-                    )}
-                    {/* Color dot */}
-                    <span
-                      className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: categoryColor }}
-                    />
-                    {/* Operation name */}
-                    <HighlightText
-                      text={node.operation}
-                      query={searchText}
-                      className="font-medium text-neutral-900 dark:text-neutral-100 whitespace-nowrap"
-                    />
-                    {/* Object name */}
-                    {node.objectName && (
-                      <HighlightText
-                        text={node.objectName}
-                        query={searchText}
-                        className="text-neutral-500 dark:text-neutral-400 whitespace-nowrap"
-                      />
-                    )}
-                    {/* Predicate indicators */}
-                    {node.accessPredicates && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" title="Access predicate" />
-                    )}
-                    {node.filterPredicates && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0" title="Filter predicate" />
-                    )}
-                    {/* Collapsed count badge */}
-                    {isCollapsed && (() => {
-                      const desc = new Set<number>();
-                      collectDescendantIds(node, desc);
-                      return (
-                        <span className="px-1 py-0 text-[9px] font-medium bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 rounded">
-                          +{desc.size}
-                        </span>
-                      );
-                    })()}
-                    {/* Hot badge */}
-                    {isHot && (
-                      <span className="px-1 py-0 text-[9px] font-bold bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded">
-                        HOT
-                      </span>
-                    )}
-                    {/* Annotation note indicator */}
-                    {annotation && (
-                      <span
-                        className={`flex-shrink-0 ${highlightColorDef ? highlightColorDef.text : 'text-neutral-400 dark:text-neutral-500'}`}
-                        title={annotation.text}
-                      >
-                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 13V5a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2h3l3 3 3-3h3a2 2 0 002-2z" clipRule="evenodd" />
-                        </svg>
-                      </span>
-                    )}
-                    {/* Annotation group badges */}
-                    {nodeGroupMap.get(node.id)?.map((group) => {
-                      const groupColorDef = getHighlightColorDef(group.color);
-                      return (
-                        <span
-                          key={group.id}
-                          className={`px-1 py-0 text-[9px] font-medium rounded border ${groupColorDef.groupBorder} ${groupColorDef.text}`}
-                          title={group.note ? `${group.name}: ${group.note}` : group.name}
-                        >
-                          {group.name}
-                        </span>
-                      );
+                <td className="px-2 py-0 sticky left-0 bg-inherit">
+                  <div className="flex items-stretch">
+                    {/* Tree lines */}
+                    {node.depth > 0 && isTreeOrder && Array.from({ length: node.depth }, (_, i) => {
+                      const isConnector = i === node.depth - 1;
+                      const isLast = isConnector && !continuing.has(node.depth);
+                      const hasVert = continuing.has(i + 1);
+
+                      if (isConnector) {
+                        return (
+                          <span key={i} className="w-4 flex-shrink-0 relative">
+                            <span className={`absolute left-[7px] top-0 ${isLast ? 'h-1/2' : 'h-full'} w-px bg-neutral-300 dark:bg-neutral-600`} />
+                            <span className="absolute left-[7px] top-1/2 w-[9px] h-px bg-neutral-300 dark:bg-neutral-600" />
+                          </span>
+                        );
+                      } else if (hasVert) {
+                        return (
+                          <span key={i} className="w-4 flex-shrink-0 relative">
+                            <span className="absolute left-[7px] top-0 h-full w-px bg-neutral-300 dark:bg-neutral-600" />
+                          </span>
+                        );
+                      }
+                      return <span key={i} className="w-4 flex-shrink-0" />;
                     })}
+                    {/* Padding fallback when not in tree order */}
+                    {(!isTreeOrder && node.depth > 0) && (
+                      <span className="flex-shrink-0" style={{ width: `${node.depth * 16}px` }} />
+                    )}
+                    {/* Content */}
+                    <div className="py-1">
+                      <div className="flex items-center gap-1">
+                        {/* Collapse indicator */}
+                        {hasChildren ? (
+                          <span className="w-3.5 h-3.5 flex items-center justify-center flex-shrink-0 text-neutral-400 dark:text-neutral-500">
+                            <svg
+                              className={`w-3 h-3 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2.5}
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                            </svg>
+                          </span>
+                        ) : (
+                          <span className="w-3.5 flex-shrink-0" />
+                        )}
+                        {/* Operation name */}
+                        <HighlightText
+                          text={node.operation}
+                          query={searchText}
+                          className="font-medium text-neutral-900 dark:text-neutral-100 whitespace-nowrap"
+                        />
+                        {/* Object name */}
+                        {node.objectName && (
+                          <HighlightText
+                            text={node.objectName}
+                            query={searchText}
+                            className="font-semibold text-blue-700 dark:text-blue-300 whitespace-nowrap"
+                          />
+                        )}
+                        {/* Collapsed count badge */}
+                        {isCollapsed && (() => {
+                          const desc = new Set<number>();
+                          collectDescendantIds(node, desc);
+                          return (
+                            <span className="px-1 py-0 text-[9px] font-medium bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 rounded">
+                              +{desc.size}
+                            </span>
+                          );
+                        })()}
+                        {/* Hot badge */}
+                        {isHot && (
+                          <span className="px-1 py-0 text-[9px] font-bold bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded">
+                            HOT
+                          </span>
+                        )}
+                        {/* Annotation note indicator */}
+                        {annotation && (
+                          <span
+                            className={`flex-shrink-0 ${highlightColorDef ? highlightColorDef.text : 'text-neutral-400 dark:text-neutral-500'}`}
+                            title={annotation.text}
+                          >
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M18 13V5a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2h3l3 3 3-3h3a2 2 0 002-2z" clipRule="evenodd" />
+                            </svg>
+                          </span>
+                        )}
+                        {/* Annotation group badges */}
+                        {nodeGroupMap.get(node.id)?.map((group) => {
+                          const groupColorDef = getHighlightColorDef(group.color);
+                          return (
+                            <span
+                              key={group.id}
+                              className={`px-1 py-0 text-[9px] font-medium rounded border ${groupColorDef.groupBorder} ${groupColorDef.text}`}
+                              title={group.note ? `${group.name}: ${group.note}` : group.name}
+                            >
+                              {group.name}
+                            </span>
+                          );
+                        })}
+                      </div>
+                      {/* Inline predicates */}
+                      {(node.accessPredicates || node.filterPredicates) && (
+                        <div className="ml-[calc(0.875rem+0.25rem)] mt-0.5 text-[10px] font-mono text-neutral-400 dark:text-neutral-500 truncate max-w-[500px] leading-tight">
+                          {node.accessPredicates && (
+                            <span><span className="text-blue-400 dark:text-blue-500">A:</span> {node.accessPredicates}</span>
+                          )}
+                          {node.accessPredicates && node.filterPredicates && (
+                            <span className="mx-1.5 text-neutral-300 dark:text-neutral-600">|</span>
+                          )}
+                          {node.filterPredicates && (
+                            <span><span className="text-amber-400 dark:text-amber-500">F:</span> {node.filterPredicates}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </td>
 
                 {/* Rows/E-Rows */}
-                <td className="px-2 py-1 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
+                <td className="px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
                   {formatNumberShort(node.rows)}
                 </td>
 
                 {/* Bytes */}
-                <td className="px-2 py-1 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
+                <td className="px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
                   {formatBytes(node.bytes)}
                 </td>
 
                 {/* Cost + inline bar */}
-                <td className="px-2 py-1 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
+                <td className="px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
                   <div className="flex flex-col items-end gap-0.5">
-                    <span>{formatNumberShort(node.cost)}</span>
+                    <div className="flex items-baseline gap-1.5">
+                      <span>{formatNumberShort(node.cost)}</span>
+                      {costRatio >= 0.01 && (
+                        <span className={`text-[9px] ${costRatio >= 0.5 ? 'text-red-500' : costRatio >= 0.25 ? 'text-orange-500' : costRatio >= 0.1 ? 'text-yellow-600 dark:text-yellow-500' : 'text-neutral-400 dark:text-neutral-500'}`}>
+                          {(costRatio * 100).toFixed(0)}%
+                        </span>
+                      )}
+                    </div>
                     {costRatio > 0 && (
-                      <div className="w-full h-[2px] bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                      <div className="w-full h-[3px] bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full ${costRatio >= 0.5 ? 'bg-red-500' : costRatio >= 0.25 ? 'bg-orange-500' : costRatio >= 0.1 ? 'bg-yellow-500' : 'bg-green-500'}`}
                           style={{ width: `${Math.max(costRatio * 100, 1)}%` }}
@@ -495,16 +552,23 @@ export function TabularView() {
                 {hasActualStats && (
                   <>
                     {/* A-Rows */}
-                    <td className="px-2 py-1 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
+                    <td className="px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
                       {formatNumberShort(node.actualRows)}
                     </td>
 
                     {/* A-Time + inline bar */}
-                    <td className="px-2 py-1 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
+                    <td className="px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
                       <div className="flex flex-col items-end gap-0.5">
-                        <span>{formatTimeCompact(node.actualTime)}</span>
+                        <div className="flex items-baseline gap-1.5">
+                          <span>{formatTimeCompact(node.actualTime)}</span>
+                          {timeRatio >= 0.01 && (
+                            <span className={`text-[9px] ${timeRatio >= 0.5 ? 'text-red-500' : timeRatio >= 0.25 ? 'text-orange-500' : timeRatio >= 0.1 ? 'text-yellow-600 dark:text-yellow-500' : 'text-neutral-400 dark:text-neutral-500'}`}>
+                              {(timeRatio * 100).toFixed(0)}%
+                            </span>
+                          )}
+                        </div>
                         {timeRatio > 0 && (
-                          <div className="w-full h-[2px] bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                          <div className="w-full h-[3px] bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
                             <div
                               className={`h-full rounded-full ${timeRatio >= 0.5 ? 'bg-red-500' : timeRatio >= 0.25 ? 'bg-orange-500' : timeRatio >= 0.1 ? 'bg-yellow-500' : 'bg-green-500'}`}
                               style={{ width: `${Math.max(timeRatio * 100, 1)}%` }}
@@ -515,17 +579,17 @@ export function TabularView() {
                     </td>
 
                     {/* Starts */}
-                    <td className="px-2 py-1 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
+                    <td className="px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
                       {formatNumberShort(node.starts)}
                     </td>
 
                     {/* Memory */}
-                    <td className="px-2 py-1 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
+                    <td className="px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
                       {formatBytes(node.memoryUsed)}
                     </td>
 
                     {/* Temp */}
-                    <td className="px-2 py-1 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
+                    <td className="px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
                       <div className="flex items-center justify-end gap-1">
                         {formatBytes(node.tempUsed)}
                         {node.tempUsed != null && node.tempUsed > 0 && (
@@ -539,17 +603,19 @@ export function TabularView() {
                     </td>
 
                     {/* Cardinality ratio */}
-                    <td className="px-2 py-1 text-center font-mono tabular-nums">
-                      {cardRatio !== undefined && (
-                        <span className={
-                          cardSeverity === 'bad' ? 'text-red-600 dark:text-red-400 font-semibold' :
-                          cardSeverity === 'warn' ? 'text-amber-600 dark:text-amber-400' :
-                          'text-neutral-500 dark:text-neutral-400'
-                        }>
-                          {formatCardinalityRatio(cardRatio)}
-                        </span>
-                      )}
-                    </td>
+                    {hotspotsEnabled && (
+                      <td className="px-2 py-1.5 text-center font-mono tabular-nums">
+                        {cardRatio !== undefined && (
+                          <span className={
+                            cardSeverity === 'bad' ? 'text-red-600 dark:text-red-400 font-semibold' :
+                            cardSeverity === 'warn' ? 'text-amber-600 dark:text-amber-400' :
+                            'text-neutral-500 dark:text-neutral-400'
+                          }>
+                            {formatCardinalityRatio(cardRatio)}
+                          </span>
+                        )}
+                      </td>
+                    )}
                   </>
                 )}
               </tr>
