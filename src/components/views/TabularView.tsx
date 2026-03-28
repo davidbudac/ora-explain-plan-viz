@@ -1,6 +1,5 @@
 import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { usePlan } from '../../hooks/usePlanContext';
-import { COLOR_SCHEME_PALETTES, getOperationCategory } from '../../lib/types';
 import type { PlanNode } from '../../lib/types';
 import { formatNumberShort, formatBytes, formatTimeCompact, computeCardinalityRatio, formatCardinalityRatio, cardinalityRatioSeverity } from '../../lib/format';
 import { getHighlightColorDef } from '../../lib/annotations';
@@ -34,7 +33,7 @@ export function TabularView() {
     selectNode,
     filteredNodeIds,
     hottestNodeId,
-    colorScheme,
+
     filters,
     nodeById,
     hotspotsEnabled,
@@ -153,7 +152,7 @@ export function TabularView() {
 
   const totalCost = parsedPlan?.totalCost ?? 0;
   const totalElapsedTime = parsedPlan?.totalElapsedTime ?? 0;
-  const palette = COLOR_SCHEME_PALETTES[colorScheme];
+
 
   const handleSort = useCallback((column: SortColumn) => {
     if (sortColumn === column) {
@@ -351,15 +350,15 @@ export function TabularView() {
           </tr>
         </thead>
         <tbody>
-          {sortedNodes.map((node, rowIndex) => {
+          {sortedNodes.map((node) => {
             const isSelected = selectedNodeIdSet.has(node.id);
             const isFiltered = filteredNodeIds.size > 0 && !filteredNodeIds.has(node.id);
             const isHot = node.id === hottestNodeId;
             const isCollapsed = collapsedIds.has(node.id);
             const hasChildren = node.children.length > 0;
             const isHoverHighlighted = hoverHighlightIds.has(node.id);
-            const category = getOperationCategory(node.operation);
-            const categoryColor = palette[category] ?? palette['Other'];
+
+
             const costRatio = totalCost > 0 ? (node.cost ?? 0) / totalCost : 0;
             const timeRatio = totalElapsedTime > 0 ? (node.actualTime ?? 0) / totalElapsedTime : 0;
             const cardRatio = computeCardinalityRatio(node.rows, node.actualRows);
