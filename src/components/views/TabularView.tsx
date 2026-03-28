@@ -3,6 +3,7 @@ import { usePlan } from '../../hooks/usePlanContext';
 import { COLOR_SCHEME_PALETTES, getOperationCategory } from '../../lib/types';
 import type { PlanNode } from '../../lib/types';
 import { formatNumberShort, formatBytes, formatTimeCompact, computeCardinalityRatio, formatCardinalityRatio, cardinalityRatioSeverity } from '../../lib/format';
+import { getHighlightColorDef } from '../../lib/annotations';
 import { HighlightText } from '../HighlightText';
 
 type SortColumn = 'id' | 'cost' | 'rows' | 'bytes' | 'actualRows' | 'actualTime' | 'starts' | 'memoryUsed' | 'tempUsed';
@@ -36,6 +37,7 @@ export function TabularView() {
     filters,
     nodeById,
     hotspotsEnabled,
+    annotations,
   } = usePlan();
 
   const [sortColumn, setSortColumn] = useState<SortColumn>('id');
@@ -163,7 +165,8 @@ export function TabularView() {
   const handleRowMouseEnter = useCallback((node: PlanNode, event: React.MouseEvent) => {
     setHoveredNodeId(node.id);
     if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
-    if (node.accessPredicates || node.filterPredicates) {
+    const annotation = annotations.nodeAnnotations.get(node.id);
+    if (annotation?.text) {
       const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
       const containerRect = tableRef.current?.getBoundingClientRect();
       if (containerRect) {
@@ -260,25 +263,24 @@ export function TabularView() {
     >
       {/* Predicate tooltip */}
       {tooltip && (() => {
-        const node = nodeById.get(tooltip.nodeId);
-        if (!node) return null;
+        const annotation = annotations.nodeAnnotations.get(tooltip.nodeId);
+        if (!annotation?.text) return null;
+        const highlight = annotations.nodeHighlights.get(tooltip.nodeId);
+        const colorDef = highlight ? getHighlightColorDef(highlight.color) : null;
         return (
           <div
-            className="absolute z-50 max-w-md bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-md shadow-lg p-2 text-xs pointer-events-none"
-            style={{ left: tooltip.x, top: tooltip.y + 2, isolation: 'isolate' }}
+            className="absolute z-50 max-w-sm rounded-md shadow-lg px-2.5 py-1.5 text-xs pointer-events-none bg-white dark:bg-neutral-800"
+            style={{
+              left: tooltip.x,
+              top: tooltip.y + 2,
+              isolation: 'isolate',
+              borderLeft: `3px solid ${colorDef ? colorDef.hex : '#a3a3a3'}`,
+              borderTop: '1px solid var(--border-color, #e5e7eb)',
+              borderRight: '1px solid var(--border-color, #e5e7eb)',
+              borderBottom: '1px solid var(--border-color, #e5e7eb)',
+            }}
           >
-            {node.accessPredicates && (
-              <div className="mb-1">
-                <span className="font-semibold text-blue-600 dark:text-blue-400">Access: </span>
-                <span className="text-neutral-700 dark:text-neutral-300 font-mono whitespace-pre-wrap">{node.accessPredicates}</span>
-              </div>
-            )}
-            {node.filterPredicates && (
-              <div>
-                <span className="font-semibold text-amber-600 dark:text-amber-400">Filter: </span>
-                <span className="text-neutral-700 dark:text-neutral-300 font-mono whitespace-pre-wrap">{node.filterPredicates}</span>
-              </div>
-            )}
+            <span className="text-neutral-800 dark:text-neutral-200 whitespace-pre-wrap">{annotation.text}</span>
           </div>
         );
       })()}
@@ -341,6 +343,9 @@ export function TabularView() {
             const cardRatio = computeCardinalityRatio(node.rows, node.actualRows);
             const cardSeverity = cardinalityRatioSeverity(cardRatio);
             const continuing = treeLineData.get(node.id) ?? new Set<number>();
+            const nodeHighlight = annotations.nodeHighlights.get(node.id);
+            const hasAnnotation = annotations.nodeAnnotations.has(node.id) || !!nodeHighlight;
+            const highlightColorDef = nodeHighlight ? getHighlightColorDef(nodeHighlight.color) : null;
 
             return (
               <tr
@@ -349,12 +354,16 @@ export function TabularView() {
                 onClick={(e) => handleRowClick(node, e)}
                 onMouseEnter={(e) => handleRowMouseEnter(node, e)}
                 onMouseLeave={handleRowMouseLeave}
+                style={hasAnnotation ? {
+                  outline: `1.5px solid ${highlightColorDef ? highlightColorDef.hex + '50' : '#a3a3a340'}`,
+                  outlineOffset: '-1.5px',
+                } : undefined}
                 className={`
                   border-b border-neutral-100 dark:border-neutral-800 cursor-pointer transition-colors
                   ${isSelected
-                    ? 'bg-blue-50 dark:bg-blue-950/40'
+                    ? 'bg-blue-50/60 dark:bg-blue-950/25'
                     : isHoverHighlighted
-                      ? 'bg-neutral-100 dark:bg-neutral-800/60'
+                      ? 'bg-neutral-50 dark:bg-neutral-800/30'
                       : ''}
                   ${isFiltered ? 'opacity-30' : ''}
                 `}
@@ -394,64 +403,68 @@ export function TabularView() {
                       <span className="flex-shrink-0" style={{ width: `${node.depth * 16}px` }} />
                     )}
                     {/* Content */}
-                    <div className="flex items-center gap-1 py-1.5">
-                      {/* Collapse indicator */}
-                      {hasChildren ? (
-                        <span className="w-3.5 h-3.5 flex items-center justify-center flex-shrink-0 text-neutral-400 dark:text-neutral-500">
-                          <svg
-                            className={`w-3 h-3 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2.5}
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                          </svg>
-                        </span>
-                      ) : (
-                        <span className="w-3.5 flex-shrink-0" />
-                      )}
-                      {/* Color bar */}
-                      <span
-                        className="inline-block w-[3px] h-3.5 rounded-sm flex-shrink-0 opacity-60"
-                        style={{ backgroundColor: categoryColor }}
-                      />
-                      {/* Operation name */}
-                      <HighlightText
-                        text={node.operation}
-                        query={searchText}
-                        className="font-medium text-neutral-900 dark:text-neutral-100 whitespace-nowrap"
-                      />
-                      {/* Object name */}
-                      {node.objectName && (
-                        <HighlightText
-                          text={node.objectName}
-                          query={searchText}
-                          className="font-semibold text-blue-700 dark:text-blue-300 whitespace-nowrap"
-                        />
-                      )}
-                      {/* Predicate indicators */}
-                      {node.accessPredicates && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" title="Access predicate" />
-                      )}
-                      {node.filterPredicates && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0" title="Filter predicate" />
-                      )}
-                      {/* Collapsed count badge */}
-                      {isCollapsed && (() => {
-                        const desc = new Set<number>();
-                        collectDescendantIds(node, desc);
-                        return (
-                          <span className="px-1 py-0 text-[9px] font-medium bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 rounded">
-                            +{desc.size}
+                    <div className="py-1">
+                      <div className="flex items-center gap-1">
+                        {/* Collapse indicator */}
+                        {hasChildren ? (
+                          <span className="w-3.5 h-3.5 flex items-center justify-center flex-shrink-0 text-neutral-400 dark:text-neutral-500">
+                            <svg
+                              className={`w-3 h-3 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2.5}
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                            </svg>
                           </span>
-                        );
-                      })()}
-                      {/* Hot badge */}
-                      {isHot && (
-                        <span className="px-1 py-0 text-[9px] font-bold bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded">
-                          HOT
-                        </span>
+                        ) : (
+                          <span className="w-3.5 flex-shrink-0" />
+                        )}
+                        {/* Operation name */}
+                        <HighlightText
+                          text={node.operation}
+                          query={searchText}
+                          className="font-medium text-neutral-900 dark:text-neutral-100 whitespace-nowrap"
+                        />
+                        {/* Object name */}
+                        {node.objectName && (
+                          <HighlightText
+                            text={node.objectName}
+                            query={searchText}
+                            className="font-semibold text-blue-700 dark:text-blue-300 whitespace-nowrap"
+                          />
+                        )}
+                        {/* Collapsed count badge */}
+                        {isCollapsed && (() => {
+                          const desc = new Set<number>();
+                          collectDescendantIds(node, desc);
+                          return (
+                            <span className="px-1 py-0 text-[9px] font-medium bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 rounded">
+                              +{desc.size}
+                            </span>
+                          );
+                        })()}
+                        {/* Hot badge */}
+                        {isHot && (
+                          <span className="px-1 py-0 text-[9px] font-bold bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded">
+                            HOT
+                          </span>
+                        )}
+                      </div>
+                      {/* Inline predicates */}
+                      {(node.accessPredicates || node.filterPredicates) && (
+                        <div className="ml-[calc(0.875rem+0.25rem)] mt-0.5 text-[10px] font-mono text-neutral-400 dark:text-neutral-500 truncate max-w-[500px] leading-tight">
+                          {node.accessPredicates && (
+                            <span><span className="text-blue-400 dark:text-blue-500">A:</span> {node.accessPredicates}</span>
+                          )}
+                          {node.accessPredicates && node.filterPredicates && (
+                            <span className="mx-1.5 text-neutral-300 dark:text-neutral-600">|</span>
+                          )}
+                          {node.filterPredicates && (
+                            <span><span className="text-amber-400 dark:text-amber-500">F:</span> {node.filterPredicates}</span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
