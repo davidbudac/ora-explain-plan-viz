@@ -4,6 +4,7 @@ import { COLOR_SCHEME_PALETTES, getOperationCategory } from '../../lib/types';
 import type { PlanNode } from '../../lib/types';
 import { formatNumberShort, formatBytes, formatTimeCompact, computeCardinalityRatio, formatCardinalityRatio, cardinalityRatioSeverity } from '../../lib/format';
 import { getHighlightColorDef } from '../../lib/annotations';
+import type { AnnotationGroup } from '../../lib/annotations';
 import { HighlightText } from '../HighlightText';
 
 type SortColumn = 'id' | 'cost' | 'rows' | 'bytes' | 'actualRows' | 'actualTime' | 'starts' | 'memoryUsed' | 'tempUsed';
@@ -37,7 +38,8 @@ export function TabularView() {
     filters,
     nodeById,
     hotspotsEnabled,
-    annotations,
+    activePlanIndex,
+    getAnnotationsForPlan,
   } = usePlan();
 
   const [sortColumn, setSortColumn] = useState<SortColumn>('id');
@@ -52,6 +54,26 @@ export function TabularView() {
   const selectedNodeIdSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
   const searchText = filters.searchText?.trim() ?? '';
   const hasActualStats = parsedPlan?.hasActualStats ?? false;
+  const showAnnotations = filters.nodeDisplayOptions?.showAnnotations ?? true;
+
+  const planAnnotations = getAnnotationsForPlan(activePlanIndex);
+  const effectiveAnnotations = useMemo(
+    () => showAnnotations ? planAnnotations : { nodeAnnotations: new Map(), nodeHighlights: new Map(), groups: [] as AnnotationGroup[] },
+    [planAnnotations, showAnnotations]
+  );
+
+  // Build a map of nodeId -> groups it belongs to
+  const nodeGroupMap = useMemo(() => {
+    const map = new Map<number, typeof effectiveAnnotations.groups>();
+    for (const group of effectiveAnnotations.groups) {
+      for (const nodeId of group.nodeIds) {
+        const existing = map.get(nodeId);
+        if (existing) existing.push(group);
+        else map.set(nodeId, [group]);
+      }
+    }
+    return map;
+  }, [effectiveAnnotations.groups]);
 
   // Build a set of all IDs hidden by collapsed parents
   const hiddenByCollapse = useMemo(() => {
@@ -165,8 +187,8 @@ export function TabularView() {
   const handleRowMouseEnter = useCallback((node: PlanNode, event: React.MouseEvent) => {
     setHoveredNodeId(node.id);
     if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
-    const annotation = annotations.nodeAnnotations.get(node.id);
-    if (annotation?.text) {
+    const hasAnnotation = effectiveAnnotations.nodeAnnotations.has(node.id);
+    if (hasAnnotation) {
       const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
       const containerRect = tableRef.current?.getBoundingClientRect();
       if (containerRect) {
@@ -179,7 +201,7 @@ export function TabularView() {
     } else {
       setTooltip(null);
     }
-  }, []);
+  }, [effectiveAnnotations.nodeAnnotations]);
 
   const handleRowMouseLeave = useCallback(() => {
     tooltipTimerRef.current = setTimeout(() => setTooltip(null), 100);
@@ -261,12 +283,12 @@ export function TabularView() {
       onKeyDown={handleKeyDown}
       onMouseLeave={() => { setHoveredNodeId(null); setTooltip(null); }}
     >
-      {/* Predicate tooltip */}
+      {/* Annotation tooltip */}
       {tooltip && (() => {
-        const annotation = annotations.nodeAnnotations.get(tooltip.nodeId);
-        if (!annotation?.text) return null;
-        const highlight = annotations.nodeHighlights.get(tooltip.nodeId);
-        const colorDef = highlight ? getHighlightColorDef(highlight.color) : null;
+        const tooltipAnnotation = effectiveAnnotations.nodeAnnotations.get(tooltip.nodeId);
+        if (!tooltipAnnotation?.text) return null;
+        const tooltipHighlight = effectiveAnnotations.nodeHighlights.get(tooltip.nodeId);
+        const tooltipColorDef = tooltipHighlight ? getHighlightColorDef(tooltipHighlight.color) : null;
         return (
           <div
             className="absolute z-50 max-w-sm rounded-md shadow-lg px-2.5 py-1.5 text-xs pointer-events-none bg-white dark:bg-neutral-800"
@@ -274,13 +296,13 @@ export function TabularView() {
               left: tooltip.x,
               top: tooltip.y + 2,
               isolation: 'isolate',
-              borderLeft: `3px solid ${colorDef ? colorDef.hex : '#a3a3a3'}`,
+              borderLeft: `3px solid ${tooltipColorDef ? tooltipColorDef.hex : '#a3a3a3'}`,
               borderTop: '1px solid var(--border-color, #e5e7eb)',
               borderRight: '1px solid var(--border-color, #e5e7eb)',
               borderBottom: '1px solid var(--border-color, #e5e7eb)',
             }}
           >
-            <span className="text-neutral-800 dark:text-neutral-200 whitespace-pre-wrap">{annotation.text}</span>
+            <span className="text-neutral-800 dark:text-neutral-200 whitespace-pre-wrap">{tooltipAnnotation.text}</span>
           </div>
         );
       })()}
@@ -343,9 +365,10 @@ export function TabularView() {
             const cardRatio = computeCardinalityRatio(node.rows, node.actualRows);
             const cardSeverity = cardinalityRatioSeverity(cardRatio);
             const continuing = treeLineData.get(node.id) ?? new Set<number>();
-            const nodeHighlight = annotations.nodeHighlights.get(node.id);
-            const hasAnnotation = annotations.nodeAnnotations.has(node.id) || !!nodeHighlight;
-            const highlightColorDef = nodeHighlight ? getHighlightColorDef(nodeHighlight.color) : null;
+            const highlight = effectiveAnnotations.nodeHighlights.get(node.id);
+            const annotation = effectiveAnnotations.nodeAnnotations.get(node.id);
+            const highlightColorDef = highlight ? getHighlightColorDef(highlight.color) : null;
+            const hasAnnotationOrHighlight = !!annotation || !!highlight;
 
             return (
               <tr
@@ -354,7 +377,7 @@ export function TabularView() {
                 onClick={(e) => handleRowClick(node, e)}
                 onMouseEnter={(e) => handleRowMouseEnter(node, e)}
                 onMouseLeave={handleRowMouseLeave}
-                style={hasAnnotation ? {
+                style={hasAnnotationOrHighlight ? {
                   outline: `1.5px solid ${highlightColorDef ? highlightColorDef.hex + '50' : '#a3a3a340'}`,
                   outlineOffset: '-1.5px',
                 } : undefined}
@@ -451,6 +474,30 @@ export function TabularView() {
                             HOT
                           </span>
                         )}
+                        {/* Annotation note indicator */}
+                        {annotation && (
+                          <span
+                            className={`flex-shrink-0 ${highlightColorDef ? highlightColorDef.text : 'text-neutral-400 dark:text-neutral-500'}`}
+                            title={annotation.text}
+                          >
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M18 13V5a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2h3l3 3 3-3h3a2 2 0 002-2z" clipRule="evenodd" />
+                            </svg>
+                          </span>
+                        )}
+                        {/* Annotation group badges */}
+                        {nodeGroupMap.get(node.id)?.map((group) => {
+                          const groupColorDef = getHighlightColorDef(group.color);
+                          return (
+                            <span
+                              key={group.id}
+                              className={`px-1 py-0 text-[9px] font-medium rounded border ${groupColorDef.groupBorder} ${groupColorDef.text}`}
+                              title={group.note ? `${group.name}: ${group.note}` : group.name}
+                            >
+                              {group.name}
+                            </span>
+                          );
+                        })}
                       </div>
                       {/* Inline predicates */}
                       {(node.accessPredicates || node.filterPredicates) && (

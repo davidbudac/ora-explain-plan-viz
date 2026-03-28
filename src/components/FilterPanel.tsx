@@ -3,8 +3,43 @@ import { usePlan } from '../hooks/usePlanContext';
 import { OPERATION_CATEGORIES, getOperationCategory } from '../lib/types';
 import type { NodeDisplayOptions, PredicateType } from '../lib/types';
 import { matchesSearch } from '../lib/filtering';
-import { formatNumberShort, formatTimeCompact } from '../lib/format';
+import { computeCardinalityRatio, formatNumberShort, formatTimeCompact } from '../lib/format';
 import { CustomizeViewMenu } from './CustomizeViewMenu';
+
+const HISTOGRAM_BUCKETS = 40;
+
+/** Renders a subtle histogram behind a range slider showing node value distribution. */
+function SliderHistogram({ values, max }: { values: number[]; max: number }) {
+  const buckets = useMemo(() => {
+    if (max <= 0 || values.length === 0) return [];
+    const counts = new Array(HISTOGRAM_BUCKETS).fill(0);
+    for (const v of values) {
+      const idx = Math.min(Math.floor((v / max) * HISTOGRAM_BUCKETS), HISTOGRAM_BUCKETS - 1);
+      counts[idx]++;
+    }
+    const peak = Math.max(...counts);
+    return counts.map((c) => (peak > 0 ? c / peak : 0));
+  }, [values, max]);
+
+  if (buckets.length === 0) return null;
+
+  return (
+    <div className="flex items-end h-5 gap-px mb-[-2px]" aria-hidden="true">
+      {buckets.map((ratio, i) => (
+        <div
+          key={i}
+          className="flex-1 rounded-t-[1px] transition-all duration-150"
+          style={{
+            height: ratio > 0 ? `${Math.max(ratio * 100, 8)}%` : '0%',
+            backgroundColor: ratio > 0
+              ? `rgba(59, 130, 246, ${0.12 + ratio * 0.28})`
+              : 'transparent',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 const DEFAULT_NODE_DISPLAY_OPTIONS: NodeDisplayOptions = {
   showRows: true,
@@ -71,6 +106,35 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
   const maxActualTime = useMemo(() => {
     if (!parsedPlan || !parsedPlan.hasActualStats) return 0;
     return Math.max(...parsedPlan.allNodes.map((n) => n.actualTime || 0), 0);
+  }, [parsedPlan]);
+
+  // Histogram value arrays for each slider
+  const costValues = useMemo(() => {
+    if (!parsedPlan) return [];
+    return parsedPlan.allNodes.map((n) => n.cost || 0);
+  }, [parsedPlan]);
+
+  const actualRowsValues = useMemo(() => {
+    if (!parsedPlan || !parsedPlan.hasActualStats) return [];
+    return parsedPlan.allNodes.map((n) => n.actualRows || 0);
+  }, [parsedPlan]);
+
+  const actualTimeValues = useMemo(() => {
+    if (!parsedPlan || !parsedPlan.hasActualStats) return [];
+    return parsedPlan.allNodes.map((n) => n.actualTime || 0);
+  }, [parsedPlan]);
+
+  const cardinalityMismatchValues = useMemo(() => {
+    if (!parsedPlan || !parsedPlan.hasActualStats) return [];
+    const vals: number[] = [];
+    for (const node of parsedPlan.allNodes) {
+      const ratio = computeCardinalityRatio(node.rows, node.actualRows);
+      if (ratio !== undefined) {
+        const deviation = ratio >= 1 ? ratio : 1 / ratio;
+        vals.push(Math.min(deviation, 100)); // clamp to slider max
+      }
+    }
+    return vals;
   }, [parsedPlan]);
 
   const filteredCount = filteredNodes.length;
@@ -186,7 +250,15 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">Filters</h3>
             <button
+              onClick={clearFilters}
+              className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Clear all
+            </button>
+          </div>
+          <button
               onClick={() => setIsCollapsed(true)}
               className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded transition-colors"
               title="Collapse panel"
@@ -195,14 +267,6 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
               </svg>
             </button>
-            <h3 className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">Filters</h3>
-          </div>
-          <button
-            onClick={clearFilters}
-            className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            Clear all
-          </button>
         </div>
         <div className="text-xs text-neutral-600 dark:text-neutral-400">
           Showing {filteredCount} of {totalCount} nodes
@@ -349,6 +413,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
                 {filters.minCost > 0 ? `≥ ${filters.minCost}` : 'All'}
               </span>
             </div>
+            <SliderHistogram values={costValues} max={maxCost} />
             <input
               type="range"
               min={0}
@@ -372,6 +437,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
                   {filters.minActualRows > 0 ? `≥ ${formatNumberShort(filters.minActualRows, { infinity: '∞' })}` : 'All'}
                 </span>
               </div>
+              <SliderHistogram values={actualRowsValues} max={maxActualRows} />
               <input
                 type="range"
                 min={0}
@@ -396,6 +462,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
                   {filters.minActualTime > 0 ? `≥ ${formatTimeCompact(filters.minActualTime, { infinity: '∞' })}` : 'All'}
                 </span>
               </div>
+              <SliderHistogram values={actualTimeValues} max={maxActualTime} />
               <input
                 type="range"
                 min={0}
@@ -420,6 +487,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
                   {filters.minCardinalityMismatch > 0 ? `≥ ${filters.minCardinalityMismatch}x` : 'Off'}
                 </span>
               </div>
+              <SliderHistogram values={cardinalityMismatchValues} max={100} />
               <input
                 type="range"
                 min={0}
