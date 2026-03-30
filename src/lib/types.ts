@@ -58,6 +58,47 @@ export interface ParsedPlan {
 
   // Bind variables from SQL Monitor XML
   bindVariables?: BindVariable[];
+
+  // Rich metadata from SQL Monitor XML reports
+  monitorMetadata?: SqlMonitorMetadata;
+}
+
+export interface SqlMonitorMetadata {
+  // Execution summary
+  status?: string;
+  duration?: number;            // wall clock seconds
+  sqlExecStart?: string;
+  sqlExecId?: string;
+
+  // Time breakdown (microseconds from <stats type="monitor">)
+  cpuTime?: number;
+  userIoWaitTime?: number;
+  otherWaitTime?: number;
+  plsqlExecTime?: number;
+
+  // Session & Environment
+  sessionId?: number;
+  sessionSerial?: number;
+  instanceId?: number;
+  user?: string;
+  program?: string;
+  module?: string;
+  service?: string;
+  dbVersion?: string;
+  dbUniqueName?: string;
+  dbPlatform?: string;
+  reportHostName?: string;
+  cpuCores?: number;
+  hyperthread?: boolean;
+
+  // Resource consumption (from <stats type="monitor">)
+  bufferGets?: number;
+  readReqs?: number;
+  readBytes?: number;
+  userFetchCount?: number;
+
+  // Optimizer environment (param name -> value)
+  optimizerEnv?: Record<string, string>;
 }
 
 export type PredicateType = 'access' | 'filter' | 'none';
@@ -103,7 +144,7 @@ export interface FilterState {
   minCardinalityMismatch: number;
 }
 
-export type ViewMode = 'hierarchical' | 'sankey' | 'tabular' | 'text' | 'sql' | 'compare';
+export type ViewMode = 'hierarchical' | 'sankey' | 'tabular' | 'text' | 'sql' | 'compare' | 'monitor';
 export type SankeyMetric = 'rows' | 'cost' | 'actualRows' | 'actualTime';
 export type Theme = 'light' | 'dark';
 
