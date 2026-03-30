@@ -110,8 +110,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   const showHot = isHotNode && options.showHotspotBadge;
   const showAnnotationsOverlay = options.showAnnotations;
 
-  // Highlight is active when: has color, annotations visible, not overridden by hot node
-  const showHighlight = !!(highlightColor && showAnnotationsOverlay && !showHot);
+  // Highlight is active when: has color and annotations visible (coexists with hot node)
+  const showHighlight = !!(highlightColor && showAnnotationsOverlay);
   const colorDef = highlightColor ? getHighlightColorDef(highlightColor) : null;
   const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
   const hexColor = colorDef ? (isDark ? colorDef.hexDark : colorDef.hex) : '';
