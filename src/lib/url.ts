@@ -68,10 +68,29 @@ export function clearPlanFromUrl(): void {
  */
 export function stripUnusedXmlSections(input: string): string {
   if (!/<sql_monitor_report|<plan_monitor/i.test(input)) return input;
-  return input
+
+  let result = input
+    // Bulky data sections
     .replace(/<statistic_buckets\b[^>]*>[\s\S]*?<\/statistic_buckets>/gi, '')
     .replace(/<bucket\b[^>]*>[\s\S]*?<\/bucket>/gi, '')
-    .replace(/<activity_sampled\b[^>]*>[\s\S]*?<\/activity_sampled>/gi, '');
+    .replace(/<activity_sampled\b[^>]*>[\s\S]*?<\/activity_sampled>/gi, '')
+    // Unused sections
+    .replace(/<other_xml\b[^>]*>[\s\S]*?<\/other_xml>/gi, '')
+    .replace(/<outline\b[^>]*>[\s\S]*?<\/outline>/gi, '')
+    .replace(/<hint_usage\b[^>]*>[\s\S]*?<\/hint_usage>/gi, '')
+    .replace(/<parallel\b[^>]*>[\s\S]*?<\/parallel>/gi, '')
+    .replace(/<px_sets\b[^>]*>[\s\S]*?<\/px_sets>/gi, '')
+    // XML comments
+    .replace(/<!--[\s\S]*?-->/g, '');
+
+  // Minify: collapse indentation and blank lines
+  result = result
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .join('\n');
+
+  return result;
 }
 
 export type ShareResult = {
