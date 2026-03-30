@@ -642,7 +642,7 @@ interface PlanContextValue {
   clearAnnotations: () => void;
 
   // Share URL
-  sharePlan: () => Promise<{ ok: true; url: string } | { ok: false; error: string }>;
+  sharePlan: () => Promise<{ ok: true; url: string; warning?: string } | { ok: false; error: string }>;
 
   // Export PNG — HierarchicalView registers a capture function, Header calls it
   exportPngFnRef: React.MutableRefObject<(() => Promise<void>) | null>;
@@ -1056,27 +1056,42 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const sharePlan = useCallback(async (): Promise<{ ok: true; url: string } | { ok: false; error: string }> => {
+  const sharePlan = useCallback(async (): Promise<{ ok: true; url: string; warning?: string } | { ok: false; error: string }> => {
     // Need at least one plan with input
     const hasAnyInput = state.plans.some(slot => slot.rawInput);
     if (!hasAnyInput) {
       return { ok: false, error: 'No plan to share.' };
     }
 
-    // Build payload with all plan slots that have input, including per-plan annotations
-    const payload: SharePayload = {
-      plans: state.plans
-        .filter(slot => slot.rawInput)
-        .map(slot => {
-          const entry: SharePayload['plans'][number] = { rawInput: stripUnusedXmlSections(slot.rawInput) };
-          if (hasAnnotations(slot.annotations)) {
-            entry.annotations = serializeAnnotations(slot.annotations);
-          }
-          return entry;
-        }),
-    };
+    const slotsWithInput = state.plans.filter(slot => slot.rawInput);
 
-    const result = buildShareUrl(payload);
+    const buildPayload = (rawInputs: string[]): SharePayload => ({
+      plans: slotsWithInput.map((slot, i) => {
+        const entry: SharePayload['plans'][number] = { rawInput: rawInputs[i] };
+        if (hasAnnotations(slot.annotations)) {
+          entry.annotations = serializeAnnotations(slot.annotations);
+        }
+        return entry;
+      }),
+    });
+
+    // Try full input first
+    const fullInputs = slotsWithInput.map(slot => slot.rawInput);
+    let result = buildShareUrl(buildPayload(fullInputs));
+
+    // If too large, retry with stripped XML
+    let warning: string | undefined;
+    if (!result.ok) {
+      const strippedInputs = fullInputs.map(stripUnusedXmlSections);
+      const strippedResult = buildShareUrl(buildPayload(strippedInputs));
+      if (strippedResult.ok) {
+        result = strippedResult;
+        warning = 'Some non-essential data was stripped to fit the URL size limit.';
+      } else {
+        return strippedResult;
+      }
+    }
+
     if (result.ok) {
       window.history.replaceState(null, '', result.url);
       try {
@@ -1084,6 +1099,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       } catch {
         // Clipboard write may fail in some contexts — URL is still in address bar
       }
+      return { ...result, warning };
     }
     return result;
   }, [state.plans]);
