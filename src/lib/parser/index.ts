@@ -23,9 +23,19 @@ const parsers: Array<{ format: DetectedFormat; parser: PlanParser }> = [
  * @param input Raw plan text or XML
  * @returns Detected format type
  */
+/** Strip leading/trailing double-quotes that users sometimes copy from SQL*Plus or shells. */
+function stripWrappingQuotes(input: string): string {
+  const trimmed = input.trim();
+  if (trimmed.length >= 2 && trimmed[0] === '"' && trimmed[trimmed.length - 1] === '"') {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
 export function detectFormat(input: string): DetectedFormat {
+  const cleaned = stripWrappingQuotes(input);
   for (const { format, parser } of parsers) {
-    if (parser.canParse(input)) {
+    if (parser.canParse(cleaned)) {
       return format;
     }
   }
@@ -40,6 +50,7 @@ export function detectFormat(input: string): DetectedFormat {
  * @returns Parsed plan structure with source metadata
  */
 export function parsePlan(input: string): ParsedPlan {
+  input = stripWrappingQuotes(input);
   const format = detectFormat(input);
 
   for (const { format: parserFormat, parser } of parsers) {
