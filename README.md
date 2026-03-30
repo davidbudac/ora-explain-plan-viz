@@ -16,7 +16,7 @@ Paste any of the formats below directly into the input panel and press **Cmd+Ent
 |--------|---------------|:--------------:|:-----------:|
 | [DBMS_XPLAN](#dbms_xplan) | `SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('&sql_id', NULL, 'ALLSTATS LAST'));` | With hint | Yes |
 | [SQL Monitor (Text)](#sql-monitor-text) | `SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id=>'&sql_id', type=>'TEXT') FROM dual;` | Yes | No |
-| [SQL Monitor (XML)](#sql-monitor-xml) | `SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id=>'&sql_id', type=>'XML') FROM dual;` | Yes | Yes |
+| [SQL Monitor (XML)](#sql-monitor-xml) | `SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id=>'&sql_id', type=>'XML', report_level=>'ALL -ACTIVITY -ACTIVITY_HISTOGRAM -METRICS -OTHER -XPLAN') FROM dual;` | Yes | Yes |
 | [JSON (V\$SQL_PLAN)](#json-vsql_plan) | `JSON_ARRAYAGG` query against `V$SQL_PLAN_STATISTICS_ALL` — [see details](#json-vsql_plan) | Optional | Yes |
 | [XBI (Tanel Poder)](#xbi-tanel-poder) | `@xbi &sql_id` | Yes | No |
 
@@ -113,7 +113,7 @@ The richest format. Contains everything the text report has plus access/filter p
 SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(
   sql_id       => '&sql_id',
   type         => 'XML',
-  report_level => 'ALL -ACTIVITY'
+  report_level => 'ALL -ACTIVITY -ACTIVITY_HISTOGRAM -METRICS -OTHER -XPLAN'
 ) FROM dual;
 ```
 
@@ -124,7 +124,7 @@ SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(
   sql_id       => '&sql_id',
   sql_exec_id  => &sql_exec_id,
   type         => 'XML',
-  report_level => 'ALL -ACTIVITY'
+  report_level => 'ALL -ACTIVITY -ACTIVITY_HISTOGRAM -METRICS -OTHER -XPLAN'
 ) FROM dual;
 ```
 
@@ -137,14 +137,24 @@ SPOOL /tmp/sql_monitor.xml
 SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(
   sql_id       => '&sql_id',
   type         => 'XML',
-  report_level => 'ALL -ACTIVITY'
+  report_level => 'ALL -ACTIVITY -ACTIVITY_HISTOGRAM -METRICS -OTHER -XPLAN'
 ) FROM dual;
 SPOOL OFF
 ```
 
 > **Note**: On 11g, use `DBMS_SQLTUNE.REPORT_SQL_MONITOR` instead.
 
-> **Tip**: `report_level => 'ALL -ACTIVITY'` omits per-second activity samples, which can make up the bulk of a large XML report. The visualizer doesn't use activity samples, so dropping them significantly reduces output size with no loss of information.
+> **Tip**: The `report_level` strips sections the visualizer doesn't use, significantly reducing output size. Here's what each modifier does:
+>
+> | Modifier | Omits | Size impact |
+> |----------|-------|-------------|
+> | `-ACTIVITY` | Per-second ASH samples per plan line | Large |
+> | `-ACTIVITY_HISTOGRAM` | Activity histograms per plan line | Medium |
+> | `-METRICS` | Time-series CPU/I/O/wait metrics | Medium |
+> | `-OTHER` | Environment and miscellaneous metadata | Small |
+> | `-XPLAN` | Text-rendered plan (redundant with `PLAN`) | Small |
+>
+> What's kept: execution plan with predicates, runtime stats, SQL text, and bind values — everything the visualizer needs.
 
 ---
 
