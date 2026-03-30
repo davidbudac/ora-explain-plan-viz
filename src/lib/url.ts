@@ -60,6 +60,20 @@ export function clearPlanFromUrl(): void {
   window.history.replaceState(null, '', url.toString());
 }
 
+/**
+ * Strip bulky XML sections that the visualizer doesn't use.
+ * Removes <statistic_buckets>, <bucket>, and <activity_sampled> elements
+ * (with all their contents) which can dominate SQL Monitor XML size.
+ * Non-XML input is returned unchanged.
+ */
+export function stripUnusedXmlSections(input: string): string {
+  if (!/<sql_monitor_report|<plan_monitor/i.test(input)) return input;
+  return input
+    .replace(/<statistic_buckets\b[^>]*>[\s\S]*?<\/statistic_buckets>/gi, '')
+    .replace(/<bucket\b[^>]*>[\s\S]*?<\/bucket>/gi, '')
+    .replace(/<activity_sampled\b[^>]*>[\s\S]*?<\/activity_sampled>/gi, '');
+}
+
 export type ShareResult = {
   ok: true;
   url: string;

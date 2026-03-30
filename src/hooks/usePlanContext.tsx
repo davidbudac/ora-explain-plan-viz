@@ -7,7 +7,7 @@ import { createEmptySlot, DEFAULT_COMPARE_METRICS, getPlanSlotLabel } from '../l
 import { parseExplainPlan, splitDbmsXplanPlanBatches } from '../lib/parser';
 import { loadSettings, saveSettings, extractFilterSettings, applySettingsToFilters } from '../lib/settings';
 import { matchesFilters } from '../lib/filtering';
-import { getPlanFromUrl, clearPlanFromUrl, buildShareUrl } from '../lib/url';
+import { getPlanFromUrl, clearPlanFromUrl, buildShareUrl, stripUnusedXmlSections } from '../lib/url';
 import type { SharePayload } from '../lib/url';
 import type { AnnotationState, AnnotationGroup, HighlightColor, HighlightStyle, AnnotatedPlanExport } from '../lib/annotations';
 import { createEmptyAnnotationState, hasAnnotations, serializeAnnotations, deserializeAnnotations, validateExport, downloadAnnotatedPlan, generateGroupId } from '../lib/annotations';
@@ -1068,7 +1068,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       plans: state.plans
         .filter(slot => slot.rawInput)
         .map(slot => {
-          const entry: SharePayload['plans'][number] = { rawInput: slot.rawInput };
+          const entry: SharePayload['plans'][number] = { rawInput: stripUnusedXmlSections(slot.rawInput) };
           if (hasAnnotations(slot.annotations)) {
             entry.annotations = serializeAnnotations(slot.annotations);
           }
