@@ -96,6 +96,7 @@ export function stripUnusedXmlSections(input: string): string {
 export type ShareResult = {
   ok: true;
   url: string;
+  warning?: string;
 } | {
   ok: false;
   error: string;

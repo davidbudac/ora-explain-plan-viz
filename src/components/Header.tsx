@@ -30,8 +30,8 @@ export function Header() {
   } = usePlan();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [exporting, setExporting] = useState(false);
-  const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'error'>('idle');
-  const [shareError, setShareError] = useState<string | null>(null);
+  const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'warning' | 'error'>('idle');
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
 
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
@@ -53,11 +53,11 @@ export function Header() {
   const handleShare = useCallback(async () => {
     const result = await sharePlan();
     if (result.ok) {
-      setShareStatus('copied');
-      setShareError(null);
+      setShareStatus(result.warning ? 'warning' : 'copied');
+      setShareMessage(result.warning ?? null);
     } else {
       setShareStatus('error');
-      setShareError(result.error);
+      setShareMessage(result.error);
     }
   }, [sharePlan]);
 
@@ -66,7 +66,7 @@ export function Header() {
     if (shareStatus === 'idle') return;
     const timer = setTimeout(() => {
       setShareStatus('idle');
-      setShareError(null);
+      setShareMessage(null);
     }, 3000);
     return () => clearTimeout(timer);
   }, [shareStatus]);
@@ -168,15 +168,15 @@ export function Header() {
             onClick={handleShare}
             disabled={!hasAnyInput}
             className={`h-8 w-8 flex items-center justify-center rounded-md border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-              shareStatus === 'copied'
+              shareStatus === 'copied' || shareStatus === 'warning'
                 ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30'
                 : shareStatus === 'error'
                   ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30'
                   : 'border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700'
             }`}
-            title={shareStatus === 'copied' ? 'URL copied to clipboard!' : shareStatus === 'error' ? shareError ?? 'Error' : 'Share plan via URL'}
+            title={shareStatus === 'copied' ? 'URL copied to clipboard!' : shareStatus === 'warning' ? 'URL copied — some data was trimmed' : shareStatus === 'error' ? shareMessage ?? 'Error' : 'Share plan via URL'}
           >
-            {shareStatus === 'copied' ? (
+            {shareStatus === 'copied' || shareStatus === 'warning' ? (
               <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
@@ -186,9 +186,14 @@ export function Header() {
               </svg>
             )}
           </button>
-          {shareStatus === 'error' && shareError && (
+          {shareStatus === 'warning' && shareMessage && (
+            <div className="absolute right-0 top-full mt-1 z-50 w-64 p-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/50 border border-amber-200 dark:border-amber-800 rounded-md shadow-lg">
+              {shareMessage}
+            </div>
+          )}
+          {shareStatus === 'error' && shareMessage && (
             <div className="absolute right-0 top-full mt-1 z-50 w-64 p-2 text-xs text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-800 rounded-md shadow-lg">
-              {shareError}
+              {shareMessage}
             </div>
           )}
         </div>
