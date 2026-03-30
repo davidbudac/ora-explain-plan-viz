@@ -54,6 +54,7 @@ const VIEW_MODE_LABELS: Record<ViewMode, string> = {
   text: 'Plan Text',
   sql: 'SQL',
   compare: 'Compare',
+  monitor: 'Monitor',
 };
 
 const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {

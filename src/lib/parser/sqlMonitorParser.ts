@@ -1,4 +1,4 @@
-import type { PlanNode, ParsedPlan } from '../types';
+import type { PlanNode, ParsedPlan, SqlMonitorMetadata } from '../types';
 import type { PlanParser, BindVariable } from './types';
 
 /**
@@ -678,6 +678,63 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
   // Parse bind variables
   const bindVariables = parseBindVariables(doc);
 
+  // Build rich monitor metadata
+  const monitorMetadata: SqlMonitorMetadata = {
+    // Execution summary
+    status: target?.querySelector('status')?.textContent?.trim() || undefined,
+    duration: parseDuration(target?.querySelector('duration')?.textContent?.trim()),
+    sqlExecStart:
+      reportParams?.querySelector('sql_exec_start')?.textContent?.trim() ||
+      target?.getAttribute('sql_exec_start') || undefined,
+    sqlExecId:
+      reportParams?.querySelector('sql_exec_id')?.textContent?.trim() ||
+      target?.getAttribute('sql_exec_id') || undefined,
+
+    // Time breakdown (microseconds)
+    cpuTime: getStatByName(globalStats, 'cpu_time'),
+    userIoWaitTime: getStatByName(globalStats, 'user_io_wait_time'),
+    otherWaitTime: getStatByName(globalStats, 'other_wait_time'),
+    plsqlExecTime: getStatByName(globalStats, 'plsql_exec_time'),
+
+    // Session & Environment
+    sessionId: parseIntOrUndef(
+      target?.getAttribute('session_id') ||
+      reportParams?.querySelector('session_id')?.textContent
+    ),
+    sessionSerial: parseIntOrUndef(
+      target?.getAttribute('session_serial') ||
+      reportParams?.querySelector('session_serial')?.textContent
+    ),
+    instanceId: parseIntOrUndef(target?.getAttribute('instance_id')),
+    user: target?.querySelector('user')?.textContent?.trim() || undefined,
+    program: target?.querySelector('program')?.textContent?.trim() || undefined,
+    module: target?.querySelector('module')?.textContent?.trim() || undefined,
+    service: target?.querySelector('service')?.textContent?.trim() || undefined,
+    dbVersion: doc.documentElement.getAttribute('db_version') || undefined,
+    dbUniqueName: target?.getAttribute('db_unique_name') || undefined,
+    dbPlatform: target?.getAttribute('db_platform_name') || undefined,
+    reportHostName: target?.getAttribute('report_host_name') || undefined,
+    cpuCores: parseIntOrUndef(doc.documentElement.getAttribute('cpu_cores')),
+    hyperthread: doc.documentElement.getAttribute('hyperthread') === 'Y' ? true
+      : doc.documentElement.getAttribute('hyperthread') === 'N' ? false : undefined,
+
+    // Resource consumption
+    bufferGets: getStatByName(globalStats, 'buffer_gets'),
+    readReqs: getStatByName(globalStats, 'read_reqs'),
+    readBytes: getStatByName(globalStats, 'read_bytes'),
+    userFetchCount: getStatByName(globalStats, 'user_fetch_count'),
+
+    // Optimizer environment
+    optimizerEnv: parseOptimizerEnv(doc),
+  };
+
+  // Strip undefined values
+  Object.keys(monitorMetadata).forEach(key => {
+    if ((monitorMetadata as Record<string, unknown>)[key] === undefined) {
+      delete (monitorMetadata as Record<string, unknown>)[key];
+    }
+  });
+
   return {
     planHashValue,
     sqlId,
@@ -692,6 +749,7 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
     hasActualStats,
     totalElapsedTime,
     bindVariables: bindVariables.length > 0 ? bindVariables : undefined,
+    monitorMetadata: Object.keys(monitorMetadata).length > 0 ? monitorMetadata : undefined,
   };
 }
 
@@ -920,6 +978,35 @@ function parsePlanOnlyOperation(op: Element): PlanNode | null {
   // Parent relationships will be built by the tree builder based on depth+position
 
   return node;
+}
+
+/** Parse a duration string (possibly fractional seconds) to a number, or undefined. */
+function parseDuration(s: string | undefined | null): number | undefined {
+  if (!s) return undefined;
+  const num = parseFloat(s);
+  return isNaN(num) ? undefined : num;
+}
+
+/** Parse a string to int, or undefined if NaN or null. */
+function parseIntOrUndef(s: string | undefined | null): number | undefined {
+  if (!s) return undefined;
+  const num = parseInt(s, 10);
+  return isNaN(num) ? undefined : num;
+}
+
+/** Parse optimizer environment parameters from <target><optimizer_env>. */
+function parseOptimizerEnv(doc: Document): Record<string, string> | undefined {
+  const envEl = doc.querySelector('target > optimizer_env');
+  if (!envEl) return undefined;
+  const params: Record<string, string> = {};
+  envEl.querySelectorAll(':scope > param').forEach((param) => {
+    const name = param.getAttribute('name');
+    const value = param.textContent?.trim();
+    if (name && value) {
+      params[name] = value;
+    }
+  });
+  return Object.keys(params).length > 0 ? params : undefined;
 }
 
 /**
