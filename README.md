@@ -12,13 +12,13 @@ Turn Oracle execution plans into interactive visualizations. Paste your DBMS_XPL
 
 Paste any of the formats below directly into the input panel and press **Cmd+Enter** (or click Parse). The tool auto-detects the format.
 
-| Format | Quick command | Runtime stats? |
-|--------|---------------|:--------------:|
-| [DBMS_XPLAN](#dbms_xplan) | `SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('&sql_id', NULL, 'ALLSTATS LAST'));` | With hint |
-| [SQL Monitor (Text)](#sql-monitor-text) | `SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id=>'&sql_id', type=>'TEXT') FROM dual;` | Yes |
-| [SQL Monitor (XML)](#sql-monitor-xml) | `SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id=>'&sql_id', type=>'XML') FROM dual;` | Yes |
-| [JSON (V\$SQL_PLAN)](#json-vsql_plan) | `JSON_ARRAYAGG` query against `V$SQL_PLAN_STATISTICS_ALL` — [see details](#json-vsql_plan) | Optional |
-| [XBI (Tanel Poder)](#xbi-tanel-poder) | `@xbi &sql_id` | Yes |
+| Format | Quick command | Runtime stats? | Predicates? |
+|--------|---------------|:--------------:|:-----------:|
+| [DBMS_XPLAN](#dbms_xplan) | `SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('&sql_id', NULL, 'ALLSTATS LAST'));` | With hint | Yes |
+| [SQL Monitor (Text)](#sql-monitor-text) | `SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id=>'&sql_id', type=>'TEXT') FROM dual;` | Yes | No |
+| [SQL Monitor (XML)](#sql-monitor-xml) | `SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id=>'&sql_id', type=>'XML') FROM dual;` | Yes | Yes |
+| [JSON (V\$SQL_PLAN)](#json-vsql_plan) | `JSON_ARRAYAGG` query against `V$SQL_PLAN_STATISTICS_ALL` — [see details](#json-vsql_plan) | Optional | Yes |
+| [XBI (Tanel Poder)](#xbi-tanel-poder) | `@xbi &sql_id` | Yes | No |
 
 Don't have a plan handy? Pick one from the **Examples** dropdown to try the tool immediately.
 
@@ -99,11 +99,13 @@ SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(
 
 > **Note**: On 11g, use `DBMS_SQLTUNE.REPORT_SQL_MONITOR` instead of `DBMS_SQL_MONITOR.REPORT_SQL_MONITOR` — the parameters are the same.
 
+> **Limitation**: SQL Monitor text reports do not include access/filter predicates. If you need predicates alongside runtime stats, use the [XML format](#sql-monitor-xml) instead, or supplement with a DBMS_XPLAN call for the same `sql_id`.
+
 ---
 
 ### SQL Monitor (XML)
 
-The richest format. Contains everything the text report has plus the full SQL text, bind variable values, and machine-readable metrics. This is the recommended format when available.
+The richest format. Contains everything the text report has plus access/filter predicates, the full SQL text, bind variable values, and machine-readable metrics. **This is the recommended format** when you have the Tuning Pack license — it's the only SQL Monitor format that includes predicates.
 
 **By sql_id** (most recent execution):
 
