@@ -640,7 +640,7 @@ function HierarchicalViewContent({
           animated: false,
           data: { rowFlow },
           style: {
-            stroke: '#d1d5db',
+            stroke: '#d4d4d8',
             strokeWidth: 2,
           },
         });
@@ -676,8 +676,8 @@ function HierarchicalViewContent({
       return {
         ...edge,
         label: formattedRowFlow,
-        labelStyle: { fill: '#6b7280', fontSize: 10, fontWeight: 500 },
-        labelBgStyle: { fill: 'white', fillOpacity: 0.9 },
+        labelStyle: { fill: '#a1a1aa', fontSize: 10, fontWeight: 500 },
+        labelBgStyle: { fill: 'transparent', fillOpacity: 0 },
         labelBgPadding: [4, 2] as [number, number],
         labelBgBorderRadius: 4,
         style: {
@@ -907,8 +907,8 @@ function HierarchicalViewContent({
   useEffect(() => {
     setEdges((currentEdges) =>
       currentEdges.map((edge) => {
-        const activeEdgeStroke = theme === 'dark' ? '#4f46e5' : '#6366f1';
-        const defaultEdgeStroke = theme === 'dark' ? '#404040' : '#d4d4d4';
+        const activeEdgeStroke = theme === 'dark' ? '#6b7280' : '#9ca3af';
+        const defaultEdgeStroke = theme === 'dark' ? '#3f3f46' : '#d4d4d8';
         const newStroke = filteredNodeIds.has(parseInt(edge.target)) ? activeEdgeStroke : defaultEdgeStroke;
         const currentStroke = edge.style?.stroke;
         const currentAnimated = edge.animated;
@@ -931,16 +931,16 @@ function HierarchicalViewContent({
 
         if (focusEnabled) {
           if (isAncestorEdge) {
-            stroke = '#2563eb';
+            stroke = theme === 'dark' ? '#94a3b8' : '#64748b';
             strokeWidth = Math.max(baseWidth, 4);
-            strokeOpacity = 0.95;
+            strokeOpacity = 0.85;
           } else if (isDescendantEdge) {
-            stroke = activeEdgeStroke;
+            stroke = theme === 'dark' ? '#94a3b8' : '#64748b';
             strokeWidth = Math.max(baseWidth, 3);
-            strokeOpacity = 0.7;
+            strokeOpacity = 0.6;
           } else {
-            stroke = theme === 'dark' ? '#2e2e2e' : '#e5e5e5';
-            strokeOpacity = 0.15;
+            stroke = theme === 'dark' ? '#27272a' : '#e4e4e7';
+            strokeOpacity = 0.3;
           }
         }
 
