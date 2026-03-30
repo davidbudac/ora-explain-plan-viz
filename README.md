@@ -111,8 +111,9 @@ The richest format. Contains everything the text report has plus access/filter p
 
 ```sql
 SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(
-  sql_id => '&sql_id',
-  type   => 'XML'
+  sql_id       => '&sql_id',
+  type         => 'XML',
+  report_level => 'ALL -ACTIVITY'
 ) FROM dual;
 ```
 
@@ -120,9 +121,10 @@ SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(
 
 ```sql
 SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(
-  sql_id      => '&sql_id',
-  sql_exec_id => &sql_exec_id,
-  type        => 'XML'
+  sql_id       => '&sql_id',
+  sql_exec_id  => &sql_exec_id,
+  type         => 'XML',
+  report_level => 'ALL -ACTIVITY'
 ) FROM dual;
 ```
 
@@ -133,13 +135,16 @@ SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(
 SET LONG 10000000 LONGCHUNKSIZE 10000000 LINESIZE 32767 PAGESIZE 0 TRIMSPOOL ON
 SPOOL /tmp/sql_monitor.xml
 SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(
-  sql_id => '&sql_id',
-  type   => 'XML'
+  sql_id       => '&sql_id',
+  type         => 'XML',
+  report_level => 'ALL -ACTIVITY'
 ) FROM dual;
 SPOOL OFF
 ```
 
 > **Note**: On 11g, use `DBMS_SQLTUNE.REPORT_SQL_MONITOR` instead.
+
+> **Tip**: `report_level => 'ALL -ACTIVITY'` omits per-second activity samples, which can make up the bulk of a large XML report. The visualizer doesn't use activity samples, so dropping them significantly reduces output size with no loss of information.
 
 ---
 
