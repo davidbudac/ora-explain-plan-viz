@@ -419,9 +419,9 @@ function useCommands(): Command[] {
 
     commands.push({
       id: 'toggle-hotspots',
-      label: 'Toggle hotspot detection',
+      label: 'Toggle Quick Analysis',
       category: 'Panels',
-      keywords: ['hotspot', 'detection', 'hot', 'node', 'enable', 'disable'],
+      keywords: ['hotspot', 'detection', 'hot', 'node', 'enable', 'disable', 'quick', 'analysis'],
       execute: () => setHotspotsEnabled(!hotspotsEnabled),
       isActive: () => hotspotsEnabled,
       isAvailable: () => anyPlanParsed && hasActualStats,
