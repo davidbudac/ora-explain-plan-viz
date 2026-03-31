@@ -212,7 +212,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
       {/* Underline: marker stroke under the operation name — rendered inside the node below */}
 
-      <Handle type="target" position={Position.Top} className="!bg-gray-400 !w-3 !h-3" />
+      <Handle type="target" position={Position.Top} className="!opacity-0 !w-1 !h-1" />
 
       {/* Metric indicator bar */}
       <div
@@ -489,7 +489,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
       </div>
 
       {node.children.length > 0 && (
-        <Handle type="source" position={Position.Bottom} className="!bg-gray-400 !w-3 !h-3" />
+        <Handle type="source" position={Position.Bottom} className="!opacity-0 !w-1 !h-1" />
       )}
     </div>
   );
