@@ -25,7 +25,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
     colorScheme, filters, nodeIndicatorMetric, annotations,
     setNodeAnnotation, removeNodeAnnotation, setNodeHighlight, removeNodeHighlight,
     addAnnotationGroup, updateAnnotationGroup, removeAnnotationGroup,
-    hotspotsEnabled,
+    hotspotsEnabled, setHotspotsEnabled,
     detailPanelCollapsed: isCollapsed, setDetailPanelCollapsed: setIsCollapsed,
     highlightStyle, setHighlightStyle,
   } = usePlan();
