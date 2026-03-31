@@ -21,6 +21,7 @@ import { usePlan } from '../../hooks/usePlanContext';
 import { PlanNodeMemo } from '../nodes/PlanNode';
 import { formatNumberShort, computeCardinalityRatio, cardinalityRatioSeverity } from '../../lib/format';
 import type { PlanNode, NodeDisplayOptions } from '../../lib/types';
+import { EDGE_SCHEME_COLORS } from '../../lib/types';
 import { createEmptyAnnotationState, getHighlightColorDef } from '../../lib/annotations';
 import { matchesFilters } from '../../lib/filtering';
 
@@ -640,7 +641,7 @@ function HierarchicalViewContent({
           animated: false,
           data: { rowFlow },
           style: {
-            stroke: '#d4d4d8',
+            stroke: EDGE_SCHEME_COLORS[colorScheme].light.default,
             strokeWidth: 2,
           },
         });
@@ -907,9 +908,8 @@ function HierarchicalViewContent({
   useEffect(() => {
     setEdges((currentEdges) =>
       currentEdges.map((edge) => {
-        const activeEdgeStroke = theme === 'dark' ? '#6b7280' : '#9ca3af';
-        const defaultEdgeStroke = theme === 'dark' ? '#3f3f46' : '#d4d4d8';
-        const newStroke = filteredNodeIds.has(parseInt(edge.target)) ? activeEdgeStroke : defaultEdgeStroke;
+        const edgeColors = EDGE_SCHEME_COLORS[colorScheme][theme === 'dark' ? 'dark' : 'light'];
+        const newStroke = filteredNodeIds.has(parseInt(edge.target)) ? edgeColors.active : edgeColors.default;
         const currentStroke = edge.style?.stroke;
         const currentAnimated = edge.animated;
         const currentStrokeWidth = edge.style?.strokeWidth;
@@ -931,15 +931,15 @@ function HierarchicalViewContent({
 
         if (focusEnabled) {
           if (isAncestorEdge) {
-            stroke = theme === 'dark' ? '#94a3b8' : '#64748b';
+            stroke = edgeColors.focus;
             strokeWidth = Math.max(baseWidth, 4);
             strokeOpacity = 0.85;
           } else if (isDescendantEdge) {
-            stroke = theme === 'dark' ? '#94a3b8' : '#64748b';
+            stroke = edgeColors.focus;
             strokeWidth = Math.max(baseWidth, 3);
             strokeOpacity = 0.6;
           } else {
-            stroke = theme === 'dark' ? '#27272a' : '#e4e4e7';
+            stroke = edgeColors.dimmed;
             strokeOpacity = 0.3;
           }
         }
@@ -978,7 +978,7 @@ function HierarchicalViewContent({
         };
       })
     );
-  }, [filteredNodeIds, filters.animateEdges, filters.focusSelection, selectedNodeId, selectedNodeIds.length, selectionSets.ancestorIds, selectionSets.descendantIds, theme, setEdges]);
+  }, [filteredNodeIds, filters.animateEdges, filters.focusSelection, selectedNodeId, selectedNodeIds.length, selectionSets.ancestorIds, selectionSets.descendantIds, theme, colorScheme, setEdges]);
 
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
