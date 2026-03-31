@@ -500,7 +500,7 @@ export function TabularView() {
                       </div>
                       {/* Inline predicates */}
                       {(node.accessPredicates || node.filterPredicates) && (
-                        <div className="ml-[calc(0.875rem+0.25rem)] mt-0.5 text-[10px] font-mono text-neutral-400 dark:text-neutral-500 truncate max-w-[500px] leading-tight">
+                        <div className="ml-[calc(0.875rem+0.25rem)] mt-0.5 text-[10px] font-mono text-neutral-400 dark:text-neutral-500 whitespace-pre-wrap break-all leading-tight">
                           {node.accessPredicates && (
                             <span><span className="text-blue-400 dark:text-blue-500">A:</span> {node.accessPredicates}</span>
                           )}
