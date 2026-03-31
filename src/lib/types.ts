@@ -304,6 +304,32 @@ export const COLOR_SCHEME_PALETTES: Record<ColorScheme, Record<string, string>> 
   },
 };
 
+export const EDGE_SCHEME_COLORS: Record<ColorScheme, {
+  light: { active: string; default: string; focus: string; dimmed: string };
+  dark: { active: string; default: string; focus: string; dimmed: string };
+}> = {
+  vibrant: {
+    light: { active: '#60a5fa', default: '#bfdbfe', focus: '#2563eb', dimmed: '#eff6ff' },
+    dark: { active: '#3b82f6', default: '#1e3a5f', focus: '#60a5fa', dimmed: '#172554' },
+  },
+  muted: {
+    light: { active: '#2dd4bf', default: '#99f6e4', focus: '#0d9488', dimmed: '#f0fdfa' },
+    dark: { active: '#14b8a6', default: '#134e4a', focus: '#2dd4bf', dimmed: '#042f2e' },
+  },
+  professional: {
+    light: { active: '#818cf8', default: '#c7d2fe', focus: '#4f46e5', dimmed: '#eef2ff' },
+    dark: { active: '#6366f1', default: '#312e81', focus: '#818cf8', dimmed: '#1e1b4b' },
+  },
+  monochrome: {
+    light: { active: '#9ca3af', default: '#d4d4d8', focus: '#64748b', dimmed: '#e4e4e7' },
+    dark: { active: '#6b7280', default: '#3f3f46', focus: '#94a3b8', dimmed: '#27272a' },
+  },
+  readable: {
+    light: { active: '#94a3b8', default: '#cbd5e1', focus: '#475569', dimmed: '#f1f5f9' },
+    dark: { active: '#64748b', default: '#334155', focus: '#94a3b8', dimmed: '#1e293b' },
+  },
+};
+
 // Current vibrant colors (original)
 const COLORS_VIBRANT: Record<string, { bg: string; border: string; text: string }> = {
   'Table Access': { bg: 'bg-orange-100 dark:bg-orange-900/30', border: 'border-orange-400', text: 'text-orange-700 dark:text-orange-300' },
