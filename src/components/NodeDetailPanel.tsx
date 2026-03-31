@@ -114,6 +114,19 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
                 </svg>
               </button>
               <h3 className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">Quick Analysis</h3>
+              <button
+                role="switch"
+                aria-checked={hotspotsEnabled}
+                onClick={() => setHotspotsEnabled(!hotspotsEnabled)}
+                className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
+                  hotspotsEnabled ? 'bg-red-500' : 'bg-neutral-300 dark:bg-neutral-600'
+                }`}
+                title={hotspotsEnabled ? 'Disable hotspot detection' : 'Enable hotspot detection'}
+              >
+                <span className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${
+                  hotspotsEnabled ? 'translate-x-3.5' : 'translate-x-0.5'
+                }`} />
+              </button>
             </div>
           </div>
           <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-1">Click a row to select, or Cmd/Ctrl-click nodes for multi-select</p>
