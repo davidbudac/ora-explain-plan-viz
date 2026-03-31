@@ -87,7 +87,6 @@ function useCommands(): Command[] {
     parsedPlan,
     plans,
     visualizationMaximized,
-    legendVisible,
     inputPanelCollapsed,
     filterPanelCollapsed,
     detailPanelCollapsed,
@@ -104,7 +103,6 @@ function useCommands(): Command[] {
     setNodeIndicatorMetric,
     setHighlightStyle,
     setVisualizationMaximized,
-    setLegendVisible,
     setInputPanelCollapsed,
     setFilterPanelCollapsed,
     setDetailPanelCollapsed,
@@ -382,16 +380,6 @@ function useCommands(): Command[] {
 
     // --- Panels ---
     commands.push({
-      id: 'toggle-legend',
-      label: 'Toggle legend',
-      category: 'Panels',
-      keywords: ['legend', 'color', 'key', 'show', 'hide'],
-      execute: () => setLegendVisible(!legendVisible),
-      isActive: () => legendVisible,
-      isAvailable: () => anyPlanParsed,
-    });
-
-    commands.push({
       id: 'toggle-input-panel',
       label: inputPanelCollapsed ? 'Show input panel' : 'Hide input panel',
       category: 'Panels',
@@ -458,13 +446,13 @@ function useCommands(): Command[] {
     return commands;
   }, [
     viewMode, theme, colorScheme, filters, sankeyMetric, nodeIndicatorMetric,
-    highlightStyle, parsedPlan, plans, visualizationMaximized, legendVisible,
+    highlightStyle, parsedPlan, plans, visualizationMaximized,
     inputPanelCollapsed, filterPanelCollapsed, detailPanelCollapsed,
     hotspotsEnabled, treeCompareEnabled, annotations, anyPlanParsed,
     hasActualStats, hasAnyInput, canExportPng, multipleParsedPlans,
     setViewMode, setTheme, setColorScheme, setFilters, setSankeyMetric,
     setNodeIndicatorMetric, setHighlightStyle, setVisualizationMaximized,
-    setLegendVisible, setInputPanelCollapsed, setFilterPanelCollapsed,
+    setInputPanelCollapsed, setFilterPanelCollapsed,
     setDetailPanelCollapsed, setHotspotsEnabled, setTreeCompareEnabled,
     exportAnnotatedPlan, clearAnnotations, sharePlan, exportPngFnRef,
     toggleNodeDisplayOption, enableAllDisplayOptions, disableAllDisplayOptions,

@@ -6,7 +6,6 @@ import { PlanTabs } from './components/PlanTabs';
 import { FilterPanel } from './components/FilterPanel';
 import { VisualizationTabs } from './components/VisualizationTabs';
 import { NodeDetailPanel } from './components/NodeDetailPanel';
-import { Legend } from './components/Legend';
 import { CommandPalette } from './components/CommandPalette';
 
 const LEFT_PANEL_MIN = 220;
@@ -156,7 +155,6 @@ function AppContent() {
           )}
           <div className="flex-1 flex flex-col relative min-w-0 bg-neutral-50 dark:bg-neutral-900 border-r border-l border-neutral-200 dark:border-neutral-800">
             <VisualizationTabs />
-            {!visualizationMaximized && <Legend />}
           </div>
           {!isComparisonWorkspace && (
             <NodeDetailPanel
