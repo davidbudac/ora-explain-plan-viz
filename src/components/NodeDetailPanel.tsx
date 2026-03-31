@@ -4,6 +4,7 @@ import { getOperationCategory, COLOR_SCHEMES, getMetricColor, getOperationToolti
 import { formatBytes, formatNumberShort, formatTimeCompact, formatTimeDetailed, computeCardinalityRatio, formatCardinalityRatio, cardinalityRatioSeverity } from '../lib/format';
 import type { PlanNode as PlanNodeType, NodeIndicatorMetric } from '../lib/types';
 import { HighlightText } from './HighlightText';
+import { FormattedPredicate } from './FormattedPredicate';
 import { AnnotationEditor, BulkHighlightPicker } from './AnnotationEditor';
 import { GroupAnnotationDialog } from './GroupAnnotationDialog';
 import { HIGHLIGHT_COLORS } from '../lib/annotations';
@@ -652,8 +653,8 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
                 </span>
                 <CopyButton text={node.accessPredicates} label="Copy access predicate" />
               </div>
-              <code className="block text-xs bg-neutral-50 dark:bg-neutral-950 p-2 rounded border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 font-mono whitespace-pre-wrap break-all">
-                <HighlightText text={node.accessPredicates} query={searchText} />
+              <code className="block text-xs bg-neutral-50 dark:bg-neutral-950 p-2 rounded border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 font-mono whitespace-pre-wrap break-words">
+                <FormattedPredicate text={node.accessPredicates} searchQuery={searchText} />
               </code>
             </div>
           )}
@@ -666,8 +667,8 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
                 </span>
                 <CopyButton text={node.filterPredicates} label="Copy filter predicate" />
               </div>
-              <code className="block text-xs bg-neutral-50 dark:bg-neutral-950 p-2 rounded border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 font-mono whitespace-pre-wrap break-all">
-                <HighlightText text={node.filterPredicates} query={searchText} />
+              <code className="block text-xs bg-neutral-50 dark:bg-neutral-950 p-2 rounded border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 font-mono whitespace-pre-wrap break-words">
+                <FormattedPredicate text={node.filterPredicates} searchQuery={searchText} />
               </code>
             </div>
           )}
