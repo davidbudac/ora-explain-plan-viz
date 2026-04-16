@@ -386,18 +386,18 @@ const COLORS_MONOCHROME: Record<string, { bg: string; border: string; text: stri
   'Other': { bg: 'bg-gray-50 dark:bg-neutral-800/80', border: 'border-neutral-200 dark:border-neutral-600', text: 'text-neutral-700 dark:text-neutral-200' },
 };
 
-// Option D: Readable - maximum readability with bold left border stripe and neutral high-contrast text
+// Option D: Readable - maximum readability with uniform border and colored operation name
 const COLORS_READABLE: Record<string, { bg: string; border: string; text: string }> = {
-  'Table Access': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-amber-500 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
-  'Index Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-emerald-500 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
-  'Join Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-blue-500 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
-  'Set Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-violet-500 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
-  'Aggregation': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-pink-500 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
-  'Sort Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-yellow-500 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
-  'Filter/View': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-cyan-500 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
-  'Partition': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-indigo-500 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
-  'Parallelism': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-rose-500 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
-  'Other': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-l-[6px] border-l-neutral-400 border-y-neutral-200 border-r-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-900 dark:text-neutral-100' },
+  'Table Access': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-neutral-200 dark:border-neutral-700', text: 'text-amber-500 dark:text-amber-400' },
+  'Index Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-neutral-200 dark:border-neutral-700', text: 'text-emerald-500 dark:text-emerald-400' },
+  'Join Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-neutral-200 dark:border-neutral-700', text: 'text-blue-500 dark:text-blue-400' },
+  'Set Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-neutral-200 dark:border-neutral-700', text: 'text-violet-500 dark:text-violet-400' },
+  'Aggregation': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-neutral-200 dark:border-neutral-700', text: 'text-pink-500 dark:text-pink-400' },
+  'Sort Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-neutral-200 dark:border-neutral-700', text: 'text-yellow-600 dark:text-yellow-400' },
+  'Filter/View': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-neutral-200 dark:border-neutral-700', text: 'text-cyan-500 dark:text-cyan-400' },
+  'Partition': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-neutral-200 dark:border-neutral-700', text: 'text-indigo-500 dark:text-indigo-400' },
+  'Parallelism': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-neutral-200 dark:border-neutral-700', text: 'text-rose-500 dark:text-rose-400' },
+  'Other': { bg: 'bg-white dark:bg-neutral-800', border: 'border-2 border-neutral-200 dark:border-neutral-700', text: 'text-neutral-500 dark:text-neutral-400' },
 };
 
 export const COLOR_SCHEMES: Record<ColorScheme, Record<string, { bg: string; border: string; text: string }>> = {

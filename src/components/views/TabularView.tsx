@@ -6,7 +6,7 @@ import { getHighlightColorDef } from '../../lib/annotations';
 import type { AnnotationGroup } from '../../lib/annotations';
 import { HighlightText } from '../HighlightText';
 
-type SortColumn = 'id' | 'cost' | 'rows' | 'bytes' | 'actualRows' | 'actualTime' | 'starts' | 'memoryUsed' | 'tempUsed';
+type SortColumn = 'id' | 'cost' | 'rows' | 'actualRows' | 'actualTime' | 'starts' | 'memoryUsed' | 'tempUsed';
 type SortDirection = 'asc' | 'desc';
 
 /** Collect all descendant IDs of a node (not including the node itself). */
@@ -54,6 +54,29 @@ export function TabularView() {
   const searchText = filters.searchText?.trim() ?? '';
   const hasActualStats = parsedPlan?.hasActualStats ?? false;
   const showAnnotations = filters.nodeDisplayOptions?.showAnnotations ?? true;
+
+  // Hide columns that have no data across any node in the plan.
+  const hasData = useMemo(() => {
+    const nodes = parsedPlan?.allNodes ?? [];
+    const anyNonNull = (field: keyof PlanNode) => nodes.some(n => n[field] != null);
+    return {
+      rows: anyNonNull('rows'),
+      cost: anyNonNull('cost'),
+      actualRows: anyNonNull('actualRows'),
+      actualTime: anyNonNull('actualTime'),
+      starts: anyNonNull('starts'),
+      memoryUsed: anyNonNull('memoryUsed'),
+      tempUsed: anyNonNull('tempUsed'),
+    };
+  }, [parsedPlan]);
+
+  const estimatedColSpan = (hasData.rows ? 1 : 0) + (hasData.cost ? 1 : 0);
+  const actualColCount =
+    (hasData.actualRows ? 1 : 0) + (hasData.actualTime ? 1 : 0) + (hasData.starts ? 1 : 0) +
+    (hasData.memoryUsed ? 1 : 0) + (hasData.tempUsed ? 1 : 0);
+  const showCardinalityCol = hasActualStats && hotspotsEnabled && hasData.rows && hasData.actualRows;
+  const actualColSpan = actualColCount + (showCardinalityCol ? 1 : 0);
+  const showActualGroup = hasActualStats && actualColSpan > 0;
 
   const planAnnotations = getAnnotationsForPlan(activePlanIndex);
   const effectiveAnnotations = useMemo(
@@ -136,7 +159,6 @@ export function TabularView() {
           case 'id': return node.id;
           case 'cost': return node.cost ?? 0;
           case 'rows': return node.rows ?? 0;
-          case 'bytes': return node.bytes ?? 0;
           case 'actualRows': return node.actualRows ?? 0;
           case 'actualTime': return node.actualTime ?? 0;
           case 'starts': return node.starts ?? 0;
@@ -270,9 +292,12 @@ export function TabularView() {
 
   if (!parsedPlan) return null;
 
-  const thClass = 'px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-900 sticky top-0 z-10 border-b border-neutral-200 dark:border-neutral-700 select-none';
+  const groupThClass = 'px-2 py-1 text-center text-[11px] font-semibold text-neutral-600 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-900 sticky top-0 z-10 border-b border-neutral-200 dark:border-neutral-700 select-none';
+  const thClass = 'px-2 py-1.5 text-left text-[11px] font-medium text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-900 sticky top-[22px] z-10 border-b border-neutral-200 dark:border-neutral-700 select-none';
   const thSortableClass = thClass + ' cursor-pointer hover:text-neutral-700 dark:hover:text-neutral-200';
   const thRightClass = 'text-right';
+  const groupBorderClass = 'border-l border-neutral-200 dark:border-neutral-700';
+  const bodyGroupBorderClass = 'border-l border-neutral-100 dark:border-neutral-800';
 
   return (
     <div
@@ -308,39 +333,63 @@ export function TabularView() {
       <table className="w-full text-xs border-collapse">
         <thead>
           <tr>
+            <th className={groupThClass} colSpan={2}></th>
+            {estimatedColSpan > 0 && (
+              <th className={`${groupThClass} ${groupBorderClass}`} colSpan={estimatedColSpan}>
+                Estimated
+              </th>
+            )}
+            {showActualGroup && (
+              <th className={`${groupThClass} ${groupBorderClass}`} colSpan={actualColSpan}>
+                Actual
+              </th>
+            )}
+          </tr>
+          <tr>
             <th className={`${thSortableClass} ${thRightClass} w-10`} onClick={() => handleSort('id')}>
               Id<SortArrow column="id" sortColumn={sortColumn} sortDirection={sortDirection} />
             </th>
             <th className={`${thClass} min-w-[200px] sticky left-0 z-20 bg-neutral-50 dark:bg-neutral-900`}>
               Operation
             </th>
-            <th className={`${thSortableClass} ${thRightClass}`} onClick={() => handleSort('rows')}>
-              {hasActualStats ? 'E-Rows' : 'Rows'}<SortArrow column="rows" sortColumn={sortColumn} sortDirection={sortDirection} />
-            </th>
-            <th className={`${thSortableClass} ${thRightClass}`} onClick={() => handleSort('bytes')}>
-              Bytes<SortArrow column="bytes" sortColumn={sortColumn} sortDirection={sortDirection} />
-            </th>
-            <th className={`${thSortableClass} ${thRightClass}`} onClick={() => handleSort('cost')}>
-              Cost<SortArrow column="cost" sortColumn={sortColumn} sortDirection={sortDirection} />
-            </th>
-            {hasActualStats && (
+            {hasData.rows && (
+              <th className={`${thSortableClass} ${thRightClass} ${groupBorderClass}`} onClick={() => handleSort('rows')}>
+                {hasActualStats ? 'E-Rows' : 'Rows'}<SortArrow column="rows" sortColumn={sortColumn} sortDirection={sortDirection} />
+              </th>
+            )}
+            {hasData.cost && (
+              <th className={`${thSortableClass} ${thRightClass} ${hasData.rows ? '' : groupBorderClass}`} onClick={() => handleSort('cost')}>
+                Cost<SortArrow column="cost" sortColumn={sortColumn} sortDirection={sortDirection} />
+              </th>
+            )}
+            {showActualGroup && (
               <>
-                <th className={`${thSortableClass} ${thRightClass}`} onClick={() => handleSort('actualRows')}>
-                  A-Rows<SortArrow column="actualRows" sortColumn={sortColumn} sortDirection={sortDirection} />
-                </th>
-                <th className={`${thSortableClass} ${thRightClass}`} onClick={() => handleSort('actualTime')}>
-                  A-Time<SortArrow column="actualTime" sortColumn={sortColumn} sortDirection={sortDirection} />
-                </th>
-                <th className={`${thSortableClass} ${thRightClass}`} onClick={() => handleSort('starts')}>
-                  Starts<SortArrow column="starts" sortColumn={sortColumn} sortDirection={sortDirection} />
-                </th>
-                <th className={`${thSortableClass} ${thRightClass}`} onClick={() => handleSort('memoryUsed')}>
-                  Memory<SortArrow column="memoryUsed" sortColumn={sortColumn} sortDirection={sortDirection} />
-                </th>
-                <th className={`${thSortableClass} ${thRightClass}`} onClick={() => handleSort('tempUsed')}>
-                  Temp<SortArrow column="tempUsed" sortColumn={sortColumn} sortDirection={sortDirection} />
-                </th>
-                {hotspotsEnabled && (
+                {hasData.actualRows && (
+                  <th className={`${thSortableClass} ${thRightClass} ${groupBorderClass}`} onClick={() => handleSort('actualRows')}>
+                    A-Rows<SortArrow column="actualRows" sortColumn={sortColumn} sortDirection={sortDirection} />
+                  </th>
+                )}
+                {hasData.actualTime && (
+                  <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows ? groupBorderClass : ''}`} onClick={() => handleSort('actualTime')}>
+                    A-Time<SortArrow column="actualTime" sortColumn={sortColumn} sortDirection={sortDirection} />
+                  </th>
+                )}
+                {hasData.starts && (
+                  <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows && !hasData.actualTime ? groupBorderClass : ''}`} onClick={() => handleSort('starts')}>
+                    Starts<SortArrow column="starts" sortColumn={sortColumn} sortDirection={sortDirection} />
+                  </th>
+                )}
+                {hasData.memoryUsed && (
+                  <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows && !hasData.actualTime && !hasData.starts ? groupBorderClass : ''}`} onClick={() => handleSort('memoryUsed')}>
+                    Memory<SortArrow column="memoryUsed" sortColumn={sortColumn} sortDirection={sortDirection} />
+                  </th>
+                )}
+                {hasData.tempUsed && (
+                  <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows && !hasData.actualTime && !hasData.starts && !hasData.memoryUsed ? groupBorderClass : ''}`} onClick={() => handleSort('tempUsed')}>
+                    Temp<SortArrow column="tempUsed" sortColumn={sortColumn} sortDirection={sortDirection} />
+                  </th>
+                )}
+                {showCardinalityCol && (
                   <th className={`${thClass} text-center`}>
                     Card.
                   </th>
@@ -517,92 +566,94 @@ export function TabularView() {
                 </td>
 
                 {/* Rows/E-Rows */}
-                <td className="px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
-                  {formatNumberShort(node.rows)}
-                </td>
-
-                {/* Bytes */}
-                <td className="px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
-                  {formatBytes(node.bytes)}
-                </td>
+                {hasData.rows && (
+                  <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${bodyGroupBorderClass}`}>
+                    {formatNumberShort(node.rows)}
+                  </td>
+                )}
 
                 {/* Cost + inline bar */}
-                <td className="px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
-                  <div className="flex flex-col items-end gap-0.5">
-                    <div className="flex items-baseline gap-1.5">
+                {hasData.cost && (
+                  <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${hasData.rows ? '' : bodyGroupBorderClass}`}>
+                    <div className="flex flex-col items-end gap-0.5">
                       <span>{formatNumberShort(node.cost)}</span>
-                      {costRatio >= 0.01 && (
-                        <span className={`text-[9px] ${costRatio >= 0.5 ? 'text-red-500' : costRatio >= 0.25 ? 'text-orange-500' : costRatio >= 0.1 ? 'text-yellow-600 dark:text-yellow-500' : 'text-neutral-400 dark:text-neutral-500'}`}>
-                          {(costRatio * 100).toFixed(0)}%
-                        </span>
+                      {costRatio > 0 && (
+                        <div className="w-full h-[3px] bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${costRatio >= 0.5 ? 'bg-red-500' : costRatio >= 0.25 ? 'bg-orange-500' : costRatio >= 0.1 ? 'bg-yellow-500' : 'bg-green-500'}`}
+                            style={{ width: `${Math.max(costRatio * 100, 1)}%` }}
+                          />
+                        </div>
                       )}
                     </div>
-                    {costRatio > 0 && (
-                      <div className="w-full h-[3px] bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${costRatio >= 0.5 ? 'bg-red-500' : costRatio >= 0.25 ? 'bg-orange-500' : costRatio >= 0.1 ? 'bg-yellow-500' : 'bg-green-500'}`}
-                          style={{ width: `${Math.max(costRatio * 100, 1)}%` }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </td>
+                  </td>
+                )}
 
-                {hasActualStats && (
+                {showActualGroup && (
                   <>
                     {/* A-Rows */}
-                    <td className="px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
-                      {formatNumberShort(node.actualRows)}
-                    </td>
+                    {hasData.actualRows && (
+                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${bodyGroupBorderClass}`}>
+                        {formatNumberShort(node.actualRows)}
+                      </td>
+                    )}
 
                     {/* A-Time + inline bar */}
-                    <td className="px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
-                      <div className="flex flex-col items-end gap-0.5">
-                        <div className="flex items-baseline gap-1.5">
-                          <span>{formatTimeCompact(node.actualTime)}</span>
-                          {timeRatio >= 0.01 && (
-                            <span className={`text-[9px] ${timeRatio >= 0.5 ? 'text-red-500' : timeRatio >= 0.25 ? 'text-orange-500' : timeRatio >= 0.1 ? 'text-yellow-600 dark:text-yellow-500' : 'text-neutral-400 dark:text-neutral-500'}`}>
-                              {(timeRatio * 100).toFixed(0)}%
+                    {hasData.actualTime && (
+                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${!hasData.actualRows ? bodyGroupBorderClass : ''}`}>
+                        <div className="flex flex-col items-end gap-0.5">
+                          <div className="flex items-baseline gap-1.5">
+                            <span>{formatTimeCompact(node.actualTime)}</span>
+                            {timeRatio >= 0.01 && (
+                              <span className={`text-[9px] ${timeRatio >= 0.5 ? 'text-red-500' : timeRatio >= 0.25 ? 'text-orange-500' : timeRatio >= 0.1 ? 'text-yellow-600 dark:text-yellow-500' : 'text-neutral-400 dark:text-neutral-500'}`}>
+                                {(timeRatio * 100).toFixed(0)}%
+                              </span>
+                            )}
+                          </div>
+                          {timeRatio > 0 && (
+                            <div className="w-full h-[3px] bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${timeRatio >= 0.5 ? 'bg-red-500' : timeRatio >= 0.25 ? 'bg-orange-500' : timeRatio >= 0.1 ? 'bg-yellow-500' : 'bg-green-500'}`}
+                                style={{ width: `${Math.max(timeRatio * 100, 1)}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    )}
+
+                    {/* Starts */}
+                    {hasData.starts && (
+                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${!hasData.actualRows && !hasData.actualTime ? bodyGroupBorderClass : ''}`}>
+                        {formatNumberShort(node.starts)}
+                      </td>
+                    )}
+
+                    {/* Memory */}
+                    {hasData.memoryUsed && (
+                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${!hasData.actualRows && !hasData.actualTime && !hasData.starts ? bodyGroupBorderClass : ''}`}>
+                        {formatBytes(node.memoryUsed)}
+                      </td>
+                    )}
+
+                    {/* Temp */}
+                    {hasData.tempUsed && (
+                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${!hasData.actualRows && !hasData.actualTime && !hasData.starts && !hasData.memoryUsed ? bodyGroupBorderClass : ''}`}>
+                        <div className="flex items-center justify-end gap-1">
+                          {formatBytes(node.tempUsed)}
+                          {node.tempUsed != null && node.tempUsed > 0 && (
+                            <span className="text-amber-500" title="Spill to disk">
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
                             </span>
                           )}
                         </div>
-                        {timeRatio > 0 && (
-                          <div className="w-full h-[3px] bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${timeRatio >= 0.5 ? 'bg-red-500' : timeRatio >= 0.25 ? 'bg-orange-500' : timeRatio >= 0.1 ? 'bg-yellow-500' : 'bg-green-500'}`}
-                              style={{ width: `${Math.max(timeRatio * 100, 1)}%` }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Starts */}
-                    <td className="px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
-                      {formatNumberShort(node.starts)}
-                    </td>
-
-                    {/* Memory */}
-                    <td className="px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
-                      {formatBytes(node.memoryUsed)}
-                    </td>
-
-                    {/* Temp */}
-                    <td className="px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300">
-                      <div className="flex items-center justify-end gap-1">
-                        {formatBytes(node.tempUsed)}
-                        {node.tempUsed != null && node.tempUsed > 0 && (
-                          <span className="text-amber-500" title="Spill to disk">
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                          </span>
-                        )}
-                      </div>
-                    </td>
+                      </td>
+                    )}
 
                     {/* Cardinality ratio */}
-                    {hotspotsEnabled && (
+                    {showCardinalityCol && (
                       <td className="px-2 py-1.5 text-center font-mono tabular-nums">
                         {cardRatio !== undefined && (
                           <span className={
