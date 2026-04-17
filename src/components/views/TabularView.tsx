@@ -8,6 +8,29 @@ import { HighlightText } from '../HighlightText';
 
 type SortColumn = 'id' | 'cost' | 'rows' | 'actualRows' | 'actualTime' | 'starts' | 'memoryUsed' | 'tempUsed';
 type SortDirection = 'asc' | 'desc';
+type ColumnKey =
+  | 'id' | 'operation'
+  | 'rows' | 'cost'
+  | 'actualRows' | 'actualTime' | 'starts' | 'memoryUsed' | 'tempUsed'
+  | 'cardinality';
+
+const COLUMN_DEFAULT_WIDTHS: Record<ColumnKey, number> = {
+  id: 48,
+  operation: 340,
+  rows: 90,
+  cost: 110,
+  actualRows: 90,
+  actualTime: 130,
+  starts: 70,
+  memoryUsed: 90,
+  tempUsed: 90,
+  cardinality: 80,
+};
+const COLUMN_MIN_WIDTH: Record<ColumnKey, number> = {
+  id: 36, operation: 160, rows: 56, cost: 56, actualRows: 56,
+  actualTime: 72, starts: 48, memoryUsed: 56, tempUsed: 56, cardinality: 48,
+};
+const COLUMN_WIDTHS_STORAGE_KEY = 'tabularView.columnWidths.v1';
 
 /** Collect all descendant IDs of a node (not including the node itself). */
 function collectDescendantIds(node: PlanNode, out: Set<number>) {
@@ -43,6 +66,14 @@ export function TabularView() {
 
   const [sortColumn, setSortColumn] = useState<SortColumn>('id');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [columnWidths, setColumnWidths] = useState<Record<ColumnKey, number>>(() => {
+    try {
+      const saved = localStorage.getItem(COLUMN_WIDTHS_STORAGE_KEY);
+      if (saved) return { ...COLUMN_DEFAULT_WIDTHS, ...JSON.parse(saved) };
+    } catch { /* ignore */ }
+    return { ...COLUMN_DEFAULT_WIDTHS };
+  });
+  const resizingRef = useRef<{ column: ColumnKey; startX: number; startWidth: number } | null>(null);
   const [collapsedIds, setCollapsedIds] = useState<Set<number>>(new Set());
   const [hoveredNodeId, setHoveredNodeId] = useState<number | null>(null);
   const [tooltip, setTooltip] = useState<{ nodeId: number; x: number; y: number } | null>(null);
@@ -69,6 +100,57 @@ export function TabularView() {
       tempUsed: anyNonNull('tempUsed'),
     };
   }, [parsedPlan]);
+
+  const visibleColumns = useMemo<ColumnKey[]>(() => {
+    const cols: ColumnKey[] = ['id', 'operation'];
+    if (hasData.rows) cols.push('rows');
+    if (hasData.cost) cols.push('cost');
+    if (hasActualStats) {
+      if (hasData.actualRows) cols.push('actualRows');
+      if (hasData.actualTime) cols.push('actualTime');
+      if (hasData.starts) cols.push('starts');
+      if (hasData.memoryUsed) cols.push('memoryUsed');
+      if (hasData.tempUsed) cols.push('tempUsed');
+    }
+    if (hasActualStats && hotspotsEnabled && hasData.rows && hasData.actualRows) cols.push('cardinality');
+    return cols;
+  }, [hasData, hasActualStats, hotspotsEnabled]);
+
+  useEffect(() => {
+    try { localStorage.setItem(COLUMN_WIDTHS_STORAGE_KEY, JSON.stringify(columnWidths)); } catch { /* ignore */ }
+  }, [columnWidths]);
+
+  const handleResizeStart = useCallback((column: ColumnKey, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startWidth = columnWidths[column] ?? COLUMN_DEFAULT_WIDTHS[column];
+    resizingRef.current = { column, startX: e.clientX, startWidth };
+    const onMove = (ev: MouseEvent) => {
+      const info = resizingRef.current;
+      if (!info) return;
+      const delta = ev.clientX - info.startX;
+      const min = COLUMN_MIN_WIDTH[info.column];
+      const next = Math.max(min, info.startWidth + delta);
+      setColumnWidths(prev => prev[info.column] === next ? prev : { ...prev, [info.column]: next });
+    };
+    const onUp = () => {
+      resizingRef.current = null;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [columnWidths]);
+
+  const handleResizeDoubleClick = useCallback((column: ColumnKey, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setColumnWidths(prev => ({ ...prev, [column]: COLUMN_DEFAULT_WIDTHS[column] }));
+  }, []);
 
   const estimatedColSpan = (hasData.rows ? 1 : 0) + (hasData.cost ? 1 : 0);
   const actualColCount =
@@ -293,8 +375,18 @@ export function TabularView() {
   if (!parsedPlan) return null;
 
   const groupThClass = 'px-2 py-1 text-center text-[11px] font-semibold text-neutral-600 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-900 sticky top-0 z-10 border-b border-neutral-200 dark:border-neutral-700 select-none';
-  const thClass = 'px-2 py-1.5 text-left text-[11px] font-medium text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-900 sticky top-[22px] z-10 border-b border-neutral-200 dark:border-neutral-700 select-none';
+  const thClass = 'relative px-2 py-1.5 text-left text-[11px] font-medium text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-900 sticky top-[22px] z-10 border-b border-neutral-200 dark:border-neutral-700 select-none';
   const thSortableClass = thClass + ' cursor-pointer hover:text-neutral-700 dark:hover:text-neutral-200';
+  const ResizeHandle = ({ column }: { column: ColumnKey }) => (
+    <span
+      onMouseDown={(e) => handleResizeStart(column, e)}
+      onDoubleClick={(e) => handleResizeDoubleClick(column, e)}
+      onClick={(e) => e.stopPropagation()}
+      title="Drag to resize, double-click to reset"
+      className="absolute top-0 right-0 h-full w-[6px] cursor-col-resize z-30 hover:bg-blue-400/50 active:bg-blue-500/70"
+      style={{ marginRight: '-3px' }}
+    />
+  );
   const thRightClass = 'text-right';
   const groupBorderClass = 'border-l border-neutral-200 dark:border-neutral-700';
   const bodyGroupBorderClass = 'border-l border-neutral-100 dark:border-neutral-800';
@@ -330,7 +422,12 @@ export function TabularView() {
           </div>
         );
       })()}
-      <table className="w-full text-xs border-collapse">
+      <table className="text-xs border-collapse table-fixed" style={{ width: visibleColumns.reduce((sum, c) => sum + (columnWidths[c] ?? COLUMN_DEFAULT_WIDTHS[c]), 0), minWidth: '100%' }}>
+        <colgroup>
+          {visibleColumns.map(col => (
+            <col key={col} style={{ width: `${columnWidths[col] ?? COLUMN_DEFAULT_WIDTHS[col]}px` }} />
+          ))}
+        </colgroup>
         <thead>
           <tr>
             <th className={groupThClass} colSpan={2}></th>
@@ -346,20 +443,24 @@ export function TabularView() {
             )}
           </tr>
           <tr>
-            <th className={`${thSortableClass} ${thRightClass} w-10`} onClick={() => handleSort('id')}>
+            <th className={`${thSortableClass} ${thRightClass}`} onClick={() => handleSort('id')}>
               Id<SortArrow column="id" sortColumn={sortColumn} sortDirection={sortDirection} />
+              <ResizeHandle column="id" />
             </th>
-            <th className={`${thClass} min-w-[200px] sticky left-0 z-20 bg-neutral-50 dark:bg-neutral-900`}>
+            <th className={`${thClass} sticky left-0 z-20 bg-neutral-50 dark:bg-neutral-900`}>
               Operation
+              <ResizeHandle column="operation" />
             </th>
             {hasData.rows && (
               <th className={`${thSortableClass} ${thRightClass} ${groupBorderClass}`} onClick={() => handleSort('rows')}>
                 {hasActualStats ? 'E-Rows' : 'Rows'}<SortArrow column="rows" sortColumn={sortColumn} sortDirection={sortDirection} />
+                <ResizeHandle column="rows" />
               </th>
             )}
             {hasData.cost && (
               <th className={`${thSortableClass} ${thRightClass} ${hasData.rows ? '' : groupBorderClass}`} onClick={() => handleSort('cost')}>
                 Cost<SortArrow column="cost" sortColumn={sortColumn} sortDirection={sortDirection} />
+                <ResizeHandle column="cost" />
               </th>
             )}
             {showActualGroup && (
@@ -367,31 +468,37 @@ export function TabularView() {
                 {hasData.actualRows && (
                   <th className={`${thSortableClass} ${thRightClass} ${groupBorderClass}`} onClick={() => handleSort('actualRows')}>
                     A-Rows<SortArrow column="actualRows" sortColumn={sortColumn} sortDirection={sortDirection} />
+                    <ResizeHandle column="actualRows" />
                   </th>
                 )}
                 {hasData.actualTime && (
                   <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows ? groupBorderClass : ''}`} onClick={() => handleSort('actualTime')}>
                     A-Time<SortArrow column="actualTime" sortColumn={sortColumn} sortDirection={sortDirection} />
+                    <ResizeHandle column="actualTime" />
                   </th>
                 )}
                 {hasData.starts && (
                   <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows && !hasData.actualTime ? groupBorderClass : ''}`} onClick={() => handleSort('starts')}>
                     Starts<SortArrow column="starts" sortColumn={sortColumn} sortDirection={sortDirection} />
+                    <ResizeHandle column="starts" />
                   </th>
                 )}
                 {hasData.memoryUsed && (
                   <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows && !hasData.actualTime && !hasData.starts ? groupBorderClass : ''}`} onClick={() => handleSort('memoryUsed')}>
                     Memory<SortArrow column="memoryUsed" sortColumn={sortColumn} sortDirection={sortDirection} />
+                    <ResizeHandle column="memoryUsed" />
                   </th>
                 )}
                 {hasData.tempUsed && (
                   <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows && !hasData.actualTime && !hasData.starts && !hasData.memoryUsed ? groupBorderClass : ''}`} onClick={() => handleSort('tempUsed')}>
                     Temp<SortArrow column="tempUsed" sortColumn={sortColumn} sortDirection={sortDirection} />
+                    <ResizeHandle column="tempUsed" />
                   </th>
                 )}
                 {showCardinalityCol && (
                   <th className={`${thClass} text-center`}>
                     Card.
+                    <ResizeHandle column="cardinality" />
                   </th>
                 )}
               </>

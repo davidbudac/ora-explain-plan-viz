@@ -135,6 +135,10 @@ interface RawSqlMonitorRow {
   tempUsed?: number;
   physicalReads?: number;
   logicalReads?: number;
+  ioReadRequests?: number;
+  ioReadBytes?: number;
+  ioWriteRequests?: number;
+  ioWriteBytes?: number;
   activityPercent?: number;
   depth: number;
 }
@@ -171,6 +175,9 @@ interface SqlMonitorColumnPositions {
   memory?: { start: number; end: number };
   temp?: { start: number; end: number };
   reads?: { start: number; end: number };
+  readBytes?: { start: number; end: number };
+  writeReqs?: { start: number; end: number };
+  writeBytes?: { start: number; end: number };
   activity?: { start: number; end: number };
 }
 
@@ -194,11 +201,22 @@ function parseSqlMonitorTable(lines: string[]): RawSqlMonitorRow[] {
     return rows;
   }
 
+  // Some SQL Monitor reports use a two-line header where the second line holds
+  // disambiguators (e.g. "Reqs" / "Bytes" under "Read" / "Read"). Consume it if
+  // present (next line is pipe-delimited with non-numeric-only labels).
+  let secondHeaderLine = '';
+  let dataStartIndex = headerLineIndex + 1;
+  const nextLine = lines[headerLineIndex + 1] ?? '';
+  if (/^\|/.test(nextLine) && !/^\|[^|]*\d+\s*\|/.test(nextLine) && /[A-Za-z(]/.test(nextLine)) {
+    secondHeaderLine = nextLine;
+    dataStartIndex = headerLineIndex + 2;
+  }
+
   // Parse column positions
-  const columns = parseSqlMonitorColumnPositions(headerLine);
+  const columns = parseSqlMonitorColumnPositions(headerLine, secondHeaderLine);
 
   // Parse data rows
-  for (let i = headerLineIndex + 1; i < lines.length; i++) {
+  for (let i = dataStartIndex; i < lines.length; i++) {
     const line = lines[i];
 
     if (/^[-|=]+$/.test(line.trim()) || line.trim() === '') {
@@ -231,7 +249,7 @@ function parseSqlMonitorTable(lines: string[]): RawSqlMonitorRow[] {
   return rows;
 }
 
-function parseSqlMonitorColumnPositions(headerLine: string): SqlMonitorColumnPositions {
+function parseSqlMonitorColumnPositions(headerLine: string, secondHeaderLine: string = ''): SqlMonitorColumnPositions {
   const cols: SqlMonitorColumnPositions = {
     id: { start: 0, end: 0 },
     operation: { start: 0, end: 0 },
@@ -246,12 +264,18 @@ function parseSqlMonitorColumnPositions(headerLine: string): SqlMonitorColumnPos
   }
 
   const headerLower = headerLine.toLowerCase();
+  const secondLower = secondHeaderLine.toLowerCase();
   let rowsSeen = false;
+  let startsSeen = false;
+  let prevReadKind: 'reqs' | 'bytes' | null = null;
+  let prevWriteKind: 'reqs' | 'bytes' | null = null;
 
   for (let i = 0; i < pipePositions.length - 1; i++) {
     const start = pipePositions[i] + 1;
     const end = pipePositions[i + 1];
     const segment = headerLower.substring(start, end).trim();
+    const sub = secondLower ? secondLower.substring(start, Math.min(end, secondLower.length)).trim() : '';
+    const combined = (segment + ' ' + sub).trim();
 
     if (segment === 'id') {
       cols.id = { start, end };
@@ -259,9 +283,12 @@ function parseSqlMonitorColumnPositions(headerLine: string): SqlMonitorColumnPos
       cols.operation = { start, end };
     } else if (segment === 'name' || segment === 'object name') {
       cols.name = { start, end };
-    } else if (segment === 'e-rows' || segment === 'rows' || segment === 'rows (estim)') {
+    } else if (segment === 'e-rows' || segment === 'rows' || segment === 'rows (estim)' || combined.includes('rows (estim)')) {
       // Real SQL Monitor reports have two 'Rows' columns: first = estimated, second = actual
-      if (segment === 'e-rows' || !rowsSeen) {
+      const isActual = /actual/.test(sub);
+      if (isActual) {
+        cols.aRows = { start, end };
+      } else if (segment === 'e-rows' || !rowsSeen) {
         cols.rows = { start, end };
         if (segment === 'rows') rowsSeen = true;
       } else {
@@ -271,17 +298,34 @@ function parseSqlMonitorColumnPositions(headerLine: string): SqlMonitorColumnPos
       cols.cost = { start, end };
     } else if (segment === 'a-rows' || segment === 'actual rows' || segment === 'rows (actual)') {
       cols.aRows = { start, end };
-    } else if (segment === 'a-time' || segment === 'actual time' || segment === 'time' || segment === 'time active(s)' || segment === 'time active (s)') {
+    } else if (segment === 'a-time' || segment === 'actual time' || segment === 'time' || segment === 'time active(s)' || segment === 'time active (s)' || /^time$/.test(segment)) {
       cols.aTime = { start, end };
-    } else if (segment === 'starts' || segment === 'execs') {
+    } else if (segment === 'starts' || segment === 'execs' || (segment === 'start' && /active/.test(sub))) {
+      // "Start | Active" (start time, skip) vs "Starts" or "Execs" (count) vs "Start" alone
+      if (segment === 'starts' || segment === 'execs') {
+        cols.starts = { start, end };
+        startsSeen = true;
+      }
+      // "Start Active" is a start-time marker, not a count — ignore
+    } else if (segment === 'start' && !startsSeen && !sub) {
       cols.starts = { start, end };
+      startsSeen = true;
     } else if (segment.includes('mem') || segment === 'omem' || segment === 'used-mem') {
       cols.memory = { start, end };
     } else if (segment.includes('temp') || segment === 'used-tmp') {
       cols.temp = { start, end };
-    } else if (segment === 'reads' || segment === 'physical reads') {
-      cols.reads = { start, end };
-    } else if (segment === 'activity' || segment === 'activity %') {
+    } else if (segment === 'read' || segment === 'reads' || segment === 'physical reads') {
+      // Disambiguate using the second header line (Reqs vs Bytes)
+      const kind: 'reqs' | 'bytes' = /byte/.test(sub) ? 'bytes' : (/req/.test(sub) ? 'reqs' : (prevReadKind === 'reqs' ? 'bytes' : 'reqs'));
+      if (kind === 'bytes') cols.readBytes = { start, end };
+      else cols.reads = { start, end };
+      prevReadKind = kind;
+    } else if (segment === 'write' || segment === 'writes') {
+      const kind: 'reqs' | 'bytes' = /byte/.test(sub) ? 'bytes' : (/req/.test(sub) ? 'reqs' : (prevWriteKind === 'reqs' ? 'bytes' : 'reqs'));
+      if (kind === 'bytes') cols.writeBytes = { start, end };
+      else cols.writeReqs = { start, end };
+      prevWriteKind = kind;
+    } else if (segment === 'activity' || segment === 'activity %' || combined.includes('activity (%)')) {
       cols.activity = { start, end };
     }
   }
@@ -353,7 +397,25 @@ function parseSqlMonitorDataRow(line: string, columns: SqlMonitorColumnPositions
 
   if (columns.reads) {
     const val = parseNumericValue(line.substring(columns.reads.start, columns.reads.end).trim());
-    if (val !== null) row.physicalReads = val;
+    if (val !== null) {
+      row.physicalReads = val;
+      row.ioReadRequests = val;
+    }
+  }
+
+  if (columns.readBytes) {
+    const val = parseMemoryValue(line.substring(columns.readBytes.start, columns.readBytes.end).trim());
+    if (val !== null) row.ioReadBytes = val;
+  }
+
+  if (columns.writeReqs) {
+    const val = parseNumericValue(line.substring(columns.writeReqs.start, columns.writeReqs.end).trim());
+    if (val !== null) row.ioWriteRequests = val;
+  }
+
+  if (columns.writeBytes) {
+    const val = parseMemoryValue(line.substring(columns.writeBytes.start, columns.writeBytes.end).trim());
+    if (val !== null) row.ioWriteBytes = val;
   }
 
   if (columns.activity) {
@@ -532,6 +594,11 @@ function buildTree(
       memoryUsed: row.memoryUsed,
       tempUsed: row.tempUsed,
       physicalReads: row.physicalReads,
+      logicalReads: row.logicalReads,
+      ioReadRequests: row.ioReadRequests,
+      ioReadBytes: row.ioReadBytes,
+      ioWriteRequests: row.ioWriteRequests,
+      ioWriteBytes: row.ioWriteBytes,
       activityPercent: row.activityPercent,
       accessPredicates: preds?.access,
       filterPredicates: preds?.filter,
@@ -660,6 +727,9 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
       }
     }
   }
+
+  // Parse activity samples (ASH) and assign per-operation activityPercent
+  applyActivitySamples(doc, nodeMap);
 
   // Find root node (id 0, or node without parent_id)
   const rootNode = nodeMap.get(0) || allNodes.find(n => n.parentId === undefined) || null;
@@ -889,6 +959,9 @@ function parseMonitorOperation(op: Element, planEstimates: Map<number, PlanEstim
   const maxTempSeg = getStatByName(statsEl, 'max_tempseg');
   const readReqs = getStatByName(statsEl, 'read_reqs');
   const readBytes = getStatByName(statsEl, 'read_bytes');
+  const writeReqs = getStatByName(statsEl, 'write_reqs');
+  const writeBytes = getStatByName(statsEl, 'write_bytes');
+  const bufferGets = getStatByName(statsEl, 'buffer_gets');
   const elapsedTimeUs = getStatByName(statsEl, 'elapsed_time');
   const duration = getStatByName(statsEl, 'duration');
 
@@ -915,8 +988,12 @@ function parseMonitorOperation(op: Element, planEstimates: Map<number, PlanEstim
     starts,
     memoryUsed: maxMemory,
     tempUsed: maxTempSeg,
-    physicalReads: readReqs || readBytes,
-    logicalReads: undefined, // buffer_gets is at global level, not per-operation
+    physicalReads: readReqs,
+    logicalReads: bufferGets,
+    ioReadRequests: readReqs,
+    ioReadBytes: readBytes,
+    ioWriteRequests: writeReqs,
+    ioWriteBytes: writeBytes,
     accessPredicates: estimates?.accessPredicates,
     filterPredicates: estimates?.filterPredicates,
     children: [],
@@ -1007,6 +1084,44 @@ function parseOptimizerEnv(doc: Document): Record<string, string> | undefined {
     }
   });
   return Object.keys(params).length > 0 ? params : undefined;
+}
+
+/**
+ * Parse ASH samples from <activity_sampled> and set activityPercent on nodes.
+ * Oracle formats: counts may appear as <activity line="N" count="M"/> attributes,
+ * or as repeated <activity line="N"/> entries (one per sample). Also handles a
+ * bucketed form where <bucket><activity .../></bucket> appears multiple times.
+ */
+function applyActivitySamples(doc: Document, nodeMap: Map<number, PlanNode>): void {
+  const samples = doc.querySelector('activity_sampled');
+  if (!samples) return;
+
+  const perLine = new Map<number, number>();
+  let total = 0;
+
+  const addSample = (lineStr: string | null, countStr: string | null) => {
+    if (!lineStr) return;
+    const line = parseInt(lineStr, 10);
+    if (isNaN(line)) return;
+    const count = countStr ? parseInt(countStr, 10) : 1;
+    if (isNaN(count) || count <= 0) return;
+    perLine.set(line, (perLine.get(line) ?? 0) + count);
+    total += count;
+  };
+
+  samples.querySelectorAll('activity').forEach((el) => {
+    addSample(
+      el.getAttribute('line') || el.getAttribute('plan_line_id'),
+      el.getAttribute('count') || el.getAttribute('c')
+    );
+  });
+
+  if (total === 0) return;
+
+  for (const [line, count] of perLine) {
+    const node = nodeMap.get(line);
+    if (node) node.activityPercent = (count / total) * 100;
+  }
 }
 
 /**
