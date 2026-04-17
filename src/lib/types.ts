@@ -22,9 +22,13 @@ export interface PlanNode {
   starts?: number;           // number of execution starts
   memoryUsed?: number;       // bytes
   tempUsed?: number;         // actual temp space in bytes
-  physicalReads?: number;
-  logicalReads?: number;
-  activityPercent?: number;  // percentage of total execution time
+  physicalReads?: number;    // physical read requests (count)
+  logicalReads?: number;     // buffer gets (count)
+  ioReadRequests?: number;   // I/O read requests (count)
+  ioReadBytes?: number;      // I/O read bytes
+  ioWriteRequests?: number;  // I/O write requests (count)
+  ioWriteBytes?: number;     // I/O write bytes
+  activityPercent?: number;  // percentage of total execution time (ASH samples)
 
   // Predicates and metadata
   accessPredicates?: string;

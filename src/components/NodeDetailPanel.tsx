@@ -679,14 +679,21 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
       {(node.memoryUsed !== undefined ||
         node.tempUsed !== undefined ||
         node.physicalReads !== undefined ||
-        node.logicalReads !== undefined) && (
+        node.logicalReads !== undefined ||
+        node.ioReadBytes !== undefined ||
+        node.ioWriteBytes !== undefined ||
+        node.ioReadRequests !== undefined ||
+        node.ioWriteRequests !== undefined) && (
         <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
           <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Memory & I/O</h4>
           <div className="grid grid-cols-2 gap-3">
             <StatItem label="Memory" value={formatBytes(node.memoryUsed)} />
             <StatItem label="Temp Used" value={formatBytes(node.tempUsed)} />
-            <StatItem label="Phys Reads" value={formatNumberShort(node.physicalReads)} />
-            <StatItem label="Log Reads" value={formatNumberShort(node.logicalReads)} />
+            <StatItem label="IO Read" value={formatBytes(node.ioReadBytes || undefined)} />
+            <StatItem label="IO Write" value={formatBytes(node.ioWriteBytes || undefined)} />
+            <StatItem label="Read Reqs" value={formatNumberShort((node.ioReadRequests ?? node.physicalReads) || undefined)} />
+            <StatItem label="Write Reqs" value={formatNumberShort(node.ioWriteRequests || undefined)} />
+            <StatItem label="Buffer Gets" value={formatNumberShort(node.logicalReads || undefined)} />
           </div>
         </div>
       )}
