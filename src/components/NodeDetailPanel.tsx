@@ -109,8 +109,8 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
                 className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded transition-colors"
                 title="Collapse panel"
               >
-                <svg className="w-4 h-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                <svg className="w-4 h-4 text-neutral-700 dark:text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.25} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                 </svg>
               </button>
               <h3 className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">Quick Analysis</h3>
@@ -324,8 +324,8 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
                 className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded mt-0.5"
                 title="Collapse panel"
               >
-                <svg className="w-4 h-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                <svg className="w-4 h-4 text-neutral-700 dark:text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.25} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                 </svg>
               </button>
               <div>
@@ -485,8 +485,8 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
               className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded mt-0.5"
               title="Collapse panel"
             >
-              <svg className="w-4 h-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+              <svg className="w-4 h-4 text-neutral-700 dark:text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.25} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
               </svg>
             </button>
             <div>
