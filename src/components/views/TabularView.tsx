@@ -6,12 +6,12 @@ import { getHighlightColorDef } from '../../lib/annotations';
 import type { AnnotationGroup } from '../../lib/annotations';
 import { HighlightText } from '../HighlightText';
 
-type SortColumn = 'id' | 'cost' | 'rows' | 'actualRows' | 'actualTime' | 'starts' | 'memoryUsed' | 'tempUsed';
+type SortColumn = 'id' | 'cost' | 'rows' | 'actualRows' | 'actualTime' | 'activityPercent' | 'starts' | 'memoryUsed' | 'tempUsed';
 type SortDirection = 'asc' | 'desc';
 type ColumnKey =
   | 'id' | 'operation'
   | 'rows' | 'cost'
-  | 'actualRows' | 'actualTime' | 'starts' | 'memoryUsed' | 'tempUsed'
+  | 'actualRows' | 'actualTime' | 'activityPercent' | 'starts' | 'memoryUsed' | 'tempUsed'
   | 'cardinality';
 
 const COLUMN_DEFAULT_WIDTHS: Record<ColumnKey, number> = {
@@ -21,6 +21,7 @@ const COLUMN_DEFAULT_WIDTHS: Record<ColumnKey, number> = {
   cost: 110,
   actualRows: 90,
   actualTime: 130,
+  activityPercent: 80,
   starts: 70,
   memoryUsed: 90,
   tempUsed: 90,
@@ -28,7 +29,7 @@ const COLUMN_DEFAULT_WIDTHS: Record<ColumnKey, number> = {
 };
 const COLUMN_MIN_WIDTH: Record<ColumnKey, number> = {
   id: 36, operation: 160, rows: 56, cost: 56, actualRows: 56,
-  actualTime: 72, starts: 48, memoryUsed: 56, tempUsed: 56, cardinality: 48,
+  actualTime: 72, activityPercent: 56, starts: 48, memoryUsed: 56, tempUsed: 56, cardinality: 48,
 };
 const COLUMN_WIDTHS_STORAGE_KEY = 'tabularView.columnWidths.v1';
 
@@ -95,6 +96,7 @@ export function TabularView() {
       cost: anyNonNull('cost'),
       actualRows: anyNonNull('actualRows'),
       actualTime: anyNonNull('actualTime'),
+      activityPercent: anyNonNull('activityPercent'),
       starts: anyNonNull('starts'),
       memoryUsed: anyNonNull('memoryUsed'),
       tempUsed: anyNonNull('tempUsed'),
@@ -108,6 +110,7 @@ export function TabularView() {
     if (hasActualStats) {
       if (hasData.actualRows) cols.push('actualRows');
       if (hasData.actualTime) cols.push('actualTime');
+      if (hasData.activityPercent) cols.push('activityPercent');
       if (hasData.starts) cols.push('starts');
       if (hasData.memoryUsed) cols.push('memoryUsed');
       if (hasData.tempUsed) cols.push('tempUsed');
@@ -154,8 +157,8 @@ export function TabularView() {
 
   const estimatedColSpan = (hasData.rows ? 1 : 0) + (hasData.cost ? 1 : 0);
   const actualColCount =
-    (hasData.actualRows ? 1 : 0) + (hasData.actualTime ? 1 : 0) + (hasData.starts ? 1 : 0) +
-    (hasData.memoryUsed ? 1 : 0) + (hasData.tempUsed ? 1 : 0);
+    (hasData.actualRows ? 1 : 0) + (hasData.actualTime ? 1 : 0) + (hasData.activityPercent ? 1 : 0) +
+    (hasData.starts ? 1 : 0) + (hasData.memoryUsed ? 1 : 0) + (hasData.tempUsed ? 1 : 0);
   const showCardinalityCol = hasActualStats && hotspotsEnabled && hasData.rows && hasData.actualRows;
   const actualColSpan = actualColCount + (showCardinalityCol ? 1 : 0);
   const showActualGroup = hasActualStats && actualColSpan > 0;
@@ -243,6 +246,7 @@ export function TabularView() {
           case 'rows': return node.rows ?? 0;
           case 'actualRows': return node.actualRows ?? 0;
           case 'actualTime': return node.actualTime ?? 0;
+          case 'activityPercent': return node.activityPercent ?? 0;
           case 'starts': return node.starts ?? 0;
           case 'memoryUsed': return node.memoryUsed ?? 0;
           case 'tempUsed': return node.tempUsed ?? 0;
@@ -477,20 +481,26 @@ export function TabularView() {
                     <ResizeHandle column="actualTime" />
                   </th>
                 )}
+                {hasData.activityPercent && (
+                  <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows && !hasData.actualTime ? groupBorderClass : ''}`} onClick={() => handleSort('activityPercent')} title="Share of total execution activity">
+                    Activity<SortArrow column="activityPercent" sortColumn={sortColumn} sortDirection={sortDirection} />
+                    <ResizeHandle column="activityPercent" />
+                  </th>
+                )}
                 {hasData.starts && (
-                  <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows && !hasData.actualTime ? groupBorderClass : ''}`} onClick={() => handleSort('starts')}>
+                  <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows && !hasData.actualTime && !hasData.activityPercent ? groupBorderClass : ''}`} onClick={() => handleSort('starts')}>
                     Starts<SortArrow column="starts" sortColumn={sortColumn} sortDirection={sortDirection} />
                     <ResizeHandle column="starts" />
                   </th>
                 )}
                 {hasData.memoryUsed && (
-                  <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows && !hasData.actualTime && !hasData.starts ? groupBorderClass : ''}`} onClick={() => handleSort('memoryUsed')}>
+                  <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows && !hasData.actualTime && !hasData.activityPercent && !hasData.starts ? groupBorderClass : ''}`} onClick={() => handleSort('memoryUsed')}>
                     Memory<SortArrow column="memoryUsed" sortColumn={sortColumn} sortDirection={sortDirection} />
                     <ResizeHandle column="memoryUsed" />
                   </th>
                 )}
                 {hasData.tempUsed && (
-                  <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows && !hasData.actualTime && !hasData.starts && !hasData.memoryUsed ? groupBorderClass : ''}`} onClick={() => handleSort('tempUsed')}>
+                  <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows && !hasData.actualTime && !hasData.activityPercent && !hasData.starts && !hasData.memoryUsed ? groupBorderClass : ''}`} onClick={() => handleSort('tempUsed')}>
                     Temp<SortArrow column="tempUsed" sortColumn={sortColumn} sortDirection={sortDirection} />
                     <ResizeHandle column="tempUsed" />
                   </th>
@@ -729,23 +739,51 @@ export function TabularView() {
                       </td>
                     )}
 
+                    {/* Activity % */}
+                    {hasData.activityPercent && (() => {
+                      const activity = node.activityPercent ?? 0;
+                      const ratio = Math.max(0, Math.min(1, activity / 100));
+                      const tone =
+                        activity >= 50 ? 'text-red-500' :
+                        activity >= 25 ? 'text-orange-500' :
+                        activity >= 10 ? 'text-yellow-600 dark:text-yellow-500' :
+                        'text-neutral-700 dark:text-neutral-300';
+                      const barTone =
+                        activity >= 50 ? 'bg-red-500' :
+                        activity >= 25 ? 'bg-orange-500' :
+                        activity >= 10 ? 'bg-yellow-500' :
+                        'bg-green-500';
+                      return (
+                        <td className={`px-2 py-1.5 text-right font-mono tabular-nums ${tone} ${!hasData.actualRows && !hasData.actualTime ? bodyGroupBorderClass : ''}`}>
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span>{node.activityPercent != null ? `${activity.toFixed(1)}%` : ''}</span>
+                            {ratio > 0 && (
+                              <div className="w-full h-[3px] bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full ${barTone}`} style={{ width: `${Math.max(ratio * 100, 1)}%` }} />
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      );
+                    })()}
+
                     {/* Starts */}
                     {hasData.starts && (
-                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${!hasData.actualRows && !hasData.actualTime ? bodyGroupBorderClass : ''}`}>
+                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${!hasData.actualRows && !hasData.actualTime && !hasData.activityPercent ? bodyGroupBorderClass : ''}`}>
                         {formatNumberShort(node.starts)}
                       </td>
                     )}
 
                     {/* Memory */}
                     {hasData.memoryUsed && (
-                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${!hasData.actualRows && !hasData.actualTime && !hasData.starts ? bodyGroupBorderClass : ''}`}>
+                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${!hasData.actualRows && !hasData.actualTime && !hasData.activityPercent && !hasData.starts ? bodyGroupBorderClass : ''}`}>
                         {formatBytes(node.memoryUsed)}
                       </td>
                     )}
 
                     {/* Temp */}
                     {hasData.tempUsed && (
-                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${!hasData.actualRows && !hasData.actualTime && !hasData.starts && !hasData.memoryUsed ? bodyGroupBorderClass : ''}`}>
+                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${!hasData.actualRows && !hasData.actualTime && !hasData.activityPercent && !hasData.starts && !hasData.memoryUsed ? bodyGroupBorderClass : ''}`}>
                         <div className="flex items-center justify-end gap-1">
                           {formatBytes(node.tempUsed)}
                           {node.tempUsed != null && node.tempUsed > 0 && (
