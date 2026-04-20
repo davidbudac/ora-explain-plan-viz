@@ -263,8 +263,8 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
               className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded transition-colors"
               title="Collapse panel"
             >
-              <svg className="w-4 h-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+              <svg className="w-4 h-4 text-neutral-700 dark:text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.25} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
               </svg>
             </button>
         </div>
