@@ -40,12 +40,18 @@ export const dbmsXplanParser: PlanParser = {
     // Extract plan hash value if present
     const planHashValue = extractPlanHashValue(lines);
 
+    // Extract SQL_ID and SQL text from any preamble (DISPLAY_CURSOR header,
+    // SQL*Plus prompt/continuation, or bare SQL above the plan table).
+    const { sqlId, sqlText } = extractSqlHeader(lines);
+
     // Find and parse the table section
     const tableData = parseTableSection(lines);
 
     if (tableData.length === 0) {
       return {
         planHashValue,
+        sqlId,
+        sqlText,
         rootNode: null,
         allNodes: [],
         totalCost: 0,
@@ -70,6 +76,8 @@ export const dbmsXplanParser: PlanParser = {
 
     return {
       planHashValue,
+      sqlId,
+      sqlText,
       rootNode,
       allNodes,
       totalCost,
@@ -100,7 +108,9 @@ export function extractDbmsXplanSegments(input: string): string[] {
   const segments: string[] = [];
 
   for (let i = 0; i < segmentStarts.length; i++) {
-    const start = segmentStarts[i];
+    // Preserve preamble text (SQL_ID header, SQL*Plus prompt, etc.) before
+    // the very first "Plan hash value:" so the first plan can extract SQL.
+    const start = i === 0 ? 0 : segmentStarts[i];
     const end = segmentStarts[i + 1] ?? lines.length;
     const segment = lines.slice(start, end).join('\n').trim();
 
@@ -114,6 +124,102 @@ export function extractDbmsXplanSegments(input: string): string[] {
 
 export function parseDbmsXplanPlans(input: string): ParsedPlan[] {
   return extractDbmsXplanSegments(input).map((segment) => dbmsXplanParser.parse(segment));
+}
+
+const SQL_START_KEYWORD = /^(SELECT|WITH|INSERT|UPDATE|DELETE|MERGE|CREATE|ALTER)\b/i;
+
+/**
+ * Extract SQL_ID and SQL text from the preamble of a DBMS_XPLAN block.
+ *
+ * Handles three common shapes:
+ *   1. DISPLAY_CURSOR / DISPLAY_AWR header:
+ *        SQL_ID  <id>, child number N
+ *        -------------------------------------
+ *        <sql text>
+ *        (blank)
+ *        Plan hash value: ...
+ *   2. SQL*Plus prompt with line-number continuation:
+ *        SQL> SELECT ...
+ *          2    FROM ...
+ *          3   WHERE ...;
+ *   3. Bare SQL text immediately before the plan table.
+ */
+function extractSqlHeader(lines: string[]): { sqlId?: string; sqlText?: string } {
+  // Shape 1: DISPLAY_CURSOR header with SQL_ID
+  for (let i = 0; i < lines.length; i++) {
+    const idMatch = lines[i].match(/^\s*SQL_ID\s+(\S+?)(?:\s*,.*)?\s*$/i);
+    if (!idMatch) continue;
+
+    const sqlId = idMatch[1].replace(/[.,;]+$/, '');
+    // Skip the separator dashes line(s) that follow the header.
+    let j = i + 1;
+    while (j < lines.length && /^\s*[-=]+\s*$/.test(lines[j])) j++;
+
+    const collected: string[] = [];
+    for (; j < lines.length; j++) {
+      const line = lines[j];
+      if (/Plan hash value:/i.test(line)) break;
+      if (/^\s*$/.test(line)) {
+        if (collected.length === 0) continue; // skip leading blanks
+        break;
+      }
+      collected.push(line);
+    }
+
+    const sqlText = cleanSqlLines(collected);
+    return { sqlId: sqlId || undefined, sqlText: sqlText || undefined };
+  }
+
+  // Shapes 2 & 3: look at everything before the first "Plan hash value:".
+  const planIdx = lines.findIndex((l) => /Plan hash value:/i.test(l));
+  if (planIdx <= 0) return {};
+
+  const prefix = lines.slice(0, planIdx);
+
+  // Find the first line that looks like the start of a SQL statement,
+  // accepting an optional "SQL> " prompt.
+  let startIdx = -1;
+  for (let i = 0; i < prefix.length; i++) {
+    const stripped = prefix[i].replace(/^\s*SQL>\s*/i, '');
+    if (SQL_START_KEYWORD.test(stripped.trim())) {
+      startIdx = i;
+      break;
+    }
+  }
+  if (startIdx === -1) return {};
+
+  const collected: string[] = [];
+  for (let i = startIdx; i < prefix.length; i++) {
+    const raw = prefix[i];
+    if (/^\s*$/.test(raw)) {
+      if (collected.length > 0) break;
+      continue;
+    }
+    // Stop on section markers that typically follow the SQL.
+    if (/^\s*(Explained\.|Execution Plan|PLAN_TABLE_OUTPUT|Statistics)\s*$/i.test(raw)) break;
+    if (/^\s*\d+\s+rows?\s+selected/i.test(raw)) break;
+    if (/^[-=]{5,}\s*$/.test(raw)) {
+      if (collected.length > 0) break;
+      continue;
+    }
+    collected.push(raw);
+  }
+
+  const sqlText = cleanSqlLines(collected);
+  return sqlText ? { sqlText } : {};
+}
+
+function cleanSqlLines(lines: string[]): string {
+  const cleaned = lines.map((line) =>
+    line
+      .replace(/^\s*SQL>\s?/i, '')
+      // SQL*Plus continuation: "  2    FROM ..." — strip leading line number.
+      .replace(/^\s{0,4}\d+\s{1,4}/, '')
+      .trimEnd(),
+  );
+  // Drop trailing blank lines.
+  while (cleaned.length && cleaned[cleaned.length - 1].trim() === '') cleaned.pop();
+  return cleaned.join('\n').replace(/;\s*$/, '').trim();
 }
 
 function extractPlanHashValue(lines: string[]): string | undefined {
