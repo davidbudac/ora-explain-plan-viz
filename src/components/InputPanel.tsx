@@ -7,6 +7,7 @@ import { SAMPLE_PLANS_BY_CATEGORY, type SamplePlan } from '../examples';
 export function InputPanel() {
   const { rawInput, setInput, parsePlan, loadAndParsePlan, clearPlan, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex } = usePlan();
   const [showSampleMenu, setShowSampleMenu] = useState(false);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
   const wasParsingRef = useRef(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -42,6 +43,30 @@ export function InputPanel() {
 
   const handleClear = () => {
     clearPlan();
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLTextAreaElement>) => {
+    if (e.dataTransfer.types.includes('Files')) {
+      e.preventDefault();
+      setIsDraggingFile(true);
+    }
+  };
+
+  const handleDragLeave = () => setIsDraggingFile(false);
+
+  const handleDrop = (e: React.DragEvent<HTMLTextAreaElement>) => {
+    setIsDraggingFile(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    e.preventDefault();
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === 'string' ? reader.result : '';
+      if (!text) return;
+      wasParsingRef.current = true;
+      loadAndParsePlan(text);
+    };
+    reader.readAsText(file);
   };
 
   return (
@@ -186,8 +211,15 @@ export function InputPanel() {
                 handleParse();
               }
             }}
-            placeholder={"Paste an Oracle execution plan here - or click on Load Example on the right --> \n\nSupported formats:\n  \u2022 DBMS_XPLAN output\n  \u2022 SQL Monitor text report\n  \u2022 SQL Monitor XML report\n  \u2022 V$SQL_PLAN JSON\n\nMultiple plans in one paste are supported and are split into separate tabs."}
-            className="w-full h-36 p-2.5 font-mono text-xs bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-blue-500/60 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            placeholder={"Paste an Oracle execution plan here, drop a plan file onto this box, or click Load Example -->\n\nSupported formats:\n  \u2022 DBMS_XPLAN output\n  \u2022 SQL Monitor text report\n  \u2022 SQL Monitor XML report\n  \u2022 V$SQL_PLAN JSON\n\nMultiple plans in one paste are supported and are split into separate tabs."}
+            className={`w-full h-36 p-2.5 font-mono text-xs bg-neutral-50 dark:bg-neutral-950 border ${
+              isDraggingFile
+                ? 'border-blue-500 ring-2 ring-blue-500/60'
+                : 'border-neutral-200 dark:border-neutral-700'
+            } rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-blue-500/60 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500`}
           />
 
           {error && (
