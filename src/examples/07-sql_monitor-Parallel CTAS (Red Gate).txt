@@ -2,39 +2,81 @@ SQL Monitoring Report
 
 SQL Text
 ------------------------------
-CREATE TABLE t3 AS SELECT t1.id, t2.small_vc, t1.small_vc vc2, t2.padding
-FROM t1, t2 GROUP BY t1.id, t2.small_vc, t1.small_vc, t2.padding
+create table t3 as select /*+ use_merge(t2) leading(t1 t2) monitor parallel(2) */ t1.object_name obj1, t2.object_name obj2, count(*) ct from t1, t2 where t2.owner = t1.owner group by t1.object_name, t2.object_name
 
 Global Information
 ------------------------------
  Status              :  DONE
  Instance ID         :  1
- SQL ID              :  a3r9w2bdhk784
- Plan Hash           :  3638022418
- Execution Started   :  03/15/2019 09:12:33
- First Refresh Time  :  03/15/2019 09:12:34
- Last Refresh Time   :  03/15/2019 09:19:05
- Duration            :  392s
- Degree of Parallel  :  2
+ Session             :  TEST_USER (20:3335)
+ SQL ID              :  g12jqmxu3vqhu
+ SQL Execution ID    :  16777216
+ Execution Started   :  03/02/2015 21:50:34
+ First Refresh Time  :  03/02/2015 21:50:34
+ Last Refresh Time   :  03/02/2015 21:56:46
+ Duration            :  372s
+ Module/Action       :  SQL*Plus/-
+ Service             :  SYS$USERS
+ Program             :  sqlplus@linux11 (TNS V1-V3)
 
 Global Stats
-================================================================
-| Elapsed |   Cpu   |  IO    |  Other  | Buffer Gets | Read Reqs |
-|  Time   |  Time   | Waits  |  Waits  |             |           |
-================================================================
-|   392s  |    31s  |  338s  |    23s  |      42000  |     4410  |
-================================================================
+=================================================================================================
+| Elapsed |   Cpu   |    IO    | Concurrency |  Other   | Buffer | Read | Read  | Write | Write |
+| Time(s) | Time(s) | Waits(s) |  Waits(s)   | Waits(s) |  Gets  | Reqs | Bytes | Reqs  | Bytes |
+=================================================================================================
+|     713 |      21 |      407 |        1.63 |      284 |  80856 | 4052 | 933MB |  4508 |   1GB |
+=================================================================================================
+
+Parallel Execution Details (DOP=2 , Servers Allocated=4)
+====================================================================================================================================================================================
+|      Name      | Type  | Server# | Elapsed |   Cpu   |    IO    | Concurrency |  Other   | Buffer | Read | Read  | Write | Write |                 Wait Events                 |
+|                |       |         | Time(s) | Time(s) | Waits(s) |  Waits(s)   | Waits(s) |  Gets  | Reqs | Bytes | Reqs  | Bytes |                 (sample #)                  |
+====================================================================================================================================================================================
+| PX Coordinator | QC    |         |    0.48 |    0.03 |     0.03 |        0.07 |     0.35 |    170 |    2 | 16384 |       |     . | log file sync (1)                            |
+| p000           | Set 1 |       1 |     350 |    8.43 |      196 |        1.02 |      144 |  40290 | 2011 | 463MB |  2241 | 747MB | buffer busy waits (1)                        |
+|                |       |         |         |         |          |             |          |        |      |       |       |       | log buffer space (19)                        |
+|                |       |         |         |         |          |             |          |        |      |       |       |       | log file switch (archiving needed) (117)     |
+|                |       |         |         |         |          |             |          |        |      |       |       |       | log file switch (checkpoint incomplete) (5)  |
+|                |       |         |         |         |          |             |          |        |      |       |       |       | rdbms ipc reply (1)                          |
+|                |       |         |         |         |          |             |          |        |      |       |       |       | direct path read temp (157)                  |
+|                |       |         |         |         |          |             |          |        |      |       |       |       | direct path write (2)                        |
+|                |       |         |         |         |          |             |          |        |      |       |       |       | direct path write temp (24)                  |
+|                |       |         |         |         |          |             |          |        |      |       |       |       | flashback log file sync (1)                  |
+| p001           | Set 1 |       2 |     359 |    8.47 |      211 |        0.55 |      139 |  40300 | 2039 | 469MB |  2267 | 753MB | buffer busy waits (1)                        |
+|                |       |         |         |         |          |             |          |        |      |       |       |       | log buffer space (16)                        |
+|                |       |         |         |         |          |             |          |        |      |       |       |       | log file switch (archiving needed) (117)     |
+|                |       |         |         |         |          |             |          |        |      |       |       |       | log file switch (checkpoint incomplete) (4)  |
+|                |       |         |         |         |          |             |          |        |      |       |       |       | log file switch completion (1)               |
+|                |       |         |         |         |          |             |          |        |      |       |       |       | control file sequential read (2)             |
+|                |       |         |         |         |          |             |          |        |      |       |       |       | db file sequential read (4)                  |
+|                |       |         |         |         |          |             |          |        |      |       |       |       | direct path read temp (175)                  |
+|                |       |         |         |         |          |             |          |        |      |       |       |       | direct path write temp (30)                  |
+| p002           | Set 2 |       1 |    2.34 |    1.99 |          |             |     0.35 |     51 |      |     . |       |     . |                                              |
+| p003           | Set 2 |       2 |    1.81 |    1.60 |          |             |     0.21 |     45 |      |     . |       |     . |                                              |
+====================================================================================================================================================================================
 
 SQL Plan Monitoring Details (Plan Hash Value=3638022418)
-===================================================================================================================================================================================================================================================================================================================================
+===================================================================================================================================================================================================
 | Id |           Operation            |   Name   |  Rows   | Cost  |   Time    | Start  | Execs |   Rows   | Read | Read  | Write | Write |  Mem  | Temp  | Activity |               Activity Detail               |
 |    |                                |          | (Estim) |       | Active(s) | Active |       | (Actual) | Reqs | Bytes | Reqs  | Bytes | (Max) | (Max) |   (%)    |                 (# samples)                 |
-===================================================================================================================================================================================================================================================================================================================================
+===================================================================================================================================================================================================
 |  0 | CREATE TABLE STATEMENT         |          |         |       |       313 |    +60 |     5 |        2 |      |       |       |       |       |       |     1.41 | log file sync (1)                           |
+|    |                                |          |         |       |           |        |       |          |      |       |       |       |       |       |          | buffer busy waits (2)                       |
+|    |                                |          |         |       |           |        |       |          |      |       |       |       |       |       |          | rdbms ipc reply (1)                         |
+|    |                                |          |         |       |           |        |       |          |      |       |       |       |       |       |          | control file sequential read (2)            |
+|    |                                |          |         |       |           |        |       |          |      |       |       |       |       |       |          | db file sequential read (4)                 |
 |  1 |   PX COORDINATOR               |          |         |       |         1 |   +372 |     5 |        2 |      |       |       |       |       |       |          |                                             |
 |  2 |    PX SEND QC (RANDOM)         | :TQ10002 |      6M | 36152 |        10 |   +363 |     2 |        2 |      |       |       |       |       |       |          |                                             |
 |  3 |     LOAD AS SELECT             |          |         |       |       329 |    +44 |     2 |        2 |      |       |   571 | 570MB |    8M |       |    40.70 | log buffer space (35)                       |
+|    |                                |          |         |       |           |        |       |          |      |       |       |       |       |       |          | log file switch (archiving needed) (234)    |
+|    |                                |          |         |       |           |        |       |          |      |       |       |       |       |       |          | log file switch (checkpoint incomplete) (9) |
+|    |                                |          |         |       |           |        |       |          |      |       |       |       |       |       |          | log file switch completion (1)              |
+|    |                                |          |         |       |           |        |       |          |      |       |       |       |       |       |          | Cpu (7)                                     |
+|    |                                |          |         |       |           |        |       |          |      |       |       |       |       |       |          | direct path write (2)                       |
+|    |                                |          |         |       |           |        |       |          |      |       |       |       |       |       |          | flashback log file sync (1)                 |
 |  4 |      HASH GROUP BY             |          |      6M | 36152 |       371 |     +2 |     2 |      13M | 3839 | 930MB |  3839 | 930MB |  101M |  721M |    57.04 | Cpu (19)                                    |
+|    |                                |          |         |       |           |        |       |          |      |       |       |       |       |       |          | direct path read temp (332)                 |
+|    |                                |          |         |       |           |        |       |          |      |       |       |       |       |       |          | direct path write temp (54)                 |
 |  5 |       PX RECEIVE               |          |      6M |    35 |        44 |     +1 |     2 |      13M |      |       |       |       |       |       |     0.14 | Cpu (1)                                     |
 |  6 |        PX SEND HASH            | :TQ10001 |      6M |    35 |        40 |     +2 |     2 |      13M |      |       |       |       |       |       |          |                                             |
 |  7 |         MERGE JOIN             |          |      6M |    35 |        40 |     +2 |     2 |      13M |      |       |       |       |       |       |          |                                             |
@@ -46,4 +88,4 @@ SQL Plan Monitoring Details (Plan Hash Value=3638022418)
 | 13 |            PX SEND BROADCAST   | :TQ10000 |    5000 |    11 |         1 |     +2 |     2 |    10000 |      |       |       |       |       |       |          |                                             |
 | 14 |             PX BLOCK ITERATOR  |          |    5000 |    11 |         1 |     +2 |     2 |     5000 |      |       |       |       |       |       |          |                                             |
 | 15 |              TABLE ACCESS FULL | T2       |    5000 |    11 |         1 |     +2 |    32 |     5000 |      |       |       |       |       |       |          |                                             |
-===================================================================================================================================================================================================================================================================================================================================
+===================================================================================================================================================================================================

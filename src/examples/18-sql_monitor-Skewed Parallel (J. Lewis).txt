@@ -1,0 +1,123 @@
+SQL Monitoring Report
+
+SQL Text
+------------------------------
+SELECT /*+ PARALLEL(8) */ DISTINCT rd.document_id AS doc_id
+,'firm_id' AS criteria_key
+,opf.ultimate_parent_firm_id AS series_id
+,period_number
+FROM (
+SELECT /*+ PARALLEL(8) */ DISTINCT rd.document_id
+,rd.client_role_id
+,(
+CASE
+WHEN MONTHS_BETWEEN(TO_DATE('04/28/2022', 'MM/DD/YYYY'), TO_DATE('04/01/2017', 'MM/DD/YYYY')) > 12
+THEN TRUNC(dc.date_value, 'YEAR')
+ELSE TRUNC(dc.date_value, 'MONTH')
+END
+) period_number
+FROM REPORT_ENGINE.date_code dc
+,REPORT_ENGINE.lit_fact_bd rd
+INNER JOIN report_engine.firm FIRM ON rd.firm_id = FIRM.firm_id
+WHERE dc.date_value BETWEEN TO_DATE('04/01/2017', 'MM/DD/YYYY') AND TO_DATE('04/28/2022', 'MM/DD/YYYY')
+AND rd.publication_date_id = dc.date_id
+AND rd.year_number = to_number('2019')
+AND (FIRM.ultimate_parent_firm_id IN (to_number('252094')))
+) rd
+INNER JOIN report_engine.opposing_counsel op ON rd.client_role_id = op.legal_role_id
+INNER JOIN report_engine.lit_fact_bd opclf ON opclf.document_id = rd.document_id
+AND op.opposing_counsel_role_id
+= opclf.client_role_id
+AND opclf.year_number = to_number('2019')
+INNER JOIN report_engine.firm opf ON opclf.firm_id = opf.firm_id
+AND opf.firm_id >= 1000
+WHERE 1 = 1
+
+Global Information
+------------------------------
+ Status              :  EXECUTING
+ Instance ID         :  1
+ Session             :  SYS (647:28741)
+ SQL ID              :  3cjg20q2vw41f
+ SQL Execution ID    :  16777216
+ Execution Started   :  06/09/2022 05:08:24
+ First Refresh Time  :  06/09/2022 05:08:25
+ Last Refresh Time   :  06/09/2022 05:08:27
+ Duration            :  221s
+ Module/Action       :  sqlplus@c111dhw (TNS V1-V3)/-
+ Service             :  SYS$USERS
+ Program             :  sqlplus@c111dhw (TNS V1-V3)
+
+Global Stats
+====================================================================
+| Elapsed |   Cpu   |    IO    |  Other   | Buffer | Write | Write |
+| Time(s) | Time(s) | Waits(s) | Waits(s) |  Gets  | Reqs  | Bytes |
+====================================================================
+|     222 |     179 |       28 |       15 |    49M | 11624 |   2GB |
+====================================================================
+
+Parallel Execution Details (DOP=8 , Servers Allocated=16)
+=====================================================================================================================================
+|      Name      | Type  | Server# | Elapsed |   Cpu   |    IO    |  Other   | Buffer | Write | Write |         Wait Events         |
+|                |       |         | Time(s) | Time(s) | Waits(s) | Waits(s) |  Gets  | Reqs  | Bytes |         (sample #)          |
+=====================================================================================================================================
+| PX Coordinator | QC    |         |    0.26 |    0.26 |          |     0.00 |  12144 |       |     . |                             |
+| p000           | Set 1 |       1 |         |         |          |          |        |       |     . |                             |
+| p001           | Set 1 |       2 |         |         |          |          |        |       |     . |                             |
+| p002           | Set 1 |       3 |         |         |          |          |        |       |     . |                             |
+| p003           | Set 1 |       4 |         |         |          |          |        |       |     . |                             |
+| p004           | Set 1 |       5 |         |         |          |          |        |       |     . |                             |
+| p005           | Set 1 |       6 |         |         |          |          |        |       |     . |                             |
+| p006           | Set 1 |       7 |         |         |          |          |        |       |     . |                             |
+| p007           | Set 1 |       8 |         |         |          |          |        |       |     . |                             |
+| p008           | Set 2 |       1 |     220 |     177 |       28 |       15 |    48M | 11624 |   2GB | direct path write temp (28) |
+| p009           | Set 2 |       2 |         |         |          |          |        |       |     . |                             |
+| p010           | Set 2 |       3 |         |         |          |          |        |       |     . |                             |
+| p011           | Set 2 |       4 |    1.71 |    1.70 |          |     0.01 |   595K |       |     . |                             |
+| p012           | Set 2 |       5 |         |         |          |          |        |       |     . |                             |
+| p013           | Set 2 |       6 |         |         |          |          |        |       |     . |                             |
+| p014           | Set 2 |       7 |         |         |          |          |        |       |     . |                             |
+| p015           | Set 2 |       8 |         |         |          |          |        |       |     . |                             |
+=====================================================================================================================================
+
+SQL Plan Monitoring Details (Plan Hash Value=1862006233)
+=========================================================================================================================================================================================================================
+| Id    |                     Operation                      |           Name            |  Rows   | Cost |   Time    | Start  | Execs |   Rows   | Write | Write | Mem | Temp | Activity |        Activity Detail       |
+|       |                                                    |                           | (Estim) |      | Active(s) | Active |       | (Actual) | Reqs  | Bytes |     |      |   (%)    |         (# samples)          |
+=========================================================================================================================================================================================================================
+|     0 | SELECT STATEMENT                                   |                           |         |      |           |        |     3 |          |       |       |     |      |          |                              |
+|     1 |   PX COORDINATOR                                   |                           |         |      |           |        |     3 |          |       |       |     |      |          |                              |
+|     2 |    PX SEND QC (RANDOM)                             | :TQ10003                  |     781 |  153 |           |        |       |          |       |       |     |      |          |                              |
+|     3 |     HASH UNIQUE                                    |                           |     781 |  153 |           |        |       |          |       |       |     |      |          |                              |
+|     4 |      PX RECEIVE                                    |                           |     781 |  151 |           |        |       |          |       |       |     |      |          |                              |
+|     5 |       PX SEND HASH                                 | :TQ10002                  |     781 |  151 |           |        |     2 |          |       |       |     |      |          |                              |
+|  -> 6 |        BUFFER SORT                                 |                           |     781 |  153 |       219 |     +3 |     2 |        0 | 11624 |   2GB | 61M |   2G |    26.21 | Cpu (26)                     |
+|       |                                                    |                           |         |      |           |        |       |          |       |       |     |      |          | direct path write temp (28)  |
+|  -> 7 |         NESTED LOOPS                               |                           |     781 |  151 |       219 |     +3 |     2 |      39M |       |       |     |      |          |                              |
+|  -> 8 |          NESTED LOOPS                              |                           |     781 |  151 |       219 |     +3 |     2 |      39M |       |       |     |      |     0.49 | Cpu (1)                      |
+|  -> 9 |           NESTED LOOPS                             |                           |     777 |   44 |       219 |     +3 |     2 |      39M |       |       |     |      |          |                              |
+| -> 10 |            NESTED LOOPS                            |                           |      41 |   26 |       219 |     +3 |     2 |     6463 |       |       |     |      |          |                              |
+| -> 11 |             HASH JOIN                              |                           |      41 |   21 |       219 |     +3 |     2 |     6463 |       |       |  6M |      |          |                              |
+|    12 |              BUFFER SORT                           |                           |         |      |         1 |     +3 |     2 |    36855 |       |       |     |      |          |                              |
+|    13 |               PX RECEIVE                           |                           |      87 |   19 |         1 |     +3 |     2 |    36855 |       |       |     |      |          |                              |
+|    14 |                PX SEND HASH                        | :TQ10000                  |      87 |   19 |         1 |     +3 |     1 |    38694 |       |       |     |      |          |                              |
+|    15 |                 NESTED LOOPS                       |                           |      87 |   19 |         1 |     +3 |     1 |    38694 |       |       |     |      |          |                              |
+|    16 |                  NESTED LOOPS                      |                           |      87 |   19 |         1 |     +3 |     1 |    38694 |       |       |     |      |          |                              |
+|    17 |                   TABLE ACCESS BY INDEX ROWID      | FIRM                      |       1 |    2 |         1 |     +3 |     1 |       43 |       |       |     |      |          |                              |
+|    18 |                    INDEX RANGE SCAN                | FIRM_ULT_PARENT_FIRM_IDX1 |       1 |    1 |         1 |     +3 |     1 |       43 |       |       |     |      |          |                              |
+|    19 |                   PARTITION RANGE SINGLE           |                           |         |      |         1 |     +3 |    43 |    38694 |       |       |     |      |          |                              |
+|    20 |                    BITMAP CONVERSION TO ROWIDS     |                           |         |      |         1 |     +3 |    43 |    38694 |       |       |     |      |          |                              |
+|    21 |                     BITMAP INDEX SINGLE VALUE      | LIT_FACT_BD_IDX09         |         |      |         1 |     +3 |    43 |       49 |       |       |     |      |          |                              |
+|    22 |                  TABLE ACCESS BY LOCAL INDEX ROWID | LIT_FACT_BD               |      63 |   19 |         3 |     +1 | 38694 |    38694 |       |       |     |      |     0.49 | Cpu (1)                      |
+|    23 |              PX RECEIVE                            |                           |      20 |    2 |         1 |     +3 |     2 |        2 |       |       |     |      |          |                              |
+|    24 |               PX SEND HASH                         | :TQ10001                  |      20 |    2 |           |        |       |          |       |       |     |      |          |                              |
+|    25 |                PX BLOCK ITERATOR                   |                           |      20 |    2 |           |        |       |          |       |       |     |      |          |                              |
+|    26 |                 TABLE ACCESS FULL                  | OPPOSING_COUNSEL          |      20 |    2 |           |        |       |          |       |       |     |      |          |                              |
+| -> 27 |             TABLE ACCESS BY INDEX ROWID            | DATE_CODE                 |       1 |      |       219 |     +3 |  6465 |     6463 |       |       |     |      |          |                              |
+| -> 28 |              INDEX UNIQUE SCAN                     | PK_DATE_CODE              |       1 |      |       219 |     +3 |  6465 |     6465 |       |       |     |      |          |                              |
+| -> 29 |            PARTITION RANGE SINGLE                  |                           |      19 |      |       219 |     +3 |  6465 |      39M |       |       |     |      |          |                              |
+| -> 30 |             TABLE ACCESS BY LOCAL INDEX ROWID      | LIT_FACT_BD               |      19 |      |       220 |     +2 |  6465 |      39M |       |       |     |      |    35.92 | Cpu (74)                     |
+| -> 31 |              INDEX RANGE SCAN                      | LIT_FACT_BD_IDX20         |       1 |      |       219 |     +3 |  6465 |      39M |       |       |     |      |     9.22 | Cpu (19)                     |
+| -> 32 |           INDEX UNIQUE SCAN                        | PK_FIRM                   |       1 |      |       219 |     +3 |   39M |      39M |       |       |     |      |    10.68 | Cpu (22)                     |
+| -> 33 |          TABLE ACCESS BY INDEX ROWID               | FIRM                      |       1 |      |       219 |     +3 |   39M |      39M |       |       |     |      |    16.99 | Cpu (35)                     |
+=========================================================================================================================================================================================================================
