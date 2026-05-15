@@ -4,10 +4,13 @@ import { getSourceDisplayName } from '../lib/parser';
 import { formatNumberShort, formatTimeShort } from '../lib/format';
 import { SAMPLE_PLANS_BY_CATEGORY, type SamplePlan } from '../examples';
 
+const METADATA_BUNDLE_MARKER = '"ora-plan-metadata"';
+
 export function InputPanel() {
-  const { rawInput, setInput, parsePlan, loadAndParsePlan, clearPlan, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex } = usePlan();
+  const { rawInput, setInput, parsePlan, loadAndParsePlan, loadMetadataBundle, clearPlan, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex } = usePlan();
   const [showSampleMenu, setShowSampleMenu] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [bundleMessage, setBundleMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
   const wasParsingRef = useRef(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -59,10 +62,24 @@ export function InputPanel() {
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
     e.preventDefault();
+    const isJsonFile = /\.json$/i.test(file.name);
     const reader = new FileReader();
     reader.onload = () => {
       const text = typeof reader.result === 'string' ? reader.result : '';
       if (!text) return;
+      const looksLikeBundle = isJsonFile && text.includes(METADATA_BUNDLE_MARKER);
+      if (looksLikeBundle) {
+        const result = loadMetadataBundle(text);
+        if (result.ok) {
+          const slot = plans[result.pairedSlotIndex];
+          const label = slot?.customLabel || slot?.label || `slot ${result.pairedSlotIndex + 1}`;
+          setBundleMessage({ tone: 'ok', text: `Metadata bundle attached to ${label}.` });
+        } else {
+          setBundleMessage({ tone: 'error', text: result.error });
+        }
+        return;
+      }
+      setBundleMessage(null);
       wasParsingRef.current = true;
       loadAndParsePlan(text);
     };
@@ -225,6 +242,18 @@ export function InputPanel() {
           {error && (
             <div className="p-2 text-xs bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-red-700 dark:text-red-400">
               {error}
+            </div>
+          )}
+
+          {bundleMessage && (
+            <div
+              className={`p-2 text-xs rounded-md border ${
+                bundleMessage.tone === 'ok'
+                  ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
+                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+              }`}
+            >
+              {bundleMessage.text}
             </div>
           )}
 

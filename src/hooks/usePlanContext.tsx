@@ -11,6 +11,8 @@ import { getPlanFromUrl, clearPlanFromUrl, buildShareUrl, stripUnusedXmlSections
 import type { SharePayload } from '../lib/url';
 import type { AnnotationState, AnnotationGroup, HighlightColor, HighlightStyle, AnnotatedPlanExport } from '../lib/annotations';
 import { createEmptyAnnotationState, hasAnnotations, serializeAnnotations, deserializeAnnotations, validateExport, downloadAnnotatedPlan, generateGroupId } from '../lib/annotations';
+import type { MetadataBundle } from '../lib/metadata/bundle';
+import { parseBundle } from '../lib/metadata/bundle';
 
 interface PlanState {
   plans: PlanSlot[];
@@ -72,7 +74,9 @@ type PlanAction =
   | { type: 'UPDATE_ANNOTATION_GROUP'; payload: AnnotationGroup }
   | { type: 'REMOVE_ANNOTATION_GROUP'; payload: string }
   | { type: 'LOAD_ANNOTATIONS'; payload: AnnotationState }
-  | { type: 'CLEAR_ANNOTATIONS' };
+  | { type: 'CLEAR_ANNOTATIONS' }
+  | { type: 'ATTACH_METADATA_BUNDLE'; payload: { index: number; bundle: MetadataBundle } }
+  | { type: 'DETACH_METADATA_BUNDLE'; payload: number };
 
 const initialFilters: FilterState = {
   operationTypes: [],
@@ -550,6 +554,21 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
         annotations: createEmptyAnnotationState(),
       }));
 
+    case 'ATTACH_METADATA_BUNDLE': {
+      const { index, bundle } = action.payload;
+      return updatePlanSlot(state, index, (slot) => ({
+        ...slot,
+        metadataBundle: bundle,
+        error: null,
+      }));
+    }
+
+    case 'DETACH_METADATA_BUNDLE':
+      return updatePlanSlot(state, action.payload, (slot) => ({
+        ...slot,
+        metadataBundle: null,
+      }));
+
     default:
       return state;
   }
@@ -562,6 +581,7 @@ interface PlanContextValue {
   selectedNodeId: number | null;
   selectedNodeIds: number[];
   error: string | null;
+  metadataBundle: MetadataBundle | null;
 
   // Global state
   viewMode: ViewMode;
@@ -588,6 +608,8 @@ interface PlanContextValue {
   setInput: (input: string) => void;
   parsePlan: () => void;
   loadAndParsePlan: (input: string) => void;
+  loadMetadataBundle: (text: string) => { ok: true; pairedSlotIndex: number } | { ok: false; error: string };
+  detachMetadataBundle: (index: number) => void;
   selectNode: (id: number | null, options?: { additive?: boolean }) => void;
   selectNodeForPlan: (index: number, id: number | null, options?: { additive?: boolean }) => void;
   setViewMode: (mode: ViewMode) => void;
@@ -721,6 +743,38 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_INPUT_PANEL_COLLAPSED', payload: true });
   }, [buildPlanSlotsFromInputs]);
 
+  const loadMetadataBundle = useCallback(
+    (text: string): { ok: true; pairedSlotIndex: number } | { ok: false; error: string } => {
+      let bundle: MetadataBundle;
+      try {
+        bundle = parseBundle(text);
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : 'Could not parse metadata bundle.' };
+      }
+      const bundleSqlId = bundle.plan_ref.sql_id;
+      if (!bundleSqlId) {
+        return {
+          ok: false,
+          error: 'Bundle has no SQL_ID — drop it onto a plan slot directly in a future release.',
+        };
+      }
+      const matchIndex = state.plans.findIndex((slot) => slot.parsedPlan?.sqlId === bundleSqlId);
+      if (matchIndex === -1) {
+        return {
+          ok: false,
+          error: `Bundle SQL_ID "${bundleSqlId}" does not match any loaded plan.`,
+        };
+      }
+      dispatch({ type: 'ATTACH_METADATA_BUNDLE', payload: { index: matchIndex, bundle } });
+      return { ok: true, pairedSlotIndex: matchIndex };
+    },
+    [state.plans],
+  );
+
+  const detachMetadataBundle = useCallback((index: number) => {
+    dispatch({ type: 'DETACH_METADATA_BUNDLE', payload: index });
+  }, []);
+
   // Derive active slot values for backward compatibility
   const activeSlot = state.plans[state.activePlanIndex];
   const rawInput = activeSlot.rawInput;
@@ -728,6 +782,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const selectedNodeId = activeSlot.selectedNodeId;
   const selectedNodeIds = activeSlot.selectedNodeIds;
   const error = activeSlot.error;
+  const metadataBundle = activeSlot.metadataBundle;
 
   const hasMultiplePlans = state.plans.length > 1;
 
@@ -1115,6 +1170,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     selectedNodeId,
     selectedNodeIds,
     error,
+    metadataBundle,
 
     // Global state
     viewMode: state.viewMode,
@@ -1141,6 +1197,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setInput,
     parsePlan,
     loadAndParsePlan,
+    loadMetadataBundle,
+    detachMetadataBundle,
     selectNode,
     selectNodeForPlan,
     setViewMode,
