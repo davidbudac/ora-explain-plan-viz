@@ -79,7 +79,13 @@ export interface CoverageWarning {
 }
 
 export function parseBundle(input: string): MetadataBundle {
-  const parsed = JSON.parse(input);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(input);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    throw new Error(`Bundle is not valid JSON: ${detail}`);
+  }
   if (typeof parsed !== 'object' || parsed === null) {
     throw new Error('Bundle is not an object');
   }
@@ -90,6 +96,11 @@ export function parseBundle(input: string): MetadataBundle {
   if (obj.format !== 'ora-plan-metadata') {
     throw new Error(
       `Bundle has unexpected format: "${obj.format}" (expected "ora-plan-metadata")`,
+    );
+  }
+  if (obj.version !== 1) {
+    throw new Error(
+      `Bundle has unsupported version: ${String(obj.version)} (this build supports version 1)`,
     );
   }
   if (typeof obj.plan_ref !== 'object' || obj.plan_ref === null) {

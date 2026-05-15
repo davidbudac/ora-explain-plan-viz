@@ -105,4 +105,59 @@ describe('parseBundle', () => {
     expect(() => parseBundle(json)).toThrow(/format/);
     expect(() => parseBundle(json)).toThrow(/ora-plan-metadata/);
   });
+
+  it('rejects bundles whose `version` is one we do not support', () => {
+    const json = JSON.stringify({
+      format: 'ora-plan-metadata',
+      version: 999,
+      captured_at: '2026-05-15T10:23:00Z',
+      source: { db_name: 'PROD1', oracle_version: '19.0.0.0.0', container_name: 'PDB1' },
+      plan_ref: { sql_id: 'abc123def456', plan_hash_value: 1234567890 },
+      objects: {},
+      coverage_warnings: [],
+    });
+
+    expect(() => parseBundle(json)).toThrow(/version/);
+    expect(() => parseBundle(json)).toThrow(/999/);
+  });
+
+  it('accepts a bundle with an empty `objects` map', () => {
+    const json = JSON.stringify({
+      format: 'ora-plan-metadata',
+      version: 1,
+      captured_at: '2026-05-15T10:23:00Z',
+      source: { db_name: 'PROD1', oracle_version: '19.0.0.0.0', container_name: 'PDB1' },
+      plan_ref: { sql_id: 'abc123def456', plan_hash_value: 1234567890 },
+      objects: {},
+      coverage_warnings: [],
+    });
+
+    const bundle = parseBundle(json);
+
+    expect(bundle.objects).toEqual({});
+  });
+
+  it('wraps malformed JSON in a domain error rather than leaking SyntaxError', () => {
+    expect(() => parseBundle('not json at all {')).toThrow(/bundle.*json|json.*bundle/i);
+  });
+
+  it('preserves `coverage_warnings` entries through parse', () => {
+    const warnings = [
+      { object: 'SH.OTHER', reason: 'insufficient privileges on DBA_TAB_STATISTICS' },
+      { object: 'SH.MISSING', reason: 'not found in current container' },
+    ];
+    const json = JSON.stringify({
+      format: 'ora-plan-metadata',
+      version: 1,
+      captured_at: '2026-05-15T10:23:00Z',
+      source: { db_name: 'PROD1', oracle_version: '19.0.0.0.0', container_name: 'PDB1' },
+      plan_ref: { sql_id: 'abc123def456', plan_hash_value: 1234567890 },
+      objects: {},
+      coverage_warnings: warnings,
+    });
+
+    const bundle = parseBundle(json);
+
+    expect(bundle.coverage_warnings).toEqual(warnings);
+  });
 });
