@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { FilterState, NodeDisplayOptions } from '../lib/types';
 
-type CommandSection = 'Behavior' | 'Node fields' | 'Runtime fields' | 'Warning badges' | 'Annotations';
+type CommandSection = 'Behavior' | 'Node fields' | 'Runtime fields' | 'Warning badges' | 'Metadata indicators' | 'Annotations';
 
 type NodeOptionKey =
   | 'showObjectName'
@@ -19,6 +19,8 @@ type NodeOptionKey =
   | 'showHotspotBadge'
   | 'showSpillBadge'
   | 'showCardinalityBadge'
+  | 'showStaleStatsBadge'
+  | 'showMissingStatsBadge'
   | 'showAnnotations';
 
 type CommandKey = 'animateEdges' | 'scaleEdgeWidth' | 'focusSelection' | NodeOptionKey;
@@ -38,7 +40,7 @@ interface CustomizeViewMenuProps {
   defaultNodeDisplayOptions: NodeDisplayOptions;
 }
 
-const SECTION_ORDER: CommandSection[] = ['Behavior', 'Node fields', 'Runtime fields', 'Warning badges', 'Annotations'];
+const SECTION_ORDER: CommandSection[] = ['Behavior', 'Node fields', 'Runtime fields', 'Warning badges', 'Metadata indicators', 'Annotations'];
 
 function buildCommands(hasActualStats: boolean): ViewCommand[] {
   return [
@@ -148,6 +150,18 @@ function buildCommands(hasActualStats: boolean): ViewCommand[] {
       label: 'Cardinality mismatch',
       keywords: ['cardinality', 'mismatch', 'estimate', 'warning', 'badge'],
       runtimeOnly: true,
+    },
+    {
+      key: 'showStaleStatsBadge',
+      section: 'Metadata indicators',
+      label: 'Stale stats',
+      keywords: ['stale', 'stats', 'metadata', 'bundle', 'badge'],
+    },
+    {
+      key: 'showMissingStatsBadge',
+      section: 'Metadata indicators',
+      label: 'Missing stats',
+      keywords: ['missing', 'stats', 'metadata', 'bundle', 'badge'],
     },
     {
       key: 'showAnnotations',

@@ -10,6 +10,7 @@ type CommandCategory =
   | 'Node Display'
   | 'Runtime Display'
   | 'Warnings'
+  | 'Metadata'
   | 'Behavior'
   | 'Theme'
   | 'Export & Share'
@@ -253,6 +254,24 @@ function useCommands(): Command[] {
         execute: () => toggleNodeDisplayOption(item.key),
         isActive: () => filters.nodeDisplayOptions[item.key],
         isAvailable: () => anyPlanParsed && (!item.runtime || hasActualStats),
+      });
+    }
+
+    // --- Metadata indicator toggles ---
+    const metadataItems: { key: keyof NodeDisplayOptions; label: string; keywords: string[] }[] = [
+      { key: 'showStaleStatsBadge', label: 'Stale stats badge', keywords: ['stale', 'stats', 'metadata', 'bundle'] },
+      { key: 'showMissingStatsBadge', label: 'Missing stats badge', keywords: ['missing', 'stats', 'metadata', 'bundle'] },
+    ];
+
+    for (const item of metadataItems) {
+      commands.push({
+        id: `metadata-${item.key}`,
+        label: `Toggle ${item.label}`,
+        category: 'Metadata',
+        keywords: ['metadata', 'show', 'hide', 'toggle', ...item.keywords],
+        execute: () => toggleNodeDisplayOption(item.key),
+        isActive: () => filters.nodeDisplayOptions[item.key],
+        isAvailable: () => anyPlanParsed,
       });
     }
 

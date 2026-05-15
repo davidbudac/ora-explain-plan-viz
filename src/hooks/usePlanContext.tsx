@@ -105,6 +105,9 @@ const initialFilters: FilterState = {
     showHotspotBadge: true,
     showSpillBadge: true,
     showCardinalityBadge: true,
+    // Metadata indicators (from bundle)
+    showStaleStatsBadge: true,
+    showMissingStatsBadge: true,
     // Annotations overlay
     showAnnotations: true,
   },
