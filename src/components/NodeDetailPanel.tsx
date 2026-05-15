@@ -9,6 +9,8 @@ import { AnnotationEditor, BulkHighlightPicker } from './AnnotationEditor';
 import { GroupAnnotationDialog } from './GroupAnnotationDialog';
 import { HIGHLIGHT_COLORS } from '../lib/annotations';
 import type { HighlightColor } from '../lib/annotations';
+import { findObjectInBundle } from '../lib/metadata/lookup';
+import type { TableStats } from '../lib/metadata/bundle';
 
 const HIGHLIGHT_COLORS_MAP: Record<HighlightColor, string> = Object.fromEntries(
   HIGHLIGHT_COLORS.map((c) => [c.name, c.chip])
@@ -28,6 +30,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
     hotspotsEnabled, setHotspotsEnabled,
     detailPanelCollapsed: isCollapsed, setDetailPanelCollapsed: setIsCollapsed,
     highlightStyle, setHighlightStyle,
+    metadataBundle,
   } = usePlan();
   const searchText = filters.searchText;
   const [showGroupDialog, setShowGroupDialog] = useState(false);
@@ -675,6 +678,9 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         </div>
       )}
 
+      {/* Metadata (schema bundle) */}
+      <MetadataSection bundleLoaded={metadataBundle !== null} match={metadataBundle ? findObjectInBundle(metadataBundle, node.objectName) : null} objectName={node.objectName} />
+
       {/* Memory & I/O */}
       {(node.memoryUsed !== undefined ||
         node.tempUsed !== undefined ||
@@ -879,6 +885,90 @@ function computeAggregateSelection(nodes: PlanNodeType[]): AggregateSelectionSta
     sumPhysicalReads,
     sumLogicalReads,
   };
+}
+
+function MetadataSection({
+  bundleLoaded,
+  match,
+  objectName,
+}: {
+  bundleLoaded: boolean;
+  match: ReturnType<typeof findObjectInBundle>;
+  objectName: string | undefined;
+}) {
+  if (!bundleLoaded) {
+    return (
+      <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
+        <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Metadata</h4>
+        <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
+          No metadata loaded for this plan — run the gather script and drop the JSON here.
+        </p>
+      </div>
+    );
+  }
+
+  if (!match) {
+    return (
+      <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
+        <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Metadata</h4>
+        <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
+          {objectName ? <>No bundle entry for <code className="font-mono">{objectName}</code>.</> : 'This operation has no object reference.'}
+        </p>
+      </div>
+    );
+  }
+
+  if (match.object.type !== 'TABLE') {
+    return (
+      <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
+        <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Metadata</h4>
+        <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
+          <code className="font-mono">{match.key}</code> is an index. Index details land in a follow-up slice.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
+      <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Metadata</h4>
+      <ObjectBlock objectKey={match.key} stats={match.object.stats} />
+    </div>
+  );
+}
+
+function ObjectBlock({ objectKey, stats }: { objectKey: string; stats: TableStats }) {
+  const isStale = stats.stale_stats === 'YES';
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <code className="text-xs font-mono text-neutral-700 dark:text-neutral-300">{objectKey}</code>
+        {isStale && (
+          <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+            STALE STATS
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <StatItem label="Rows" value={formatNumberShort(stats.num_rows ?? undefined)} />
+        <StatItem label="Blocks" value={formatNumberShort(stats.blocks ?? undefined)} />
+        <StatItem label="Avg Row Len" value={stats.avg_row_len != null ? `${stats.avg_row_len} B` : undefined} />
+        <StatItem label="Last Analyzed" value={formatDateShort(stats.last_analyzed)} />
+        <StatItem label="Partitioned" value={stats.partitioned ? 'Yes' : 'No'} />
+        {stats.partitioned && stats.partition_count != null && (
+          <StatItem label="Partitions" value={formatNumberShort(stats.partition_count)} />
+        )}
+        <StatItem label="Stale Stats" value={stats.stale_stats ?? undefined} />
+      </div>
+    </div>
+  );
+}
+
+function formatDateShort(iso: string | null): string | undefined {
+  if (!iso) return undefined;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toISOString().slice(0, 10);
 }
 
 function sumNumbers(values: Array<number | undefined>): number {

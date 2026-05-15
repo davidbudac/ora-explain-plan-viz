@@ -1,5 +1,6 @@
 import type { ParsedPlan, PlanNode } from './types';
 import type { AnnotationState } from './annotations';
+import type { MetadataBundle } from './metadata/bundle';
 import { createEmptyAnnotationState } from './annotations';
 
 export interface PlanSlot {
@@ -12,6 +13,7 @@ export interface PlanSlot {
   selectedNodeId: number | null;
   selectedNodeIds: number[];
   annotations: AnnotationState;
+  metadataBundle: MetadataBundle | null;
 }
 
 export type CompareMetric = 'cost' | 'rows' | 'bytes' | 'actualRows' | 'actualTime' | 'starts' | 'tempSpace' | 'memoryUsed';
@@ -231,5 +233,6 @@ export function createEmptySlot(index: number): PlanSlot {
     selectedNodeId: null,
     selectedNodeIds: [],
     annotations: createEmptyAnnotationState(),
+    metadataBundle: null,
   };
 }
