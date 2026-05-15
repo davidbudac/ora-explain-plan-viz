@@ -5,6 +5,7 @@ import type { PlanNode as PlanNodeType, NodeDisplayOptions, ColorScheme, NodeInd
 import { HighlightText } from '../HighlightText';
 import { getHighlightColorDef } from '../../lib/annotations';
 import type { HighlightColor, HighlightStyle } from '../../lib/annotations';
+import type { MetadataBadge } from '../../lib/metadata/badges';
 
 export interface PlanNodeData extends Record<string, unknown> {
   label: string;
@@ -29,6 +30,7 @@ export interface PlanNodeData extends Record<string, unknown> {
   annotationText?: string;
   highlightColor?: HighlightColor;
   highlightStyle?: HighlightStyle;
+  metadataBadges?: MetadataBadge[];
 }
 
 interface PlanNodeProps {
@@ -55,6 +57,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     annotationText,
     highlightColor,
     highlightStyle = 'circle',
+    metadataBadges,
   } = data;
   const category = getOperationCategory(node.operation);
   const schemeColors = COLOR_SCHEMES[colorScheme];
@@ -81,6 +84,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     showHotspotBadge: true,
     showSpillBadge: true,
     showCardinalityBadge: true,
+    showStaleStatsBadge: true,
+    showMissingStatsBadge: true,
     showAnnotations: true,
   };
 
@@ -235,8 +240,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           {node.id}
         </div>
 
-        {/* Warning badges row (hot node, spill, cardinality) */}
-        {(showHot || (hasSpill && options.showSpillBadge) || (options.showCardinalityBadge && cardSeverity !== 'good' && cardLabel)) && (
+        {/* Warning badges row (hot node, spill, cardinality, metadata) */}
+        {(showHot || (hasSpill && options.showSpillBadge) || (options.showCardinalityBadge && cardSeverity !== 'good' && cardLabel) || (metadataBadges && metadataBadges.length > 0)) && (
           <div className="flex flex-wrap gap-1 mb-1.5">
             {showHot && (
               <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-[10px] rounded font-semibold flex items-center gap-0.5" title="Highest execution time in plan">
@@ -261,6 +266,16 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                 {cardLabel}
               </span>
             )}
+            {metadataBadges?.map((badge) => (
+              <span
+                key={badge.kind}
+                className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[10px] rounded font-semibold border border-indigo-300 dark:border-indigo-700 flex items-center gap-0.5"
+                title={badge.reason}
+              >
+                <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm11 1H6v8l4-2 4 2V6z" clipRule="evenodd" /></svg>
+                {badge.kind === 'stale-stats' ? 'Stale stats' : 'Missing stats'}
+              </span>
+            ))}
           </div>
         )}
 

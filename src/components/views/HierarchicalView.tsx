@@ -24,6 +24,9 @@ import type { PlanNode, NodeDisplayOptions } from '../../lib/types';
 import { EDGE_SCHEME_COLORS } from '../../lib/types';
 import { createEmptyAnnotationState, getHighlightColorDef } from '../../lib/annotations';
 import { matchesFilters } from '../../lib/filtering';
+import { findObjectInBundle } from '../../lib/metadata/lookup';
+import { evaluateBadges } from '../../lib/metadata/badges';
+import type { MetadataBadge } from '../../lib/metadata/badges';
 
 // Query block group component
 interface QueryBlockGroupData extends Record<string, unknown> {
@@ -585,12 +588,22 @@ function HierarchicalViewContent({
     const nodeDimensions: Map<string, { width: number; height: number }> = new Map();
     const nodeGroupDimensions: Map<string, { width: number; height: number }> = new Map();
 
+    const bundle = slot?.metadataBundle ?? null;
+    const enabledMetadata = {
+      'stale-stats': effectiveDisplayOptions.showStaleStatsBadge,
+      'missing-stats': effectiveDisplayOptions.showMissingStatsBadge,
+    } as const;
+
     function traverse(node: PlanNode) {
       const hasActualStats = parsedPlan!.hasActualStats || false;
       const hasAnnotation = effectiveAnnotations.nodeAnnotations.has(node.id);
       // Calculate dynamic height for this node
       const height = calculateNodeHeight(node, effectiveDisplayOptions, hasActualStats, hasAnnotation, isReadable);
       nodeDimensions.set(node.id.toString(), { width: effectiveNodeWidth, height });
+      const match = bundle ? findObjectInBundle(bundle, node.objectName) : null;
+      const metadataBadges: MetadataBadge[] = bundle
+        ? evaluateBadges({ match, enabled: enabledMetadata })
+        : [];
 
       // Keep query block envelopes stable across predicate-detail toggles by
       // sizing groups against the expanded node-height baseline.
@@ -617,6 +630,7 @@ function HierarchicalViewContent({
           hasActualStats: parsedPlan!.hasActualStats,
           width: effectiveNodeWidth,
           height,
+          metadataBadges,
         },
       });
 
@@ -813,7 +827,7 @@ function HierarchicalViewContent({
       nodes: [...groupNodes, ...annotationGroupNodes, ...adjustedPlanNodes],
       edges: edgesWithThickness,
     };
-  }, [effectiveAnnotations.groups, effectiveAnnotations.nodeAnnotations, effectiveDisplayOptions, parsedPlan, colorScheme, filters.scaleEdgeWidth]);
+  }, [effectiveAnnotations.groups, effectiveAnnotations.nodeAnnotations, effectiveDisplayOptions, parsedPlan, colorScheme, filters.scaleEdgeWidth, slot?.metadataBundle]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutData.edges);

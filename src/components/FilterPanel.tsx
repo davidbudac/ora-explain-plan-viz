@@ -56,6 +56,8 @@ const DEFAULT_NODE_DISPLAY_OPTIONS: NodeDisplayOptions = {
   showHotspotBadge: true,
   showSpillBadge: true,
   showCardinalityBadge: true,
+  showStaleStatsBadge: true,
+  showMissingStatsBadge: true,
   showAnnotations: true,
 };
 

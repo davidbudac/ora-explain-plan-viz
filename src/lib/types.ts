@@ -124,6 +124,9 @@ export interface NodeDisplayOptions {
   showHotspotBadge: boolean;
   showSpillBadge: boolean;
   showCardinalityBadge: boolean;
+  // Metadata indicators (from bundle)
+  showStaleStatsBadge: boolean;
+  showMissingStatsBadge: boolean;
   // Annotations overlay
   showAnnotations: boolean;
 }
