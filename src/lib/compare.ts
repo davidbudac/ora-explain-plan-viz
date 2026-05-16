@@ -14,6 +14,7 @@ export interface PlanSlot {
   selectedNodeIds: number[];
   annotations: AnnotationState;
   metadataBundle: MetadataBundle | null;
+  metadataBundleWarning: string | null;
 }
 
 export type CompareMetric = 'cost' | 'rows' | 'bytes' | 'actualRows' | 'actualTime' | 'starts' | 'tempSpace' | 'memoryUsed';
@@ -234,5 +235,6 @@ export function createEmptySlot(index: number): PlanSlot {
     selectedNodeIds: [],
     annotations: createEmptyAnnotationState(),
     metadataBundle: null,
+    metadataBundleWarning: null,
   };
 }

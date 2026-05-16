@@ -32,7 +32,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
     hotspotsEnabled, setHotspotsEnabled,
     detailPanelCollapsed: isCollapsed, setDetailPanelCollapsed: setIsCollapsed,
     highlightStyle, setHighlightStyle,
-    metadataBundle,
+    metadataBundle, metadataBundleWarning,
   } = usePlan();
   const searchText = filters.searchText;
   const [showGroupDialog, setShowGroupDialog] = useState(false);
@@ -688,6 +688,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
       {/* Metadata (schema bundle) */}
       <MetadataSection
         bundle={metadataBundle}
+        bundleWarning={metadataBundleWarning}
         match={metadataBundle ? findObjectInBundle(metadataBundle, node.objectName) : null}
         objectName={node.objectName}
         accessPredicates={node.accessPredicates}
@@ -903,6 +904,7 @@ function computeAggregateSelection(nodes: PlanNodeType[]): AggregateSelectionSta
 
 function MetadataSection({
   bundle,
+  bundleWarning,
   match,
   objectName,
   accessPredicates,
@@ -910,16 +912,23 @@ function MetadataSection({
   usedIndexKeys,
 }: {
   bundle: MetadataBundle | null;
+  bundleWarning: string | null;
   match: ReturnType<typeof findObjectInBundle>;
   objectName: string | undefined;
   accessPredicates?: string;
   filterPredicates?: string;
   usedIndexKeys: Set<string>;
 }) {
+  const warningBanner = bundleWarning ? (
+    <div className="mb-2 p-2 text-[11px] rounded border bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 leading-snug">
+      {bundleWarning}
+    </div>
+  ) : null;
   if (!bundle) {
     return (
       <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
         <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Metadata</h4>
+        {warningBanner}
         <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
           No metadata loaded for this plan — run the gather script and drop the JSON here.
         </p>
@@ -931,6 +940,7 @@ function MetadataSection({
     return (
       <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
         <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Metadata</h4>
+        {warningBanner}
         <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
           {objectName ? <>No bundle entry for <code className="font-mono">{objectName}</code>.</> : 'This operation has no object reference.'}
         </p>
@@ -943,6 +953,7 @@ function MetadataSection({
     return (
       <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
         <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Metadata</h4>
+        {warningBanner}
         <IndexObjectBlock objectKey={match.key} index={match.object} />
         <IndexesBlock
           tableKey={indexBlock.tableKey}
@@ -958,6 +969,7 @@ function MetadataSection({
   return (
     <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
       <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Metadata</h4>
+      {warningBanner}
       <ObjectBlock objectKey={match.key} stats={match.object.stats} />
       <ColumnsBlock
         table={match.object}
