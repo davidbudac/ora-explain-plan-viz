@@ -11,7 +11,8 @@ import { HIGHLIGHT_COLORS } from '../lib/annotations';
 import type { HighlightColor } from '../lib/annotations';
 import { findObjectInBundle } from '../lib/metadata/lookup';
 import { extractPredicateColumns } from '../lib/metadata/predicateColumns';
-import type { TableStats, ColumnStats, TableObject } from '../lib/metadata/bundle';
+import { resolveIndexesForBlock, findUsedIndexKeys, type ResolvedIndex } from '../lib/metadata/indexes';
+import type { TableStats, ColumnStats, TableObject, MetadataBundle } from '../lib/metadata/bundle';
 
 const HIGHLIGHT_COLORS_MAP: Record<HighlightColor, string> = Object.fromEntries(
   HIGHLIGHT_COLORS.map((c) => [c.name, c.chip])
@@ -74,6 +75,11 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
     return { byCost, byTime, byCardinalityMismatch };
   }, [parsedPlan]);
+
+  const usedIndexKeys = useMemo(() => {
+    if (!metadataBundle || !parsedPlan) return new Set<string>();
+    return findUsedIndexKeys(metadataBundle, parsedPlan.allNodes);
+  }, [metadataBundle, parsedPlan]);
 
   if (isCollapsed) {
     return (
@@ -681,11 +687,12 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
       {/* Metadata (schema bundle) */}
       <MetadataSection
-        bundleLoaded={metadataBundle !== null}
+        bundle={metadataBundle}
         match={metadataBundle ? findObjectInBundle(metadataBundle, node.objectName) : null}
         objectName={node.objectName}
         accessPredicates={node.accessPredicates}
         filterPredicates={node.filterPredicates}
+        usedIndexKeys={usedIndexKeys}
       />
 
       {/* Memory & I/O */}
@@ -895,19 +902,21 @@ function computeAggregateSelection(nodes: PlanNodeType[]): AggregateSelectionSta
 }
 
 function MetadataSection({
-  bundleLoaded,
+  bundle,
   match,
   objectName,
   accessPredicates,
   filterPredicates,
+  usedIndexKeys,
 }: {
-  bundleLoaded: boolean;
+  bundle: MetadataBundle | null;
   match: ReturnType<typeof findObjectInBundle>;
   objectName: string | undefined;
   accessPredicates?: string;
   filterPredicates?: string;
+  usedIndexKeys: Set<string>;
 }) {
-  if (!bundleLoaded) {
+  if (!bundle) {
     return (
       <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
         <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Metadata</h4>
@@ -929,17 +938,23 @@ function MetadataSection({
     );
   }
 
-  if (match.object.type !== 'TABLE') {
+  if (match.object.type === 'INDEX') {
+    const indexBlock = resolveIndexesForBlock(match, bundle);
     return (
       <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
         <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Metadata</h4>
-        <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
-          <code className="font-mono">{match.key}</code> is an index. Index details land in a follow-up slice.
-        </p>
+        <IndexObjectBlock objectKey={match.key} index={match.object} />
+        <IndexesBlock
+          tableKey={indexBlock.tableKey}
+          indexes={indexBlock.indexes}
+          usedIndexKeys={usedIndexKeys}
+          heading={indexBlock.tableKey ? `Other indexes on ${indexBlock.tableKey}` : 'Other indexes'}
+        />
       </div>
     );
   }
 
+  const indexBlock = resolveIndexesForBlock(match, bundle);
   return (
     <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
       <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Metadata</h4>
@@ -948,6 +963,12 @@ function MetadataSection({
         table={match.object}
         accessPredicates={accessPredicates}
         filterPredicates={filterPredicates}
+      />
+      <IndexesBlock
+        tableKey={indexBlock.tableKey}
+        indexes={indexBlock.indexes}
+        usedIndexKeys={usedIndexKeys}
+        heading="Indexes"
       />
     </div>
   );
@@ -1103,6 +1124,122 @@ function formatDateShort(iso: string | null): string | undefined {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toISOString().slice(0, 10);
+}
+
+function IndexObjectBlock({ objectKey, index }: { objectKey: string; index: import('../lib/metadata/bundle').IndexObject }) {
+  const { stats } = index;
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <code className="text-xs font-mono text-neutral-700 dark:text-neutral-300">{objectKey}</code>
+        <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+          INDEX
+        </span>
+      </div>
+      <div className="mb-2 text-[11px]">
+        <span className="text-neutral-500 dark:text-neutral-400">Columns: </span>
+        <code className="font-mono text-neutral-700 dark:text-neutral-200">
+          {index.columns.length > 0 ? index.columns.join(', ') : '—'}
+        </code>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <StatItem label="Type" value={stats.index_type} />
+        <StatItem label="Uniqueness" value={stats.uniqueness} />
+        <StatItem label="Status" value={stats.status} />
+        <StatItem label="Visibility" value={stats.visibility} />
+        <StatItem label="Partitioned" value={stats.partitioned ? 'Yes' : 'No'} />
+        <StatItem label="Clustering Factor" value={formatNumberShort(stats.clustering_factor ?? undefined)} />
+        <StatItem label="BLevel" value={formatNumberShort(stats.blevel ?? undefined)} />
+        <StatItem label="Leaf Blocks" value={formatNumberShort(stats.leaf_blocks ?? undefined)} />
+        <StatItem label="Distinct Keys" value={formatNumberShort(stats.distinct_keys ?? undefined)} />
+      </div>
+    </div>
+  );
+}
+
+function IndexesBlock({
+  tableKey,
+  indexes,
+  usedIndexKeys,
+  heading,
+}: {
+  tableKey: string | null;
+  indexes: ResolvedIndex[];
+  usedIndexKeys: Set<string>;
+  heading: string;
+}) {
+  const sorted = useMemo(() => {
+    const used: ResolvedIndex[] = [];
+    const rest: ResolvedIndex[] = [];
+    for (const idx of indexes) {
+      if (usedIndexKeys.has(idx.key)) used.push(idx);
+      else rest.push(idx);
+    }
+    return [...used, ...rest];
+  }, [indexes, usedIndexKeys]);
+  if (!tableKey || indexes.length === 0) return null;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-neutral-200 dark:border-neutral-800">
+      <h5 className="text-[11px] font-semibold text-neutral-700 dark:text-neutral-300 tracking-wide uppercase mb-2">
+        {heading}
+        <span className="ml-1.5 font-normal text-neutral-500 dark:text-neutral-400 normal-case">
+          ({indexes.length})
+        </span>
+      </h5>
+      <div className="space-y-1.5">
+        {sorted.map((idx) => (
+          <IndexRow key={idx.key} index={idx} usedHere={usedIndexKeys.has(idx.key)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function IndexRow({ index, usedHere }: { index: ResolvedIndex; usedHere: boolean }) {
+  const { stats } = index.object;
+  const isUnusable = stats.status !== 'VALID' && stats.status !== 'N/A';
+  const isInvisible = stats.visibility === 'INVISIBLE';
+  return (
+    <div className="text-[11px] rounded border border-neutral-200 dark:border-neutral-800 bg-neutral-50/60 dark:bg-neutral-900/40 p-2">
+      <div className="flex items-center justify-between mb-1 gap-2">
+        <code className="font-mono font-semibold text-neutral-800 dark:text-neutral-200 truncate">{index.key}</code>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {usedHere && (
+            <span className="px-1 py-px text-[9px] rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
+              used here
+            </span>
+          )}
+          {isUnusable && (
+            <span className="px-1 py-px text-[9px] rounded bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300">
+              {stats.status}
+            </span>
+          )}
+          {isInvisible && (
+            <span className="px-1 py-px text-[9px] rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300">
+              INVISIBLE
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="mb-1 text-[10.5px]">
+        <span className="text-neutral-500 dark:text-neutral-400">Cols: </span>
+        <code className="font-mono text-neutral-700 dark:text-neutral-200">
+          {index.object.columns.length > 0 ? index.object.columns.join(', ') : '—'}
+        </code>
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10.5px] text-neutral-600 dark:text-neutral-300">
+        <span><span className="text-neutral-500 dark:text-neutral-400">Type:</span> {stats.index_type}</span>
+        <span><span className="text-neutral-500 dark:text-neutral-400">Uniqueness:</span> {stats.uniqueness}</span>
+        <span><span className="text-neutral-500 dark:text-neutral-400">Status:</span> {stats.status}</span>
+        <span><span className="text-neutral-500 dark:text-neutral-400">Partitioned:</span> {stats.partitioned ? 'Yes' : 'No'}</span>
+        <span><span className="text-neutral-500 dark:text-neutral-400">Clustering:</span> {formatNumberShort(stats.clustering_factor ?? undefined) ?? '—'}</span>
+        <span><span className="text-neutral-500 dark:text-neutral-400">BLevel:</span> {formatNumberShort(stats.blevel ?? undefined) ?? '—'}</span>
+        <span><span className="text-neutral-500 dark:text-neutral-400">Leaf Blocks:</span> {formatNumberShort(stats.leaf_blocks ?? undefined) ?? '—'}</span>
+        <span><span className="text-neutral-500 dark:text-neutral-400">Distinct Keys:</span> {formatNumberShort(stats.distinct_keys ?? undefined) ?? '—'}</span>
+      </div>
+    </div>
+  );
 }
 
 function sumNumbers(values: Array<number | undefined>): number {
