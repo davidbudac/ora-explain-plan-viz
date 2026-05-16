@@ -622,6 +622,7 @@ interface PlanContextValue {
   loadAndParsePlan: (input: string) => void;
   loadMetadataBundle: (text: string) => LoadMetadataBundleResult;
   attachMetadataBundleToSlot: (bundle: MetadataBundle, index: number) => { ok: true; warning: string | null } | { ok: false; error: string };
+  applyMetadataToAllSlots: (bundle: MetadataBundle) => Array<{ index: number; warning: string | null }>;
   metadataBundleWarning: string | null;
   detachMetadataBundle: (index: number) => void;
   selectNode: (id: number | null, options?: { additive?: boolean }) => void;
@@ -820,6 +821,33 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const detachMetadataBundle = useCallback((index: number) => {
     dispatch({ type: 'DETACH_METADATA_BUNDLE', payload: index });
   }, []);
+
+  const applyMetadataToAllSlots = useCallback(
+    (bundle: MetadataBundle): Array<{ index: number; warning: string | null }> => {
+      const results: Array<{ index: number; warning: string | null }> = [];
+      const bundleSqlId = bundle.plan_ref.sql_id;
+      const bundlePlanHash = bundle.plan_ref.plan_hash_value;
+      state.plans.forEach((slot, index) => {
+        if (!slot.parsedPlan) return;
+        let warning: string | null = null;
+        const slotSqlId = slot.parsedPlan.sqlId;
+        const slotPlanHash = slot.parsedPlan.planHashValue;
+        if (bundleSqlId && slotSqlId && bundleSqlId !== slotSqlId) {
+          warning = `Bundle SQL_ID ${bundleSqlId} differs from this plan's SQL_ID ${slotSqlId}.`;
+        } else if (
+          bundlePlanHash !== null &&
+          slotPlanHash !== undefined &&
+          slotPlanHash !== String(bundlePlanHash)
+        ) {
+          warning = `Metadata was captured for a different plan_hash of this SQL — stats may have changed (plan ${slotPlanHash} vs. bundle ${bundlePlanHash}).`;
+        }
+        dispatch({ type: 'ATTACH_METADATA_BUNDLE', payload: { index, bundle, warning } });
+        results.push({ index, warning });
+      });
+      return results;
+    },
+    [state.plans],
+  );
 
   // Derive active slot values for backward compatibility
   const activeSlot = state.plans[state.activePlanIndex];
@@ -1247,6 +1275,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     loadAndParsePlan,
     loadMetadataBundle,
     attachMetadataBundleToSlot,
+    applyMetadataToAllSlots,
     detachMetadataBundle,
     selectNode,
     selectNodeForPlan,
