@@ -12,6 +12,7 @@ import type { HighlightColor } from '../lib/annotations';
 import { findObjectInBundle } from '../lib/metadata/lookup';
 import { extractPredicateColumns } from '../lib/metadata/predicateColumns';
 import { resolveIndexesForBlock, findUsedIndexKeys, type ResolvedIndex } from '../lib/metadata/indexes';
+import { findCoverageWarning } from '../lib/metadata/dropClassify';
 import type { TableStats, ColumnStats, TableObject, MetadataBundle } from '../lib/metadata/bundle';
 
 const HIGHLIGHT_COLORS_MAP: Record<HighlightColor, string> = Object.fromEntries(
@@ -937,13 +938,29 @@ function MetadataSection({
   }
 
   if (!match) {
+    const coverage = findCoverageWarning(bundle, objectName);
     return (
       <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
         <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Metadata</h4>
         {warningBanner}
-        <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
-          {objectName ? <>No bundle entry for <code className="font-mono">{objectName}</code>.</> : 'This operation has no object reference.'}
-        </p>
+        {coverage ? (
+          <div className="p-2 text-[11px] rounded border bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 leading-snug">
+            <div className="font-semibold mb-1">Stats not captured</div>
+            <div>
+              <code className="font-mono">{coverage.object}</code>: {coverage.reason}
+            </div>
+          </div>
+        ) : (
+          <div className="p-2 text-[11px] rounded border bg-neutral-50 dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300 leading-snug">
+            {objectName ? (
+              <>
+                <code className="font-mono">{objectName}</code> isn't in the bundle scope. Re-run the gather script to include it.
+              </>
+            ) : (
+              'This operation has no object reference.'
+            )}
+          </div>
+        )}
       </div>
     );
   }

@@ -4,8 +4,7 @@ import { getSourceDisplayName } from '../lib/parser';
 import { formatNumberShort, formatTimeShort } from '../lib/format';
 import { SAMPLE_PLANS_BY_CATEGORY, type SamplePlan } from '../examples';
 import type { MetadataBundle } from '../lib/metadata/bundle';
-
-const METADATA_BUNDLE_MARKER = '"ora-plan-metadata"';
+import { classifyDroppedFile } from '../lib/metadata/dropClassify';
 
 export function InputPanel() {
   const { rawInput, setInput, parsePlan, loadAndParsePlan, loadMetadataBundle, attachMetadataBundleToSlot, clearPlan, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex } = usePlan();
@@ -67,13 +66,16 @@ export function InputPanel() {
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
     e.preventDefault();
-    const isJsonFile = /\.json$/i.test(file.name);
     const reader = new FileReader();
     reader.onload = () => {
       const text = typeof reader.result === 'string' ? reader.result : '';
       if (!text) return;
-      const looksLikeBundle = isJsonFile && text.includes(METADATA_BUNDLE_MARKER);
-      if (looksLikeBundle) {
+      const classification = classifyDroppedFile(file.name, text);
+      if (classification.kind === 'error') {
+        setBundleMessage({ tone: 'error', text: classification.message });
+        return;
+      }
+      if (classification.kind === 'bundle') {
         const result = loadMetadataBundle(text);
         if (result.ok === true) {
           const slot = plans[result.pairedSlotIndex];
