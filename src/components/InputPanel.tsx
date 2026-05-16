@@ -3,14 +3,19 @@ import { usePlan } from '../hooks/usePlanContext';
 import { getSourceDisplayName } from '../lib/parser';
 import { formatNumberShort, formatTimeShort } from '../lib/format';
 import { SAMPLE_PLANS_BY_CATEGORY, type SamplePlan } from '../examples';
+import type { MetadataBundle } from '../lib/metadata/bundle';
 
 const METADATA_BUNDLE_MARKER = '"ora-plan-metadata"';
 
 export function InputPanel() {
-  const { rawInput, setInput, parsePlan, loadAndParsePlan, loadMetadataBundle, clearPlan, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex } = usePlan();
+  const { rawInput, setInput, parsePlan, loadAndParsePlan, loadMetadataBundle, attachMetadataBundleToSlot, clearPlan, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex } = usePlan();
   const [showSampleMenu, setShowSampleMenu] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
-  const [bundleMessage, setBundleMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
+  const [bundleMessage, setBundleMessage] = useState<{ tone: 'ok' | 'warn' | 'error'; text: string } | null>(null);
+  const [pendingBundleChoice, setPendingBundleChoice] = useState<
+    | { bundle: MetadataBundle; reason: string; candidateIndices: number[] }
+    | null
+  >(null);
   const wasParsingRef = useRef(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -70,10 +75,20 @@ export function InputPanel() {
       const looksLikeBundle = isJsonFile && text.includes(METADATA_BUNDLE_MARKER);
       if (looksLikeBundle) {
         const result = loadMetadataBundle(text);
-        if (result.ok) {
+        if (result.ok === true) {
           const slot = plans[result.pairedSlotIndex];
           const label = slot?.customLabel || slot?.label || `slot ${result.pairedSlotIndex + 1}`;
-          setBundleMessage({ tone: 'ok', text: `Metadata bundle attached to ${label}.` });
+          if (result.warning) {
+            setBundleMessage({ tone: 'warn', text: `Bundle attached to ${label}, but ${result.warning}` });
+          } else {
+            setBundleMessage({ tone: 'ok', text: `Metadata bundle attached to ${label}.` });
+          }
+        } else if (result.ok === 'needs-choice') {
+          setPendingBundleChoice({
+            bundle: result.bundle,
+            reason: result.reason,
+            candidateIndices: result.candidateIndices,
+          });
         } else {
           setBundleMessage({ tone: 'error', text: result.error });
         }
@@ -250,7 +265,9 @@ export function InputPanel() {
               className={`p-2 text-xs rounded-md border ${
                 bundleMessage.tone === 'ok'
                   ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
-                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                  : bundleMessage.tone === 'warn'
+                    ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
+                    : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
               }`}
             >
               {bundleMessage.text}
@@ -300,6 +317,82 @@ export function InputPanel() {
 
         </div>
       )}
+      {pendingBundleChoice && (
+        <BundleAttachChooser
+          reason={pendingBundleChoice.reason}
+          candidateIndices={pendingBundleChoice.candidateIndices}
+          plans={plans}
+          onCancel={() => {
+            setPendingBundleChoice(null);
+            setBundleMessage({ tone: 'error', text: 'Bundle attach cancelled.' });
+          }}
+          onChoose={(index) => {
+            const result = attachMetadataBundleToSlot(pendingBundleChoice.bundle, index);
+            setPendingBundleChoice(null);
+            if (result.ok) {
+              const slot = plans[index];
+              const label = slot?.customLabel || slot?.label || `slot ${index + 1}`;
+              if (result.warning) {
+                setBundleMessage({ tone: 'warn', text: `Bundle attached to ${label}, but ${result.warning}` });
+              } else {
+                setBundleMessage({ tone: 'ok', text: `Metadata bundle attached to ${label}.` });
+              }
+            } else {
+              setBundleMessage({ tone: 'error', text: result.error });
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function BundleAttachChooser({
+  reason,
+  candidateIndices,
+  plans,
+  onCancel,
+  onChoose,
+}: {
+  reason: string;
+  candidateIndices: number[];
+  plans: ReturnType<typeof usePlan>['plans'];
+  onCancel: () => void;
+  onChoose: (index: number) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60 p-4" role="dialog" aria-modal="true">
+      <div className="w-full max-w-md bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-xl p-4">
+        <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Attach metadata bundle</h3>
+        <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-3">{reason}</p>
+        <div className="flex flex-col gap-2 mb-4">
+          {candidateIndices.map((idx) => {
+            const slot = plans[idx];
+            const label = slot.customLabel || slot.label;
+            const sqlId = slot.parsedPlan?.sqlId;
+            return (
+              <button
+                key={idx}
+                onClick={() => onChoose(idx)}
+                className="text-left p-2 border border-neutral-200 dark:border-neutral-700 rounded-md hover:bg-neutral-50 dark:hover:bg-neutral-800"
+              >
+                <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Attach to {label}</div>
+                {sqlId && (
+                  <div className="text-[11px] text-neutral-500 dark:text-neutral-400 font-mono">SQL_ID: {sqlId}</div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex justify-end">
+          <button
+            onClick={onCancel}
+            className="h-8 px-3 text-xs border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
