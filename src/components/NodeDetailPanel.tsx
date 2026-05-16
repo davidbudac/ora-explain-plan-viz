@@ -14,6 +14,7 @@ import { extractPredicateColumns } from '../lib/metadata/predicateColumns';
 import { resolveIndexesForBlock, findUsedIndexKeys, type ResolvedIndex } from '../lib/metadata/indexes';
 import { findCoverageWarning } from '../lib/metadata/dropClassify';
 import type { TableStats, ColumnStats, TableObject, MetadataBundle } from '../lib/metadata/bundle';
+import { GatherScriptModal } from './GatherScriptModal';
 
 const HIGHLIGHT_COLORS_MAP: Record<HighlightColor, string> = Object.fromEntries(
   HIGHLIGHT_COLORS.map((c) => [c.name, c.chip])
@@ -695,6 +696,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         accessPredicates={node.accessPredicates}
         filterPredicates={node.filterPredicates}
         usedIndexKeys={usedIndexKeys}
+        planSqlId={parsedPlan?.sqlId}
       />
 
       {/* Memory & I/O */}
@@ -911,6 +913,7 @@ function MetadataSection({
   accessPredicates,
   filterPredicates,
   usedIndexKeys,
+  planSqlId,
 }: {
   bundle: MetadataBundle | null;
   bundleWarning: string | null;
@@ -919,7 +922,9 @@ function MetadataSection({
   accessPredicates?: string;
   filterPredicates?: string;
   usedIndexKeys: Set<string>;
+  planSqlId?: string;
 }) {
+  const [showGatherModal, setShowGatherModal] = useState(false);
   const warningBanner = bundleWarning ? (
     <div className="mb-2 p-2 text-[11px] rounded border bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 leading-snug">
       {bundleWarning}
@@ -930,9 +935,22 @@ function MetadataSection({
       <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
         <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Metadata</h4>
         {warningBanner}
-        <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
+        <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug mb-2">
           No metadata loaded for this plan — run the gather script and drop the JSON here.
         </p>
+        <button
+          type="button"
+          onClick={() => setShowGatherModal(true)}
+          className="text-[11px] px-2 py-1 rounded border border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/40"
+        >
+          Generate gather script
+        </button>
+        {showGatherModal && (
+          <GatherScriptModal
+            initialSqlId={planSqlId}
+            onClose={() => setShowGatherModal(false)}
+          />
+        )}
       </div>
     );
   }
