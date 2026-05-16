@@ -5,9 +5,10 @@ import { formatNumberShort, formatTimeShort } from '../lib/format';
 import { SAMPLE_PLANS_BY_CATEGORY, type SamplePlan } from '../examples';
 import type { MetadataBundle } from '../lib/metadata/bundle';
 import { classifyDroppedFile } from '../lib/metadata/dropClassify';
+import { MetadataChip } from './MetadataChip';
 
 export function InputPanel() {
-  const { rawInput, setInput, parsePlan, loadAndParsePlan, loadMetadataBundle, attachMetadataBundleToSlot, clearPlan, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex } = usePlan();
+  const { rawInput, setInput, parsePlan, loadAndParsePlan, loadMetadataBundle, attachMetadataBundleToSlot, clearPlan, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex, metadataBundle, metadataBundleWarning, detachMetadataBundle } = usePlan();
   const [showSampleMenu, setShowSampleMenu] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [bundleMessage, setBundleMessage] = useState<{ tone: 'ok' | 'warn' | 'error'; text: string } | null>(null);
@@ -107,35 +108,45 @@ export function InputPanel() {
     <div className="flex flex-col bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
       {/* Header - always visible */}
       <div className="flex items-center justify-between px-3 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 transition-colors">
-        <button
-          type="button"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          aria-expanded={!isCollapsed}
-          aria-controls="input-panel-content"
-          className="flex items-center gap-2 text-left min-w-0"
-        >
-          <svg
-            className={`w-4 h-4 text-neutral-500 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            aria-expanded={!isCollapsed}
+            aria-controls="input-panel-content"
+            className="flex items-center gap-2 text-left min-w-0"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-          <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
-            {hasMultiplePlans && (
-              <span className="text-blue-600 dark:text-blue-400 mr-1.5">{plans[activePlanIndex].customLabel || plans[activePlanIndex].label}:</span>
-            )}
-            {parsedPlan && (parsedPlan.sqlId || parsedPlan.planHashValue)
-              ? [
-                  parsedPlan.sqlId && <span key="sql">SQL ID: <span className="font-mono">{parsedPlan.sqlId}</span></span>,
-                  parsedPlan.sqlId && parsedPlan.planHashValue && <span key="sep" className="text-neutral-400 dark:text-neutral-500 mx-1">|</span>,
-                  parsedPlan.planHashValue && <span key="hash">PHV: <span className="font-mono">{parsedPlan.planHashValue}</span></span>,
-                ]
-              : 'Oracle Execution Plan Input'}
-          </h2>
+            <svg
+              className={`w-4 h-4 text-neutral-500 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
+              {hasMultiplePlans && (
+                <span className="text-blue-600 dark:text-blue-400 mr-1.5">{plans[activePlanIndex].customLabel || plans[activePlanIndex].label}:</span>
+              )}
+              {parsedPlan && (parsedPlan.sqlId || parsedPlan.planHashValue)
+                ? [
+                    parsedPlan.sqlId && <span key="sql">SQL ID: <span className="font-mono">{parsedPlan.sqlId}</span></span>,
+                    parsedPlan.sqlId && parsedPlan.planHashValue && <span key="sep" className="text-neutral-400 dark:text-neutral-500 mx-1">|</span>,
+                    parsedPlan.planHashValue && <span key="hash">PHV: <span className="font-mono">{parsedPlan.planHashValue}</span></span>,
+                  ]
+                : 'Oracle Execution Plan Input'}
+            </h2>
+          </button>
+          {parsedPlan && (
+            <MetadataChip
+              bundle={metadataBundle}
+              warning={metadataBundleWarning}
+              planSqlId={parsedPlan.sqlId}
+              onDetach={() => detachMetadataBundle(activePlanIndex)}
+            />
+          )}
           {isCollapsed && parsedPlan && (
-            <div className="hidden lg:flex items-center gap-1.5 ml-2">
+            <div className="hidden lg:flex items-center gap-1.5">
               <span className="px-2 py-0.5 border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded text-[11px] font-medium">
                 {getSourceDisplayName(parsedPlan.source)}
               </span>
@@ -154,7 +165,7 @@ export function InputPanel() {
               </span>
             </div>
           )}
-        </button>
+        </div>
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowSampleMenu(!showSampleMenu)}

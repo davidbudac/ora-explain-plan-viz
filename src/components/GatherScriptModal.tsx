@@ -95,7 +95,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-800">
           <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-            Generate Metadata Gather Script
+            Attempt to Gather Schema Metadata
           </h3>
           <button
             type="button"
@@ -110,8 +110,12 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
         <div className="p-4 space-y-4">
           <p className="text-[11px] text-neutral-600 dark:text-neutral-400 leading-snug">
             Run this PL/SQL script in SQL*Plus or SQLcl against the database that holds your
-            plan. The script emits a JSON bundle to <code>DBMS_OUTPUT</code>; capture it with
-            <code> SPOOL</code> and drop the file onto the input area of this app.
+            plan. It <em>attempts</em> to collect the schema details relevant to this plan
+            (tables, indexes, column stats, histograms) so you can analyze it with more
+            context. Coverage depends on your privileges — the script prefers
+            <code> DBA_*</code> views and falls back to <code>ALL_*</code>; anything it can't
+            read is listed in <code>coverage_warnings</code>. Output goes to <code>DBMS_OUTPUT</code>
+            — capture it with <code>SPOOL</code> and drop the file onto the input area of this app.
           </p>
 
           <div className="inline-flex rounded-md border border-neutral-200 dark:border-neutral-700 overflow-hidden text-[11px]">

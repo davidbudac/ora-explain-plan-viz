@@ -936,7 +936,10 @@ function MetadataSection({
         <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Metadata</h4>
         {warningBanner}
         <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug mb-2">
-          No metadata loaded for this plan — run the gather script and drop the JSON here.
+          No metadata loaded for this plan. Run the gather script against your database to
+          attempt to collect schema details (tables, indexes, column stats, histograms) for
+          better analysis, then drop the resulting JSON here. Coverage depends on your
+          privileges — anything the script can't read shows up as a warning.
         </p>
         <button
           type="button"
