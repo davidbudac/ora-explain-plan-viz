@@ -137,11 +137,26 @@ function DeltaArrow({ delta, deltaPercent, label, lowerIsBetter = true }: {
 }
 
 export function CompareView() {
-  const { plans, compareMetrics, comparePlanIndices, setActivePlan, selectNodeForPlan, setTreeCompareEnabled, setViewMode } = usePlan();
+  const { plans, compareMetrics, comparePlanIndices, setActivePlan, selectNodeForPlan, setTreeCompareEnabled, setViewMode, applyMetadataToAllSlots } = usePlan();
 
   const [leftIndex, rightIndex] = comparePlanIndices;
   const planA = plans[leftIndex]?.parsedPlan;
   const planB = plans[rightIndex]?.parsedPlan;
+  const slotA = plans[leftIndex];
+  const slotB = plans[rightIndex];
+
+  const sharedBundleCandidate = useMemo(() => {
+    if (!slotA?.parsedPlan || !slotB?.parsedPlan) return null;
+    const sqlA = slotA.parsedPlan.sqlId;
+    const sqlB = slotB.parsedPlan.sqlId;
+    if (!sqlA || !sqlB || sqlA !== sqlB) return null;
+    const aHas = !!slotA.metadataBundle;
+    const bHas = !!slotB.metadataBundle;
+    if (aHas === bHas) return null;
+    return aHas
+      ? { sourceIndex: leftIndex, targetIndex: rightIndex, bundle: slotA.metadataBundle! }
+      : { sourceIndex: rightIndex, targetIndex: leftIndex, bundle: slotB.metadataBundle! };
+  }, [slotA, slotB, leftIndex, rightIndex]);
 
   const { matches, summary } = useMemo(() => {
     if (!planA || !planB) return { matches: [] as NodeMatch[], summary: null };
@@ -197,6 +212,30 @@ export function CompareView() {
           phv={planB.planHashValue}
         />
       </div>
+
+      {/* Apply-metadata-to-both affordance */}
+      {sharedBundleCandidate && (
+        <div className="flex items-start gap-3 p-2 rounded border border-indigo-200 dark:border-indigo-800 bg-indigo-50/60 dark:bg-indigo-950/40 text-[11px] text-indigo-800 dark:text-indigo-200">
+          <span className="leading-snug">
+            Both plans share SQL_ID <code className="font-mono">{slotA?.parsedPlan?.sqlId}</code>.
+            A metadata bundle is loaded for plan{' '}
+            <span className="font-semibold">
+              {sharedBundleCandidate.sourceIndex === leftIndex ? 'A' : 'B'}
+            </span>
+            {' '}only — apply it to plan{' '}
+            <span className="font-semibold">
+              {sharedBundleCandidate.targetIndex === leftIndex ? 'A' : 'B'}
+            </span>{' '}too?
+          </span>
+          <button
+            type="button"
+            onClick={() => applyMetadataToAllSlots(sharedBundleCandidate.bundle)}
+            className="ml-auto whitespace-nowrap px-2 py-1 rounded border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-neutral-900 hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
+          >
+            Apply to both
+          </button>
+        </div>
+      )}
 
       {/* Match stats */}
       <div className="flex items-center gap-4 text-xs text-neutral-600 dark:text-neutral-400">
