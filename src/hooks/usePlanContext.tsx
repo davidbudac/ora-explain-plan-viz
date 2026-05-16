@@ -1147,14 +1147,16 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   const exportAnnotatedPlan = useCallback(() => {
     if (!parsedPlan) return;
+    const activeBundle = state.plans[state.activePlanIndex]?.metadataBundle ?? null;
     const exportData: AnnotatedPlanExport = {
-      version: 1,
+      version: activeBundle ? 2 : 1,
       exportedAt: new Date().toISOString(),
       rawPlanText: rawInput,
       planSource: parsedPlan.source,
       planHashValue: parsedPlan.planHashValue,
       sqlId: parsedPlan.sqlId,
       annotations: serializeAnnotations(state.plans[state.activePlanIndex]?.annotations ?? createEmptyAnnotationState()),
+      ...(activeBundle ? { metadataBundle: activeBundle } : {}),
     };
     downloadAnnotatedPlan(exportData);
   }, [parsedPlan, rawInput, state.plans, state.activePlanIndex]);
@@ -1178,13 +1180,30 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       // Load annotations after plan is set (SET_PARSED_PLAN clears them first)
       const annotations = deserializeAnnotations(data.annotations);
       dispatch({ type: 'LOAD_ANNOTATIONS', payload: annotations });
+      // v2+: embedded metadata bundle
+      if (data.version === 2 && data.metadataBundle !== undefined) {
+        try {
+          const bundle = parseBundle(JSON.stringify(data.metadataBundle));
+          dispatch({
+            type: 'ATTACH_METADATA_BUNDLE',
+            payload: { index: state.activePlanIndex, bundle, warning: null },
+          });
+        } catch (err) {
+          dispatch({
+            type: 'SET_ERROR',
+            payload: `Imported plan, but embedded metadata bundle is invalid: ${
+              err instanceof Error ? err.message : 'Unknown error'
+            }`,
+          });
+        }
+      }
     } catch (err) {
       dispatch({
         type: 'SET_ERROR',
         payload: `Import error: ${err instanceof Error ? err.message : 'Unknown error'}`,
       });
     }
-  }, []);
+  }, [state.activePlanIndex]);
 
   const sharePlan = useCallback(async (): Promise<{ ok: true; url: string; warning?: string } | { ok: false; error: string }> => {
     // Need at least one plan with input

@@ -209,7 +209,7 @@ export interface SerializedAnnotationState {
 }
 
 export interface AnnotatedPlanExport {
-  version: 1;
+  version: 1 | 2;
   exportedAt: string;
   rawPlanText: string;
   planSource: PlanSource;
@@ -220,6 +220,8 @@ export interface AnnotatedPlanExport {
     author?: string;
     description?: string;
   };
+  /** v2+: optional embedded ora-plan-metadata bundle JSON object. */
+  metadataBundle?: unknown;
 }
 
 export function serializeAnnotations(state: AnnotationState): SerializedAnnotationState {
@@ -262,7 +264,7 @@ export function validateExport(data: unknown): data is AnnotatedPlanExport {
   if (!data || typeof data !== 'object') return false;
   const obj = data as Record<string, unknown>;
 
-  if (obj.version !== 1) return false;
+  if (obj.version !== 1 && obj.version !== 2) return false;
   if (typeof obj.rawPlanText !== 'string' || !obj.rawPlanText) return false;
   if (typeof obj.planSource !== 'string') return false;
   if (!['dbms_xplan', 'sql_monitor_text', 'sql_monitor_xml', 'json', 'xbi'].includes(obj.planSource as string)) return false;
