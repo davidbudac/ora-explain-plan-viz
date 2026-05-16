@@ -27,6 +27,7 @@ import { matchesFilters } from '../../lib/filtering';
 import { findObjectInBundle } from '../../lib/metadata/lookup';
 import { evaluateBadges } from '../../lib/metadata/badges';
 import type { MetadataBadge } from '../../lib/metadata/badges';
+import { extractPredicateColumns } from '../../lib/metadata/predicateColumns';
 
 // Query block group component
 interface QueryBlockGroupData extends Record<string, unknown> {
@@ -592,6 +593,7 @@ function HierarchicalViewContent({
     const enabledMetadata = {
       'stale-stats': effectiveDisplayOptions.showStaleStatsBadge,
       'missing-stats': effectiveDisplayOptions.showMissingStatsBadge,
+      'mismatch-no-histogram': effectiveDisplayOptions.showMismatchNoHistogramBadge,
     } as const;
 
     function traverse(node: PlanNode) {
@@ -601,8 +603,17 @@ function HierarchicalViewContent({
       const height = calculateNodeHeight(node, effectiveDisplayOptions, hasActualStats, hasAnnotation, isReadable);
       nodeDimensions.set(node.id.toString(), { width: effectiveNodeWidth, height });
       const match = bundle ? findObjectInBundle(bundle, node.objectName) : null;
+      const cardSeverity = parsedPlan!.hasActualStats
+        ? cardinalityRatioSeverity(computeCardinalityRatio(node.rows, node.actualRows))
+        : 'good';
+      const predicateColumns = extractPredicateColumns(node.accessPredicates, node.filterPredicates);
       const metadataBadges: MetadataBadge[] = bundle
-        ? evaluateBadges({ match, enabled: enabledMetadata })
+        ? evaluateBadges({
+            match,
+            enabled: enabledMetadata,
+            cardinalitySeverity: cardSeverity,
+            predicateColumns,
+          })
         : [];
 
       // Keep query block envelopes stable across predicate-detail toggles by

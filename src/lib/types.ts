@@ -127,6 +127,7 @@ export interface NodeDisplayOptions {
   // Metadata indicators (from bundle)
   showStaleStatsBadge: boolean;
   showMissingStatsBadge: boolean;
+  showMismatchNoHistogramBadge: boolean;
   // Annotations overlay
   showAnnotations: boolean;
 }

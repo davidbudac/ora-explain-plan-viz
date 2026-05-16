@@ -21,6 +21,7 @@ type NodeOptionKey =
   | 'showCardinalityBadge'
   | 'showStaleStatsBadge'
   | 'showMissingStatsBadge'
+  | 'showMismatchNoHistogramBadge'
   | 'showAnnotations';
 
 type CommandKey = 'animateEdges' | 'scaleEdgeWidth' | 'focusSelection' | NodeOptionKey;
@@ -162,6 +163,13 @@ function buildCommands(hasActualStats: boolean): ViewCommand[] {
       section: 'Metadata indicators',
       label: 'Missing stats',
       keywords: ['missing', 'stats', 'metadata', 'bundle', 'badge'],
+    },
+    {
+      key: 'showMismatchNoHistogramBadge',
+      section: 'Metadata indicators',
+      label: 'No histogram on mismatched column',
+      keywords: ['histogram', 'cardinality', 'mismatch', 'metadata', 'bundle', 'badge'],
+      runtimeOnly: true,
     },
     {
       key: 'showAnnotations',

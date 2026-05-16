@@ -114,6 +114,7 @@ const initialFilters: FilterState = {
     // Metadata indicators (from bundle)
     showStaleStatsBadge: true,
     showMissingStatsBadge: true,
+    showMismatchNoHistogramBadge: true,
     // Annotations overlay
     showAnnotations: true,
   },

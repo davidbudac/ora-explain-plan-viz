@@ -1,6 +1,9 @@
 import type { MetadataObject } from './bundle';
 
-export type MetadataBadgeKind = 'stale-stats' | 'missing-stats';
+export type MetadataBadgeKind =
+  | 'stale-stats'
+  | 'missing-stats'
+  | 'mismatch-no-histogram';
 
 export interface MetadataBadge {
   kind: MetadataBadgeKind;
@@ -10,6 +13,8 @@ export interface MetadataBadge {
 export interface EvaluateBadgesInput {
   match: { key: string; object: MetadataObject } | null;
   enabled?: Partial<Record<MetadataBadgeKind, boolean>>;
+  cardinalitySeverity?: 'good' | 'warn' | 'bad';
+  predicateColumns?: string[];
 }
 
 export function evaluateBadges(input: EvaluateBadgesInput): MetadataBadge[] {
@@ -36,6 +41,20 @@ export function evaluateBadges(input: EvaluateBadgesInput): MetadataBadge[] {
       kind: 'missing-stats',
       reason: `Missing stats — ${detail} on ${key}.`,
     });
+  }
+  if (isEnabled('mismatch-no-histogram')) {
+    const severity = input.cardinalitySeverity;
+    const cols = input.predicateColumns ?? [];
+    if (severity === 'warn' || severity === 'bad') {
+      const resolved = cols.filter((c) => Object.prototype.hasOwnProperty.call(object.columns, c));
+      if (resolved.length > 0 && resolved.every((c) => object.columns[c].histogram.type === 'NONE')) {
+        const list = resolved.join(', ');
+        badges.push({
+          kind: 'mismatch-no-histogram',
+          reason: `Cardinality mismatch on ${key} — no histogram on predicate column${resolved.length === 1 ? '' : 's'} ${list}.`,
+        });
+      }
+    }
   }
   return badges;
 }
