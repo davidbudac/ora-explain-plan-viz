@@ -1,6 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import { evaluateBadges } from '../badges';
-import type { TableObject } from '../bundle';
+import type { TableObject, ColumnStats } from '../bundle';
+
+const col = (overrides: Partial<ColumnStats> = {}): ColumnStats => ({
+  data_type: 'NUMBER',
+  nullable: false,
+  num_distinct: 100,
+  num_nulls: 0,
+  low_value: null,
+  high_value: null,
+  density: 0.01,
+  histogram: { type: 'NONE', buckets: 0 },
+  ...overrides,
+});
 
 const baseTable = (overrides: Partial<TableObject['stats']> = {}): TableObject => ({
   type: 'TABLE',
@@ -68,6 +80,88 @@ describe('evaluateBadges', () => {
       enabled: { 'stale-stats': true, 'missing-stats': false },
     }).map((b) => b.kind);
     expect(kinds).toEqual(['stale-stats']);
+  });
+
+  it('fires mismatch-no-histogram when severity is bad and predicate columns have no histogram', () => {
+    const table = baseTable();
+    table.columns.STATUS = col({ histogram: { type: 'NONE', buckets: 0 } });
+    const match = { key: 'SH.SALES', object: table };
+    const badges = evaluateBadges({
+      match,
+      cardinalitySeverity: 'bad',
+      predicateColumns: ['STATUS'],
+    });
+    const badge = badges.find((b) => b.kind === 'mismatch-no-histogram');
+    expect(badge).toBeDefined();
+    expect(badge!.reason).toContain('STATUS');
+    expect(badge!.reason).toContain('histogram');
+  });
+
+  it('fires mismatch-no-histogram on warn severity too', () => {
+    const table = baseTable();
+    table.columns.STATUS = col({ histogram: { type: 'NONE', buckets: 0 } });
+    const badges = evaluateBadges({
+      match: { key: 'SH.SALES', object: table },
+      cardinalitySeverity: 'warn',
+      predicateColumns: ['STATUS'],
+    });
+    expect(badges.some((b) => b.kind === 'mismatch-no-histogram')).toBe(true);
+  });
+
+  it('does not fire mismatch-no-histogram on good severity', () => {
+    const table = baseTable();
+    table.columns.STATUS = col({ histogram: { type: 'NONE', buckets: 0 } });
+    const badges = evaluateBadges({
+      match: { key: 'SH.SALES', object: table },
+      cardinalitySeverity: 'good',
+      predicateColumns: ['STATUS'],
+    });
+    expect(badges.some((b) => b.kind === 'mismatch-no-histogram')).toBe(false);
+  });
+
+  it('does not fire mismatch-no-histogram if any predicate column has a histogram', () => {
+    const table = baseTable();
+    table.columns.STATUS = col({ histogram: { type: 'NONE', buckets: 0 } });
+    table.columns.PRIORITY = col({ histogram: { type: 'FREQUENCY', buckets: 12 } });
+    const badges = evaluateBadges({
+      match: { key: 'SH.SALES', object: table },
+      cardinalitySeverity: 'bad',
+      predicateColumns: ['STATUS', 'PRIORITY'],
+    });
+    expect(badges.some((b) => b.kind === 'mismatch-no-histogram')).toBe(false);
+  });
+
+  it('does not fire mismatch-no-histogram when no predicate columns are supplied', () => {
+    const table = baseTable();
+    table.columns.STATUS = col({ histogram: { type: 'NONE', buckets: 0 } });
+    const badges = evaluateBadges({
+      match: { key: 'SH.SALES', object: table },
+      cardinalitySeverity: 'bad',
+      predicateColumns: [],
+    });
+    expect(badges.some((b) => b.kind === 'mismatch-no-histogram')).toBe(false);
+  });
+
+  it('does not fire mismatch-no-histogram if predicate column is not in the bundle', () => {
+    const table = baseTable();
+    const badges = evaluateBadges({
+      match: { key: 'SH.SALES', object: table },
+      cardinalitySeverity: 'bad',
+      predicateColumns: ['UNKNOWN_COL'],
+    });
+    expect(badges.some((b) => b.kind === 'mismatch-no-histogram')).toBe(false);
+  });
+
+  it('omits mismatch-no-histogram when disabled via enabled set', () => {
+    const table = baseTable();
+    table.columns.STATUS = col({ histogram: { type: 'NONE', buckets: 0 } });
+    const badges = evaluateBadges({
+      match: { key: 'SH.SALES', object: table },
+      cardinalitySeverity: 'bad',
+      predicateColumns: ['STATUS'],
+      enabled: { 'mismatch-no-histogram': false },
+    });
+    expect(badges.some((b) => b.kind === 'mismatch-no-histogram')).toBe(false);
   });
 
   it('returns no badges for an INDEX match (table-only signals in this slice)', () => {

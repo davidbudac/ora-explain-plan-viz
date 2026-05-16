@@ -261,6 +261,7 @@ function useCommands(): Command[] {
     const metadataItems: { key: keyof NodeDisplayOptions; label: string; keywords: string[] }[] = [
       { key: 'showStaleStatsBadge', label: 'Stale stats badge', keywords: ['stale', 'stats', 'metadata', 'bundle'] },
       { key: 'showMissingStatsBadge', label: 'Missing stats badge', keywords: ['missing', 'stats', 'metadata', 'bundle'] },
+      { key: 'showMismatchNoHistogramBadge', label: 'No-histogram-on-mismatch badge', keywords: ['histogram', 'cardinality', 'mismatch', 'metadata', 'bundle'] },
     ];
 
     for (const item of metadataItems) {

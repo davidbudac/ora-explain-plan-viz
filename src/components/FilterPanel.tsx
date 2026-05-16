@@ -58,6 +58,7 @@ const DEFAULT_NODE_DISPLAY_OPTIONS: NodeDisplayOptions = {
   showCardinalityBadge: true,
   showStaleStatsBadge: true,
   showMissingStatsBadge: true,
+  showMismatchNoHistogramBadge: true,
   showAnnotations: true,
 };
 

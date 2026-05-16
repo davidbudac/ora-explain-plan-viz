@@ -86,6 +86,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     showCardinalityBadge: true,
     showStaleStatsBadge: true,
     showMissingStatsBadge: true,
+    showMismatchNoHistogramBadge: true,
     showAnnotations: true,
   };
 
@@ -273,7 +274,11 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                 title={badge.reason}
               >
                 <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm11 1H6v8l4-2 4 2V6z" clipRule="evenodd" /></svg>
-                {badge.kind === 'stale-stats' ? 'Stale stats' : 'Missing stats'}
+                {badge.kind === 'stale-stats'
+                  ? 'Stale stats'
+                  : badge.kind === 'missing-stats'
+                    ? 'Missing stats'
+                    : 'No histogram'}
               </span>
             ))}
           </div>
