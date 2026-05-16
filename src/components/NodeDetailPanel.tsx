@@ -943,11 +943,12 @@ function MetadataSection({
           onClick={() => setShowGatherModal(true)}
           className="text-[11px] px-2 py-1 rounded border border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/40"
         >
-          Generate gather script
+          {planSqlId ? 'Generate gather script' : 'Generate gather script (manual)'}
         </button>
         {showGatherModal && (
           <GatherScriptModal
             initialSqlId={planSqlId}
+            initialMode={planSqlId ? 'sqlid' : 'manual'}
             onClose={() => setShowGatherModal(false)}
           />
         )}
