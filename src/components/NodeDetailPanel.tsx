@@ -10,7 +10,8 @@ import { GroupAnnotationDialog } from './GroupAnnotationDialog';
 import { HIGHLIGHT_COLORS } from '../lib/annotations';
 import type { HighlightColor } from '../lib/annotations';
 import { findObjectInBundle } from '../lib/metadata/lookup';
-import type { TableStats } from '../lib/metadata/bundle';
+import { extractPredicateColumns } from '../lib/metadata/predicateColumns';
+import type { TableStats, ColumnStats, TableObject } from '../lib/metadata/bundle';
 
 const HIGHLIGHT_COLORS_MAP: Record<HighlightColor, string> = Object.fromEntries(
   HIGHLIGHT_COLORS.map((c) => [c.name, c.chip])
@@ -679,7 +680,13 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
       )}
 
       {/* Metadata (schema bundle) */}
-      <MetadataSection bundleLoaded={metadataBundle !== null} match={metadataBundle ? findObjectInBundle(metadataBundle, node.objectName) : null} objectName={node.objectName} />
+      <MetadataSection
+        bundleLoaded={metadataBundle !== null}
+        match={metadataBundle ? findObjectInBundle(metadataBundle, node.objectName) : null}
+        objectName={node.objectName}
+        accessPredicates={node.accessPredicates}
+        filterPredicates={node.filterPredicates}
+      />
 
       {/* Memory & I/O */}
       {(node.memoryUsed !== undefined ||
@@ -891,10 +898,14 @@ function MetadataSection({
   bundleLoaded,
   match,
   objectName,
+  accessPredicates,
+  filterPredicates,
 }: {
   bundleLoaded: boolean;
   match: ReturnType<typeof findObjectInBundle>;
   objectName: string | undefined;
+  accessPredicates?: string;
+  filterPredicates?: string;
 }) {
   if (!bundleLoaded) {
     return (
@@ -933,8 +944,131 @@ function MetadataSection({
     <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
       <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 tracking-wide">Metadata</h4>
       <ObjectBlock objectKey={match.key} stats={match.object.stats} />
+      <ColumnsBlock
+        table={match.object}
+        accessPredicates={accessPredicates}
+        filterPredicates={filterPredicates}
+      />
     </div>
   );
+}
+
+function ColumnsBlock({
+  table,
+  accessPredicates,
+  filterPredicates,
+}: {
+  table: TableObject;
+  accessPredicates?: string;
+  filterPredicates?: string;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const predicateColumns = useMemo(
+    () => extractPredicateColumns(accessPredicates, filterPredicates),
+    [accessPredicates, filterPredicates],
+  );
+  const tableColumnNames = useMemo(() => Object.keys(table.columns), [table.columns]);
+  const resolvedPredicateColumns = useMemo(
+    () => predicateColumns.filter((c) => Object.prototype.hasOwnProperty.call(table.columns, c)),
+    [predicateColumns, table.columns],
+  );
+  const hasResolvedPredicateColumns = resolvedPredicateColumns.length > 0;
+
+  if (!hasResolvedPredicateColumns && !showAll) return null;
+
+  const columnsToShow = showAll ? tableColumnNames : resolvedPredicateColumns;
+  const allButPredicate = showAll
+    ? tableColumnNames.filter((c) => !resolvedPredicateColumns.includes(c)).length
+    : 0;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-neutral-200 dark:border-neutral-800">
+      <div className="flex items-center justify-between mb-2">
+        <h5 className="text-[11px] font-semibold text-neutral-700 dark:text-neutral-300 tracking-wide uppercase">
+          Columns
+          {hasResolvedPredicateColumns && (
+            <span className="ml-1.5 font-normal text-neutral-500 dark:text-neutral-400 normal-case">
+              ({resolvedPredicateColumns.length} from predicates{showAll && allButPredicate > 0 ? ` + ${allButPredicate} more` : ''})
+            </span>
+          )}
+        </h5>
+        {tableColumnNames.length > resolvedPredicateColumns.length && (
+          <button
+            type="button"
+            onClick={() => setShowAll((v) => !v)}
+            className="text-[10px] px-1.5 py-0.5 rounded border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+          >
+            {showAll ? 'Predicates only' : `Show all (${tableColumnNames.length})`}
+          </button>
+        )}
+      </div>
+      {columnsToShow.length === 0 ? (
+        <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
+          Bundle has no column stats for this table.
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {columnsToShow.map((name) => (
+            <ColumnRow
+              key={name}
+              name={name}
+              stats={table.columns[name]}
+              fromPredicate={resolvedPredicateColumns.includes(name)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ColumnRow({
+  name,
+  stats,
+  fromPredicate,
+}: {
+  name: string;
+  stats: ColumnStats;
+  fromPredicate: boolean;
+}) {
+  const histogramLabel = formatHistogramLabel(stats.histogram.type, stats.histogram.buckets);
+  return (
+    <div className="text-[11px] rounded border border-neutral-200 dark:border-neutral-800 bg-neutral-50/60 dark:bg-neutral-900/40 p-2">
+      <div className="flex items-center justify-between mb-1">
+        <code className="font-mono font-semibold text-neutral-800 dark:text-neutral-200">{name}</code>
+        <div className="flex items-center gap-1.5">
+          {fromPredicate && (
+            <span className="px-1 py-px text-[9px] rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+              predicate
+            </span>
+          )}
+          <span className="text-neutral-500 dark:text-neutral-400">
+            {stats.data_type}
+            {stats.nullable ? '' : ' NOT NULL'}
+          </span>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10.5px] text-neutral-600 dark:text-neutral-300">
+        <span><span className="text-neutral-500 dark:text-neutral-400">NDV:</span> {formatNumberShort(stats.num_distinct ?? undefined) ?? '—'}</span>
+        <span><span className="text-neutral-500 dark:text-neutral-400">Nulls:</span> {formatNumberShort(stats.num_nulls ?? undefined) ?? '—'}</span>
+        <span><span className="text-neutral-500 dark:text-neutral-400">Density:</span> {stats.density != null ? stats.density.toPrecision(3) : '—'}</span>
+        <span><span className="text-neutral-500 dark:text-neutral-400">Histogram:</span> {histogramLabel}</span>
+        <span className="col-span-2 truncate"><span className="text-neutral-500 dark:text-neutral-400">Low:</span> <code className="font-mono">{stats.low_value ?? '—'}</code></span>
+        <span className="col-span-2 truncate"><span className="text-neutral-500 dark:text-neutral-400">High:</span> <code className="font-mono">{stats.high_value ?? '—'}</code></span>
+      </div>
+    </div>
+  );
+}
+
+function formatHistogramLabel(type: ColumnStats['histogram']['type'], buckets: number): string {
+  if (type === 'NONE') return 'None';
+  const pretty: Record<Exclude<ColumnStats['histogram']['type'], 'NONE'>, string> = {
+    FREQUENCY: 'Frequency',
+    'HEIGHT BALANCED': 'Height balanced',
+    HYBRID: 'Hybrid',
+    'TOP-FREQUENCY': 'Top frequency',
+  };
+  return `${pretty[type]} (${buckets})`;
 }
 
 function ObjectBlock({ objectKey, stats }: { objectKey: string; stats: TableStats }) {
