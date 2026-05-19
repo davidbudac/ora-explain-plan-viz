@@ -96,7 +96,7 @@ export function extractDbmsXplanSegments(input: string): string[] {
   const segmentStarts: number[] = [];
 
   for (let i = 0; i < lines.length; i++) {
-    if (/Plan hash value:\s*\d+/i.test(lines[i])) {
+    if (/Plan\s+hash\s+value\s*:\s*\d+/i.test(lines[i])) {
       segmentStarts.push(i);
     }
   }
@@ -158,7 +158,7 @@ function extractSqlHeader(lines: string[]): { sqlId?: string; sqlText?: string }
     const collected: string[] = [];
     for (; j < lines.length; j++) {
       const line = lines[j];
-      if (/Plan hash value:/i.test(line)) break;
+      if (/Plan\s+hash\s+value\s*:/i.test(line)) break;
       if (/^\s*$/.test(line)) {
         if (collected.length === 0) continue; // skip leading blanks
         break;
@@ -171,7 +171,7 @@ function extractSqlHeader(lines: string[]): { sqlId?: string; sqlText?: string }
   }
 
   // Shapes 2 & 3: look at everything before the first "Plan hash value:".
-  const planIdx = lines.findIndex((l) => /Plan hash value:/i.test(l));
+  const planIdx = lines.findIndex((l) => /Plan\s+hash\s+value\s*:/i.test(l));
   if (planIdx <= 0) return {};
 
   const prefix = lines.slice(0, planIdx);
@@ -224,7 +224,7 @@ function cleanSqlLines(lines: string[]): string {
 
 function extractPlanHashValue(lines: string[]): string | undefined {
   for (const line of lines) {
-    const match = line.match(/Plan hash value:\s*(\d+)/i);
+    const match = line.match(/Plan\s+hash\s+value\s*:\s*(\d+)/i);
     if (match) {
       return match[1];
     }
