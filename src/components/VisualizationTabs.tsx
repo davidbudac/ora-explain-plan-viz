@@ -118,9 +118,8 @@ export function VisualizationTabs() {
   } = usePlan();
 
   const comparablePlanCount = plans.filter((slot) => slot.parsedPlan).length;
-  const showCompareView = comparablePlanCount >= 2;
+  const compareEnabled = comparablePlanCount >= 2;
   const visibleTabs = tabs.filter((tab) => {
-    if (tab.id === 'compare') return showCompareView;
     if (tab.id === 'sql') return Boolean(parsedPlan?.sqlText);
     if (tab.id === 'monitor') return parsedPlan?.source === 'sql_monitor_xml';
     return true;
@@ -159,22 +158,34 @@ export function VisualizationTabs() {
           </button>
 
           <div className="flex flex-wrap gap-1">
-            {visibleTabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setViewMode(tab.id)}
-                className={`
-                  flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border
-                  ${viewMode === tab.id
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800'}
-                `}
-              >
-                {tab.icon}
-                {tab.label}
-              </button>
-            ))}
+            {visibleTabs.map((tab) => {
+              const isDisabled = tab.id === 'compare' && !compareEnabled;
+              const isActive = viewMode === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    if (isDisabled) return;
+                    setViewMode(tab.id);
+                  }}
+                  disabled={isDisabled}
+                  title={isDisabled ? 'Load a second plan to compare' : undefined}
+                  aria-disabled={isDisabled}
+                  className={`
+                    flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border
+                    ${isActive
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : isDisabled
+                        ? 'text-neutral-400 dark:text-neutral-600 border-neutral-200 dark:border-neutral-800 cursor-not-allowed opacity-60'
+                        : 'text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800'}
+                  `}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 

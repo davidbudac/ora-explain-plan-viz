@@ -90,11 +90,12 @@ function InlineRenameLabel({
 }
 
 export function PlanTabs() {
-  const { plans, activePlanIndex, setActivePlan, removePlanSlot, renamePlanSlot, hasMultiplePlans, viewMode, setViewMode, treeCompareEnabled, setTreeCompareEnabled } = usePlan();
-
-  if (!hasMultiplePlans) return null;
+  const { plans, activePlanIndex, setActivePlan, addPlanSlot, removePlanSlot, renamePlanSlot, viewMode, setViewMode, treeCompareEnabled, setTreeCompareEnabled } = usePlan();
 
   const parsedPlanCount = plans.filter((slot) => slot.parsedPlan).length;
+  const hasEmptySlot = plans.some((slot) => !slot.parsedPlan);
+
+  if (parsedPlanCount === 0 && plans.length <= 1) return null;
 
   return (
     <div className="flex items-center gap-1 overflow-x-auto px-3 py-1.5 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
@@ -138,68 +139,64 @@ export function PlanTabs() {
                 </span>
               )}
             </button>
-            <button
-              onClick={(event) => {
-                event.stopPropagation();
-                removePlanSlot(index);
-              }}
-              className={`
-                ml-1 p-0.5 rounded transition-colors
-                ${isActive
-                  ? 'hover:bg-blue-500 text-blue-200'
-                  : 'hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-400 dark:text-neutral-500'
-                }
-              `}
-              title={`Remove ${slot.customLabel || slot.label}`}
-            >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            {plans.length > 1 && (
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  removePlanSlot(index);
+                }}
+                className={`
+                  ml-1 p-0.5 rounded transition-colors
+                  ${isActive
+                    ? 'hover:bg-blue-500 text-blue-200'
+                    : 'hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-400 dark:text-neutral-500'
+                  }
+                `}
+                title={`Remove ${slot.customLabel || slot.label}`}
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
         );
       })}
 
-      {parsedPlanCount >= 2 && (
+      {!hasEmptySlot && (
+        <button
+          type="button"
+          onClick={addPlanSlot}
+          className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-md border border-dashed border-neutral-300 dark:border-neutral-600 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 hover:text-neutral-700 dark:hover:text-neutral-200 hover:border-neutral-400 dark:hover:border-neutral-500 transition-colors"
+          title="Add another plan to compare"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add Plan
+        </button>
+      )}
+
+      {parsedPlanCount >= 2 && viewMode === 'hierarchical' && (
         <>
           <div className="w-px h-5 bg-neutral-200 dark:bg-neutral-700 mx-1 shrink-0" />
-          <button
-            onClick={() => setViewMode('compare')}
-            className={`
-              shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border
-              ${viewMode === 'compare'
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800'
-              }
-            `}
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            Compare Table
-          </button>
-          {viewMode === 'hierarchical' && (
-            <>
-              <div className="w-px h-5 bg-neutral-200 dark:bg-neutral-700 mx-1 shrink-0" />
-              <div className="flex bg-neutral-100 dark:bg-neutral-800 rounded-md p-0.5 border border-neutral-200 dark:border-neutral-700 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setTreeCompareEnabled(false)}
-                  className={`px-2.5 py-1 text-xs rounded-md transition-colors font-medium ${!treeCompareEnabled ? 'bg-blue-600 text-white shadow-sm' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700'}`}
-                >
-                  Single
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTreeCompareEnabled(true)}
-                  className={`px-2.5 py-1 text-xs rounded-md transition-colors font-medium ${treeCompareEnabled ? 'bg-blue-600 text-white shadow-sm' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700'}`}
-                >
-                  Split Compare
-                </button>
-              </div>
-              {treeCompareEnabled && <ComparePlanPicker />}
-            </>
-          )}
+          <div className="flex bg-neutral-100 dark:bg-neutral-800 rounded-md p-0.5 border border-neutral-200 dark:border-neutral-700 shrink-0">
+            <button
+              type="button"
+              onClick={() => setTreeCompareEnabled(false)}
+              className={`px-2.5 py-1 text-xs rounded-md transition-colors font-medium ${!treeCompareEnabled ? 'bg-blue-600 text-white shadow-sm' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700'}`}
+            >
+              Single
+            </button>
+            <button
+              type="button"
+              onClick={() => setTreeCompareEnabled(true)}
+              className={`px-2.5 py-1 text-xs rounded-md transition-colors font-medium ${treeCompareEnabled ? 'bg-blue-600 text-white shadow-sm' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700'}`}
+            >
+              Side-by-side
+            </button>
+          </div>
+          {treeCompareEnabled && <ComparePlanPicker />}
         </>
       )}
     </div>

@@ -65,6 +65,7 @@ type PlanAction =
   | { type: 'SET_FILTER_PANEL_COLLAPSED'; payload: boolean }
   | { type: 'SET_DETAIL_PANEL_COLLAPSED'; payload: boolean }
   | { type: 'SET_VISUALIZATION_MAXIMIZED'; payload: boolean }
+  | { type: 'ADD_PLAN_SLOT' }
   | { type: 'REMOVE_PLAN_SLOT'; payload: number }
   | { type: 'RENAME_PLAN_SLOT'; payload: { index: number; customLabel: string } }
   | { type: 'SET_ACTIVE_PLAN'; payload: number }
@@ -437,6 +438,17 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
       }));
     }
 
+    case 'ADD_PLAN_SLOT': {
+      const newIndex = state.plans.length;
+      const newSlot = createEmptySlot(newIndex);
+      return normalizePlanState({
+        ...state,
+        plans: [...state.plans, newSlot],
+        activePlanIndex: newIndex,
+        viewMode: state.viewMode === 'compare' ? 'hierarchical' : state.viewMode,
+      });
+    }
+
     case 'REMOVE_PLAN_SLOT': {
       const removeIndex = action.payload;
       if (state.plans.length <= 1) return state;
@@ -659,6 +671,7 @@ interface PlanContextValue {
   getAnnotationsForPlan: (index: number) => AnnotationState;
 
   // Multi-plan actions
+  addPlanSlot: () => void;
   removePlanSlot: (index: number) => void;
   renamePlanSlot: (index: number, customLabel: string) => void;
   setActivePlan: (index: number) => void;
@@ -1085,6 +1098,11 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_VISUALIZATION_MAXIMIZED', payload: maximized });
   }, []);
 
+  const addPlanSlot = useCallback(() => {
+    dispatch({ type: 'ADD_PLAN_SLOT' });
+    dispatch({ type: 'SET_INPUT_PANEL_COLLAPSED', payload: false });
+  }, []);
+
   const removePlanSlot = useCallback((index: number) => {
     dispatch({ type: 'REMOVE_PLAN_SLOT', payload: index });
   }, []);
@@ -1330,6 +1348,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     getAnnotationsForPlan,
 
     // Multi-plan actions
+    addPlanSlot,
     removePlanSlot,
     renamePlanSlot,
     setActivePlan,
