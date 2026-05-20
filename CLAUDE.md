@@ -42,7 +42,7 @@ src/
 │   ├── FilterPanel.tsx      # Filter by operation type, cost, search, predicates, cardinality mismatch
 │   ├── NodeDetailPanel.tsx  # Node details, hotspots, annotations, cardinality analysis
 │   ├── VisualizationTabs.tsx # Tab switcher for views (hierarchical, sankey, plan text, compare)
-│   ├── PlanTabs.tsx         # Plan A/B tab bar with compare button
+│   ├── PlanTabs.tsx         # Plan A/B tab bar with "+ Add Plan" chip and Single/Side-by-side toggle
 │   ├── Legend.tsx           # Hideable color legend
 │   ├── HighlightText.tsx    # Search text highlighting component
 │   ├── CustomizeViewMenu.tsx # Node display options popover
@@ -138,7 +138,7 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Node Details**: Click any node to see full attributes, predicates, cardinality analysis, and spill warnings
 
 ### UI/UX
-- **Plan Tabs**: Tab bar for switching between Plan A / Plan B when comparing
+- **Plan Tabs**: Tab bar appears once Plan A is parsed; includes a dashed "+ Add Plan" chip for loading additional plans (the Compare tab in `VisualizationTabs` is rendered disabled until ≥ 2 plans are parsed)
 - **Example Plans**: Auto-loaded sample plans from `src/examples/` (add .txt files, no code changes needed)
 - **Plan Metadata**: SQL ID, Plan Hash, A-Rows, and A-Time shown in input panel header
 - **Collapsible Input Panel**: More space for visualization when collapsed

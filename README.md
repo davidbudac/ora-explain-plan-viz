@@ -217,11 +217,11 @@ Five ways to look at your plan:
 
 ### Compare Two Plans
 
-Load a plan into Plan A, then switch to Plan B and load another. Click **Compare** to see them side by side:
+Load Plan A, then click the dashed **+ Add Plan** chip in the plan tab strip to create Plan B and paste another execution plan. The **Compare** tab in the visualization tab bar lights up as soon as the second plan is parsed (it stays visible-but-disabled before then, with a tooltip explaining what's missing):
 
 - Nodes are automatically matched between plans (by ID and heuristic matching)
 - Delta calculations show improvements and regressions across cost, rows, bytes, A-Rows, A-Time, starts, temp space, and memory
-- Split tree view shows both plans simultaneously with matched nodes aligned
+- In the Tree view, flip the **Single / Side-by-side** toggle to render both plans simultaneously with matched nodes aligned
 
 ### Annotate and Share
 
