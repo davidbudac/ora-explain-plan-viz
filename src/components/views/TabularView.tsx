@@ -4,7 +4,10 @@ import type { PlanNode } from '../../lib/types';
 import { formatNumberShort, formatBytes, formatTimeCompact, computeCardinalityRatio, formatCardinalityRatio, cardinalityRatioSeverity } from '../../lib/format';
 import { getHighlightColorDef } from '../../lib/annotations';
 import type { AnnotationGroup } from '../../lib/annotations';
+import { matchesFilters } from '../../lib/filtering';
 import { HighlightText } from '../HighlightText';
+
+const EMPTY_SELECTED_NODE_IDS: number[] = [];
 
 type SortColumn = 'id' | 'cost' | 'rows' | 'actualRows' | 'actualTime' | 'activityPercent' | 'starts' | 'memoryUsed' | 'tempUsed';
 type SortDirection = 'asc' | 'desc';
@@ -50,20 +53,65 @@ function SortArrow({ column, sortColumn, sortDirection }: { column: SortColumn; 
   );
 }
 
-export function TabularView() {
-  const {
-    parsedPlan,
-    selectedNodeIds,
-    selectNode,
-    filteredNodeIds,
-    hottestNodeId,
+interface TabularViewProps {
+  planIndex?: number;
+}
 
-    filters,
-    nodeById,
-    hotspotsEnabled,
+export function TabularView({ planIndex }: TabularViewProps = {}) {
+  const {
+    plans,
     activePlanIndex,
+    selectNodeForPlan,
+    setActivePlan,
+    filters,
+    hotspotsEnabled,
     getAnnotationsForPlan,
   } = usePlan();
+
+  const resolvedPlanIndex = planIndex ?? activePlanIndex;
+  const slot = plans[resolvedPlanIndex];
+  const parsedPlan = slot?.parsedPlan ?? null;
+  const selectedNodeIds = slot?.selectedNodeIds ?? EMPTY_SELECTED_NODE_IDS;
+
+  const selectNode = useCallback(
+    (id: number | null, options?: { additive?: boolean }) => {
+      setActivePlan(resolvedPlanIndex);
+      selectNodeForPlan(resolvedPlanIndex, id, options);
+    },
+    [resolvedPlanIndex, selectNodeForPlan, setActivePlan]
+  );
+
+  // Derive node lookup, filter set, and hot node locally so this view works for
+  // any plan slot (not just the active one).
+  const nodeById = useMemo(() => {
+    if (!parsedPlan) return new Map<number, PlanNode>();
+    return new Map(parsedPlan.allNodes.map((node) => [node.id, node]));
+  }, [parsedPlan]);
+
+  const filteredNodeIds = useMemo(() => {
+    if (!parsedPlan) return new Set<number>();
+    const hasActualStats = parsedPlan.hasActualStats ?? false;
+    return new Set(
+      parsedPlan.allNodes
+        .filter((node) => matchesFilters(node, filters, hasActualStats))
+        .map((node) => node.id)
+    );
+  }, [parsedPlan, filters]);
+
+  const hottestNodeId = useMemo((): number | null => {
+    if (!hotspotsEnabled) return null;
+    if (!parsedPlan?.hasActualStats) return null;
+    let maxTime = 0;
+    let hotId: number | null = null;
+    for (const node of parsedPlan.allNodes) {
+      if (node.parentId === undefined) continue;
+      if (node.actualTime !== undefined && node.actualTime > maxTime) {
+        maxTime = node.actualTime;
+        hotId = node.id;
+      }
+    }
+    return hotId;
+  }, [parsedPlan, hotspotsEnabled]);
 
   const [sortColumn, setSortColumn] = useState<SortColumn>('id');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -163,7 +211,7 @@ export function TabularView() {
   const actualColSpan = actualColCount + (showCardinalityCol ? 1 : 0);
   const showActualGroup = hasActualStats && actualColSpan > 0;
 
-  const planAnnotations = getAnnotationsForPlan(activePlanIndex);
+  const planAnnotations = getAnnotationsForPlan(resolvedPlanIndex);
   const effectiveAnnotations = useMemo(
     () => showAnnotations ? planAnnotations : { nodeAnnotations: new Map(), nodeHighlights: new Map(), groups: [] as AnnotationGroup[] },
     [planAnnotations, showAnnotations]
