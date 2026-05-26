@@ -177,7 +177,7 @@ export function PlanTabs() {
         </button>
       )}
 
-      {parsedPlanCount >= 2 && viewMode === 'hierarchical' && (
+      {parsedPlanCount >= 2 && (viewMode === 'hierarchical' || viewMode === 'tabular') && (
         <>
           <div className="w-px h-5 bg-neutral-200 dark:bg-neutral-700 mx-1 shrink-0" />
           <div className="flex bg-neutral-100 dark:bg-neutral-800 rounded-md p-0.5 border border-neutral-200 dark:border-neutral-700 shrink-0">

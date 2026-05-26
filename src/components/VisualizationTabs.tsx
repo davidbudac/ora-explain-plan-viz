@@ -5,6 +5,7 @@ import { ComparePlanPicker } from './ComparePlanPicker';
 import { HierarchicalView } from './views/HierarchicalView';
 import { SankeyView } from './views/SankeyView';
 import { TabularView } from './views/TabularView';
+import { TabularCompareView } from './views/TabularCompareView';
 import { CompareView } from './views/CompareView';
 import { SqlTextView } from './views/SqlTextView';
 import { MonitorDetailsView } from './views/MonitorDetailsView';
@@ -256,7 +257,7 @@ export function VisualizationTabs() {
         {viewMode === 'hierarchical' && (treeCompareEnabled ? <TreeCompareView /> : <HierarchicalView />)}
         {viewMode === 'compare' && <CompareView />}
         {viewMode === 'sankey' && <SankeyView />}
-        {viewMode === 'tabular' && <TabularView />}
+        {viewMode === 'tabular' && (treeCompareEnabled ? <TabularCompareView /> : <TabularView />)}
         {viewMode === 'text' && (
           <div className="h-full overflow-auto bg-neutral-50 dark:bg-neutral-950 p-4">
             <pre className="text-xs font-mono text-neutral-800 dark:text-neutral-200 whitespace-pre leading-relaxed">
