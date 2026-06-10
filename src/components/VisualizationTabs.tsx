@@ -132,6 +132,16 @@ export function VisualizationTabs() {
     }
   }, [exportPngFnRef, treeCompareEnabled, viewMode]);
 
+  // If the current view's tab isn't available for this plan (e.g. SQL view but
+  // the plan has no SQL text, or a persisted view mode from a previous session),
+  // fall back to the tree view instead of showing an empty hidden view.
+  const viewModeAvailable = visibleTabs.some((tab) => tab.id === viewMode);
+  useEffect(() => {
+    if (parsedPlan && !viewModeAvailable) {
+      setViewMode('hierarchical');
+    }
+  }, [parsedPlan, viewModeAvailable, setViewMode]);
+
   if (!parsedPlan && viewMode !== 'compare') {
     return null;
   }

@@ -7,8 +7,8 @@ const SETTINGS_VERSION = 1;
 
 /**
  * User settings that persist across sessions.
- * Note: We don't persist searchText, minCost slider values, or raw input data
- * since those are typically session-specific.
+ * Note: We don't persist searchText, minCost slider values, operation/predicate
+ * type filters, or raw input data since those are typically session-specific.
  */
 export interface UserSettings {
   version: number;
@@ -29,12 +29,6 @@ export interface UserSettings {
   scaleEdgeWidth: boolean;
   focusSelection: boolean;
   nodeDisplayOptions: NodeDisplayOptions;
-
-  // Predicate type filters
-  predicateTypes: string[];
-
-  // Operation type filters
-  operationTypes: string[];
 
   // Hotspots
   hotspotsEnabled: boolean;
@@ -81,8 +75,6 @@ const defaultSettings: UserSettings = {
   scaleEdgeWidth: true,
   focusSelection: true,
   nodeDisplayOptions: defaultNodeDisplayOptions,
-  predicateTypes: [],
-  operationTypes: [],
   compareMetrics: ['cost', 'actualRows', 'actualTime'],
   highlightStyle: 'circle',
 };
@@ -150,20 +142,20 @@ export function saveSettings(settings: Partial<UserSettings>): void {
 
 /**
  * Extract persistable filter settings from FilterState.
+ * Operation/predicate type filters are intentionally excluded — restoring them
+ * on the next session would silently hide plan nodes.
  */
 export function extractFilterSettings(
   filters: FilterState
 ): Pick<
   UserSettings,
-  'animateEdges' | 'scaleEdgeWidth' | 'focusSelection' | 'nodeDisplayOptions' | 'predicateTypes' | 'operationTypes'
+  'animateEdges' | 'scaleEdgeWidth' | 'focusSelection' | 'nodeDisplayOptions'
 > {
   return {
     animateEdges: filters.animateEdges,
     scaleEdgeWidth: filters.scaleEdgeWidth,
     focusSelection: filters.focusSelection,
     nodeDisplayOptions: filters.nodeDisplayOptions,
-    predicateTypes: filters.predicateTypes,
-    operationTypes: filters.operationTypes,
   };
 }
 
@@ -180,7 +172,5 @@ export function applySettingsToFilters(
     scaleEdgeWidth: settings.scaleEdgeWidth,
     focusSelection: settings.focusSelection,
     nodeDisplayOptions: settings.nodeDisplayOptions,
-    predicateTypes: settings.predicateTypes as FilterState['predicateTypes'],
-    operationTypes: settings.operationTypes,
   };
 }

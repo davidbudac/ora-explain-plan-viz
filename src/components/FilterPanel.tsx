@@ -69,7 +69,8 @@ interface FilterPanelProps {
 
 export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
   const { parsedPlan, filters, setFilters, filteredNodes, selectNode, filterPanelCollapsed: isCollapsed, setFilterPanelCollapsed: setIsCollapsed } = usePlan();
-  const [activeMatchIndex, setActiveMatchIndex] = useState(0);
+  // null = no match navigated to yet (first "Next" selects the first match)
+  const [activeMatchIndex, setActiveMatchIndex] = useState<number | null>(null);
 
   const operationStats = useMemo(() => {
     if (!parsedPlan) return new Map<string, number>();
@@ -151,13 +152,18 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
   }, [parsedPlan, filters.searchText]);
 
   useEffect(() => {
-    setActiveMatchIndex(0);
+    setActiveMatchIndex(null);
   }, [filters.searchText, parsedPlan]);
 
   const handleMatchNavigate = (direction: 'prev' | 'next') => {
     if (searchMatches.length === 0) return;
-    const delta = direction === 'next' ? 1 : -1;
-    const nextIndex = (activeMatchIndex + delta + searchMatches.length) % searchMatches.length;
+    let nextIndex: number;
+    if (activeMatchIndex === null) {
+      nextIndex = direction === 'next' ? 0 : searchMatches.length - 1;
+    } else {
+      const delta = direction === 'next' ? 1 : -1;
+      nextIndex = (activeMatchIndex + delta + searchMatches.length) % searchMatches.length;
+    }
     setActiveMatchIndex(nextIndex);
     selectNode(searchMatches[nextIndex]);
   };
@@ -200,7 +206,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
   };
 
   const clearFilters = () => {
-    setActiveMatchIndex(0);
+    setActiveMatchIndex(null);
     setFilters({
       operationTypes: [],
       minCost: 0,
@@ -306,7 +312,9 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
             <span>
               {searchMatches.length === 0
                 ? 'No matches'
-                : `Match ${Math.min(activeMatchIndex + 1, searchMatches.length)} of ${searchMatches.length}`}
+                : activeMatchIndex === null
+                  ? `${searchMatches.length} match${searchMatches.length !== 1 ? 'es' : ''}`
+                  : `Match ${Math.min(activeMatchIndex + 1, searchMatches.length)} of ${searchMatches.length}`}
             </span>
             {searchMatches.length > 0 && (
               <div className="flex items-center gap-1">

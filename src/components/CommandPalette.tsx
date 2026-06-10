@@ -575,20 +575,26 @@ export function CommandPalette() {
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
+        e.stopPropagation();
+        if (flatItems.length === 0) break;
         setSelectedIndex(i => (i + 1) % flatItems.length);
         break;
       case 'ArrowUp':
         e.preventDefault();
+        e.stopPropagation();
+        if (flatItems.length === 0) break;
         setSelectedIndex(i => (i - 1 + flatItems.length) % flatItems.length);
         break;
       case 'Enter':
         e.preventDefault();
+        e.stopPropagation();
         if (flatItems[selectedIndex]) {
           executeAndClose(flatItems[selectedIndex]);
         }
         break;
       case 'Escape':
         e.preventDefault();
+        e.stopPropagation();
         setOpen(false);
         break;
     }

@@ -1030,6 +1030,14 @@ function HierarchicalViewContent({
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
+        // Don't hijack keys while the user is typing in an input (search box,
+        // annotation editor, command palette, rename field, ...)
+        const target = e.target as HTMLElement | null;
+        const tag = target?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) {
+          return;
+        }
+
         if (!parsedPlan || selectedNodeId === null) {
           // Escape clears selection regardless
           if (e.key === 'Escape') {
