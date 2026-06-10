@@ -63,10 +63,10 @@ export function InputPanel() {
   const handleDragLeave = () => setIsDraggingFile(false);
 
   const handleDrop = (e: React.DragEvent<HTMLTextAreaElement>) => {
+    e.preventDefault();
     setIsDraggingFile(false);
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
-    e.preventDefault();
     const reader = new FileReader();
     reader.onload = () => {
       const text = typeof reader.result === 'string' ? reader.result : '';

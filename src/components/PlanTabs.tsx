@@ -102,9 +102,27 @@ export function PlanTabs() {
       {plans.map((slot, index) => {
         const isActive = index === activePlanIndex && viewMode !== 'compare';
         const phv = slot.parsedPlan?.planHashValue;
+        const activateTab = () => {
+          setActivePlan(index);
+          if (viewMode === 'compare') {
+            setViewMode('hierarchical');
+          }
+        };
         return (
           <div
             key={slot.id}
+            role="tab"
+            aria-selected={isActive}
+            tabIndex={0}
+            onClick={activateTab}
+            onKeyDown={(e) => {
+              // Only react to keys on the tab itself, not the rename input inside it
+              if (e.target !== e.currentTarget) return;
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                activateTab();
+              }
+            }}
             className={`
               group/tab shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border cursor-pointer
               ${isActive
@@ -113,15 +131,7 @@ export function PlanTabs() {
               }
             `}
           >
-            <button
-              onClick={() => {
-                setActivePlan(index);
-                if (viewMode === 'compare') {
-                  setViewMode('hierarchical');
-                }
-              }}
-              className="flex items-center gap-1.5"
-            >
+            <span className="flex items-center gap-1.5">
               <InlineRenameLabel
                 slot={slot}
                 index={index}
@@ -138,7 +148,7 @@ export function PlanTabs() {
                   (empty)
                 </span>
               )}
-            </button>
+            </span>
             {plans.length > 1 && (
               <button
                 onClick={(event) => {
