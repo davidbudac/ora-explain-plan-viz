@@ -326,18 +326,19 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
 
   const handleRowClick = useCallback((node: PlanNode, event: React.MouseEvent) => {
     selectNode(node.id, { additive: event.metaKey || event.ctrlKey });
-    if (node.children.length > 0) {
-      setCollapsedIds(prev => {
-        const next = new Set(prev);
-        if (next.has(node.id)) {
-          next.delete(node.id);
-        } else {
-          next.add(node.id);
-        }
-        return next;
-      });
-    }
   }, [selectNode]);
+
+  const toggleCollapse = useCallback((nodeId: number) => {
+    setCollapsedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
+  }, []);
 
   const handleRowMouseEnter = useCallback((node: PlanNode, event: React.MouseEvent) => {
     setHoveredNodeId(node.id);
@@ -641,9 +642,19 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                     {/* Content */}
                     <div className="py-1">
                       <div className="flex items-center gap-1">
-                        {/* Collapse indicator */}
+                        {/* Collapse toggle */}
                         {hasChildren ? (
-                          <span className="w-3.5 h-3.5 flex items-center justify-center flex-shrink-0 text-neutral-400 dark:text-neutral-500">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleCollapse(node.id);
+                            }}
+                            title={isCollapsed ? 'Expand subtree' : 'Collapse subtree'}
+                            aria-label={isCollapsed ? 'Expand subtree' : 'Collapse subtree'}
+                            aria-expanded={!isCollapsed}
+                            className="w-3.5 h-3.5 flex items-center justify-center flex-shrink-0 rounded text-neutral-400 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-700"
+                          >
                             <svg
                               className={`w-3 h-3 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
                               fill="none"
@@ -653,7 +664,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                             >
                               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                             </svg>
-                          </span>
+                          </button>
                         ) : (
                           <span className="w-3.5 flex-shrink-0" />
                         )}
