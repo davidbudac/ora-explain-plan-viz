@@ -130,11 +130,11 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   return (
     <div
       className={`
-        relative ${isReadable ? 'w-[290px]' : 'w-[260px]'} rounded-lg ${borderClass} ${isMono ? 'shadow-sm' : 'shadow-md'} transition-all duration-200
+        relative ${isReadable ? 'w-[290px]' : 'w-[260px]'} rounded-xl ${borderClass} ${isMono ? 'shadow-sm' : 'shadow-lg'} transition-all duration-300
         ${colors.bg} ${colors.border}
-        ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900 scale-105' : ''}
-        ${isInFocusPath && !(highlightColor && showAnnotationsOverlay) ? 'ring-1 ring-blue-300/60' : ''}
-        ${showHot && !isSelected ? 'ring-2 ring-red-500/70 ring-offset-1 dark:ring-offset-gray-900' : ''}
+        ${isSelected ? 'ring-2 ring-blue-600 ring-offset-4 dark:ring-offset-slate-950 scale-105 z-30' : ''}
+        ${isInFocusPath && !(highlightColor && showAnnotationsOverlay) ? 'ring-2 ring-blue-400/40' : ''}
+        ${showHot && !isSelected ? 'ring-2 ring-red-600 ring-offset-2 dark:ring-offset-slate-950' : ''}
       `}
       style={{ opacity, ...glowStyle, ...tintStyle }}
     >
