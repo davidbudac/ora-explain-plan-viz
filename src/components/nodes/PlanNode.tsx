@@ -350,7 +350,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                 {options.showCost && node.cost !== undefined && (
                   <>
                     <span className="px-2.5 py-1 text-neutral-500 dark:text-neutral-400 border-b border-neutral-200 dark:border-neutral-700">Cost</span>
-                    <span className="px-2.5 py-1 text-right font-bold text-neutral-900 dark:text-neutral-100 tabular-nums border-b border-neutral-200 dark:border-neutral-700">{node.cost}</span>
+                    <span className="px-2.5 py-1 text-right font-bold text-neutral-900 dark:text-neutral-100 tabular-nums border-b border-neutral-200 dark:border-neutral-700">{formatNumberShort(node.cost)}</span>
                   </>
                 )}
                 {options.showBytes && node.bytes !== undefined && (
@@ -397,7 +397,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
               )}
               {options.showCost && node.cost !== undefined && (
                 <span className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300">
-                  Cost: {node.cost}
+                  Cost: {formatNumberShort(node.cost)}
                 </span>
               )}
               {options.showBytes && node.bytes !== undefined && (

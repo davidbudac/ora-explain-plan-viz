@@ -27,6 +27,7 @@ export function Header() {
     plans,
     viewMode,
     treeCompareEnabled,
+    setCommandPaletteOpen,
   } = usePlan();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [exporting, setExporting] = useState(false);
@@ -197,6 +198,18 @@ export function Header() {
             </div>
           )}
         </div>
+
+        {/* Command palette */}
+        <button
+          onClick={() => setCommandPaletteOpen(true)}
+          className="h-8 px-2.5 flex items-center gap-1.5 rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors text-neutral-700 dark:text-neutral-300"
+          title="Command palette — search every action and setting"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <kbd className="text-[10px] font-semibold">{navigator.platform?.includes('Mac') ? '⌘K' : 'Ctrl+K'}</kbd>
+        </button>
 
         <select
           value={colorScheme}
