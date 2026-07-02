@@ -34,6 +34,26 @@ export function matchesOperationTypes(node: PlanNode, operationTypes: string[]):
   return operationTypes.some((type) => node.operation.toUpperCase().includes(type.toUpperCase()));
 }
 
+/**
+ * True when any node-hiding filter differs from its default (i.e. the filter
+ * panel is actually narrowing the visible plan). Display-only options
+ * (nodeDisplayOptions, edge behavior flags) are ignored.
+ */
+export function hasActiveFilters(filters: FilterState): boolean {
+  return (
+    filters.searchText.trim() !== '' ||
+    filters.operationTypes.length > 0 ||
+    filters.predicateTypes.length > 0 ||
+    filters.minCost > 0 ||
+    filters.maxCost !== Infinity ||
+    filters.minActualRows > 0 ||
+    filters.maxActualRows !== Infinity ||
+    filters.minActualTime > 0 ||
+    filters.maxActualTime !== Infinity ||
+    filters.minCardinalityMismatch > 0
+  );
+}
+
 export function matchesFilters(
   node: PlanNode,
   filters: FilterState,

@@ -204,7 +204,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
             {/* Worst Cardinality Mismatches */}
             {worstNodes.byCardinalityMismatch.length > 0 && (
-              <Accordion title="Cardinality Drift" defaultOpen={false}>
+              <Accordion title="Cardinality Mismatch" defaultOpen={false}>
                 <div className="space-y-1">
                   {worstNodes.byCardinalityMismatch.map(({ node: n, ratio }) => {
                     const severity = cardinalityRatioSeverity(ratio);
@@ -514,19 +514,6 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         })()}
       </div>
 
-      {/* Annotation Editor */}
-      <AnnotationEditor
-        nodeId={node.id}
-        annotationText={annotations.nodeAnnotations.get(node.id)?.text || ''}
-        highlightColor={annotations.nodeHighlights.get(node.id)?.color}
-        highlightStyle={highlightStyle}
-        onHighlightStyleChange={setHighlightStyle}
-        onTextChange={setNodeAnnotation}
-        onTextRemove={removeNodeAnnotation}
-        onHighlightChange={setNodeHighlight}
-        onHighlightRemove={removeNodeHighlight}
-      />
-
       {/* Cardinality Mismatch */}
       {(() => {
         const ratio = computeCardinalityRatio(node.rows, node.actualRows);
@@ -645,16 +632,17 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         </Accordion>
       )}
 
-      {/* Metadata Section - needs update inside itself */}
-      <MetadataSection
-        bundle={metadataBundle}
-        bundleWarning={metadataBundleWarning}
-        match={metadataBundle ? findObjectInBundle(metadataBundle, node.objectName) : null}
-        objectName={node.objectName}
-        accessPredicates={node.accessPredicates}
-        filterPredicates={node.filterPredicates}
-        usedIndexKeys={usedIndexKeys}
-        planSqlId={parsedPlan?.sqlId}
+      {/* Annotation Editor */}
+      <AnnotationEditor
+        nodeId={node.id}
+        annotationText={annotations.nodeAnnotations.get(node.id)?.text || ''}
+        highlightColor={annotations.nodeHighlights.get(node.id)?.color}
+        highlightStyle={highlightStyle}
+        onHighlightStyleChange={setHighlightStyle}
+        onTextChange={setNodeAnnotation}
+        onTextRemove={removeNodeAnnotation}
+        onHighlightChange={setNodeHighlight}
+        onHighlightRemove={removeNodeHighlight}
       />
 
       {/* Metadata (schema bundle) */}

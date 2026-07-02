@@ -112,6 +112,7 @@ export function NavRibbon() {
                   setViewMode(tab.id);
                 }}
                 disabled={isDisabled}
+                title={isDisabled ? 'Load a second plan (+ Add Plan) to enable comparison' : undefined}
                 className={`
                   flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all
                   ${isActive
