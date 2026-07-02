@@ -645,18 +645,6 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         </Accordion>
       )}
 
-      {/* Metadata Section - needs update inside itself */}
-      <MetadataSection
-        bundle={metadataBundle}
-        bundleWarning={metadataBundleWarning}
-        match={metadataBundle ? findObjectInBundle(metadataBundle, node.objectName) : null}
-        objectName={node.objectName}
-        accessPredicates={node.accessPredicates}
-        filterPredicates={node.filterPredicates}
-        usedIndexKeys={usedIndexKeys}
-        planSqlId={parsedPlan?.sqlId}
-      />
-
       {/* Metadata (schema bundle) */}
       <MetadataSection
         bundle={metadataBundle}

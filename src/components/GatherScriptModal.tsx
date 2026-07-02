@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import gatherScript from '../../scripts/gather_plan_metadata.sql?raw';
 import { parseManualObjectList, formatManualListArg } from '../lib/metadata/manualList';
+import { usePlan } from '../hooks/usePlanContext';
 
 type Mode = 'sqlid' | 'manual';
 
@@ -13,13 +14,17 @@ interface GatherScriptModalProps {
 const SQL_ID_RE = /^[a-z0-9]{1,13}$/i;
 
 export function GatherScriptModal({ initialSqlId, initialMode, onClose }: GatherScriptModalProps) {
+  const { loadMetadataBundle, attachMetadataBundleToSlot, activePlanIndex, plans } = usePlan();
   const [mode, setMode] = useState<Mode>(initialMode ?? (initialSqlId ? 'sqlid' : 'manual'));
   const [sqlId, setSqlId] = useState(initialSqlId ?? '');
   const [planHash, setPlanHash] = useState('');
   const [manualText, setManualText] = useState('');
   const [copiedKey, setCopiedKey] = useState<'command' | 'script' | null>(null);
+  const [outputText, setOutputText] = useState('');
+  const [attachMessage, setAttachMessage] = useState<{ tone: 'ok' | 'warn' | 'error'; text: string } | null>(null);
   const sqlIdRef = useRef<HTMLInputElement>(null);
   const manualRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (mode === 'sqlid') sqlIdRef.current?.focus();
@@ -44,23 +49,56 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
       const args = sqlId
         ? `${sqlId}${planHash ? ` ${planHash}` : ''}`
         : '<SQL_ID> [<PLAN_HASH>]';
-      return [
-        'SET SERVEROUTPUT ON SIZE UNLIMITED',
-        'SPOOL bundle.json',
-        `@gather_plan_metadata.sql ${args}`,
-        'SPOOL OFF',
-      ].join('\n');
+      return `@gather_plan_metadata.sql ${args}`;
     }
     const arg = manualParsed.items.length
       ? formatManualListArg(manualParsed.items)
       : '<OWNER.OBJECT,OWNER.OBJECT>';
-    return [
-      'SET SERVEROUTPUT ON SIZE UNLIMITED',
-      'SPOOL bundle.json',
-      `@gather_plan_metadata.sql LIST "${arg}"`,
-      'SPOOL OFF',
-    ].join('\n');
+    return `@gather_plan_metadata.sql LIST "${arg}"`;
   }, [mode, sqlId, planHash, manualParsed]);
+
+  const attachOutput = (text: string) => {
+    if (!text.trim()) {
+      setAttachMessage({ tone: 'error', text: 'Nothing to attach — paste the script output first.' });
+      return;
+    }
+    const slotLabel = (index: number) => {
+      const slot = plans[index];
+      return slot?.customLabel || slot?.label || `slot ${index + 1}`;
+    };
+    const report = (warning: string | null, index: number) => {
+      if (warning) {
+        setAttachMessage({ tone: 'warn', text: `Bundle attached to ${slotLabel(index)}, but ${warning}` });
+      } else {
+        setAttachMessage({ tone: 'ok', text: `Metadata bundle attached to ${slotLabel(index)}.` });
+      }
+      setOutputText('');
+    };
+    const result = loadMetadataBundle(text);
+    if (result.ok === true) {
+      report(result.warning, result.pairedSlotIndex);
+    } else if (result.ok === 'needs-choice') {
+      // The modal is opened from a specific plan's chip/panel — attach to it.
+      const attach = attachMetadataBundleToSlot(result.bundle, activePlanIndex);
+      if (attach.ok) {
+        report(attach.warning, activePlanIndex);
+      } else {
+        setAttachMessage({ tone: 'error', text: attach.error });
+      }
+    } else {
+      setAttachMessage({ tone: 'error', text: result.error });
+    }
+  };
+
+  const handleFilePick = (file: File | undefined) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === 'string' ? reader.result : '';
+      attachOutput(text);
+    };
+    reader.readAsText(file);
+  };
 
   const copy = async (text: string, key: 'command' | 'script') => {
     try {
@@ -95,7 +133,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-800">
           <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-            Attempt to Gather Schema Metadata
+            Gather Schema Metadata
           </h3>
           <button
             type="button"
@@ -109,13 +147,14 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
 
         <div className="p-4 space-y-4">
           <p className="text-[11px] text-neutral-600 dark:text-neutral-400 leading-snug">
-            Run this PL/SQL script in SQL*Plus or SQLcl against the database that holds your
-            plan. It <em>attempts</em> to collect the schema details relevant to this plan
-            (tables, indexes, column stats, histograms) so you can analyze it with more
-            context. Coverage depends on your privileges — the script prefers
-            <code> DBA_*</code> views and falls back to <code>ALL_*</code>; anything it can't
-            read is listed in <code>coverage_warnings</code>. Output goes to <code>DBMS_OUTPUT</code>
-            — capture it with <code>SPOOL</code> and drop the file onto the input area of this app.
+            Run this script in SQL*Plus or SQLcl against the database that holds your plan.
+            It collects the schema details relevant to this plan (tables, indexes, column
+            stats, histograms) so you can analyze it with more context, and writes them to{' '}
+            <code>bundle.json</code> in the current directory. Coverage depends on your
+            privileges — the script prefers <code>DBA_*</code> views and falls back to{' '}
+            <code>ALL_*</code>; anything it can't read is listed in{' '}
+            <code>coverage_warnings</code>. When it's done, paste the file's contents below
+            (or drop the file onto the input panel).
           </p>
 
           <div className="inline-flex rounded-md border border-neutral-200 dark:border-neutral-700 overflow-hidden text-[11px]">
@@ -262,6 +301,61 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
             <pre className="text-[10px] font-mono p-2 rounded border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-950 text-neutral-800 dark:text-neutral-200 whitespace-pre overflow-auto max-h-72">
               {gatherScript}
             </pre>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] font-medium text-neutral-600 dark:text-neutral-400 uppercase tracking-wide">
+                Attach the output
+              </span>
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="text-[10px] px-1.5 py-0.5 rounded border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+              >
+                Load file…
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                className="hidden"
+                onChange={(e) => {
+                  handleFilePick(e.target.files?.[0]);
+                  e.target.value = '';
+                }}
+              />
+            </div>
+            <textarea
+              value={outputText}
+              onChange={(e) => setOutputText(e.target.value)}
+              placeholder="Paste the contents of bundle.json here… (SQL*Plus prompt lines are fine — they are stripped automatically)"
+              spellCheck={false}
+              rows={3}
+              className="w-full px-2.5 py-1.5 text-xs font-mono rounded-md bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 border border-neutral-200 dark:border-neutral-700"
+            />
+            {attachMessage && (
+              <div
+                className={`mt-1 p-2 text-[11px] rounded-md border ${
+                  attachMessage.tone === 'ok'
+                    ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
+                    : attachMessage.tone === 'warn'
+                      ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
+                      : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                }`}
+              >
+                {attachMessage.text}
+              </div>
+            )}
+            <div className="mt-1.5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => attachOutput(outputText)}
+                disabled={!outputText.trim()}
+                className="h-7 px-3 text-xs font-semibold rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Attach bundle
+              </button>
+            </div>
           </div>
         </div>
 

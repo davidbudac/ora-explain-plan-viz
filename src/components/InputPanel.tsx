@@ -3,7 +3,7 @@ import { usePlan } from '../hooks/usePlanContext';
 import { getSourceDisplayName } from '../lib/parser';
 import { formatNumberShort, formatTimeShort } from '../lib/format';
 import { SAMPLE_PLANS_BY_CATEGORY, type SamplePlan } from '../examples';
-import type { MetadataBundle } from '../lib/metadata/bundle';
+import { looksLikeMetadataBundle, type MetadataBundle } from '../lib/metadata/bundle';
 import { classifyDroppedFile } from '../lib/metadata/dropClassify';
 import { MetadataChip } from './MetadataChip';
 
@@ -19,7 +19,35 @@ export function InputPanel() {
   const wasParsingRef = useRef(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const handleBundleText = (text: string, opts?: { clearInputOnSuccess?: boolean }) => {
+    const result = loadMetadataBundle(text);
+    if (result.ok === true) {
+      const slot = plans[result.pairedSlotIndex];
+      const label = slot?.customLabel || slot?.label || `slot ${result.pairedSlotIndex + 1}`;
+      if (result.warning) {
+        setBundleMessage({ tone: 'warn', text: `Bundle attached to ${label}, but ${result.warning}` });
+      } else {
+        setBundleMessage({ tone: 'ok', text: `Metadata bundle attached to ${label}.` });
+      }
+      if (opts?.clearInputOnSuccess) setInput('');
+    } else if (result.ok === 'needs-choice') {
+      setPendingBundleChoice({
+        bundle: result.bundle,
+        reason: result.reason,
+        candidateIndices: result.candidateIndices,
+      });
+    } else {
+      setBundleMessage({ tone: 'error', text: result.error });
+    }
+  };
+
   const handleParse = () => {
+    // A pasted gather-script output is not a plan — route it to the bundle
+    // pipeline instead of failing in the plan parsers.
+    if (looksLikeMetadataBundle(rawInput)) {
+      handleBundleText(rawInput, { clearInputOnSuccess: true });
+      return;
+    }
     wasParsingRef.current = true;
     parsePlan();
   };
@@ -53,7 +81,7 @@ export function InputPanel() {
     clearPlan();
   };
 
-  const handleDragOver = (e: React.DragEvent<HTMLTextAreaElement>) => {
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     if (e.dataTransfer.types.includes('Files')) {
       e.preventDefault();
       setIsDraggingFile(true);
@@ -62,7 +90,7 @@ export function InputPanel() {
 
   const handleDragLeave = () => setIsDraggingFile(false);
 
-  const handleDrop = (e: React.DragEvent<HTMLTextAreaElement>) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDraggingFile(false);
     const file = e.dataTransfer.files?.[0];
@@ -77,24 +105,7 @@ export function InputPanel() {
         return;
       }
       if (classification.kind === 'bundle') {
-        const result = loadMetadataBundle(text);
-        if (result.ok === true) {
-          const slot = plans[result.pairedSlotIndex];
-          const label = slot?.customLabel || slot?.label || `slot ${result.pairedSlotIndex + 1}`;
-          if (result.warning) {
-            setBundleMessage({ tone: 'warn', text: `Bundle attached to ${label}, but ${result.warning}` });
-          } else {
-            setBundleMessage({ tone: 'ok', text: `Metadata bundle attached to ${label}.` });
-          }
-        } else if (result.ok === 'needs-choice') {
-          setPendingBundleChoice({
-            bundle: result.bundle,
-            reason: result.reason,
-            candidateIndices: result.candidateIndices,
-          });
-        } else {
-          setBundleMessage({ tone: 'error', text: result.error });
-        }
+        handleBundleText(text);
         return;
       }
       setBundleMessage(null);
@@ -105,7 +116,18 @@ export function InputPanel() {
   };
 
   return (
-    <div className="flex flex-col bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
+    // Drag handlers live on the container so drops work even while the panel
+    // is collapsed — the state users are in when they return with a bundle.
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={`flex flex-col bg-white dark:bg-neutral-900 border-b ${
+        isDraggingFile
+          ? 'border-blue-500 ring-2 ring-inset ring-blue-500/60'
+          : 'border-neutral-200 dark:border-neutral-800'
+      }`}
+    >
       {/* Header - always visible */}
       <div className="flex items-center justify-between px-3 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 transition-colors">
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -256,34 +278,13 @@ export function InputPanel() {
                 handleParse();
               }
             }}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            placeholder={"Paste an Oracle execution plan here, drop a plan file onto this box, or click Load Example -->\n\nSupported formats:\n  \u2022 DBMS_XPLAN output\n  \u2022 SQL Monitor text report\n  \u2022 SQL Monitor XML report\n  \u2022 V$SQL_PLAN JSON\n\nMultiple plans in one paste are supported and are split into separate tabs."}
-            className={`w-full h-36 p-2.5 font-mono text-xs bg-neutral-50 dark:bg-neutral-950 border ${
-              isDraggingFile
-                ? 'border-blue-500 ring-2 ring-blue-500/60'
-                : 'border-neutral-200 dark:border-neutral-700'
-            } rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-blue-500/60 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500`}
+            placeholder={"Paste an Oracle execution plan here, drop a plan file onto this box, or click Load Example -->\n\nSupported formats:\n  \u2022 DBMS_XPLAN output\n  \u2022 SQL Monitor text report\n  \u2022 SQL Monitor XML report\n  \u2022 V$SQL_PLAN JSON\n  \u2022 Metadata bundle (gather_plan_metadata.sql output)\n\nMultiple plans in one paste are supported and are split into separate tabs."}
+            className="w-full h-36 p-2.5 font-mono text-xs bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-blue-500/60 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500"
           />
 
           {error && (
             <div className="p-2 text-xs bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-red-700 dark:text-red-400">
               {error}
-            </div>
-          )}
-
-          {bundleMessage && (
-            <div
-              className={`p-2 text-xs rounded-md border ${
-                bundleMessage.tone === 'ok'
-                  ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
-                  : bundleMessage.tone === 'warn'
-                    ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
-                    : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
-              }`}
-            >
-              {bundleMessage.text}
             </div>
           )}
 
@@ -328,6 +329,32 @@ export function InputPanel() {
             )}
           </div>
 
+        </div>
+      )}
+
+      {/* Bundle status is shown outside the collapsible content so drops onto
+          the collapsed header still get visible feedback. */}
+      {bundleMessage && (
+        <div className="px-3 pb-2">
+          <div
+            className={`p-2 text-xs rounded-md border flex items-start justify-between gap-2 ${
+              bundleMessage.tone === 'ok'
+                ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
+                : bundleMessage.tone === 'warn'
+                  ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
+                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+            }`}
+          >
+            <span>{bundleMessage.text}</span>
+            <button
+              type="button"
+              onClick={() => setBundleMessage(null)}
+              aria-label="Dismiss"
+              className="shrink-0 font-bold opacity-60 hover:opacity-100 leading-none"
+            >
+              ×
+            </button>
+          </div>
         </div>
       )}
       {pendingBundleChoice && (
