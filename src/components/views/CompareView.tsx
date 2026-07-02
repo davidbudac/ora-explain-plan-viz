@@ -312,19 +312,15 @@ export function CompareView() {
 
   const rows = useMemo(() => buildComparisonRows(matches), [matches]);
 
-  // Clear the sort if its metric is deselected from the visible set
-  useEffect(() => {
-    if (sort && !compareMetrics.includes(sort.metric)) {
-      setSort(null);
-    }
-  }, [sort, compareMetrics]);
+  // Ignore the sort if its metric was deselected from the visible set
+  const effectiveSort = sort && compareMetrics.includes(sort.metric) ? sort : null;
 
   const visibleRows = useMemo(() => {
     let result = showChangedOnly
       ? rows.filter((row) => rowHasVisibleChange(row, compareMetrics))
       : rows;
-    if (sort) {
-      const { metric, direction } = sort;
+    if (effectiveSort) {
+      const { metric, direction } = effectiveSort;
       result = [...result].sort((a, b) => {
         const da = a.deltas[metric]?.delta;
         const db = b.deltas[metric]?.delta;
@@ -339,19 +335,16 @@ export function CompareView() {
       });
     }
     return result;
-  }, [rows, showChangedOnly, compareMetrics, sort]);
+  }, [rows, showChangedOnly, compareMetrics, effectiveSort]);
 
-  // Collapse the expansion if its row is filtered/sorted out of view
-  useEffect(() => {
-    if (expandedKey && !visibleRows.some((row) => row.key === expandedKey)) {
-      setExpandedKey(null);
-    }
-  }, [expandedKey, visibleRows]);
+  // Ignore the expansion if its row is filtered/sorted out of view
+  const effectiveExpandedKey =
+    expandedKey !== null && visibleRows.some((row) => row.key === expandedKey) ? expandedKey : null;
 
   // Escape closes the expanded row (keyboard parity with other views)
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || expandedKey === null) return;
+      if (event.key !== 'Escape' || effectiveExpandedKey === null) return;
       const tag = (event.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       event.preventDefault();
@@ -359,7 +352,7 @@ export function CompareView() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [expandedKey]);
+  }, [effectiveExpandedKey]);
 
   if (!planA || !planB || !summary) {
     return (
@@ -493,8 +486,8 @@ export function CompareView() {
                 <th className="px-2 py-2 text-left font-semibold text-neutral-600 dark:text-neutral-400">Operation</th>
                 <th className="px-2 py-2 text-left font-semibold text-neutral-600 dark:text-neutral-400">Object</th>
                 {compareMetrics.map(metric => {
-                  const active = sort?.metric === metric;
-                  const ariaSort = active ? (sort!.direction === 'desc' ? 'descending' : 'ascending') : 'none';
+                  const active = effectiveSort?.metric === metric;
+                  const ariaSort = active ? (effectiveSort!.direction === 'desc' ? 'descending' : 'ascending') : 'none';
                   return (
                     <th
                       key={`header-${metric}`}
@@ -511,7 +504,7 @@ export function CompareView() {
                         }`}
                       >
                         {getMetricLabel(metric)}
-                        {active && <span className="ml-1">{sort!.direction === 'desc' ? '↓' : '↑'}</span>}
+                        {active && <span className="ml-1">{effectiveSort!.direction === 'desc' ? '↓' : '↑'}</span>}
                       </button>
                     </th>
                   );
@@ -533,7 +526,7 @@ export function CompareView() {
                 const { planANode: nodeA, planBNode: nodeB } = row.match;
                 const operation = nodeA?.operation ?? nodeB?.operation ?? '';
                 const objectName = nodeA?.objectName ?? nodeB?.objectName ?? '';
-                const isExpanded = expandedKey === row.key;
+                const isExpanded = effectiveExpandedKey === row.key;
                 return (
                   <React.Fragment key={row.key}>
                     <tr
