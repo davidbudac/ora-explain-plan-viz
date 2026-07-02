@@ -640,7 +640,7 @@ export function CommandPalette() {
         setOpen(false);
         break;
     }
-  }, [flatItems, selectedIndex, executeAndClose]);
+  }, [flatItems, selectedIndex, executeAndClose, setOpen]);
 
   if (!open) return null;
 
