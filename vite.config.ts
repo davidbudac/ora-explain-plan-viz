@@ -20,7 +20,13 @@ function normalizeBasePath(value?: string): string {
 
 const base = normalizeBasePath(process.env.APP_BASE_PATH)
 
+// Honor a harness-assigned port (e.g. preview tooling) while keeping Vite's
+// default when PORT is unset.
+const port = process.env.PORT ? Number(process.env.PORT) : undefined
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   base,
+  server: { port },
+  preview: { port },
 })

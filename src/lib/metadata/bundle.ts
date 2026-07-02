@@ -78,13 +78,75 @@ export interface CoverageWarning {
   reason: string;
 }
 
+/**
+ * Cheap detection of bundle content anywhere in a piece of text, before any
+ * cleanup. Used to route pasted or dropped input toward the bundle pipeline
+ * regardless of file extension or surrounding SQL*Plus noise.
+ */
+export function looksLikeMetadataBundle(text: string): boolean {
+  return /"format"\s*:\s*"ora-plan-metadata"/.test(text);
+}
+
+const SQLPLUS_NOISE = [
+  /^\s*SQL>/,
+  /^\s*Enter value for /i,
+  /^\s*old\s+\d+:/,
+  /^\s*new\s+\d+:/,
+  /^\s*PL\/SQL procedure successfully completed/i,
+  /^\s*SP2-\d+/,
+  /^\s*$/,
+];
+
+/**
+ * Recover the JSON payload from a SQL*Plus spool file. Spool output is rarely
+ * clean JSON: interactive prompts leave `SQL> ...` / `Enter value for ...`
+ * lines around the payload, and the gather script emits the bundle through
+ * DBMS_OUTPUT in fixed-size chunks, which inserts a line break every N
+ * characters — including inside string values. All legitimate newlines in the
+ * payload are escaped (`\n`) by the script, so raw line breaks carry no
+ * information and joining the payload lines back together is lossless.
+ */
+function extractBundleJson(text: string): string {
+  const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
+  const content = lines.filter((line) => !SQLPLUS_NOISE.some((re) => re.test(line)));
+  const start = content.findIndex((line) => line.trimStart().startsWith('{'));
+  if (start === -1) return text.trim();
+  let end = -1;
+  for (let i = content.length - 1; i >= start; i--) {
+    if (content[i].trimEnd().endsWith('}')) {
+      end = i;
+      break;
+    }
+  }
+  if (end === -1) return text.trim();
+  const parts = content.slice(start, end + 1);
+  parts[0] = parts[0].trimStart();
+  parts[parts.length - 1] = parts[parts.length - 1].trimEnd();
+  return parts.join('');
+}
+
+/**
+ * Warning to surface when a structurally valid bundle carries no objects —
+ * typically the gather script found nothing for the given SQL_ID.
+ */
+export function emptyBundleWarning(bundle: MetadataBundle): string | null {
+  if (Object.keys(bundle.objects).length > 0) return null;
+  return bundle.coverage_warnings.length > 0
+    ? 'Bundle contains no objects — see its coverage warnings for why the gather came back empty.'
+    : 'Bundle contains no objects — the SQL_ID may have aged out of the cursor cache and AWR when the script ran.';
+}
+
 export function parseBundle(input: string): MetadataBundle {
   let parsed: unknown;
   try {
     parsed = JSON.parse(input);
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    throw new Error(`Bundle is not valid JSON: ${detail}`);
+  } catch (strictErr) {
+    try {
+      parsed = JSON.parse(extractBundleJson(input));
+    } catch {
+      const detail = strictErr instanceof Error ? strictErr.message : String(strictErr);
+      throw new Error(`Bundle is not valid JSON: ${detail}`);
+    }
   }
   if (typeof parsed !== 'object' || parsed === null) {
     throw new Error('Bundle is not an object');

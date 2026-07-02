@@ -12,7 +12,12 @@ import type { SharePayload } from '../lib/url';
 import type { AnnotationState, AnnotationGroup, HighlightColor, HighlightStyle, AnnotatedPlanExport } from '../lib/annotations';
 import { createEmptyAnnotationState, hasAnnotations, serializeAnnotations, deserializeAnnotations, validateExport, downloadAnnotatedPlan, generateGroupId } from '../lib/annotations';
 import type { MetadataBundle } from '../lib/metadata/bundle';
-import { parseBundle } from '../lib/metadata/bundle';
+import { parseBundle, emptyBundleWarning } from '../lib/metadata/bundle';
+
+function combineWarnings(...warnings: Array<string | null>): string | null {
+  const present = warnings.filter((w): w is string => Boolean(w));
+  return present.length > 0 ? present.join(' ') : null;
+}
 import { pairBundleWithSlots } from '../lib/metadata/pairing';
 
 export type LoadMetadataBundleResult =
@@ -791,11 +796,12 @@ export function PlanProvider({ children }: { children: ReactNode }) {
           candidateIndices: decision.candidateIndices,
         };
       }
+      const warning = combineWarnings(decision.warning, emptyBundleWarning(bundle));
       dispatch({
         type: 'ATTACH_METADATA_BUNDLE',
-        payload: { index: decision.slotIndex, bundle, warning: decision.warning },
+        payload: { index: decision.slotIndex, bundle, warning },
       });
-      return { ok: true, pairedSlotIndex: decision.slotIndex, warning: decision.warning };
+      return { ok: true, pairedSlotIndex: decision.slotIndex, warning };
     },
     [state.plans],
   );
@@ -825,6 +831,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
           warning = `Metadata was captured for a different plan_hash of this SQL — stats may have changed (plan ${slotPlanHash} vs. bundle ${bundlePlanHash}).`;
         }
       }
+      warning = combineWarnings(warning, emptyBundleWarning(bundle));
       dispatch({ type: 'ATTACH_METADATA_BUNDLE', payload: { index, bundle, warning } });
       return { ok: true, warning };
     },
