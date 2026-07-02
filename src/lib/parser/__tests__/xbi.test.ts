@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { xbiParser } from '../xbiParser';
-import { detectFormat } from '../index';
+import { detectFormat, parsePlan } from '../index';
 
 const SAMPLE_XBI_OUTPUT = `-- xbi.sql: eXplain Better v1.01 for sql_id=czxpthmzk8nnd child=0 - by Tanel Poder (https://blog.tanelpoder.com)
 
@@ -196,10 +196,10 @@ Plan hash value: 1234567890
       expect(node8.accessPredicates).toContain('"SS"."SS_ITEM_SK"="I"."I_ITEM_SK"');
     });
 
-    it('computes activity percent', () => {
-      const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
+    it('computes activity percent after post-parse analysis', () => {
+      const plan = parsePlan(SAMPLE_XBI_OUTPUT);
 
-      // Node 9 has 3055.46ms / 3220.09ms total = ~94.9%
+      // Node 9 has 3055.46ms self / 3220.09ms total = ~94.9%
       const node9 = plan.allNodes.find(n => n.id === 9)!;
       expect(node9.activityPercent).toBeCloseTo(94.9, 0);
     });
@@ -207,6 +207,24 @@ Plan hash value: 1234567890
     it('sets total elapsed time from root', () => {
       const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
       expect(plan.totalElapsedTime).toBeCloseTo(3220.09, 1);
+    });
+
+    it('normalizes A-Time to cumulative and keeps self time after analysis', () => {
+      const plan = parsePlan(SAMPLE_XBI_OUTPUT);
+
+      // Root ">>> Plan totals >>>" row stays the plan total
+      expect(plan.rootNode!.actualTime).toBeCloseTo(3220.09, 1);
+      expect(plan.totalElapsedTime).toBeCloseTo(3220.09, 1);
+
+      // Leaf: cumulative == self
+      const node9 = plan.allNodes.find(n => n.id === 9)!;
+      expect(node9.selfTime).toBeCloseTo(3055.46, 1);
+      expect(node9.actualTime).toBeCloseTo(3055.46, 1);
+
+      // NESTED LOOPS (5) = self 39.05 + subtree(6)=13.67+31.71+43.44 + child(9)=3055.46
+      const node5 = plan.allNodes.find(n => n.id === 5)!;
+      expect(node5.selfTime).toBeCloseTo(39.05, 1);
+      expect(node5.actualTime).toBeCloseTo(39.05 + 13.67 + 31.71 + 43.44 + 3055.46, 1);
     });
 
     it('computes maxActualRows and maxStarts', () => {
