@@ -7,6 +7,7 @@ import { createEmptySlot, DEFAULT_COMPARE_METRICS, getPlanSlotLabel } from '../l
 import { parseExplainPlan, splitDbmsXplanPlanBatches } from '../lib/parser';
 import { loadSettings, saveSettings, extractFilterSettings, applySettingsToFilters } from '../lib/settings';
 import { matchesFilters } from '../lib/filtering';
+import { computeHottestNodeId } from '../lib/analysis';
 import { getPlanFromUrl, clearPlanFromUrl, buildShareUrl, stripUnusedXmlSections } from '../lib/url';
 import type { SharePayload } from '../lib/url';
 import type { AnnotationState, AnnotationGroup, HighlightColor, HighlightStyle, AnnotatedPlanExport } from '../lib/annotations';
@@ -909,22 +910,11 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       .filter((node): node is PlanNode => Boolean(node));
   }, [parsedPlan, selectedNodeIds, nodeById]);
 
-  // Hottest node: the non-root node with the highest A-Time
-  const hottestNodeId = useMemo((): number | null => {
-    if (!state.hotspotsEnabled) return null;
-    if (!parsedPlan?.hasActualStats) return null;
-    let maxTime = 0;
-    let hotId: number | null = null;
-    for (const node of parsedPlan.allNodes) {
-      // Skip root SELECT/UPDATE/etc. statements — they always have the total time
-      if (node.parentId === undefined) continue;
-      if (node.actualTime !== undefined && node.actualTime > maxTime) {
-        maxTime = node.actualTime;
-        hotId = node.id;
-      }
-    }
-    return hotId;
-  }, [parsedPlan, state.hotspotsEnabled]);
+  // Hottest node: the non-root node with the highest self time
+  const hottestNodeId = useMemo(
+    (): number | null => (state.hotspotsEnabled ? computeHottestNodeId(parsedPlan) : null),
+    [parsedPlan, state.hotspotsEnabled]
+  );
 
   // Apply theme to document
   useEffect(() => {
