@@ -52,6 +52,21 @@ export function SankeyView() {
     };
   }, []);
 
+  // Escape deselects — same behavior as the tree and tabular views
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      const tag = (event.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if ((event.target as HTMLElement)?.isContentEditable) return;
+      if (selectedNodeIds.length === 0) return;
+      event.preventDefault();
+      selectNode(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedNodeIds.length, selectNode]);
+
   // Update dimensions on mount and resize
   useEffect(() => {
     const updateDimensions = () => {
