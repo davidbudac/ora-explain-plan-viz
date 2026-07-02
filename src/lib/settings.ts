@@ -40,7 +40,7 @@ export interface UserSettings {
   highlightStyle: HighlightStyle;
 }
 
-const defaultNodeDisplayOptions: NodeDisplayOptions = {
+export const defaultNodeDisplayOptions: NodeDisplayOptions = {
   showRows: true,
   showCost: true,
   showBytes: true,
