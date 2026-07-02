@@ -921,7 +921,6 @@ function HierarchicalViewContent({
             searchText,
             filterKey, // Include filterKey to force React Flow to detect changes
             isHotNode: hottestNodeId !== null && parseInt(node.id) === hottestNodeId,
-            forceFullDetail: isExporting, // PNG export must render full cards at any zoom
             annotationText: effectiveAnnotations.nodeAnnotations.get(parseInt(node.id))?.text,
             highlightColor: effectiveAnnotations.nodeHighlights.get(parseInt(node.id))?.color,
             highlightStyle,
@@ -930,7 +929,6 @@ function HierarchicalViewContent({
       })
     );
   }, [
-    isExporting,
     selectedNodeId,
     selectedNodeIds.length,
     selectedNodeIdSet,
