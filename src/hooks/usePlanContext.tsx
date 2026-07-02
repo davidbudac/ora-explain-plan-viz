@@ -8,6 +8,8 @@ import { parseExplainPlan, splitDbmsXplanPlanBatches } from '../lib/parser';
 import { loadSettings, saveSettings, extractFilterSettings, applySettingsToFilters } from '../lib/settings';
 import { matchesFilters } from '../lib/filtering';
 import { computeHottestNodeId } from '../lib/analysis';
+import { DENSITY_PRESETS, matchDensityPreset } from '../lib/density';
+import type { DensityPreset, DensitySelection } from '../lib/density';
 import { getPlanFromUrl, clearPlanFromUrl, buildShareUrl, stripUnusedXmlSections } from '../lib/url';
 import type { SharePayload } from '../lib/url';
 import type { AnnotationState, AnnotationGroup, HighlightColor, HighlightStyle, AnnotatedPlanExport } from '../lib/annotations';
@@ -661,6 +663,9 @@ interface PlanContextValue {
   hotspotsEnabled: boolean;
   setHotspotsEnabled: (enabled: boolean) => void;
   setLegendVisible: (visible: boolean) => void;
+  // Density presets (derived from nodeDisplayOptions, never stored)
+  densitySelection: DensitySelection;
+  applyDensityPreset: (preset: DensityPreset) => void;
   // Session-only UI state (not persisted)
   commandPaletteOpen: boolean;
   setCommandPaletteOpen: (open: boolean) => void;
@@ -1064,6 +1069,15 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_FILTERS', payload: filters });
   }, []);
 
+  // Density presets: derived from the current display options, applied via filters
+  const densitySelection = useMemo(
+    () => matchDensityPreset(state.filters.nodeDisplayOptions),
+    [state.filters.nodeDisplayOptions]
+  );
+  const applyDensityPreset = useCallback((preset: DensityPreset) => {
+    dispatch({ type: 'SET_FILTERS', payload: { nodeDisplayOptions: { ...DENSITY_PRESETS[preset] } } });
+  }, []);
+
   const clearPlan = useCallback(() => {
     dispatch({ type: 'CLEAR_PLAN' });
   }, []);
@@ -1335,6 +1349,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     hotspotsEnabled: state.hotspotsEnabled,
     setHotspotsEnabled,
     setLegendVisible,
+    densitySelection,
+    applyDensityPreset,
     commandPaletteOpen,
     setCommandPaletteOpen,
     shortcutsOverlayOpen,

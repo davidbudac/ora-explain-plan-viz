@@ -3,6 +3,7 @@ import {
   ReactFlow,
   Background,
   Controls,
+  MiniMap,
   Panel,
   useNodesState,
   useEdgesState,
@@ -21,7 +22,7 @@ import { usePlan } from '../../hooks/usePlanContext';
 import { PlanNodeMemo } from '../nodes/PlanNode';
 import { formatNumberShort, computeCardinalityRatio, cardinalityRatioSeverity } from '../../lib/format';
 import type { PlanNode, NodeDisplayOptions } from '../../lib/types';
-import { EDGE_SCHEME_COLORS } from '../../lib/types';
+import { EDGE_SCHEME_COLORS, COLOR_SCHEME_PALETTES, getOperationCategory } from '../../lib/types';
 import { createEmptyAnnotationState, getHighlightColorDef } from '../../lib/annotations';
 import { matchesFilters } from '../../lib/filtering';
 import { computeHottestNodeId } from '../../lib/analysis';
@@ -389,12 +390,14 @@ interface HierarchicalViewContentProps {
   planIndex?: number;
   registerExport?: boolean;
   showAnnotations?: boolean;
+  showMiniMap?: boolean;
 }
 
 function HierarchicalViewContent({
   planIndex,
   registerExport = true,
   showAnnotations = true,
+  showMiniMap = true,
 }: HierarchicalViewContentProps) {
   const {
     plans,
@@ -416,7 +419,7 @@ function HierarchicalViewContent({
   const selectedNodeId = slot?.selectedNodeId ?? null;
   const selectedNodeIds = slot?.selectedNodeIds ?? EMPTY_SELECTED_NODE_IDS;
   const containerRef = useRef<HTMLDivElement>(null);
-  const { fitView, setNodes: rfSetNodes, getNodes } = useReactFlow();
+  const { fitView, setNodes: rfSetNodes, getNodes, setCenter, getViewport, getInternalNode } = useReactFlow();
   const nodeById = useMemo(() => {
     if (!parsedPlan) return new Map<number, PlanNode>();
     return new Map(parsedPlan.allNodes.map((node) => [node.id, node]));
@@ -848,6 +851,35 @@ function HierarchicalViewContent({
     return () => clearTimeout(timer);
   }, [layoutData, fitView]);
 
+  // Pan the viewport to a newly selected node when it's off-screen. Keyboard
+  // navigation and hotspot-list clicks select nodes the user can't see;
+  // click-selection is a no-op (the node is already visible), and the user's
+  // own pan is never fought while the selection is unchanged.
+  const prevSelectedRef = useRef<number | null>(null);
+  useEffect(() => {
+    const prev = prevSelectedRef.current;
+    prevSelectedRef.current = selectedNodeId;
+    if (selectedNodeId === null || selectedNodeId === prev) return;
+    if (selectedNodeIds.length !== 1) return; // skip multi-select
+    const internal = getInternalNode(String(selectedNodeId));
+    if (!internal || !containerRef.current) return;
+    const { x: vx, y: vy, zoom } = getViewport();
+    const abs = internal.internals.positionAbsolute;
+    const w = internal.measured?.width ?? NODE_WIDTH;
+    const h = internal.measured?.height ?? NODE_BASE_HEIGHT;
+    const sx = abs.x * zoom + vx;
+    const sy = abs.y * zoom + vy;
+    const rect = containerRef.current.getBoundingClientRect();
+    const margin = 24;
+    const visible =
+      sx >= margin &&
+      sy >= margin &&
+      sx + w * zoom <= rect.width - margin &&
+      sy + h * zoom <= rect.height - margin;
+    if (visible) return;
+    setCenter(abs.x + w / 2, abs.y + h / 2, { zoom, duration: 300 });
+  }, [selectedNodeId, selectedNodeIds.length, getInternalNode, getViewport, setCenter]);
+
   // Reset all nodes/edges back to the computed layout positions
   const resetLayout = useCallback(() => {
     setNodes(layoutData.nodes);
@@ -889,6 +921,7 @@ function HierarchicalViewContent({
             searchText,
             filterKey, // Include filterKey to force React Flow to detect changes
             isHotNode: hottestNodeId !== null && parseInt(node.id) === hottestNodeId,
+            forceFullDetail: isExporting, // PNG export must render full cards at any zoom
             annotationText: effectiveAnnotations.nodeAnnotations.get(parseInt(node.id))?.text,
             highlightColor: effectiveAnnotations.nodeHighlights.get(parseInt(node.id))?.color,
             highlightStyle,
@@ -897,6 +930,7 @@ function HierarchicalViewContent({
       })
     );
   }, [
+    isExporting,
     selectedNodeId,
     selectedNodeIds.length,
     selectedNodeIdSet,
@@ -1138,6 +1172,22 @@ function HierarchicalViewContent({
           color={theme === 'dark' ? '#374151' : '#e5e7eb'}
         />
         <Controls className="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-700" />
+        {showMiniMap && parsedPlan.allNodes.length >= 20 && !isExporting && (
+          <MiniMap
+            position="bottom-right"
+            pannable
+            zoomable
+            nodeStrokeWidth={0}
+            nodeColor={(n) => {
+              if (n.type !== 'planNode') return 'transparent';
+              const planNode = (n.data as { node?: PlanNode }).node;
+              const category = planNode ? getOperationCategory(planNode.operation) : 'Other';
+              return COLOR_SCHEME_PALETTES[colorScheme][category] ?? '#94a3b8';
+            }}
+            maskColor={theme === 'dark' ? 'rgba(0,0,0,0.55)' : 'rgba(241,245,249,0.7)'}
+            className="!bg-white dark:!bg-neutral-900 !border !border-neutral-200 dark:!border-neutral-700 rounded-md"
+          />
+        )}
         <Panel position="top-right">
           <button
             type="button"
@@ -1160,12 +1210,14 @@ interface HierarchicalViewProps {
   planIndex?: number;
   registerExport?: boolean;
   showAnnotations?: boolean;
+  showMiniMap?: boolean;
 }
 
 export function HierarchicalView({
   planIndex,
   registerExport = true,
   showAnnotations = true,
+  showMiniMap = true,
 }: HierarchicalViewProps) {
   const { plans, activePlanIndex, colorScheme } = usePlan();
   const resolvedPlanIndex = planIndex ?? activePlanIndex;
@@ -1184,6 +1236,7 @@ export function HierarchicalView({
         planIndex={resolvedPlanIndex}
         registerExport={registerExport}
         showAnnotations={showAnnotations}
+        showMiniMap={showMiniMap}
       />
     </ReactFlowProvider>
   );
