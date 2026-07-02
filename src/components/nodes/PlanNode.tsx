@@ -1,5 +1,6 @@
 import { Handle, Position } from '@xyflow/react';
-import { getOperationCategory, COLOR_SCHEMES, getMetricColor, getOperationTooltip } from '../../lib/types';
+import { getOperationCategory, COLOR_SCHEMES, COLOR_SCHEME_PALETTES, getMetricColor, getOperationTooltip } from '../../lib/types';
+import { useZoomBucket } from '../../hooks/useZoomBucket';
 import { formatNumberShort, formatBytes, formatTimeCompact, formatCardinalityRatio, cardinalityRatioSeverity, computeCardinalityRatio } from '../../lib/format';
 import type { PlanNode as PlanNodeType, NodeDisplayOptions, ColorScheme, NodeIndicatorMetric } from '../../lib/types';
 import { HighlightText } from '../HighlightText';
@@ -27,6 +28,7 @@ export interface PlanNodeData extends Record<string, unknown> {
   width?: number;
   height?: number;
   isHotNode?: boolean; // Node with highest self time
+  forceFullDetail?: boolean; // PNG export renders full cards regardless of zoom
   annotationText?: string;
   highlightColor?: HighlightColor;
   highlightStyle?: HighlightStyle;
@@ -62,6 +64,12 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   const category = getOperationCategory(node.operation);
   const schemeColors = COLOR_SCHEMES[colorScheme];
   const colors = schemeColors[category] || schemeColors['Other'];
+  // Semantic zoom: simplify card content when zoomed out. Layout positions are
+  // frozen at layout time, so simplified buckets pin the outer div to the
+  // layout-computed size instead of letting content shrink the box.
+  const rawBucket = useZoomBucket();
+  const bucket = data.forceFullDetail ? 'full' : rawBucket;
+  const paletteColor = COLOR_SCHEME_PALETTES[colorScheme][category] ?? COLOR_SCHEME_PALETTES[colorScheme]['Other'];
   const isMono = colorScheme === 'monochrome';
   const isReadable = colorScheme === 'readable';
   const borderClass = colorScheme === 'professional' ? '' : isReadable ? '' : isMono ? 'border' : 'border-2';
@@ -136,7 +144,15 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         ${isInFocusPath && !(highlightColor && showAnnotationsOverlay) ? 'ring-2 ring-blue-400/40' : ''}
         ${showHot && !isSelected ? 'ring-2 ring-red-600 ring-offset-2 dark:ring-offset-slate-950' : ''}
       `}
-      style={{ opacity, ...glowStyle, ...tintStyle }}
+      style={{
+        opacity,
+        ...glowStyle,
+        ...tintStyle,
+        // Pin simplified buckets to the layout-computed box so positions stay valid
+        ...(bucket !== 'full' && data.width && data.height
+          ? { width: data.width, height: data.height }
+          : {}),
+      }}
     >
       {/* Circle: hand-drawn marker strokes (three overlapping passes) */}
       {showHighlight && highlightStyle === 'circle' && (
@@ -221,20 +237,87 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
       <Handle type="target" position={Position.Top} className="!opacity-0 !w-1 !h-1" />
 
       {/* Metric indicator bar */}
-      <div
-        className="absolute top-0 left-0 right-0 h-1 rounded-t-md overflow-hidden bg-gray-200 dark:bg-gray-700"
-        title={
-          nodeIndicatorMetric === 'cost'
-            ? `${indicator.label}: ${indicator.formattedValue}`
-            : `${indicator.label}: ${indicator.formattedValue} (${(indicator.ratio * 100).toFixed(1)}%)`
-        }
-      >
+      {bucket !== 'overview' && (
         <div
-          className={`h-full ${indicator.color} transition-all`}
-          style={{ width: `${Math.min(100, indicator.ratio * 100)}%` }}
-        />
-      </div>
+          className="absolute top-0 left-0 right-0 h-1 rounded-t-md overflow-hidden bg-gray-200 dark:bg-gray-700"
+          title={
+            nodeIndicatorMetric === 'cost'
+              ? `${indicator.label}: ${indicator.formattedValue}`
+              : `${indicator.label}: ${indicator.formattedValue} (${(indicator.ratio * 100).toFixed(1)}%)`
+          }
+        >
+          <div
+            className={`h-full ${indicator.color} transition-all`}
+            style={{ width: `${Math.min(100, indicator.ratio * 100)}%` }}
+          />
+        </div>
+      )}
 
+      {/* Overview bucket (<0.5 zoom): solid category block, name only */}
+      {bucket === 'overview' && (
+        <div
+          className="absolute inset-0 rounded-xl overflow-hidden flex items-center justify-center p-2"
+          style={{ backgroundColor: `${paletteColor}D9` }}
+        >
+          <div
+            className="text-2xl font-bold text-white text-center leading-tight overflow-hidden"
+            style={{
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              textShadow: '0 1px 2px rgba(0,0,0,0.35)',
+            }}
+          >
+            {node.operation}
+          </div>
+        </div>
+      )}
+
+      {/* Mid bucket (0.5–0.8 zoom): card chrome, name + object + one headline metric */}
+      {bucket === 'mid' && (
+        <div className="p-3 pt-4">
+          <div className={`absolute -top-2 -left-2 w-6 h-6 rounded-full bg-gray-700 dark:bg-gray-300 text-white dark:text-gray-900 font-bold text-xs flex items-center justify-center shadow`}>
+            {node.id}
+          </div>
+          {(showHot || (hasSpill && options.showSpillBadge) || (options.showCardinalityBadge && cardSeverity !== 'good' && cardLabel)) && (
+            <div className="flex flex-wrap gap-1 mb-1.5">
+              {showHot && (
+                <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-[10px] rounded font-semibold">Hotspot</span>
+              )}
+              {hasSpill && options.showSpillBadge && (
+                <span className="px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 text-[10px] rounded font-semibold">Spill</span>
+              )}
+              {options.showCardinalityBadge && cardSeverity !== 'good' && cardLabel && (
+                <span className={`px-1.5 py-0.5 text-[10px] rounded font-semibold ${
+                  cardSeverity === 'bad'
+                    ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+                    : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
+                }`}>{cardLabel}</span>
+              )}
+            </div>
+          )}
+          <div className={`font-bold text-lg leading-tight ${colors.text}`}>
+            <HighlightText text={node.operation} query={searchText} />
+          </div>
+          {options.showObjectName && node.objectName && (
+            <div className="text-sm font-semibold font-mono text-neutral-700 dark:text-neutral-200 truncate">
+              <HighlightText text={node.objectName} query={searchText} />
+            </div>
+          )}
+          {(() => {
+            const showTime = hasActualStats && options.showActualTime && node.actualTime !== undefined;
+            if (showTime) {
+              return <div className="mt-1 text-base font-bold text-purple-700 dark:text-purple-300 tabular-nums">{formatTimeCompact(node.actualTime)}</div>;
+            }
+            if (options.showCost && node.cost !== undefined) {
+              return <div className="mt-1 text-base font-bold text-neutral-700 dark:text-neutral-200 tabular-nums">Cost {formatNumberShort(node.cost)}</div>;
+            }
+            return null;
+          })()}
+        </div>
+      )}
+
+      {bucket === 'full' && (
       <div className="p-3 pt-4">
         {/* Operation ID badge */}
         <div className={`absolute -top-2 -left-2 ${isReadable ? 'w-7 h-7 text-sm' : 'w-6 h-6 text-xs'} rounded-full bg-gray-700 dark:bg-gray-300 text-white dark:text-gray-900 font-bold flex items-center justify-center shadow`}>
@@ -507,6 +590,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           </div>
         )}
       </div>
+      )}
 
       {node.children.length > 0 && (
         <Handle type="source" position={Position.Bottom} className="!opacity-0 !w-1 !h-1" />

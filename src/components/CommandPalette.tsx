@@ -4,6 +4,7 @@ import { usePlan } from '../hooks/usePlanContext';
 import type { ViewMode, SankeyMetric, NodeIndicatorMetric, ColorScheme, NodeDisplayOptions } from '../lib/types';
 import type { HighlightStyle } from '../lib/annotations';
 import { hasAnnotations } from '../lib/annotations';
+import { DENSITY_PRESET_LABELS } from '../lib/density';
 
 type CommandCategory =
   | 'View'
@@ -96,9 +97,11 @@ function useCommands(): Command[] {
     annotations,
     exportPngFnRef,
     legendVisible,
+    densitySelection,
     // Actions
     setLegendVisible,
     setShortcutsOverlayOpen,
+    applyDensityPreset,
     setViewMode,
     setTheme,
     setColorScheme,
@@ -218,6 +221,19 @@ function useCommands(): Command[] {
       execute: () => setVisualizationMaximized(!visualizationMaximized),
       isAvailable: () => anyPlanParsed,
     });
+
+    // --- Density presets ---
+    for (const preset of ['compact', 'balanced', 'detailed'] as const) {
+      commands.push({
+        id: `density-${preset}`,
+        label: `Density preset: ${DENSITY_PRESET_LABELS[preset]}`,
+        category: 'Node Display',
+        keywords: ['density', 'preset', 'compact', 'balanced', 'detailed', 'simplify', preset],
+        execute: () => applyDensityPreset(preset),
+        isActive: () => densitySelection === preset,
+        isAvailable: () => anyPlanParsed,
+      });
+    }
 
     // --- Node display toggles ---
     const nodeDisplayItems: { key: keyof NodeDisplayOptions; label: string; keywords: string[]; runtime?: boolean }[] = [
@@ -495,6 +511,7 @@ function useCommands(): Command[] {
     hotspotsEnabled, treeCompareEnabled, annotations, anyPlanParsed,
     hasActualStats, hasAnyInput, canExportPng, multipleParsedPlans,
     legendVisible, setLegendVisible, setShortcutsOverlayOpen,
+    densitySelection, applyDensityPreset,
     setViewMode, setTheme, setColorScheme, setFilters, setSankeyMetric,
     setNodeIndicatorMetric, setHighlightStyle, setVisualizationMaximized,
     setInputPanelCollapsed, setFilterPanelCollapsed,
