@@ -5,6 +5,7 @@ import { formatNumberShort, formatBytes, formatTimeCompact, computeCardinalityRa
 import { getHighlightColorDef } from '../../lib/annotations';
 import type { AnnotationGroup } from '../../lib/annotations';
 import { matchesFilters } from '../../lib/filtering';
+import { computeHottestNodeId } from '../../lib/analysis';
 import { HighlightText } from '../HighlightText';
 
 const EMPTY_SELECTED_NODE_IDS: number[] = [];
@@ -101,20 +102,10 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
     );
   }, [parsedPlan, filters]);
 
-  const hottestNodeId = useMemo((): number | null => {
-    if (!hotspotsEnabled) return null;
-    if (!parsedPlan?.hasActualStats) return null;
-    let maxTime = 0;
-    let hotId: number | null = null;
-    for (const node of parsedPlan.allNodes) {
-      if (node.parentId === undefined) continue;
-      if (node.actualTime !== undefined && node.actualTime > maxTime) {
-        maxTime = node.actualTime;
-        hotId = node.id;
-      }
-    }
-    return hotId;
-  }, [parsedPlan, hotspotsEnabled]);
+  const hottestNodeId = useMemo(
+    (): number | null => (hotspotsEnabled ? computeHottestNodeId(parsedPlan) : null),
+    [parsedPlan, hotspotsEnabled]
+  );
 
   const [sortColumn, setSortColumn] = useState<SortColumn>('id');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
