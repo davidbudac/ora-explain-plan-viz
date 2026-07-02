@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useReducer, useCallback, useEffect, useMemo, useRef } from 'react';
+import { createContext, useContext, useReducer, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, NodeIndicatorMetric, Theme, ColorScheme } from '../lib/types';
 import type { PlanSlot, CompareMetric } from '../lib/compare';
@@ -660,6 +660,11 @@ interface PlanContextValue {
   hotspotsEnabled: boolean;
   setHotspotsEnabled: (enabled: boolean) => void;
   setLegendVisible: (visible: boolean) => void;
+  // Session-only UI state (not persisted)
+  commandPaletteOpen: boolean;
+  setCommandPaletteOpen: (open: boolean) => void;
+  shortcutsOverlayOpen: boolean;
+  setShortcutsOverlayOpen: (open: boolean) => void;
   setInputPanelCollapsed: (collapsed: boolean) => void;
   setFilterPanelCollapsed: (collapsed: boolean) => void;
   setDetailPanelCollapsed: (collapsed: boolean) => void;
@@ -704,6 +709,9 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(planReducer, undefined, getInitialState);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const exportPngFnRef = useRef<(() => Promise<void>) | null>(null);
+  // Session-only UI state (not persisted to settings)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
 
   const createPlanSlotFromInput = useCallback((input: string, index: number): PlanSlot => {
     const slot = createEmptySlot(index);
@@ -1337,6 +1345,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     hotspotsEnabled: state.hotspotsEnabled,
     setHotspotsEnabled,
     setLegendVisible,
+    commandPaletteOpen,
+    setCommandPaletteOpen,
+    shortcutsOverlayOpen,
+    setShortcutsOverlayOpen,
     setInputPanelCollapsed,
     setFilterPanelCollapsed,
     setDetailPanelCollapsed,
