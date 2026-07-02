@@ -358,7 +358,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
                 <IndicatorButton metric="cost" label="Cost" current={sankeyMetric} onClick={setSankeyMetric} />
                 {parsedPlan.hasActualStats && (
                   <>
-                    <IndicatorButton metric="actualRows" label="A-Rows" current={sankeyMetric} onClick={setSankeyMetric} />
+                    <IndicatorButton metric="actualRows" label="Rows × Starts" current={sankeyMetric} onClick={setSankeyMetric} />
                     <IndicatorButton metric="actualTime" label="A-Time" current={sankeyMetric} onClick={setSankeyMetric} />
                   </>
                 )}
