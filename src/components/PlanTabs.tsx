@@ -98,7 +98,7 @@ export function PlanTabs() {
   if (parsedPlanCount === 0 && plans.length <= 1) return null;
 
   return (
-    <div className="flex items-center gap-1 overflow-x-auto px-3 py-1.5 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
+    <div className="flex items-center gap-1 overflow-x-auto">
       {plans.map((slot, index) => {
         const isActive = index === activePlanIndex && viewMode !== 'compare';
         const phv = slot.parsedPlan?.planHashValue;

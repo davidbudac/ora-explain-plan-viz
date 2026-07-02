@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "highlight.js/styles/github.css" layer(hljs);
 
@@ -11,16 +12,16 @@
     --color-success: #22c55e;
     --color-warning: #f59e0b;
     --color-danger: #ef4444;
-    --app-bg: #f5f5f4;
-    --app-bg-dark: #0f0f0f;
+    --app-bg: #f8fafc;
+    --app-bg-dark: #020617;
   }
 
   html {
-    font-family: Manrope, "Avenir Next", "Segoe UI", sans-serif;
+    font-family: Inter, "Segoe UI", sans-serif;
   }
 
   body {
-    @apply text-neutral-900 dark:text-neutral-100;
+    @apply text-slate-900 dark:text-slate-100;
     background: var(--app-bg);
     margin: 0;
     min-height: 100vh;
@@ -28,6 +29,10 @@
 
   .dark body {
     background: var(--app-bg-dark);
+  }
+
+  code, kbd, pre, .font-mono {
+    font-family: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   }
 
   #root {

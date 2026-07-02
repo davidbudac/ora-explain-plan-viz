@@ -93,10 +93,10 @@ export function Header() {
   const canExportPng = parsedPlan !== null && viewMode === 'hierarchical' && !treeCompareEnabled;
 
   return (
-    <header className="h-[52px] flex items-center justify-between gap-3 px-3 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
+    <header className="h-11 flex items-center justify-between gap-3 px-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 z-30">
       <div className="flex items-center gap-2 min-w-0">
         <svg
-          className="w-6 h-6 text-neutral-700 dark:text-neutral-300 shrink-0"
+          className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -104,11 +104,11 @@ export function Header() {
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
-            strokeWidth={1.5}
+            strokeWidth={2}
             d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
           />
         </svg>
-        <h1 className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100 truncate">
+        <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate tracking-tight">
           Oracle Plan Visualizer
         </h1>
       </div>
