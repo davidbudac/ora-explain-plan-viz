@@ -2,18 +2,18 @@ import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'rea
 import { PlanProvider, usePlan } from './hooks/usePlanContext';
 import { Header } from './components/Header';
 import { InputPanel } from './components/InputPanel';
-import { PlanTabs } from './components/PlanTabs';
+import { NavRibbon } from './components/NavRibbon';
 import { FilterPanel } from './components/FilterPanel';
 import { VisualizationTabs } from './components/VisualizationTabs';
 import { NodeDetailPanel } from './components/NodeDetailPanel';
 import { CommandPalette } from './components/CommandPalette';
 
-const LEFT_PANEL_MIN = 220;
-const RIGHT_PANEL_MIN = 260;
-const PANEL_MAX_RATIO = 0.25;
-const CENTER_MIN_WIDTH = 440;
-const DEFAULT_LEFT_PANEL_WIDTH = 250;
-const DEFAULT_RIGHT_PANEL_WIDTH = 300;
+const LEFT_PANEL_MIN = 250;
+const RIGHT_PANEL_MIN = 300;
+const PANEL_MAX_RATIO = 0.3;
+const CENTER_MIN_WIDTH = 400;
+const DEFAULT_LEFT_PANEL_WIDTH = 280;
+const DEFAULT_RIGHT_PANEL_WIDTH = 320;
 
 type ResizeSide = 'left' | 'right';
 
@@ -139,11 +139,11 @@ function AppContent() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-neutral-100 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
+    <div className="flex flex-col h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden">
       <CommandPalette />
       {!visualizationMaximized && <Header />}
       {!visualizationMaximized && <InputPanel />}
-      {!visualizationMaximized && <PlanTabs />}
+      {anyPlanParsed && <NavRibbon />}
 
       {anyPlanParsed && (
         <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -153,9 +153,9 @@ function AppContent() {
               onResizeStart={startResize('left')}
             />
           )}
-          <div className="flex-1 flex flex-col relative min-w-0 bg-neutral-50 dark:bg-neutral-900 border-r border-l border-neutral-200 dark:border-neutral-800">
+          <main className="flex-1 flex flex-col relative min-w-0 bg-slate-50 dark:bg-slate-900 border-r border-l border-slate-200 dark:border-slate-800 shadow-inner">
             <VisualizationTabs />
-          </div>
+          </main>
           {!isComparisonWorkspace && (
             <NodeDetailPanel
               panelWidth={panelWidths.right}
