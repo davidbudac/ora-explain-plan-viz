@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matchNodes, computeComparisonSummary, getNodeMetricValue, createEmptySlot } from '../../compare';
+import { matchNodes, computeComparisonSummary, getNodeMetricValue, createEmptySlot, buildComparisonRows, rowHasVisibleChange } from '../../compare';
 import type { ParsedPlan, PlanNode } from '../../types';
 
 function makeNode(overrides: Partial<PlanNode> & { id: number; operation: string }): PlanNode {
@@ -262,5 +262,95 @@ describe('createEmptySlot', () => {
     const slot1 = createEmptySlot(1);
     expect(slot1.id).toBe('plan-1');
     expect(slot1.label).toBe('Plan B');
+  });
+});
+
+describe('buildComparisonRows', () => {
+  it('computes deltas when both values are defined', () => {
+    const planA = makePlan([makeNode({ id: 0, operation: 'SELECT STATEMENT', cost: 100 })]);
+    const planB = makePlan([makeNode({ id: 0, operation: 'SELECT STATEMENT', cost: 60 })]);
+    const rows = buildComparisonRows(matchNodes(planA, planB));
+
+    expect(rows).toHaveLength(1);
+    const costDelta = rows[0].deltas.cost!;
+    expect(costDelta.valueA).toBe(100);
+    expect(costDelta.valueB).toBe(60);
+    expect(costDelta.delta).toBe(-40);
+    expect(costDelta.deltaPercent).toBe(-40);
+    expect(costDelta.changed).toBe(true);
+  });
+
+  it('flags one-sided values as changed without a numeric delta', () => {
+    const planA = makePlan([makeNode({ id: 0, operation: 'SELECT STATEMENT', cost: 100, tempSpace: 4096 })]);
+    const planB = makePlan([makeNode({ id: 0, operation: 'SELECT STATEMENT', cost: 100 })]);
+    const rows = buildComparisonRows(matchNodes(planA, planB));
+
+    const temp = rows[0].deltas.tempSpace!;
+    expect(temp.valueA).toBe(4096);
+    expect(temp.valueB).toBeUndefined();
+    expect(temp.delta).toBeUndefined();
+    expect(temp.changed).toBe(true);
+  });
+
+  it('marks equal and both-undefined metrics as unchanged', () => {
+    const planA = makePlan([makeNode({ id: 0, operation: 'SELECT STATEMENT', cost: 100 })]);
+    const planB = makePlan([makeNode({ id: 0, operation: 'SELECT STATEMENT', cost: 100 })]);
+    const rows = buildComparisonRows(matchNodes(planA, planB));
+
+    expect(rows[0].deltas.cost!.changed).toBe(false);
+    expect(rows[0].deltas.actualRows!.changed).toBe(false); // undefined on both sides
+  });
+
+  it('leaves deltaPercent undefined when valueA is zero', () => {
+    const planA = makePlan([makeNode({ id: 0, operation: 'SELECT STATEMENT', cost: 0 })]);
+    const planB = makePlan([makeNode({ id: 0, operation: 'SELECT STATEMENT', cost: 50 })]);
+    const rows = buildComparisonRows(matchNodes(planA, planB));
+
+    expect(rows[0].deltas.cost!.delta).toBe(50);
+    expect(rows[0].deltas.cost!.deltaPercent).toBeUndefined();
+  });
+
+  it('builds stable keys from match type and both node ids', () => {
+    const planA = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'TABLE ACCESS FULL', objectName: 'ONLY_IN_A', depth: 1 }),
+    ]);
+    const planB = makePlan([makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 })]);
+    const rows = buildComparisonRows(matchNodes(planA, planB));
+
+    expect(rows.map((r) => r.key)).toEqual(['exact-id:0:0', 'unmatched:1:-']);
+    expect(rows.map((r) => r.originalIndex)).toEqual([0, 1]);
+  });
+
+  it('includes selfTime as a comparable metric', () => {
+    const nodeA = makeNode({ id: 0, operation: 'SELECT STATEMENT', selfTime: 400 });
+    const nodeB = makeNode({ id: 0, operation: 'SELECT STATEMENT', selfTime: 100 });
+    const rows = buildComparisonRows(matchNodes(makePlan([nodeA]), makePlan([nodeB])));
+
+    expect(rows[0].deltas.selfTime!.delta).toBe(-300);
+    expect(getNodeMetricValue(nodeA, 'selfTime')).toBe(400);
+  });
+});
+
+describe('rowHasVisibleChange', () => {
+  it('always counts unmatched rows as changed', () => {
+    const planA = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'TABLE ACCESS FULL', objectName: 'ONLY_IN_A', depth: 1 }),
+    ]);
+    const planB = makePlan([makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 })]);
+    const rows = buildComparisonRows(matchNodes(planA, planB));
+    const unmatchedRow = rows.find((r) => r.match.matchType === 'unmatched')!;
+
+    expect(rowHasVisibleChange(unmatchedRow, ['cost'])).toBe(true);
+  });
+
+  it('respects the visible metric set', () => {
+    const planA = makePlan([makeNode({ id: 0, operation: 'SELECT STATEMENT', cost: 100, rows: 10 })]);
+    const planB = makePlan([makeNode({ id: 0, operation: 'SELECT STATEMENT', cost: 100, rows: 99 })]);
+    const rows = buildComparisonRows(matchNodes(planA, planB));
+
+    expect(rowHasVisibleChange(rows[0], ['cost'])).toBe(false);
+    expect(rowHasVisibleChange(rows[0], ['cost', 'rows'])).toBe(true);
   });
 });

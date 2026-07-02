@@ -45,7 +45,7 @@ const NODE_INDICATOR_LABELS: Record<NodeIndicatorMetric, string> = {
 const SANKEY_METRIC_LABELS: Record<SankeyMetric, string> = {
   rows: 'Rows',
   cost: 'Cost',
-  actualRows: 'A-Rows',
+  actualRows: 'Total Rows (A-Rows × Starts)',
   actualTime: 'A-Time',
 };
 
@@ -640,7 +640,7 @@ export function CommandPalette() {
         setOpen(false);
         break;
     }
-  }, [flatItems, selectedIndex, executeAndClose]);
+  }, [flatItems, selectedIndex, executeAndClose, setOpen]);
 
   if (!open) return null;
 
