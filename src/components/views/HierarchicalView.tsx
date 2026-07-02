@@ -24,6 +24,7 @@ import type { PlanNode, NodeDisplayOptions } from '../../lib/types';
 import { EDGE_SCHEME_COLORS } from '../../lib/types';
 import { createEmptyAnnotationState, getHighlightColorDef } from '../../lib/annotations';
 import { matchesFilters } from '../../lib/filtering';
+import { computeHottestNodeId } from '../../lib/analysis';
 import { findObjectInBundle } from '../../lib/metadata/lookup';
 import { evaluateBadges } from '../../lib/metadata/badges';
 import type { MetadataBadge } from '../../lib/metadata/badges';
@@ -429,20 +430,10 @@ function HierarchicalViewContent({
         .map((node) => node.id)
     );
   }, [parsedPlan, filters]);
-  const hottestNodeId = useMemo((): number | null => {
-    if (!hotspotsEnabled) return null;
-    if (!parsedPlan?.hasActualStats) return null;
-    let maxTime = 0;
-    let hotId: number | null = null;
-    for (const node of parsedPlan.allNodes) {
-      if (node.parentId === undefined) continue;
-      if (node.actualTime !== undefined && node.actualTime > maxTime) {
-        maxTime = node.actualTime;
-        hotId = node.id;
-      }
-    }
-    return hotId;
-  }, [parsedPlan, hotspotsEnabled]);
+  const hottestNodeId = useMemo(
+    (): number | null => (hotspotsEnabled ? computeHottestNodeId(parsedPlan) : null),
+    [parsedPlan, hotspotsEnabled]
+  );
   const planAnnotations = getAnnotationsForPlan(resolvedPlanIndex);
   const effectiveAnnotations = useMemo(
     () => (showAnnotations ? planAnnotations : createEmptyAnnotationState()),
