@@ -1,4 +1,4 @@
-import type { MetadataBundle, CoverageWarning } from './bundle';
+import { looksLikeMetadataBundle, type MetadataBundle, type CoverageWarning } from './bundle';
 
 export type DropClassification =
   | { kind: 'bundle' }
@@ -6,6 +6,11 @@ export type DropClassification =
   | { kind: 'error'; message: string };
 
 export function classifyDroppedFile(filename: string, text: string): DropClassification {
+  // Bundle content wins over extension: spool files are often .lst/.txt and
+  // may carry SQL*Plus noise around the JSON. parseBundle handles cleanup.
+  if (looksLikeMetadataBundle(text)) {
+    return { kind: 'bundle' };
+  }
   const isJsonFile = /\.json$/i.test(filename);
   if (!isJsonFile) {
     return { kind: 'plan' };
@@ -19,13 +24,6 @@ export function classifyDroppedFile(filename: string, text: string): DropClassif
       kind: 'error',
       message: `File has a .json extension but is not valid JSON: ${detail}`,
     };
-  }
-  if (
-    typeof parsed === 'object' &&
-    parsed !== null &&
-    (parsed as { format?: unknown }).format === 'ora-plan-metadata'
-  ) {
-    return { kind: 'bundle' };
   }
   if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object' && parsed[0] !== null) {
     return { kind: 'plan' };

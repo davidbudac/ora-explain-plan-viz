@@ -22,6 +22,17 @@ describe('classifyDroppedFile', () => {
     expect(out.kind).toBe('bundle');
   });
 
+  it('returns bundle for spool files without a .json extension', () => {
+    const text = '{"format":"ora-plan-metadata","version":1,"objects":{}}';
+    expect(classifyDroppedFile('bundle.lst', text).kind).toBe('bundle');
+    expect(classifyDroppedFile('output.txt', text).kind).toBe('bundle');
+  });
+
+  it('returns bundle for noisy chunked spool content that is not strictly valid JSON', () => {
+    const text = 'SQL> spool\n{"format":"ora-plan-metadata",\n"version":1,"objects":{}}\nSQL> spool off\n';
+    expect(classifyDroppedFile('bundle.json', text).kind).toBe('bundle');
+  });
+
   it('returns plan for JSON arrays that look like V$SQL_PLAN dumps', () => {
     const text = JSON.stringify([{ id: 0, operation: 'SELECT STATEMENT' }]);
     const out = classifyDroppedFile('plan.json', text);

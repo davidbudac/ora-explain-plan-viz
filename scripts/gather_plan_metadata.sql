@@ -16,6 +16,9 @@
 --   (looks in V$SQL_PLAN first, then DBA_HIST_SQL_PLAN). The literal LIST
 --   keyword switches to manual-object-list mode.
 --
+--   The script spools its own output: the bundle is written to <spool_file>
+--   (default bundle.json in the current directory). No manual SPOOL needed.
+--
 -- Privileges:
 --   The script tries DBA_* views first and degrades to ALL_* on ORA-00942.
 --   Objects skipped because of insufficient privileges land in the bundle's
@@ -33,16 +36,44 @@ SET LONG 100000000
 SET LONGCHUNKSIZE 100000
 SET SERVEROUTPUT ON SIZE UNLIMITED FORMAT WRAPPED
 SET TRIMSPOOL ON
+SET TRIMOUT ON
+SET TAB OFF
 SET TERMOUT ON
 SET VERIFY OFF
 
--- Positional arguments: SQL_ID or LIST, then either plan_hash/spool or object_list/spool
+-- The @@GEN:...@@ marker comments delimit the sections the visualizer's
+-- in-app generator swaps out when it stamps a self-contained copy of this
+-- script (literal arguments, screen instead of spool output). They are
+-- plain comments - running this file directly ignores them.
+
+-- Positional arguments: SQL_ID or LIST, then either plan_hash/spool or
+-- object_list/spool. Args 2 and 3 are optional - default them to empty via
+-- the zero-row NEW_VALUE idiom so SQL*Plus never prompts for them.
+-- @@GEN:ARGS:BEGIN@@
+SET TERMOUT OFF
+COLUMN 2 NEW_VALUE 2 NOPRINT
+COLUMN 3 NEW_VALUE 3 NOPRINT
+SELECT NULL "2", NULL "3" FROM dual WHERE 1 = 2;
+SET TERMOUT ON
+
 DEFINE arg1 = "&1"
 DEFINE arg2 = "&2"
 DEFINE arg3 = "&3"
 
--- Defer file output decision until after we know the spool target
+-- Spool target: optional third argument, default bundle.json
+SET TERMOUT OFF
 COLUMN spool_target NEW_VALUE spool_target NOPRINT
+SELECT NVL(TRIM('&arg3'), 'bundle.json') AS spool_target FROM dual;
+SET TERMOUT ON
+-- @@GEN:ARGS:END@@
+
+-- @@GEN:OPEN:BEGIN@@
+PROMPT Gathering plan metadata into &spool_target ...
+
+-- TERMOUT OFF keeps the JSON off the screen; it still reaches the spool file.
+SET TERMOUT OFF
+SPOOL &spool_target
+-- @@GEN:OPEN:END@@
 
 DECLARE
   g_mode            VARCHAR2(16);             -- 'SQL_ID' or 'LIST'
@@ -63,7 +94,7 @@ DECLARE
   TYPE t_object_rec IS RECORD (
     owner     VARCHAR2(128),
     name      VARCHAR2(128),
-    type      VARCHAR2(20)
+    type      VARCHAR2(64)
   );
   TYPE t_object_tab IS TABLE OF t_object_rec INDEX BY PLS_INTEGER;
   l_objects t_object_tab;
@@ -76,6 +107,10 @@ DECLARE
   l_warnings t_warning_tab;
 
   l_warn_count PLS_INTEGER := 0;
+
+  -- Output buffer. Declared here because PL/SQL requires item declarations
+  -- to precede subprogram bodies in a declarative part.
+  l_buffer CLOB;
 
   PROCEDURE add_warning(p_object IN VARCHAR2, p_reason IN VARCHAR2) IS
   BEGIN
@@ -101,9 +136,17 @@ DECLARE
   END;
 
   FUNCTION js_number(p_value IN NUMBER) RETURN VARCHAR2 IS
+    l_out VARCHAR2(64);
   BEGIN
     IF p_value IS NULL THEN RETURN 'null'; END IF;
-    RETURN TO_CHAR(p_value, 'TM', 'NLS_NUMERIC_CHARACTERS=''.,''');
+    l_out := TO_CHAR(p_value, 'TM', 'NLS_NUMERIC_CHARACTERS=''.,''');
+    -- TM format drops the leading zero (.5 / -.5), which is invalid JSON.
+    IF SUBSTR(l_out, 1, 1) = '.' THEN
+      l_out := '0' || l_out;
+    ELSIF SUBSTR(l_out, 1, 2) = '-.' THEN
+      l_out := '-0' || SUBSTR(l_out, 2);
+    END IF;
+    RETURN l_out;
   END;
 
   FUNCTION js_bool(p_value IN BOOLEAN) RETURN VARCHAR2 IS
@@ -148,7 +191,6 @@ DECLARE
     l_num NUMBER;
     l_vc  VARCHAR2(4000);
     l_dt  DATE;
-    l_ts  TIMESTAMP;
   BEGIN
     IF p_raw IS NULL THEN RETURN NULL; END IF;
     IF UPPER(p_data_type) LIKE 'NUMBER%'
@@ -162,8 +204,11 @@ DECLARE
       DBMS_STATS.CONVERT_RAW_VALUE(p_raw, l_dt);
       RETURN TO_CHAR(l_dt, 'YYYY-MM-DD"T"HH24:MI:SS');
     ELSIF UPPER(p_data_type) LIKE 'TIMESTAMP%' THEN
-      DBMS_STATS.CONVERT_RAW_VALUE(p_raw, l_ts);
-      RETURN TO_CHAR(l_ts, 'YYYY-MM-DD"T"HH24:MI:SS.FF3');
+      -- DBMS_STATS.CONVERT_RAW_VALUE has no TIMESTAMP overload. The first
+      -- 7 bytes of a timestamp raw use the DATE encoding, so decode those
+      -- (fractional seconds are not needed for low/high display).
+      DBMS_STATS.CONVERT_RAW_VALUE(UTL_RAW.SUBSTR(p_raw, 1, 7), l_dt);
+      RETURN TO_CHAR(l_dt, 'YYYY-MM-DD"T"HH24:MI:SS');
     END IF;
     RETURN RAWTOHEX(p_raw);
   EXCEPTION
@@ -208,7 +253,7 @@ DECLARE
     EXCEPTION
       WHEN OTHERS THEN
         IF SQLCODE = -942 THEN
-          add_warning('V$SQL_PLAN', 'No SELECT on V$SQL_PLAN — cannot resolve referenced objects from cursor cache.');
+          add_warning('V$SQL_PLAN', 'No SELECT on V$SQL_PLAN - cannot resolve referenced objects from cursor cache.');
         ELSE
           RAISE;
         END IF;
@@ -232,7 +277,7 @@ DECLARE
       EXCEPTION
         WHEN OTHERS THEN
           IF SQLCODE = -942 THEN
-            add_warning('DBA_HIST_SQL_PLAN', 'No SELECT on DBA_HIST_SQL_PLAN — cannot resolve referenced objects from AWR history.');
+            add_warning('DBA_HIST_SQL_PLAN', 'No SELECT on DBA_HIST_SQL_PLAN - cannot resolve referenced objects from AWR history.');
           ELSE
             RAISE;
           END IF;
@@ -264,7 +309,7 @@ DECLARE
             'UNKNOWN'
           );
         ELSE
-          add_warning(l_token, 'Manual list entry has no owner — expected OWNER.OBJECT.');
+          add_warning(l_token, 'Manual list entry has no owner - expected OWNER.OBJECT.');
         END IF;
       END IF;
     END LOOP;
@@ -296,7 +341,7 @@ DECLARE
         USING p_owner, p_name;
     EXCEPTION
       WHEN NO_DATA_FOUND THEN
-        add_warning(p_owner || '.' || p_name, 'No row in ' || l_view || ' — table stats not gathered.');
+        add_warning(p_owner || '.' || p_name, 'No row in ' || l_view || ' - table stats not gathered.');
       WHEN OTHERS THEN
         IF SQLCODE = -942 AND g_use_dba_tables THEN
           g_use_dba_tables := FALSE;
@@ -568,14 +613,15 @@ DECLARE
   PROCEDURE write_objects(p_buffer IN OUT NOCOPY CLOB) IS
     l_first   BOOLEAN := TRUE;
     l_count   PLS_INTEGER;
-    l_type    VARCHAR2(20);
+    l_type    VARCHAR2(64);
   BEGIN
     DBMS_LOB.APPEND(p_buffer, '"objects":{');
-    -- Tables first
+    -- Tables first. V$SQL_PLAN object_type carries decorations like
+    -- 'TABLE (TEMP)' or 'INDEX (UNIQUE)', so match by prefix, not equality.
     l_count := l_objects.COUNT;
     FOR i IN 1 .. l_count LOOP
       l_type := l_objects(i).type;
-      IF l_type IN ('TABLE', 'TABLE PARTITION', 'TABLE SUBPARTITION', 'UNKNOWN') THEN
+      IF l_type LIKE 'TABLE%' OR l_type LIKE 'MAT_VIEW%' OR l_type = 'UNKNOWN' THEN
         IF NOT l_first THEN DBMS_LOB.APPEND(p_buffer, ','); END IF;
         l_first := FALSE;
         write_table_object(l_objects(i).owner, l_objects(i).name, p_buffer);
@@ -585,7 +631,7 @@ DECLARE
     l_count := l_objects.COUNT;
     FOR i IN 1 .. l_count LOOP
       l_type := l_objects(i).type;
-      IF l_type IN ('INDEX', 'INDEX PARTITION', 'INDEX SUBPARTITION') THEN
+      IF l_type LIKE 'INDEX%' THEN
         IF NOT l_first THEN DBMS_LOB.APPEND(p_buffer, ','); END IF;
         l_first := FALSE;
         write_index_object(l_objects(i).owner, l_objects(i).name, p_buffer);
@@ -639,7 +685,6 @@ DECLARE
     );
   END;
 
-  l_buffer CLOB;
 BEGIN
   ----------------------------------------------------------------------------
   -- Parse arguments
@@ -677,7 +722,7 @@ BEGIN
     '{'
     || '"format":"ora-plan-metadata"'
     || ',"version":1'
-    || ',"captured_at":' || js_iso_ts(SYSTIMESTAMP)
+    || ',"captured_at":' || js_iso_ts(CAST(SYSTIMESTAMP AS TIMESTAMP))
     || ',"source":{'
     || '"db_name":' || js_string(g_db_name)
     || ',"oracle_version":' || js_string(g_oracle_version)
@@ -691,11 +736,11 @@ BEGIN
   );
 
   ----------------------------------------------------------------------------
-  -- Container check — refuse to gather from CDB$ROOT
+  -- Container check - refuse to gather from CDB$ROOT
   ----------------------------------------------------------------------------
   IF g_container = 'CDB$ROOT' THEN
     add_warning('CDB$ROOT',
-      'Connected to CDB$ROOT — object statistics live inside PDBs. '
+      'Connected to CDB$ROOT - object statistics live inside PDBs. '
       || 'Reconnect to the appropriate PDB and re-run this script.');
     write_objects(l_buffer);
     DBMS_LOB.APPEND(l_buffer, ',');
@@ -715,8 +760,17 @@ BEGIN
 
     IF g_mode = 'SQL_ID' THEN
       resolve_objects_for_sql_id;
+      IF l_objects.COUNT = 0 THEN
+        add_warning(NVL(g_sql_id, '(no sql_id)'),
+          'No objects resolved for this SQL_ID - not found in V$SQL_PLAN or DBA_HIST_SQL_PLAN. '
+          || 'The cursor may have aged out of the shared pool; re-run the statement first, '
+          || 'or use LIST mode with explicit OWNER.OBJECT names.');
+      END IF;
     ELSE
       resolve_objects_from_list;
+      IF l_objects.COUNT = 0 THEN
+        add_warning('LIST', 'Manual object list is empty - nothing gathered.');
+      END IF;
     END IF;
 
     write_objects(l_buffer);
@@ -730,7 +784,11 @@ BEGIN
   ----------------------------------------------------------------------------
   -- Emit
   ----------------------------------------------------------------------------
-  -- DBMS_OUTPUT is line-buffered; use a chunked loop for large bundles.
+  -- DBMS_OUTPUT is line-buffered; emit the bundle in chunks. Each PUT_LINE
+  -- inserts a line break at an arbitrary position (possibly mid-string) -
+  -- the visualizer strips raw newlines on import, and all legitimate
+  -- newlines in values are escaped as \n by js_string. Chunks stay well
+  -- under PUT_LINE's 32767-BYTE limit even for multibyte characters.
   DECLARE
     l_amount   INTEGER;
     l_offset   INTEGER := 1;
@@ -738,7 +796,7 @@ BEGIN
     l_chunk    VARCHAR2(32767);
   BEGIN
     WHILE l_offset <= l_total LOOP
-      l_amount := LEAST(32767, l_total - l_offset + 1);
+      l_amount := LEAST(8000, l_total - l_offset + 1);
       l_chunk := DBMS_LOB.SUBSTR(l_buffer, l_amount, l_offset);
       DBMS_OUTPUT.PUT_LINE(l_chunk);
       l_offset := l_offset + l_amount;
@@ -749,4 +807,25 @@ BEGIN
 END;
 /
 
-SET ECHO ON
+-- @@GEN:CLOSE:BEGIN@@
+SPOOL OFF
+SET TERMOUT ON
+PROMPT Done. Wrote &spool_target - paste its contents into the visualizer's
+PROMPT input box (or drop the file onto the input panel) to attach it.
+-- @@GEN:CLOSE:END@@
+
+-- Restore SQL*Plus factory defaults for the settings this script changed.
+SET HEADING ON
+SET FEEDBACK 6
+SET PAGESIZE 14
+SET LINESIZE 80
+SET VERIFY ON
+-- @@GEN:CLEANUP:BEGIN@@
+UNDEFINE arg1
+UNDEFINE arg2
+UNDEFINE arg3
+UNDEFINE spool_target
+UNDEFINE 1
+UNDEFINE 2
+UNDEFINE 3
+-- @@GEN:CLEANUP:END@@
