@@ -310,9 +310,15 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
       return updateActiveSlot(state, slot => ({ ...slot, rawInput: action.payload, error: null }));
 
     case 'SET_PARSED_PLAN': {
-      const newMetric = !action.payload.hasActualStats && state.nodeIndicatorMetric !== 'cost'
-        ? 'cost' as NodeIndicatorMetric
-        : state.nodeIndicatorMetric;
+      // Default the node indicator to A-Time (or A-Rows) when the plan carries
+      // actual runtime stats, otherwise fall back to Cost.
+      const hasActualTime = action.payload.allNodes.some((n) => n.actualTime !== undefined);
+      const hasActualRows = action.payload.hasActualStats || action.payload.maxActualRows !== undefined;
+      const newMetric: NodeIndicatorMetric = hasActualTime
+        ? 'actualTime'
+        : hasActualRows
+          ? 'actualRows'
+          : 'cost';
       const nextState = updateActiveSlot(state, slot => ({
         ...slot,
         parsedPlan: action.payload,

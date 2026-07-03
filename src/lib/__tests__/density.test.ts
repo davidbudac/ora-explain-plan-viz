@@ -3,13 +3,12 @@ import { DENSITY_PRESETS, matchDensityPreset } from '../density';
 import { defaultNodeDisplayOptions } from '../settings';
 
 describe('density presets', () => {
-  it('settings defaults derive the balanced preset', () => {
-    expect(matchDensityPreset(defaultNodeDisplayOptions)).toBe('balanced');
+  it('settings defaults derive the detailed preset', () => {
+    expect(matchDensityPreset(defaultNodeDisplayOptions)).toBe('detailed');
   });
 
   it('each preset table maps back to itself', () => {
     expect(matchDensityPreset(DENSITY_PRESETS.compact)).toBe('compact');
-    expect(matchDensityPreset(DENSITY_PRESETS.balanced)).toBe('balanced');
     expect(matchDensityPreset(DENSITY_PRESETS.detailed)).toBe('detailed');
   });
 
