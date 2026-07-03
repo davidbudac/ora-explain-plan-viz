@@ -1,14 +1,12 @@
 import type { NodeDisplayOptions } from './types';
-import { defaultNodeDisplayOptions } from './settings';
 
 /**
- * Density presets bundle the 18 node-display toggles into three curated
+ * Density presets bundle the 18 node-display toggles into two curated
  * levels. Presets are DERIVED, never stored: the active selection is computed
  * by comparing the current options against these tables, so any manual toggle
- * automatically reads as "custom" with no coordination code, and existing
- * users' persisted defaults land on "balanced".
+ * automatically reads as "custom" with no coordination code.
  */
-export type DensityPreset = 'compact' | 'balanced' | 'detailed';
+export type DensityPreset = 'compact' | 'detailed';
 export type DensitySelection = DensityPreset | 'custom';
 
 export const DENSITY_PRESETS: Record<DensityPreset, NodeDisplayOptions> = {
@@ -33,8 +31,6 @@ export const DENSITY_PRESETS: Record<DensityPreset, NodeDisplayOptions> = {
     showMismatchNoHistogramBadge: false,
     showAnnotations: true,
   },
-  // MUST stay identical to the settings.ts defaults so existing users derive 'balanced'.
-  balanced: { ...defaultNodeDisplayOptions },
   detailed: {
     showRows: true,
     showCost: true,
@@ -59,14 +55,13 @@ export const DENSITY_PRESETS: Record<DensityPreset, NodeDisplayOptions> = {
 
 export const DENSITY_PRESET_LABELS: Record<DensitySelection, string> = {
   compact: 'Compact',
-  balanced: 'Balanced',
   detailed: 'Detailed',
   custom: 'Custom',
 };
 
 /** Which preset (if any) the given options exactly match. */
 export function matchDensityPreset(options: NodeDisplayOptions): DensitySelection {
-  for (const preset of ['compact', 'balanced', 'detailed'] as const) {
+  for (const preset of ['compact', 'detailed'] as const) {
     const table = DENSITY_PRESETS[preset];
     const keys = Object.keys(table) as (keyof NodeDisplayOptions)[];
     if (keys.every((key) => options[key] === table[key])) {

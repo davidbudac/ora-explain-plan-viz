@@ -46,7 +46,7 @@ export const defaultNodeDisplayOptions: NodeDisplayOptions = {
   showBytes: true,
   showObjectName: true,
   showPredicateIndicators: true,
-  showPredicateDetails: false,
+  showPredicateDetails: true,
   showQueryBlockBadge: true,
   showQueryBlockGrouping: true,
   showActualRows: true,

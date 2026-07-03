@@ -223,12 +223,12 @@ function useCommands(): Command[] {
     });
 
     // --- Density presets ---
-    for (const preset of ['compact', 'balanced', 'detailed'] as const) {
+    for (const preset of ['compact', 'detailed'] as const) {
       commands.push({
         id: `density-${preset}`,
         label: `Density preset: ${DENSITY_PRESET_LABELS[preset]}`,
         category: 'Node Display',
-        keywords: ['density', 'preset', 'compact', 'balanced', 'detailed', 'simplify', preset],
+        keywords: ['density', 'preset', 'compact', 'detailed', 'simplify', preset],
         execute: () => applyDensityPreset(preset),
         isActive: () => densitySelection === preset,
         isAvailable: () => anyPlanParsed,

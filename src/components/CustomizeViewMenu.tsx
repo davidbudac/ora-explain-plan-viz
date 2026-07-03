@@ -7,7 +7,6 @@ import type { DensityPreset } from '../lib/density';
 
 const DENSITY_PRESET_TITLES: Record<DensityPreset, string> = {
   compact: 'Operation + time only — triage mode',
-  balanced: 'Common fields (default)',
   detailed: 'Everything, including predicate details',
 };
 
@@ -427,8 +426,8 @@ export function CustomizeViewMenu({
         >
           {/* Density presets */}
           <div className="p-2 border-b border-neutral-200 dark:border-neutral-700">
-            <div role="radiogroup" aria-label="Density preset" className="grid grid-cols-3 gap-1">
-              {(['compact', 'balanced', 'detailed'] as const).map((preset) => {
+            <div role="radiogroup" aria-label="Density preset" className="grid grid-cols-2 gap-1">
+              {(['compact', 'detailed'] as const).map((preset) => {
                 const active = densitySelection === preset;
                 return (
                   <button
