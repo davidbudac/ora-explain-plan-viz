@@ -3,7 +3,6 @@ import {
   ReactFlow,
   Background,
   Controls,
-  MiniMap,
   Panel,
   useNodesState,
   useEdgesState,
@@ -22,7 +21,7 @@ import { usePlan } from '../../hooks/usePlanContext';
 import { PlanNodeMemo } from '../nodes/PlanNode';
 import { formatNumberShort, computeCardinalityRatio, cardinalityRatioSeverity } from '../../lib/format';
 import type { PlanNode, NodeDisplayOptions } from '../../lib/types';
-import { EDGE_SCHEME_COLORS, COLOR_SCHEME_PALETTES, getOperationCategory } from '../../lib/types';
+import { EDGE_SCHEME_COLORS } from '../../lib/types';
 import { createEmptyAnnotationState, getHighlightColorDef } from '../../lib/annotations';
 import { matchesFilters } from '../../lib/filtering';
 import { computeHottestNodeId } from '../../lib/analysis';
@@ -390,14 +389,12 @@ interface HierarchicalViewContentProps {
   planIndex?: number;
   registerExport?: boolean;
   showAnnotations?: boolean;
-  showMiniMap?: boolean;
 }
 
 function HierarchicalViewContent({
   planIndex,
   registerExport = true,
   showAnnotations = true,
-  showMiniMap = true,
 }: HierarchicalViewContentProps) {
   const {
     plans,
@@ -1170,22 +1167,6 @@ function HierarchicalViewContent({
           color={theme === 'dark' ? '#374151' : '#e5e7eb'}
         />
         <Controls className="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-700" />
-        {showMiniMap && parsedPlan.allNodes.length >= 20 && !isExporting && (
-          <MiniMap
-            position="bottom-right"
-            pannable
-            zoomable
-            nodeStrokeWidth={0}
-            nodeColor={(n) => {
-              if (n.type !== 'planNode') return 'transparent';
-              const planNode = (n.data as { node?: PlanNode }).node;
-              const category = planNode ? getOperationCategory(planNode.operation) : 'Other';
-              return COLOR_SCHEME_PALETTES[colorScheme][category] ?? '#94a3b8';
-            }}
-            maskColor={theme === 'dark' ? 'rgba(0,0,0,0.55)' : 'rgba(241,245,249,0.7)'}
-            className="!bg-white dark:!bg-neutral-900 !border !border-neutral-200 dark:!border-neutral-700 rounded-md"
-          />
-        )}
         <Panel position="top-right">
           <button
             type="button"
@@ -1208,14 +1189,12 @@ interface HierarchicalViewProps {
   planIndex?: number;
   registerExport?: boolean;
   showAnnotations?: boolean;
-  showMiniMap?: boolean;
 }
 
 export function HierarchicalView({
   planIndex,
   registerExport = true,
   showAnnotations = true,
-  showMiniMap = true,
 }: HierarchicalViewProps) {
   const { plans, activePlanIndex, colorScheme } = usePlan();
   const resolvedPlanIndex = planIndex ?? activePlanIndex;
@@ -1234,7 +1213,6 @@ export function HierarchicalView({
         planIndex={resolvedPlanIndex}
         registerExport={registerExport}
         showAnnotations={showAnnotations}
-        showMiniMap={showMiniMap}
       />
     </ReactFlowProvider>
   );
