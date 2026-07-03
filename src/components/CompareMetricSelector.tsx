@@ -11,7 +11,7 @@ export function CompareMetricSelector() {
   const bothHaveActualStats = selectedPlans.length === 2 && selectedPlans.every((plan) => plan?.hasActualStats);
 
   const availableMetrics = ALL_COMPARE_METRICS.filter(m => {
-    if (['actualRows', 'actualTime', 'starts'].includes(m)) return bothHaveActualStats;
+    if (['actualRows', 'actualTime', 'selfTime', 'starts'].includes(m)) return bothHaveActualStats;
     return true;
   });
 

@@ -7,6 +7,7 @@ import { FilterPanel } from './components/FilterPanel';
 import { VisualizationTabs } from './components/VisualizationTabs';
 import { NodeDetailPanel } from './components/NodeDetailPanel';
 import { CommandPalette } from './components/CommandPalette';
+import { ShortcutsOverlay } from './components/ShortcutsOverlay';
 
 const LEFT_PANEL_MIN = 250;
 const RIGHT_PANEL_MIN = 300;
@@ -141,6 +142,7 @@ function AppContent() {
   return (
     <div className="flex flex-col h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden">
       <CommandPalette />
+      <ShortcutsOverlay />
       {!visualizationMaximized && <Header />}
       {!visualizationMaximized && <InputPanel />}
       {anyPlanParsed && <NavRibbon />}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } 
 import { usePlan } from '../hooks/usePlanContext';
 import { OPERATION_CATEGORIES, getOperationCategory } from '../lib/types';
 import type { NodeDisplayOptions, PredicateType } from '../lib/types';
-import { matchesSearch } from '../lib/filtering';
+import { matchesSearch, hasActiveFilters } from '../lib/filtering';
 import { computeCardinalityRatio, formatNumberShort, formatTimeCompact } from '../lib/format';
 import { CustomizeViewMenu } from './CustomizeViewMenu';
 
@@ -257,17 +257,26 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
   if (!parsedPlan) return null;
 
   if (isCollapsed) {
+    const filtersActive = hasActiveFilters(filters) || filteredCount !== totalCount;
     return (
       <div className="bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col items-center py-4 px-1.5 shadow-sm">
         <button
           onClick={() => setIsCollapsed(false)}
-          className="h-9 w-9 flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 rounded-xl transition-all shadow-lg ring-2 ring-blue-500/20 active:scale-95"
-          title="Show filters"
+          className="relative h-9 w-9 flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 rounded-xl transition-all shadow-lg ring-2 ring-blue-500/20 active:scale-95"
+          title={filtersActive ? `Show filters (active: ${filteredCount} / ${totalCount} ops visible)` : 'Show filters'}
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
           </svg>
+          {filtersActive && (
+            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-400 border-2 border-white dark:border-slate-900" aria-hidden="true" />
+          )}
         </button>
+        {filtersActive && (
+          <span className="mt-2 text-[9px] font-bold text-amber-600 dark:text-amber-400 font-mono whitespace-nowrap">
+            {filteredCount}/{totalCount}
+          </span>
+        )}
         <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-4 uppercase tracking-[0.2em] writing-mode-vertical whitespace-nowrap">Filter Workspace</span>
       </div>
     );
@@ -349,7 +358,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
                 <IndicatorButton metric="cost" label="Cost" current={sankeyMetric} onClick={setSankeyMetric} />
                 {parsedPlan.hasActualStats && (
                   <>
-                    <IndicatorButton metric="actualRows" label="A-Rows" current={sankeyMetric} onClick={setSankeyMetric} />
+                    <IndicatorButton metric="actualRows" label="Rows × Starts" current={sankeyMetric} onClick={setSankeyMetric} />
                     <IndicatorButton metric="actualTime" label="A-Time" current={sankeyMetric} onClick={setSankeyMetric} />
                   </>
                 )}
@@ -490,7 +499,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       {/* Thresholds */}
       <div className="p-3">
         <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-3">
-          Highlight by
+          Hide below threshold
         </label>
         <div className="space-y-4">
           {/* Cost Range */}
@@ -511,8 +520,8 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
               className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
             />
             <div className="flex justify-between text-[9px] text-slate-400 dark:text-slate-500 mt-1 font-mono uppercase">
-              <span>Min</span>
-              <span>Max</span>
+              <span>Show all</span>
+              <span>{formatNumberShort(maxCost)}</span>
             </div>
           </div>
 
@@ -535,8 +544,8 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
                 className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
               />
               <div className="flex justify-between text-[9px] text-slate-400 dark:text-slate-500 mt-1 font-mono uppercase">
-                <span>Min</span>
-                <span>Max</span>
+                <span>Show all</span>
+                <span>{formatNumberShort(maxActualRows)}</span>
               </div>
             </div>
           )}
@@ -560,8 +569,8 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
                 className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
               />
               <div className="flex justify-between text-[9px] text-slate-400 dark:text-slate-500 mt-1 font-mono uppercase">
-                <span>Min</span>
-                <span>Max</span>
+                <span>Show all</span>
+                <span>{formatTimeCompact(maxActualTime)}</span>
               </div>
             </div>
           )}
@@ -570,7 +579,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
           {parsedPlan?.hasActualStats && (
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Cardinality deviation</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Cardinality mismatch</span>
                 <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 font-mono">
                   {filters.minCardinalityMismatch > 0 ? `≥ ${filters.minCardinalityMismatch}x` : 'Off'}
                 </span>

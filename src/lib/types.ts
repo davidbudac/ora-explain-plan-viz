@@ -18,7 +18,8 @@ export interface PlanNode {
 
   // Actual runtime statistics (from SQL Monitor)
   actualRows?: number;
-  actualTime?: number;       // milliseconds
+  actualTime?: number;       // milliseconds, CUMULATIVE (includes children) after post-parse analysis
+  selfTime?: number;         // milliseconds, this operation only — derived post-parse (analysis.ts)
   starts?: number;           // number of execution starts
   memoryUsed?: number;       // bytes
   tempUsed?: number;         // actual temp space in bytes
@@ -50,6 +51,7 @@ export interface ParsedPlan {
   maxRows: number;
   maxActualRows?: number;
   maxStarts?: number;
+  maxSelfTime?: number;      // milliseconds, set by computeSelfTimes (analysis.ts)
 
   // Source metadata
   source: PlanSource;

@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { FilterState, NodeDisplayOptions } from '../lib/types';
+import { usePlan } from '../hooks/usePlanContext';
+import { DENSITY_PRESET_LABELS } from '../lib/density';
+import type { DensityPreset } from '../lib/density';
+
+const DENSITY_PRESET_TITLES: Record<DensityPreset, string> = {
+  compact: 'Operation + time only — triage mode',
+  detailed: 'Everything, including predicate details',
+};
 
 type CommandSection = 'Behavior' | 'Node fields' | 'Runtime fields' | 'Warning badges' | 'Metadata indicators' | 'Annotations';
 
@@ -193,7 +201,9 @@ export function CustomizeViewMenu({
   hasActualStats,
   defaultNodeDisplayOptions,
 }: CustomizeViewMenuProps) {
+  const { densitySelection, applyDensityPreset } = usePlan();
   const [open, setOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [query, setQuery] = useState('');
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -227,6 +237,9 @@ export function CustomizeViewMenu({
     () => availableCommands.reduce((count, command) => count + (isCommandEnabled(command.key, filters) ? 1 : 0), 0),
     [availableCommands, filters]
   );
+
+  // Advanced auto-opens while searching or when the options don't match a preset
+  const effectiveAdvancedOpen = advancedOpen || query.trim().length > 0 || densitySelection === 'custom';
 
   useEffect(() => {
     if (!open) return;
@@ -388,7 +401,7 @@ export function CustomizeViewMenu({
         onClick={() => setOpen((value) => !value)}
         className="w-full h-8 px-2.5 rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-xs font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors flex items-center justify-between"
       >
-        <span>Customize view <kbd className="ml-1 text-[10px] opacity-70 font-normal">{navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl+'}K</kbd></span>
+        <span>Density: <span className="font-bold">{DENSITY_PRESET_LABELS[densitySelection]}</span></span>
         <svg
           className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`}
           fill="none"
@@ -411,6 +424,60 @@ export function CustomizeViewMenu({
           className="fixed z-[80] w-[320px] max-w-[calc(100vw-1rem)] rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-xl"
           style={{ top: popoverPosition.top, left: popoverPosition.left }}
         >
+          {/* Density presets */}
+          <div className="p-2 border-b border-neutral-200 dark:border-neutral-700">
+            <div role="radiogroup" aria-label="Density preset" className="grid grid-cols-2 gap-1">
+              {(['compact', 'detailed'] as const).map((preset) => {
+                const active = densitySelection === preset;
+                return (
+                  <button
+                    key={preset}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => applyDensityPreset(preset)}
+                    title={DENSITY_PRESET_TITLES[preset]}
+                    className={`px-2 py-1.5 text-xs rounded-md border font-semibold transition-colors ${
+                      active
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700'
+                    }`}
+                  >
+                    {DENSITY_PRESET_LABELS[preset]}
+                  </button>
+                );
+              })}
+            </div>
+            {densitySelection === 'custom' && (
+              <p className="mt-1.5 text-[11px] text-neutral-500 dark:text-neutral-400">
+                Custom — pick a preset to reset the toggles below.
+              </p>
+            )}
+          </div>
+
+          {/* Advanced disclosure */}
+          <div className={effectiveAdvancedOpen ? 'border-b border-neutral-200 dark:border-neutral-700' : ''}>
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen((v) => !v)}
+              aria-expanded={effectiveAdvancedOpen}
+              className="w-full px-3 py-2 flex items-center gap-1.5 text-xs font-semibold text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+            >
+              <svg
+                className={`w-3 h-3 transition-transform ${effectiveAdvancedOpen ? 'rotate-90' : ''}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+              Advanced ({enabledCount}/{availableCount})
+            </button>
+          </div>
+
+          {effectiveAdvancedOpen && (
+          <>
           <div className="p-2 border-b border-neutral-200 dark:border-neutral-700">
             <input
               ref={inputRef}
@@ -514,6 +581,8 @@ export function CustomizeViewMenu({
               );
             })}
           </div>
+          </>
+          )}
         </div>,
         document.body
       )}

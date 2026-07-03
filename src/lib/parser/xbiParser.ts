@@ -85,15 +85,9 @@ export const xbiParser: PlanParser = {
 
     const { rootNode, allNodes } = buildTree(rows, predicates);
 
-    // Compute activity percent from self elapsed time
+    // actualTime holds SELF elapsed time at this point; computeSelfTimes
+    // (analysis.ts) rolls it up to cumulative and derives activityPercent.
     const totalElapsedMs = rootNode?.actualTime;
-    if (totalElapsedMs && totalElapsedMs > 0) {
-      for (const node of allNodes) {
-        if (node.actualTime !== undefined && node.id !== 0) {
-          node.activityPercent = (node.actualTime / totalElapsedMs) * 100;
-        }
-      }
-    }
 
     const hasActualStats = allNodes.some(n => n.actualRows !== undefined || n.actualTime !== undefined);
     const totalCost = allNodes.reduce((sum, n) => sum + (n.cost || 0), 0);

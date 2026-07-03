@@ -24,6 +24,7 @@ import type { PlanNode, NodeDisplayOptions } from '../../lib/types';
 import { EDGE_SCHEME_COLORS } from '../../lib/types';
 import { createEmptyAnnotationState, getHighlightColorDef } from '../../lib/annotations';
 import { matchesFilters } from '../../lib/filtering';
+import { computeHottestNodeId } from '../../lib/analysis';
 import { findObjectInBundle } from '../../lib/metadata/lookup';
 import { evaluateBadges } from '../../lib/metadata/badges';
 import type { MetadataBadge } from '../../lib/metadata/badges';
@@ -415,7 +416,7 @@ function HierarchicalViewContent({
   const selectedNodeId = slot?.selectedNodeId ?? null;
   const selectedNodeIds = slot?.selectedNodeIds ?? EMPTY_SELECTED_NODE_IDS;
   const containerRef = useRef<HTMLDivElement>(null);
-  const { fitView, setNodes: rfSetNodes, getNodes } = useReactFlow();
+  const { fitView, setNodes: rfSetNodes, getNodes, setCenter, getViewport, getInternalNode } = useReactFlow();
   const nodeById = useMemo(() => {
     if (!parsedPlan) return new Map<number, PlanNode>();
     return new Map(parsedPlan.allNodes.map((node) => [node.id, node]));
@@ -429,20 +430,10 @@ function HierarchicalViewContent({
         .map((node) => node.id)
     );
   }, [parsedPlan, filters]);
-  const hottestNodeId = useMemo((): number | null => {
-    if (!hotspotsEnabled) return null;
-    if (!parsedPlan?.hasActualStats) return null;
-    let maxTime = 0;
-    let hotId: number | null = null;
-    for (const node of parsedPlan.allNodes) {
-      if (node.parentId === undefined) continue;
-      if (node.actualTime !== undefined && node.actualTime > maxTime) {
-        maxTime = node.actualTime;
-        hotId = node.id;
-      }
-    }
-    return hotId;
-  }, [parsedPlan, hotspotsEnabled]);
+  const hottestNodeId = useMemo(
+    (): number | null => (hotspotsEnabled ? computeHottestNodeId(parsedPlan) : null),
+    [parsedPlan, hotspotsEnabled]
+  );
   const planAnnotations = getAnnotationsForPlan(resolvedPlanIndex);
   const effectiveAnnotations = useMemo(
     () => (showAnnotations ? planAnnotations : createEmptyAnnotationState()),
@@ -856,6 +847,35 @@ function HierarchicalViewContent({
     }, 50);
     return () => clearTimeout(timer);
   }, [layoutData, fitView]);
+
+  // Pan the viewport to a newly selected node when it's off-screen. Keyboard
+  // navigation and hotspot-list clicks select nodes the user can't see;
+  // click-selection is a no-op (the node is already visible), and the user's
+  // own pan is never fought while the selection is unchanged.
+  const prevSelectedRef = useRef<number | null>(null);
+  useEffect(() => {
+    const prev = prevSelectedRef.current;
+    prevSelectedRef.current = selectedNodeId;
+    if (selectedNodeId === null || selectedNodeId === prev) return;
+    if (selectedNodeIds.length !== 1) return; // skip multi-select
+    const internal = getInternalNode(String(selectedNodeId));
+    if (!internal || !containerRef.current) return;
+    const { x: vx, y: vy, zoom } = getViewport();
+    const abs = internal.internals.positionAbsolute;
+    const w = internal.measured?.width ?? NODE_WIDTH;
+    const h = internal.measured?.height ?? NODE_BASE_HEIGHT;
+    const sx = abs.x * zoom + vx;
+    const sy = abs.y * zoom + vy;
+    const rect = containerRef.current.getBoundingClientRect();
+    const margin = 24;
+    const visible =
+      sx >= margin &&
+      sy >= margin &&
+      sx + w * zoom <= rect.width - margin &&
+      sy + h * zoom <= rect.height - margin;
+    if (visible) return;
+    setCenter(abs.x + w / 2, abs.y + h / 2, { zoom, duration: 300 });
+  }, [selectedNodeId, selectedNodeIds.length, getInternalNode, getViewport, setCenter]);
 
   // Reset all nodes/edges back to the computed layout positions
   const resetLayout = useCallback(() => {

@@ -5,6 +5,10 @@ import { usePlan } from '../../hooks/usePlanContext';
 import { COLOR_SCHEME_PALETTES, getOperationCategory } from '../../lib/types';
 import type { PlanNode } from '../../lib/types';
 import { formatNumberShort, formatTimeCompact } from '../../lib/format';
+import { matchesSearch } from '../../lib/filtering';
+
+/** Minimum vertical pixels per operation before the diagram grows past the container and scrolls. */
+const MIN_PX_PER_NODE = 22;
 
 interface SankeyNodeExtra {
   name: string;
@@ -28,8 +32,11 @@ export function SankeyView() {
   const tooltipStateRef = useRef<typeof tooltip>(null);
   const rafRef = useRef<number | null>(null);
   const pendingTooltipRef = useRef<typeof tooltip>(null);
-  const { parsedPlan, selectedNodeIds, selectNode, sankeyMetric, filteredNodeIds, theme, colorScheme } = usePlan();
+  const { parsedPlan, selectedNodeIds, selectNode, sankeyMetric, filteredNodeIds, theme, colorScheme, filters } = usePlan();
   const selectedNodeIdSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
+  // Vertical stretch factor — thin nodes on large plans become readable by growing the drawing height
+  const [verticalZoom, setVerticalZoom] = useState(1);
+  const searchText = filters.searchText;
 
   useEffect(() => {
     tooltipStateRef.current = tooltip;
@@ -51,6 +58,21 @@ export function SankeyView() {
       }
     };
   }, []);
+
+  // Escape deselects — same behavior as the tree and tabular views
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      const tag = (event.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if ((event.target as HTMLElement)?.isContentEditable) return;
+      if (selectedNodeIds.length === 0) return;
+      event.preventDefault();
+      selectNode(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedNodeIds.length, selectNode]);
 
   // Update dimensions on mount and resize
   useEffect(() => {
@@ -144,8 +166,13 @@ export function SankeyView() {
   useEffect(() => {
     if (!svgRef.current || !sankeyData) return;
 
-    const { width, height } = dimensions;
-    if (width < 100 || height < 100) return; // Don't render if too small
+    const { width, height: containerHeight } = dimensions;
+    if (width < 100 || containerHeight < 100) return; // Don't render if too small
+
+    // Grow past the container (scrollable) when the plan is large or the user zoomed in
+    const height = Math.round(
+      Math.max(containerHeight, sankeyData.nodes.length * MIN_PX_PER_NODE) * verticalZoom
+    );
 
     pendingTooltipRef.current = null;
     setTooltip(null);
@@ -282,6 +309,11 @@ export function SankeyView() {
         if (isSelected) {
           rect.setAttribute('stroke', '#3b82f6');
           rect.setAttribute('stroke-width', '3');
+        } else if (searchText.trim() && matchesSearch(sNode.planNode, searchText)) {
+          // Search-match highlight — dashed variant of the selection stroke
+          rect.setAttribute('stroke', '#3b82f6');
+          rect.setAttribute('stroke-width', '2');
+          rect.setAttribute('stroke-dasharray', '4 2');
         }
 
         rect.addEventListener('click', (event) => {
@@ -339,15 +371,43 @@ export function SankeyView() {
           text.setAttribute('opacity', isFiltered ? '1' : '0.5');
           text.textContent = truncateText(sNode.name, 35);
           text.style.pointerEvents = 'none';
+          text.dataset.sankeyLabel = 'true';
 
           nodeGroup.appendChild(text);
         }
       });
+
+      // Label collision pass: hide any label whose box intersects an
+      // already-kept one (greedy top-to-bottom). Hidden labels stay available
+      // via the hover tooltip, which always leads with the operation name.
+      const labels = Array.from(nodeGroup.querySelectorAll<SVGTextElement>('text[data-sankey-label]'));
+      labels.sort((a, b) => {
+        const ba = a.getBBox();
+        const bb = b.getBBox();
+        return ba.y - bb.y || ba.x - bb.x;
+      });
+      const kept: DOMRect[] = [];
+      const pad = 2;
+      for (const label of labels) {
+        const box = label.getBBox();
+        const collides = kept.some(
+          (k) =>
+            box.x < k.x + k.width + pad &&
+            box.x + box.width + pad > k.x &&
+            box.y < k.y + k.height + pad &&
+            box.y + box.height + pad > k.y
+        );
+        if (collides) {
+          label.remove();
+        } else {
+          kept.push(new DOMRect(box.x, box.y, box.width, box.height));
+        }
+      }
     } catch (err) {
       console.error('Sankey rendering error:', err);
       setError(err instanceof Error ? err.message : 'Failed to render Sankey diagram');
     }
-  }, [sankeyData, selectedNodeIdSet, filteredNodeIds, handleNodeClick, theme, dimensions, colorScheme, sankeyMetric, parsedPlan?.hasActualStats, scheduleTooltipUpdate]);
+  }, [sankeyData, selectedNodeIdSet, filteredNodeIds, handleNodeClick, theme, dimensions, colorScheme, sankeyMetric, parsedPlan?.hasActualStats, scheduleTooltipUpdate, verticalZoom, searchText]);
 
   if (!parsedPlan?.rootNode) {
     return (
@@ -366,8 +426,40 @@ export function SankeyView() {
   }
 
   return (
-    <div ref={containerRef} className="relative w-full h-full overflow-hidden" style={{ minHeight: '400px' }}>
-      <svg ref={svgRef} className="w-full h-full" />
+    <div className="relative w-full h-full" style={{ minHeight: '400px' }}>
+      <div ref={containerRef} className="absolute inset-0 overflow-y-auto overflow-x-hidden">
+        <svg ref={svgRef} className="w-full" />
+      </div>
+      {/* Vertical zoom controls */}
+      <div className="absolute bottom-3 right-3 z-20 flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={() => setVerticalZoom((z) => Math.min(8, z * 1.4))}
+          className="h-7 w-7 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm text-sm font-bold"
+          title="Stretch diagram vertically (makes thin operations readable)"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          onClick={() => setVerticalZoom((z) => Math.max(1, z / 1.4))}
+          disabled={verticalZoom <= 1}
+          className="h-7 w-7 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm text-sm font-bold disabled:opacity-40"
+          title="Shrink diagram vertically"
+        >
+          −
+        </button>
+        {verticalZoom > 1 && (
+          <button
+            type="button"
+            onClick={() => setVerticalZoom(1)}
+            className="h-7 w-7 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm text-[9px] font-bold"
+            title="Reset vertical zoom"
+          >
+            1:1
+          </button>
+        )}
+      </div>
       {tooltip && containerRef.current && (
         <div
           className="absolute z-10 pointer-events-none bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg px-3 py-2 text-xs text-gray-800 dark:text-gray-100"
@@ -401,7 +493,7 @@ function getMetricLabel(metric: string, hasActualStats: boolean): string {
     case 'cost':
       return 'Cost';
     case 'actualRows':
-      return 'A-Rows';
+      return 'Total Rows (A-Rows × Starts)';
     case 'actualTime':
       return 'A-Time';
     default:

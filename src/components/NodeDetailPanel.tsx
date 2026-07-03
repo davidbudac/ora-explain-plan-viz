@@ -53,10 +53,12 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
       .sort((a, b) => (b.cost || 0) - (a.cost || 0))
       .slice(0, 5);
 
+    // Rank by SELF time (own work, excluding children) — cumulative A-Time
+    // would surface one hot leaf plus its entire ancestor chain.
     const byTime = parsedPlan.hasActualStats
       ? [...nonRoot]
-          .filter(n => n.actualTime !== undefined)
-          .sort((a, b) => (b.actualTime || 0) - (a.actualTime || 0))
+          .filter(n => (n.selfTime ?? n.actualTime) !== undefined)
+          .sort((a, b) => (b.selfTime ?? b.actualTime ?? 0) - (a.selfTime ?? a.actualTime ?? 0))
           .slice(0, 5)
       : [];
 
@@ -162,21 +164,32 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           <>
             {/* Worst by A-Time */}
             {worstNodes.byTime.length > 0 && (
-              <Accordion title="Slowest Ops" icon={<svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" /></svg>}>
+              <Accordion title="Slowest Ops" subtitle="by self time" icon={<svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" /></svg>}>
                 <div className="space-y-1">
-                  {worstNodes.byTime.map(n => (
-                    <button
-                      key={n.id}
-                      onClick={() => selectNode(n.id)}
-                      className="w-full text-left px-2 py-1.5 text-[11px] rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between gap-2 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 font-mono"
-                    >
-                      <span className="flex items-center gap-1.5 truncate">
-                        <span className="w-4 h-4 rounded bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 text-[9px] font-bold flex items-center justify-center shrink-0">{n.id}</span>
-                        <span className="truncate font-semibold">{n.operation}</span>
-                      </span>
-                      <span className="text-red-600 dark:text-red-400 font-bold">{formatTimeCompact(n.actualTime)}</span>
-                    </button>
-                  ))}
+                  {worstNodes.byTime.map(n => {
+                    const self = n.selfTime ?? n.actualTime;
+                    const showTotal = n.selfTime !== undefined
+                      && n.actualTime !== undefined
+                      && n.actualTime > n.selfTime;
+                    return (
+                      <button
+                        key={n.id}
+                        onClick={() => selectNode(n.id)}
+                        className="w-full text-left px-2 py-1.5 text-[11px] rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between gap-2 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 font-mono"
+                      >
+                        <span className="flex items-center gap-1.5 truncate">
+                          <span className="w-4 h-4 rounded bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 text-[9px] font-bold flex items-center justify-center shrink-0">{n.id}</span>
+                          <span className="truncate font-semibold">{n.operation}</span>
+                        </span>
+                        <span className="whitespace-nowrap shrink-0">
+                          <span className="text-red-600 dark:text-red-400 font-bold">{formatTimeCompact(self)}</span>
+                          {showTotal && (
+                            <span className="text-slate-400 dark:text-slate-500"> · {formatTimeCompact(n.actualTime)} total</span>
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </Accordion>
             )}
@@ -204,7 +217,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
             {/* Worst Cardinality Mismatches */}
             {worstNodes.byCardinalityMismatch.length > 0 && (
-              <Accordion title="Cardinality Drift" defaultOpen={false}>
+              <Accordion title="Cardinality Mismatch" defaultOpen={false}>
                 <div className="space-y-1">
                   {worstNodes.byCardinalityMismatch.map(({ node: n, ratio }) => {
                     const severity = cardinalityRatioSeverity(ratio);
@@ -514,19 +527,6 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         })()}
       </div>
 
-      {/* Annotation Editor */}
-      <AnnotationEditor
-        nodeId={node.id}
-        annotationText={annotations.nodeAnnotations.get(node.id)?.text || ''}
-        highlightColor={annotations.nodeHighlights.get(node.id)?.color}
-        highlightStyle={highlightStyle}
-        onHighlightStyleChange={setHighlightStyle}
-        onTextChange={setNodeAnnotation}
-        onTextRemove={removeNodeAnnotation}
-        onHighlightChange={setNodeHighlight}
-        onHighlightRemove={removeNodeHighlight}
-      />
-
       {/* Cardinality Mismatch */}
       {(() => {
         const ratio = computeCardinalityRatio(node.rows, node.actualRows);
@@ -591,7 +591,10 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         <Accordion title="Execution Stats" icon={<svg className="w-3.5 h-3.5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>}>
           <div className="grid grid-cols-2 gap-2">
             <StatItem label="A-Rows" value={formatNumberShort(node.actualRows)} highlight="blue" />
-            <StatItem label="A-Time" value={formatTimeDetailed(node.actualTime)} highlight="purple" />
+            {node.selfTime !== undefined && (
+              <StatItem label="Self Time" value={formatTimeDetailed(node.selfTime)} highlight="purple" />
+            )}
+            <StatItem label="A-Time (cumul.)" value={formatTimeDetailed(node.actualTime)} />
             <StatItem label="Starts" value={formatNumberShort(node.starts)} highlight="orange" />
             {node.activityPercent !== undefined && (
               <StatItem label="Activity" value={`${node.activityPercent.toFixed(1)}%`} />
@@ -644,6 +647,19 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           )}
         </Accordion>
       )}
+
+      {/* Annotation Editor */}
+      <AnnotationEditor
+        nodeId={node.id}
+        annotationText={annotations.nodeAnnotations.get(node.id)?.text || ''}
+        highlightColor={annotations.nodeHighlights.get(node.id)?.color}
+        highlightStyle={highlightStyle}
+        onHighlightStyleChange={setHighlightStyle}
+        onTextChange={setNodeAnnotation}
+        onTextRemove={removeNodeAnnotation}
+        onHighlightChange={setNodeHighlight}
+        onHighlightRemove={removeNodeHighlight}
+      />
 
       {/* Metadata (schema bundle) */}
       <MetadataSection
@@ -706,13 +722,14 @@ function StatItem({ label, value, highlight }: { label: string; value?: string; 
   );
 }
 
-function Accordion({ title, children, defaultOpen = true, icon }: { title: string; children: React.ReactNode; defaultOpen?: boolean; icon?: React.ReactNode }) {
+function Accordion({ title, subtitle, children, defaultOpen = true, icon }: { title: string; subtitle?: string; children: React.ReactNode; defaultOpen?: boolean; icon?: React.ReactNode }) {
   return (
     <details className="group border-b border-slate-200 dark:border-slate-800" open={defaultOpen}>
       <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors list-none select-none">
         <div className="flex items-center gap-2.5">
           {icon && <span className="text-slate-400 group-open:text-blue-500 transition-colors">{icon}</span>}
           <h4 className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{title}</h4>
+          {subtitle && <span className="text-[9px] text-slate-400 dark:text-slate-500 lowercase tracking-normal font-medium">{subtitle}</span>}
         </div>
         <svg className="w-4 h-4 text-slate-300 group-open:rotate-180 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />

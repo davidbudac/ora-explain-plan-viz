@@ -17,7 +17,7 @@ export interface PlanSlot {
   metadataBundleWarning: string | null;
 }
 
-export type CompareMetric = 'cost' | 'rows' | 'bytes' | 'actualRows' | 'actualTime' | 'starts' | 'tempSpace' | 'memoryUsed';
+export type CompareMetric = 'cost' | 'rows' | 'bytes' | 'actualRows' | 'actualTime' | 'selfTime' | 'starts' | 'tempSpace' | 'memoryUsed';
 
 export type MatchType = 'exact-id' | 'heuristic' | 'unmatched';
 
@@ -183,6 +183,7 @@ export function getNodeMetricValue(node: PlanNode, metric: CompareMetric): numbe
     case 'bytes': return node.bytes;
     case 'actualRows': return node.actualRows;
     case 'actualTime': return node.actualTime;
+    case 'selfTime': return node.selfTime;
     case 'starts': return node.starts;
     case 'tempSpace': return node.tempUsed ?? node.tempSpace;
     case 'memoryUsed': return node.memoryUsed;
@@ -196,6 +197,7 @@ export function getMetricLabel(metric: CompareMetric): string {
     case 'bytes': return 'Bytes';
     case 'actualRows': return 'A-Rows';
     case 'actualTime': return 'A-Time';
+    case 'selfTime': return 'Self Time';
     case 'starts': return 'Starts';
     case 'tempSpace': return 'Temp Space';
     case 'memoryUsed': return 'Memory';
@@ -203,8 +205,69 @@ export function getMetricLabel(metric: CompareMetric): string {
 }
 
 export const ALL_COMPARE_METRICS: CompareMetric[] = [
-  'cost', 'rows', 'bytes', 'actualRows', 'actualTime', 'starts', 'tempSpace', 'memoryUsed',
+  'cost', 'rows', 'bytes', 'actualRows', 'actualTime', 'selfTime', 'starts', 'tempSpace', 'memoryUsed',
 ];
+
+/** Metrics where a negative B−A delta is an improvement. */
+export const LOWER_IS_BETTER: ReadonlySet<CompareMetric> = new Set([
+  'cost', 'actualTime', 'selfTime', 'tempSpace', 'memoryUsed',
+]);
+
+export interface MetricDelta {
+  valueA?: number;
+  valueB?: number;
+  delta?: number;          // B − A, only when both values are defined
+  deltaPercent?: number;   // only when both defined and valueA > 0
+  changed: boolean;        // covers one-sided values (present in only one plan)
+}
+
+export interface ComparisonRow {
+  match: NodeMatch;
+  /** Stable across sorting/filtering: matchType + both node ids. */
+  key: string;
+  deltas: Partial<Record<CompareMetric, MetricDelta>>;
+  /** Position in the original match order — stable-sort tiebreak. */
+  originalIndex: number;
+}
+
+function computeMetricDelta(
+  nodeA: PlanNode | null,
+  nodeB: PlanNode | null,
+  metric: CompareMetric
+): MetricDelta {
+  const valueA = nodeA ? getNodeMetricValue(nodeA, metric) : undefined;
+  const valueB = nodeB ? getNodeMetricValue(nodeB, metric) : undefined;
+  const bothDefined = valueA !== undefined && valueB !== undefined;
+  return {
+    valueA,
+    valueB,
+    delta: bothDefined ? valueB - valueA : undefined,
+    deltaPercent: bothDefined && valueA > 0 ? ((valueB - valueA) / valueA) * 100 : undefined,
+    changed: (valueA ?? null) !== (valueB ?? null),
+  };
+}
+
+/** Precompute deltas for ALL metrics per match — cheap, and the expanded row detail needs them. */
+export function buildComparisonRows(matches: NodeMatch[]): ComparisonRow[] {
+  return matches.map((match, originalIndex) => {
+    const deltas: Partial<Record<CompareMetric, MetricDelta>> = {};
+    for (const metric of ALL_COMPARE_METRICS) {
+      deltas[metric] = computeMetricDelta(match.planANode, match.planBNode, metric);
+    }
+    return {
+      match,
+      key: `${match.matchType}:${match.planANode?.id ?? '-'}:${match.planBNode?.id ?? '-'}`,
+      deltas,
+      originalIndex,
+    };
+  });
+}
+
+/** True when the row differs in any of the visible metrics. Unmatched rows always count as changed. */
+export function rowHasVisibleChange(row: ComparisonRow, visible: CompareMetric[]): boolean {
+  if (row.match.matchType === 'unmatched') return true;
+  return visible.some((metric) => row.deltas[metric]?.changed);
+}
 
 export const DEFAULT_COMPARE_METRICS: CompareMetric[] = ['cost', 'actualRows', 'actualTime'];
 
