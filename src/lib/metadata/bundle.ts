@@ -107,7 +107,17 @@ const SQLPLUS_NOISE = [
  * information and joining the payload lines back together is lossless.
  */
 function extractBundleJson(text: string): string {
-  const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
+  let lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
+  // The bundle always opens with `{"format"`. When output is copied from a
+  // live terminal session, the first chunk can share its line with prompt
+  // echo (`SQL> SQL>   2   3 ... {"format":...`), and the noise filter below
+  // would throw that whole line away \u2014 so locate the payload start inside
+  // lines first and cut the prefix off.
+  const startLine = lines.findIndex((line) => line.includes('{"format"'));
+  if (startLine !== -1) {
+    lines = lines.slice(startLine);
+    lines[0] = lines[0].slice(lines[0].indexOf('{"format"'));
+  }
   const content = lines.filter((line) => !SQLPLUS_NOISE.some((re) => re.test(line)));
   const start = content.findIndex((line) => line.trimStart().startsWith('{'));
   if (start === -1) return text.trim();

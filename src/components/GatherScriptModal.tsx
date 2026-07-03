@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import gatherScript from '../../scripts/gather_plan_metadata.sql?raw';
+import gatherScriptTemplate from '../../scripts/gather_plan_metadata.sql?raw';
 import { parseManualObjectList, formatManualListArg } from '../lib/metadata/manualList';
+import { buildGatherScript, downloadFilename, BUNDLE_SPOOL_FILE } from '../lib/metadata/gatherScript';
+import type { GatherTarget } from '../lib/metadata/gatherScript';
 import { usePlan } from '../hooks/usePlanContext';
 
 type Mode = 'sqlid' | 'manual';
@@ -19,7 +21,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
   const [sqlId, setSqlId] = useState(initialSqlId ?? '');
   const [planHash, setPlanHash] = useState('');
   const [manualText, setManualText] = useState('');
-  const [copiedKey, setCopiedKey] = useState<'command' | 'script' | null>(null);
+  const [copiedKey, setCopiedKey] = useState<'script' | null>(null);
   const [outputText, setOutputText] = useState('');
   const [attachMessage, setAttachMessage] = useState<{ tone: 'ok' | 'warn' | 'error'; text: string } | null>(null);
   const sqlIdRef = useRef<HTMLInputElement>(null);
@@ -44,18 +46,19 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
 
   const manualParsed = useMemo(() => parseManualObjectList(manualText), [manualText]);
 
-  const command = useMemo(() => {
+  const target = useMemo<GatherTarget | null>(() => {
     if (mode === 'sqlid') {
-      const args = sqlId
-        ? `${sqlId}${planHash ? ` ${planHash}` : ''}`
-        : '<SQL_ID> [<PLAN_HASH>]';
-      return `@gather_plan_metadata.sql ${args}`;
+      if (!sqlId || !SQL_ID_RE.test(sqlId) || !planHashValid) return null;
+      return { mode: 'sqlid', sqlId, planHash: planHash || undefined };
     }
-    const arg = manualParsed.items.length
-      ? formatManualListArg(manualParsed.items)
-      : '<OWNER.OBJECT,OWNER.OBJECT>';
-    return `@gather_plan_metadata.sql LIST "${arg}"`;
-  }, [mode, sqlId, planHash, manualParsed]);
+    if (manualParsed.items.length === 0 || manualParsed.errors.length > 0) return null;
+    return { mode: 'manual', objectList: formatManualListArg(manualParsed.items) };
+  }, [mode, sqlId, planHash, planHashValid, manualParsed]);
+
+  const pasteScript = useMemo(
+    () => (target ? buildGatherScript(gatherScriptTemplate, target, 'screen') : null),
+    [target],
+  );
 
   const attachOutput = (text: string) => {
     if (!text.trim()) {
@@ -100,22 +103,25 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
     reader.readAsText(file);
   };
 
-  const copy = async (text: string, key: 'command' | 'script') => {
+  const copyScript = async () => {
+    if (!pasteScript) return;
     try {
-      await navigator.clipboard.writeText(text);
-      setCopiedKey(key);
-      setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1200);
+      await navigator.clipboard.writeText(pasteScript);
+      setCopiedKey('script');
+      setTimeout(() => setCopiedKey((k) => (k === 'script' ? null : k)), 1200);
     } catch {
       /* ignore */
     }
   };
 
   const download = () => {
-    const blob = new Blob([gatherScript], { type: 'text/plain;charset=utf-8' });
+    if (!target) return;
+    const script = buildGatherScript(gatherScriptTemplate, target, 'spool');
+    const blob = new Blob([script], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'gather_plan_metadata.sql';
+    a.download = downloadFilename(target);
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -147,14 +153,12 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
 
         <div className="p-4 space-y-4">
           <p className="text-[11px] text-neutral-600 dark:text-neutral-400 leading-snug">
-            Run this script in SQL*Plus or SQLcl against the database that holds your plan.
-            It collects the schema details relevant to this plan (tables, indexes, column
-            stats, histograms) so you can analyze it with more context, and writes them to{' '}
-            <code>bundle.json</code> in the current directory. Coverage depends on your
-            privileges — the script prefers <code>DBA_*</code> views and falls back to{' '}
-            <code>ALL_*</code>; anything it can't read is listed in{' '}
-            <code>coverage_warnings</code>. When it's done, paste the file's contents below
-            (or drop the file onto the input panel).
+            This generates a ready-to-run script that collects the schema details relevant
+            to this plan (tables, indexes, column stats, histograms) from the database that
+            ran it. Coverage depends on your privileges — the script prefers{' '}
+            <code>DBA_*</code> views and falls back to <code>ALL_*</code>; anything it can't
+            read is listed in <code>coverage_warnings</code>. It is read-only against the
+            data dictionary.
           </p>
 
           <div className="inline-flex rounded-md border border-neutral-200 dark:border-neutral-700 overflow-hidden text-[11px]">
@@ -259,48 +263,57 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
           )}
 
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px] font-medium text-neutral-600 dark:text-neutral-400 uppercase tracking-wide">
-                Command to run
-              </span>
-              <button
-                type="button"
-                onClick={() => copy(command, 'command')}
-                className="text-[10px] px-1.5 py-0.5 rounded border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
-              >
-                {copiedKey === 'command' ? 'Copied!' : 'Copy command'}
-              </button>
-            </div>
-            <pre className="text-[11px] font-mono p-2 rounded border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-950 text-neutral-800 dark:text-neutral-200 whitespace-pre overflow-x-auto">
-              {command}
-            </pre>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px] font-medium text-neutral-600 dark:text-neutral-400 uppercase tracking-wide">
-                Script ({gatherScript.split('\n').length} lines)
-              </span>
-              <div className="flex items-center gap-1.5">
+            <span className="block text-[11px] font-medium text-neutral-600 dark:text-neutral-400 uppercase tracking-wide mb-1.5">
+              Run against the database
+            </span>
+            {!target && (
+              <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mb-1.5">
+                {mode === 'sqlid'
+                  ? 'Enter a valid SQL_ID above to generate the script.'
+                  : 'List at least one OWNER.OBJECT above to generate the script.'}
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-2.5 rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-950 flex flex-col gap-1.5">
                 <button
                   type="button"
-                  onClick={() => copy(gatherScript, 'script')}
-                  className="text-[10px] px-1.5 py-0.5 rounded border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                  onClick={copyScript}
+                  disabled={!target}
+                  className="h-7 px-3 text-xs font-semibold rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {copiedKey === 'script' ? 'Copied!' : 'Copy script'}
+                  {copiedKey === 'script' ? 'Copied!' : 'Copy paste-ready script'}
                 </button>
+                <p className="text-[10px] text-neutral-500 dark:text-neutral-400 leading-snug">
+                  Paste the whole script into a SQL*Plus / SQLcl session. It prints the JSON
+                  bundle between BEGIN/END markers — copy that back into the box below.
+                </p>
+              </div>
+              <div className="p-2.5 rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-950 flex flex-col gap-1.5">
                 <button
                   type="button"
                   onClick={download}
-                  className="text-[10px] px-1.5 py-0.5 rounded border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                  disabled={!target}
+                  className="h-7 px-3 text-xs font-semibold rounded border border-neutral-300 dark:border-neutral-600 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Download .sql
                 </button>
+                <p className="text-[10px] text-neutral-500 dark:text-neutral-400 leading-snug">
+                  Run it with <code>@{target ? downloadFilename(target) : 'gather_plan_metadata.sql'}</code>{' '}
+                  — no arguments needed. It writes <code>{BUNDLE_SPOOL_FILE}</code>, which you
+                  can drop below or onto the input panel.
+                </p>
               </div>
             </div>
-            <pre className="text-[10px] font-mono p-2 rounded border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-950 text-neutral-800 dark:text-neutral-200 whitespace-pre overflow-auto max-h-72">
-              {gatherScript}
-            </pre>
+            {pasteScript && (
+              <details className="mt-2">
+                <summary className="text-[10px] text-neutral-500 dark:text-neutral-400 cursor-pointer select-none hover:text-neutral-700 dark:hover:text-neutral-300">
+                  Preview script ({pasteScript.split('\n').length} lines)
+                </summary>
+                <pre className="mt-1 text-[10px] font-mono p-2 rounded border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-950 text-neutral-800 dark:text-neutral-200 whitespace-pre overflow-auto max-h-72">
+                  {pasteScript}
+                </pre>
+              </details>
+            )}
           </div>
 
           <div>
@@ -328,7 +341,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
             <textarea
               value={outputText}
               onChange={(e) => setOutputText(e.target.value)}
-              placeholder="Paste the contents of bundle.json here… (SQL*Plus prompt lines are fine — they are stripped automatically)"
+              placeholder="Paste the script's terminal output or the contents of bundle.json here… (SQL*Plus noise lines are fine — they are stripped automatically)"
               spellCheck={false}
               rows={3}
               className="w-full px-2.5 py-1.5 text-xs font-mono rounded-md bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 border border-neutral-200 dark:border-neutral-700"

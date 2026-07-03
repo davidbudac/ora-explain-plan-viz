@@ -36,12 +36,20 @@ SET LONG 100000000
 SET LONGCHUNKSIZE 100000
 SET SERVEROUTPUT ON SIZE UNLIMITED FORMAT WRAPPED
 SET TRIMSPOOL ON
+SET TRIMOUT ON
+SET TAB OFF
 SET TERMOUT ON
 SET VERIFY OFF
+
+-- The @@GEN:...@@ marker comments delimit the sections the visualizer's
+-- in-app generator swaps out when it stamps a self-contained copy of this
+-- script (literal arguments, screen instead of spool output). They are
+-- plain comments - running this file directly ignores them.
 
 -- Positional arguments: SQL_ID or LIST, then either plan_hash/spool or
 -- object_list/spool. Args 2 and 3 are optional - default them to empty via
 -- the zero-row NEW_VALUE idiom so SQL*Plus never prompts for them.
+-- @@GEN:ARGS:BEGIN@@
 SET TERMOUT OFF
 COLUMN 2 NEW_VALUE 2 NOPRINT
 COLUMN 3 NEW_VALUE 3 NOPRINT
@@ -57,12 +65,15 @@ SET TERMOUT OFF
 COLUMN spool_target NEW_VALUE spool_target NOPRINT
 SELECT NVL(TRIM('&arg3'), 'bundle.json') AS spool_target FROM dual;
 SET TERMOUT ON
+-- @@GEN:ARGS:END@@
 
+-- @@GEN:OPEN:BEGIN@@
 PROMPT Gathering plan metadata into &spool_target ...
 
 -- TERMOUT OFF keeps the JSON off the screen; it still reaches the spool file.
 SET TERMOUT OFF
 SPOOL &spool_target
+-- @@GEN:OPEN:END@@
 
 DECLARE
   g_mode            VARCHAR2(16);             -- 'SQL_ID' or 'LIST'
@@ -796,10 +807,12 @@ BEGIN
 END;
 /
 
+-- @@GEN:CLOSE:BEGIN@@
 SPOOL OFF
 SET TERMOUT ON
 PROMPT Done. Wrote &spool_target - paste its contents into the visualizer's
 PROMPT input box (or drop the file onto the input panel) to attach it.
+-- @@GEN:CLOSE:END@@
 
 -- Restore SQL*Plus factory defaults for the settings this script changed.
 SET HEADING ON
@@ -807,6 +820,7 @@ SET FEEDBACK 6
 SET PAGESIZE 14
 SET LINESIZE 80
 SET VERIFY ON
+-- @@GEN:CLEANUP:BEGIN@@
 UNDEFINE arg1
 UNDEFINE arg2
 UNDEFINE arg3
@@ -814,3 +828,4 @@ UNDEFINE spool_target
 UNDEFINE 1
 UNDEFINE 2
 UNDEFINE 3
+-- @@GEN:CLEANUP:END@@
