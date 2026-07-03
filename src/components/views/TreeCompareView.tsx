@@ -49,7 +49,6 @@ function CompareTreePane({
           planIndex={index}
           registerExport={false}
           showAnnotations={true}
-          showMiniMap={false}
         />
       </div>
     </div>
