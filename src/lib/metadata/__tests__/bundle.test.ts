@@ -226,6 +226,38 @@ describe('parseBundle', () => {
     expect(bundle.plan_ref.plan_hash_value).toBe(3001234567);
   });
 
+  it('parses a live terminal capture where the first chunk shares its line with prompt echo', () => {
+    // Observed against a real 19.27 session: piping/pasting the stamped
+    // screen script leaves the accumulated PL/SQL continuation prompts and
+    // the first DBMS_OUTPUT chunk on ONE line. A line-level noise filter
+    // that drops `SQL>`-prefixed lines would discard the payload start.
+    const json = makeBigBundleJson();
+    const chunks = chunkLines(json, 8000);
+    const promptEcho =
+      'SQL> SQL>   2    3    4    5    6    7    8    9   10   11   12   13  ';
+    const session = [
+      'SQL> ',
+      'Session altered.',
+      '',
+      'SQL> SQL> SQL> SQL> SQL> SQL> SQL> SQL>',
+      'SQL> ==== PLAN-METADATA BUNDLE BEGIN ====',
+      promptEcho + chunks[0],
+      ...chunks.slice(1),
+      'SQL> SQL> ==== PLAN-METADATA BUNDLE END ====',
+      'SQL> Done. Copy everything between the two markers and paste it into',
+      "SQL> the visualizer's gather dialog to attach it to your plan.",
+      'SQL> Disconnected from Oracle Database 19c Enterprise Edition',
+    ].join('\n');
+
+    const bundle = parseBundle(session);
+    expect(bundle.plan_ref.sql_id).toBe('an05rsj1up1k5');
+    const big = bundle.objects['HR.BIG'];
+    expect(big?.type).toBe('TABLE');
+    if (big?.type === 'TABLE') {
+      expect(Object.keys(big.columns)).toHaveLength(300);
+    }
+  });
+
   it('parses a small clean bundle with a UTF-8 BOM and trailing prompt line', () => {
     const json = JSON.stringify({
       format: 'ora-plan-metadata',

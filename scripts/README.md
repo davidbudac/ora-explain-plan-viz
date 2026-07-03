@@ -5,7 +5,18 @@
 Generates a `format: "ora-plan-metadata"` JSON bundle for use with the Oracle
 Execution Plan Visualizer's metadata feature.
 
-**Two modes:**
+**Easiest path:** use the visualizer's gather dialog (Metadata section of the
+node detail panel). It stamps your SQL_ID / object list into the script and
+gives you a one-shot artifact — either a paste-ready script that prints the
+JSON straight to the terminal between `==== PLAN-METADATA BUNDLE ... ====`
+markers (copy it back into the dialog), or a downloadable `.sql` that needs
+no arguments and writes `bundle.json` itself.
+
+This file is the canonical template behind that dialog. The
+`-- @@GEN:...@@` marker comments delimit the sections the in-app generator
+swaps out; they are plain comments and don't affect direct execution.
+
+**Two modes when run directly:**
 
 ```sql
 -- Mode 1: gather for a specific SQL_ID (and optional PLAN_HASH_VALUE)
