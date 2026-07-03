@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useReducer, useCallback, useEffect, useMemo, useRef } from 'react';
+import { createContext, useContext, useReducer, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, NodeIndicatorMetric, Theme, ColorScheme } from '../lib/types';
 import type { PlanSlot, CompareMetric } from '../lib/compare';
@@ -7,6 +7,9 @@ import { createEmptySlot, DEFAULT_COMPARE_METRICS, getPlanSlotLabel } from '../l
 import { parseExplainPlan, splitDbmsXplanPlanBatches } from '../lib/parser';
 import { loadSettings, saveSettings, extractFilterSettings, applySettingsToFilters } from '../lib/settings';
 import { matchesFilters } from '../lib/filtering';
+import { computeHottestNodeId } from '../lib/analysis';
+import { DENSITY_PRESETS, matchDensityPreset } from '../lib/density';
+import type { DensityPreset, DensitySelection } from '../lib/density';
 import { getPlanFromUrl, clearPlanFromUrl, buildShareUrl, stripUnusedXmlSections } from '../lib/url';
 import type { SharePayload } from '../lib/url';
 import type { AnnotationState, AnnotationGroup, HighlightColor, HighlightStyle, AnnotatedPlanExport } from '../lib/annotations';
@@ -312,9 +315,15 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
       return updateActiveSlot(state, slot => ({ ...slot, rawInput: action.payload, error: null }));
 
     case 'SET_PARSED_PLAN': {
-      const newMetric = !action.payload.hasActualStats && state.nodeIndicatorMetric !== 'cost'
-        ? 'cost' as NodeIndicatorMetric
-        : state.nodeIndicatorMetric;
+      // Default the node indicator to A-Time (or A-Rows) when the plan carries
+      // actual runtime stats, otherwise fall back to Cost.
+      const hasActualTime = action.payload.allNodes.some((n) => n.actualTime !== undefined);
+      const hasActualRows = action.payload.hasActualStats || action.payload.maxActualRows !== undefined;
+      const newMetric: NodeIndicatorMetric = hasActualTime
+        ? 'actualTime'
+        : hasActualRows
+          ? 'actualRows'
+          : 'cost';
       const nextState = updateActiveSlot(state, slot => ({
         ...slot,
         parsedPlan: action.payload,
@@ -665,6 +674,14 @@ interface PlanContextValue {
   hotspotsEnabled: boolean;
   setHotspotsEnabled: (enabled: boolean) => void;
   setLegendVisible: (visible: boolean) => void;
+  // Density presets (derived from nodeDisplayOptions, never stored)
+  densitySelection: DensitySelection;
+  applyDensityPreset: (preset: DensityPreset) => void;
+  // Session-only UI state (not persisted)
+  commandPaletteOpen: boolean;
+  setCommandPaletteOpen: (open: boolean) => void;
+  shortcutsOverlayOpen: boolean;
+  setShortcutsOverlayOpen: (open: boolean) => void;
   setInputPanelCollapsed: (collapsed: boolean) => void;
   setFilterPanelCollapsed: (collapsed: boolean) => void;
   setDetailPanelCollapsed: (collapsed: boolean) => void;
@@ -709,6 +726,9 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(planReducer, undefined, getInitialState);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const exportPngFnRef = useRef<(() => Promise<void>) | null>(null);
+  // Session-only UI state (not persisted to settings)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
 
   const createPlanSlotFromInput = useCallback((input: string, index: number): PlanSlot => {
     const slot = createEmptySlot(index);
@@ -908,22 +928,11 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       .filter((node): node is PlanNode => Boolean(node));
   }, [parsedPlan, selectedNodeIds, nodeById]);
 
-  // Hottest node: the non-root node with the highest A-Time
-  const hottestNodeId = useMemo((): number | null => {
-    if (!state.hotspotsEnabled) return null;
-    if (!parsedPlan?.hasActualStats) return null;
-    let maxTime = 0;
-    let hotId: number | null = null;
-    for (const node of parsedPlan.allNodes) {
-      // Skip root SELECT/UPDATE/etc. statements — they always have the total time
-      if (node.parentId === undefined) continue;
-      if (node.actualTime !== undefined && node.actualTime > maxTime) {
-        maxTime = node.actualTime;
-        hotId = node.id;
-      }
-    }
-    return hotId;
-  }, [parsedPlan, state.hotspotsEnabled]);
+  // Hottest node: the non-root node with the highest self time
+  const hottestNodeId = useMemo(
+    (): number | null => (state.hotspotsEnabled ? computeHottestNodeId(parsedPlan) : null),
+    [parsedPlan, state.hotspotsEnabled]
+  );
 
   // Apply theme to document
   useEffect(() => {
@@ -1071,6 +1080,15 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   const setFilters = useCallback((filters: Partial<FilterState>) => {
     dispatch({ type: 'SET_FILTERS', payload: filters });
+  }, []);
+
+  // Density presets: derived from the current display options, applied via filters
+  const densitySelection = useMemo(
+    () => matchDensityPreset(state.filters.nodeDisplayOptions),
+    [state.filters.nodeDisplayOptions]
+  );
+  const applyDensityPreset = useCallback((preset: DensityPreset) => {
+    dispatch({ type: 'SET_FILTERS', payload: { nodeDisplayOptions: { ...DENSITY_PRESETS[preset] } } });
   }, []);
 
   const clearPlan = useCallback(() => {
@@ -1344,6 +1362,12 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     hotspotsEnabled: state.hotspotsEnabled,
     setHotspotsEnabled,
     setLegendVisible,
+    densitySelection,
+    applyDensityPreset,
+    commandPaletteOpen,
+    setCommandPaletteOpen,
+    shortcutsOverlayOpen,
+    setShortcutsOverlayOpen,
     setInputPanelCollapsed,
     setFilterPanelCollapsed,
     setDetailPanelCollapsed,

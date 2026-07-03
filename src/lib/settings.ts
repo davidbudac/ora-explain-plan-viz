@@ -40,13 +40,13 @@ export interface UserSettings {
   highlightStyle: HighlightStyle;
 }
 
-const defaultNodeDisplayOptions: NodeDisplayOptions = {
+export const defaultNodeDisplayOptions: NodeDisplayOptions = {
   showRows: true,
   showCost: true,
   showBytes: true,
   showObjectName: true,
   showPredicateIndicators: true,
-  showPredicateDetails: false,
+  showPredicateDetails: true,
   showQueryBlockBadge: true,
   showQueryBlockGrouping: true,
   showActualRows: true,

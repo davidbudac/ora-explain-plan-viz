@@ -4,6 +4,7 @@ import { usePlan } from '../hooks/usePlanContext';
 import type { ViewMode, SankeyMetric, NodeIndicatorMetric, ColorScheme, NodeDisplayOptions } from '../lib/types';
 import type { HighlightStyle } from '../lib/annotations';
 import { hasAnnotations } from '../lib/annotations';
+import { DENSITY_PRESET_LABELS } from '../lib/density';
 
 type CommandCategory =
   | 'View'
@@ -44,7 +45,7 @@ const NODE_INDICATOR_LABELS: Record<NodeIndicatorMetric, string> = {
 const SANKEY_METRIC_LABELS: Record<SankeyMetric, string> = {
   rows: 'Rows',
   cost: 'Cost',
-  actualRows: 'A-Rows',
+  actualRows: 'Total Rows (A-Rows × Starts)',
   actualTime: 'A-Time',
 };
 
@@ -95,7 +96,12 @@ function useCommands(): Command[] {
     treeCompareEnabled,
     annotations,
     exportPngFnRef,
+    legendVisible,
+    densitySelection,
     // Actions
+    setLegendVisible,
+    setShortcutsOverlayOpen,
+    applyDensityPreset,
     setViewMode,
     setTheme,
     setColorScheme,
@@ -184,6 +190,27 @@ function useCommands(): Command[] {
       isAvailable: () => multipleParsedPlans && viewMode === 'hierarchical',
     });
 
+    // --- Legend ---
+    commands.push({
+      id: 'toggle-legend',
+      label: 'Toggle legend',
+      category: 'View',
+      keywords: ['legend', 'colors', 'key', 'badges', 'meaning'],
+      execute: () => setLegendVisible(!legendVisible),
+      isActive: () => legendVisible,
+      isAvailable: () => anyPlanParsed,
+    });
+
+    // --- Keyboard shortcuts help ---
+    commands.push({
+      id: 'keyboard-shortcuts',
+      label: 'Keyboard shortcuts',
+      category: 'View',
+      keywords: ['keyboard', 'shortcuts', 'help', 'keys', 'hotkeys'],
+      shortcut: '?',
+      execute: () => setShortcutsOverlayOpen(true),
+    });
+
     // --- Maximize ---
     commands.push({
       id: 'maximize',
@@ -194,6 +221,19 @@ function useCommands(): Command[] {
       execute: () => setVisualizationMaximized(!visualizationMaximized),
       isAvailable: () => anyPlanParsed,
     });
+
+    // --- Density presets ---
+    for (const preset of ['compact', 'detailed'] as const) {
+      commands.push({
+        id: `density-${preset}`,
+        label: `Density preset: ${DENSITY_PRESET_LABELS[preset]}`,
+        category: 'Node Display',
+        keywords: ['density', 'preset', 'compact', 'detailed', 'simplify', preset],
+        execute: () => applyDensityPreset(preset),
+        isActive: () => densitySelection === preset,
+        isAvailable: () => anyPlanParsed,
+      });
+    }
 
     // --- Node display toggles ---
     const nodeDisplayItems: { key: keyof NodeDisplayOptions; label: string; keywords: string[]; runtime?: boolean }[] = [
@@ -470,6 +510,8 @@ function useCommands(): Command[] {
     inputPanelCollapsed, filterPanelCollapsed, detailPanelCollapsed,
     hotspotsEnabled, treeCompareEnabled, annotations, anyPlanParsed,
     hasActualStats, hasAnyInput, canExportPng, multipleParsedPlans,
+    legendVisible, setLegendVisible, setShortcutsOverlayOpen,
+    densitySelection, applyDensityPreset,
     setViewMode, setTheme, setColorScheme, setFilters, setSankeyMetric,
     setNodeIndicatorMetric, setHighlightStyle, setVisualizationMaximized,
     setInputPanelCollapsed, setFilterPanelCollapsed,
@@ -493,7 +535,7 @@ const CATEGORY_ORDER: CommandCategory[] = [
 ];
 
 export function CommandPalette() {
-  const [open, setOpen] = useState(false);
+  const { commandPaletteOpen: open, setCommandPaletteOpen: setOpen } = usePlan();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -547,12 +589,12 @@ export function CommandPalette() {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        setOpen(prev => !prev);
+        setOpen(!open);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [open, setOpen]);
 
   // Reset on open/close
   useEffect(() => {
@@ -569,7 +611,7 @@ export function CommandPalette() {
     if (!cmd.isActive) {
       setOpen(false);
     }
-  }, []);
+  }, [setOpen]);
 
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
     switch (e.key) {
@@ -598,7 +640,7 @@ export function CommandPalette() {
         setOpen(false);
         break;
     }
-  }, [flatItems, selectedIndex, executeAndClose]);
+  }, [flatItems, selectedIndex, executeAndClose, setOpen]);
 
   if (!open) return null;
 

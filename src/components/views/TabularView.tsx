@@ -5,6 +5,7 @@ import { formatNumberShort, formatBytes, formatTimeCompact, computeCardinalityRa
 import { getHighlightColorDef } from '../../lib/annotations';
 import type { AnnotationGroup } from '../../lib/annotations';
 import { matchesFilters } from '../../lib/filtering';
+import { computeHottestNodeId } from '../../lib/analysis';
 import { HighlightText } from '../HighlightText';
 
 const EMPTY_SELECTED_NODE_IDS: number[] = [];
@@ -35,6 +36,9 @@ const COLUMN_MIN_WIDTH: Record<ColumnKey, number> = {
   actualTime: 72, activityPercent: 56, starts: 48, memoryUsed: 56, tempUsed: 56, cardinality: 48,
 };
 const COLUMN_WIDTHS_STORAGE_KEY = 'tabularView.columnWidths.v1';
+
+/** Deepest nesting level that gets its own indent guide; deeper rows show a "+N" chip instead. */
+const INDENT_CAP = 12;
 
 /** Collect all descendant IDs of a node (not including the node itself). */
 function collectDescendantIds(node: PlanNode, out: Set<number>) {
@@ -98,20 +102,10 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
     );
   }, [parsedPlan, filters]);
 
-  const hottestNodeId = useMemo((): number | null => {
-    if (!hotspotsEnabled) return null;
-    if (!parsedPlan?.hasActualStats) return null;
-    let maxTime = 0;
-    let hotId: number | null = null;
-    for (const node of parsedPlan.allNodes) {
-      if (node.parentId === undefined) continue;
-      if (node.actualTime !== undefined && node.actualTime > maxTime) {
-        maxTime = node.actualTime;
-        hotId = node.id;
-      }
-    }
-    return hotId;
-  }, [parsedPlan, hotspotsEnabled]);
+  const hottestNodeId = useMemo(
+    (): number | null => (hotspotsEnabled ? computeHottestNodeId(parsedPlan) : null),
+    [parsedPlan, hotspotsEnabled]
+  );
 
   const [sortColumn, setSortColumn] = useState<SortColumn>('id');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -611,10 +605,19 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                 </td>
 
                 {/* Operation */}
-                <td className="px-2 py-0 sticky left-0 bg-inherit">
-                  <div className="flex items-stretch">
-                    {/* Tree lines */}
-                    {node.depth > 0 && isTreeOrder && Array.from({ length: node.depth }, (_, i) => {
+                <td className="px-2 py-0 sticky left-0 bg-inherit overflow-hidden">
+                  <div className="flex items-stretch min-w-0">
+                    {/* Tree lines (capped: very deep rows get a fixed indent + depth chip) */}
+                    {node.depth > INDENT_CAP && (
+                      <span
+                        className="self-center flex-shrink-0 mr-1 px-1 py-0 text-[9px] font-medium bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 rounded"
+                        style={{ marginLeft: `${INDENT_CAP * 16}px` }}
+                        title={`Nesting depth ${node.depth}`}
+                      >
+                        +{node.depth - INDENT_CAP}
+                      </span>
+                    )}
+                    {node.depth > 0 && node.depth <= INDENT_CAP && isTreeOrder && Array.from({ length: node.depth }, (_, i) => {
                       const isConnector = i === node.depth - 1;
                       const isLast = isConnector && !continuing.has(node.depth);
                       const hasVert = continuing.has(i + 1);
@@ -636,12 +639,12 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                       return <span key={i} className="w-4 flex-shrink-0" />;
                     })}
                     {/* Padding fallback when not in tree order */}
-                    {(!isTreeOrder && node.depth > 0) && (
+                    {(!isTreeOrder && node.depth > 0 && node.depth <= INDENT_CAP) && (
                       <span className="flex-shrink-0" style={{ width: `${node.depth * 16}px` }} />
                     )}
                     {/* Content */}
-                    <div className="py-1">
-                      <div className="flex items-center gap-1">
+                    <div className="py-1 min-w-0">
+                      <div className="flex items-center gap-1 min-w-0">
                         {/* Collapse toggle */}
                         {hasChildren ? (
                           <button
@@ -669,18 +672,22 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                           <span className="w-3.5 flex-shrink-0" />
                         )}
                         {/* Operation name */}
-                        <HighlightText
-                          text={node.operation}
-                          query={searchText}
-                          className="font-medium text-neutral-900 dark:text-neutral-100 whitespace-nowrap"
-                        />
+                        <span className="min-w-0 truncate" title={node.operation}>
+                          <HighlightText
+                            text={node.operation}
+                            query={searchText}
+                            className="font-medium text-neutral-900 dark:text-neutral-100 whitespace-nowrap"
+                          />
+                        </span>
                         {/* Object name */}
                         {node.objectName && (
-                          <HighlightText
-                            text={node.objectName}
-                            query={searchText}
-                            className="font-semibold text-blue-700 dark:text-blue-300 whitespace-nowrap"
-                          />
+                          <span className="min-w-0 truncate" title={node.objectName}>
+                            <HighlightText
+                              text={node.objectName}
+                              query={searchText}
+                              className="font-semibold text-blue-700 dark:text-blue-300 whitespace-nowrap"
+                            />
+                          </span>
                         )}
                         {/* Collapsed count badge */}
                         {isCollapsed && (() => {
