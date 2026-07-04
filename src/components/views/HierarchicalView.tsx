@@ -95,23 +95,16 @@ function calculateNodeHeight(
   displayOptions: NodeDisplayOptions,
   hasActualStats: boolean,
   hasAnnotation?: boolean,
-  isReadable?: boolean,
-  isEstAct?: boolean,
+  usesGrid?: boolean,
   isRail?: boolean,
   isTicker?: boolean,
 ): number {
   let height = NODE_BASE_HEIGHT;
-  const usesGrid = isEstAct || isRail;
-
-  // Readable mode: larger operation name + object name
-  if (isReadable) {
-    height += 6; // extra space for text-base font
-  }
 
   // Warning badges row (hotspot, spill, cardinality mismatch)
   const hasSpill = (node.tempUsed !== undefined && node.tempUsed > 0);
   const cardRatio = hasActualStats ? computeCardinalityRatio(node.rows, node.actualRows) : undefined;
-  const hasCardBadge = cardinalityRatioSeverity(cardRatio) !== 'good' && !isEstAct;
+  const hasCardBadge = cardinalityRatioSeverity(cardRatio) !== 'good' && !usesGrid;
   // We always add space for badges if there's a potential hot node (we don't know which is hottest at layout time)
   // Rail mode moves these badges into the footer rail, so no badge row.
   if (!isRail && (hasSpill || hasCardBadge || (hasActualStats && node.actualTime !== undefined))) {
@@ -120,7 +113,7 @@ function calculateNodeHeight(
 
   // Object name row (ticker scheme renders it inline in the operation name — no extra row)
   if (!isTicker && displayOptions.showObjectName && node.objectName) {
-    height += isReadable ? 24 : 20;
+    height += 20;
   }
 
   // Query block badge row (rail mode moves it into the footer rail)
@@ -153,18 +146,7 @@ function calculateNodeHeight(
   }
 
   // Estimated stats (rows, cost, bytes)
-  if (usesGrid || isTicker) {
-    // Handled by the comparison grid / ticker lines above
-  } else if (isReadable) {
-    // Grid layout: each stat gets its own row (~28px each) + container border/padding (~6px)
-    let estCount = 0;
-    if (displayOptions.showRows && node.rows !== undefined) estCount++;
-    if (displayOptions.showCost && node.cost !== undefined) estCount++;
-    if (displayOptions.showBytes && node.bytes !== undefined) estCount++;
-    if (estCount > 0) {
-      height += estCount * 28 + 6;
-    }
-  } else {
+  if (!usesGrid && !isTicker) {
     const hasEstimatedStats =
       (displayOptions.showRows && node.rows !== undefined) ||
       (displayOptions.showCost && node.cost !== undefined) ||
@@ -176,28 +158,18 @@ function calculateNodeHeight(
 
   // Actual stats (A-Rows, A-Time, Starts)
   if (hasActualStats && !usesGrid && !isTicker) {
-    if (isReadable) {
-      let actCount = 0;
-      if (displayOptions.showActualRows && node.actualRows !== undefined) actCount++;
-      if (displayOptions.showActualTime && node.actualTime !== undefined) actCount++;
-      if (displayOptions.showStarts && node.starts !== undefined) actCount++;
-      if (actCount > 0) {
-        height += actCount * 28 + 4; // rows + blue divider
-      }
-    } else {
-      const hasActualStatsToShow =
-        (displayOptions.showActualRows && node.actualRows !== undefined) ||
-        (displayOptions.showActualTime && node.actualTime !== undefined) ||
-        (displayOptions.showStarts && node.starts !== undefined);
-      if (hasActualStatsToShow) {
-        height += 26;
-      }
+    const hasActualStatsToShow =
+      (displayOptions.showActualRows && node.actualRows !== undefined) ||
+      (displayOptions.showActualTime && node.actualTime !== undefined) ||
+      (displayOptions.showStarts && node.starts !== undefined);
+    if (hasActualStatsToShow) {
+      height += 26;
     }
   }
 
   // Predicate indicators row (rail mode renders them in the footer rail)
   if (!isRail && displayOptions.showPredicateIndicators && (node.accessPredicates || node.filterPredicates)) {
-    height += isReadable ? 36 : 28;
+    height += 28;
   }
 
   // Footer rail row (badges + query block chips)
@@ -607,11 +579,11 @@ function HierarchicalViewContent({
       return { nodes: [] as Node[], edges: [] as Edge[] };
     }
 
-    const isReadable = colorScheme === 'readable';
-    const isEstAct = colorScheme === 'estact';
     const isRail = colorScheme === 'rail';
     const isTicker = colorScheme === 'ticker';
-    const effectiveNodeWidth = isReadable ? 290 : isTicker ? 240 : NODE_WIDTH;
+    // Schemes that render stats as the Est ⇄ Act comparison grid (mirrors PlanNode)
+    const usesGrid = ['estact', 'rail', 'contrast', 'semantic'].includes(colorScheme);
+    const effectiveNodeWidth = isTicker ? 240 : NODE_WIDTH;
 
     const planNodes: Node[] = [];
     const edges: Edge[] = [];
@@ -630,7 +602,7 @@ function HierarchicalViewContent({
       const hasActualStats = parsedPlan!.hasActualStats || false;
       const hasAnnotation = effectiveAnnotations.nodeAnnotations.has(node.id);
       // Calculate dynamic height for this node
-      const height = calculateNodeHeight(node, effectiveDisplayOptions, hasActualStats, hasAnnotation, isReadable, isEstAct, isRail, isTicker);
+      const height = calculateNodeHeight(node, effectiveDisplayOptions, hasActualStats, hasAnnotation, usesGrid, isRail, isTicker);
       nodeDimensions.set(node.id.toString(), { width: effectiveNodeWidth, height });
       const match = bundle ? findObjectInBundle(bundle, node.objectName) : null;
       const cardSeverity = parsedPlan!.hasActualStats
@@ -653,8 +625,7 @@ function HierarchicalViewContent({
         { ...effectiveDisplayOptions, showPredicateDetails: true },
         hasActualStats,
         hasAnnotation,
-        isReadable,
-        isEstAct,
+        usesGrid,
         isRail,
         isTicker,
       );

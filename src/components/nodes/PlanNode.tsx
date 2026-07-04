@@ -48,7 +48,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     isFocusDimmed,
     displayOptions,
     hasActualStats,
-    colorScheme = 'muted',
+    colorScheme = 'semantic',
     nodeIndicatorMetric = 'cost',
     maxActualRows,
     maxStarts,
@@ -63,15 +63,10 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   const category = getOperationCategory(node.operation);
   const schemeColors = COLOR_SCHEMES[colorScheme];
   const colors = schemeColors[category] || schemeColors['Other'];
-  const isMono = colorScheme === 'monochrome';
-  const isReadable = colorScheme === 'readable';
-  const isEstAct = colorScheme === 'estact';
   const isRail = colorScheme === 'rail';
   const isTicker = colorScheme === 'ticker';
-  // Schemes whose border classes are fully specified in COLOR_SCHEMES (width included)
-  const hasSelfContainedBorder = ['professional', 'readable', 'contrast', 'semantic', 'focus', 'estact', 'rail', 'ticker'].includes(colorScheme);
-  const borderClass = hasSelfContainedBorder ? '' : isMono ? 'border' : 'border-2';
-  const isQuietScheme = isMono || ['semantic', 'focus', 'contrast', 'estact', 'rail', 'ticker'].includes(colorScheme);
+  // Schemes that render stats as the Est ⇄ Act comparison grid
+  const usesEstActGrid = ['estact', 'rail', 'contrast', 'semantic'].includes(colorScheme);
 
   const indicator = computeIndicatorMetric(node, nodeIndicatorMetric, totalCost, maxActualRows, maxStarts, totalElapsedTime);
 
@@ -123,14 +118,14 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   const showHot = isHotNode && options.showHotspotBadge;
   const showAnnotationsOverlay = options.showAnnotations;
 
-  // 'estact' shows the mismatch inline in the stats grid; 'rail' moves badges to the footer rail
+  // Grid schemes show the mismatch inline in the stats grid; 'rail' moves badges to the footer rail
   const showHotInRow = showHot && !isRail;
   const showSpillInRow = hasSpill && options.showSpillBadge && !isRail;
   const showCardBadgeInRow =
-    options.showCardinalityBadge && cardSeverity !== 'good' && !!cardLabel && !isEstAct && !isRail;
+    options.showCardinalityBadge && cardSeverity !== 'good' && !!cardLabel && !usesEstActGrid;
 
-  // Rows for the 'estact'/'rail' comparison grid: metric | estimated | actual (| deviation)
-  const estActRows = isEstAct || isRail
+  // Rows for the comparison grid: metric | estimated | actual (| deviation)
+  const estActRows = usesEstActGrid
     ? [
         {
           label: 'Rows',
@@ -175,7 +170,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   return (
     <div
       className={`
-        relative ${isReadable ? 'w-[290px]' : isTicker ? 'w-[240px]' : 'w-[260px]'} rounded-xl ${borderClass} ${isQuietScheme ? 'shadow-sm' : 'shadow-lg'} transition-all duration-300
+        relative ${isTicker ? 'w-[240px]' : 'w-[260px]'} rounded-xl shadow-sm transition-all duration-300
         ${colors.bg} ${colors.border}
         ${isSelected ? 'ring-2 ring-blue-600 ring-offset-4 dark:ring-offset-slate-950 scale-105 z-30' : ''}
         ${isInFocusPath && !(highlightColor && showAnnotationsOverlay) ? 'ring-2 ring-blue-400/40' : ''}
@@ -282,7 +277,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
       <div className="p-3 pt-4">
         {/* Operation ID badge */}
-        <div className={`absolute -top-2 -left-2 ${isReadable ? 'w-7 h-7 text-sm' : 'w-6 h-6 text-xs'} rounded-full bg-gray-700 dark:bg-gray-300 text-white dark:text-gray-900 font-bold flex items-center justify-center shadow`}>
+        <div className="absolute -top-2 -left-2 w-6 h-6 text-xs rounded-full bg-gray-700 dark:bg-gray-300 text-white dark:text-gray-900 font-bold flex items-center justify-center shadow">
           {node.id}
         </div>
 
@@ -331,7 +326,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
         {/* Operation name */}
         <div className="relative">
-          <div className={`${isReadable ? 'font-bold text-base' : 'font-semibold text-sm'} leading-tight mb-1 ${colors.text}`} title={tooltip}>
+          <div className={`font-semibold text-sm leading-tight mb-1 ${colors.text}`} title={tooltip}>
             <HighlightText text={node.operation} query={searchText} />
             {isTicker && options.showObjectName && node.objectName && (
               <span className="font-mono font-semibold text-neutral-700 dark:text-neutral-200"> · <HighlightText text={node.objectName} query={searchText} /></span>
@@ -359,7 +354,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
         {/* Object name if present (ticker scheme renders it inline in the operation name) */}
         {!isTicker && options.showObjectName && node.objectName && (
-          <div className={`${isReadable ? 'text-base' : 'text-sm'} font-semibold font-mono text-neutral-700 dark:text-neutral-200 mb-2 truncate`}>
+          <div className="text-sm font-semibold font-mono text-neutral-700 dark:text-neutral-200 mb-2 truncate">
             <HighlightText text={node.objectName} query={searchText} />
           </div>
         )}
@@ -367,11 +362,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         {/* Query block badge (rail scheme moves it to the footer rail) */}
         {!isRail && options.showQueryBlockBadge && node.queryBlock && (
           <div className="flex flex-wrap gap-1 mb-2">
-            <span className={`px-1.5 py-0.5 text-xs rounded font-mono ${
-              isMono
-                ? 'bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
-                : 'bg-violet-200 dark:bg-violet-800 text-violet-800 dark:text-violet-200'
-            }`}>
+            <span className="px-1.5 py-0.5 text-xs rounded font-mono bg-violet-200 dark:bg-violet-800 text-violet-800 dark:text-violet-200">
               {node.queryBlock}
             </span>
             {node.objectAlias && (
@@ -460,7 +451,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
               </div>
             );
           })()
-        ) : isEstAct || isRail ? (
+        ) : usesEstActGrid ? (
           /* Est ⇄ Act mode: comparison grid — metric | estimated | actual | deviation */
           estActRows.length > 0 && (
             <div className="mt-1 rounded border border-neutral-200 dark:border-neutral-700 overflow-hidden bg-neutral-50/60 dark:bg-neutral-900/40">
@@ -518,57 +509,6 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
               </div>
             </div>
           )
-        ) : isReadable ? (
-          /* Readable mode: two-column grid layout, one stat per row */
-          <div className="mt-1 rounded bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-            {/* Estimated stats */}
-            {((options.showRows && node.rows !== undefined) || (options.showCost && node.cost !== undefined) || (options.showBytes && node.bytes !== undefined)) && (
-              <div className="grid grid-cols-[auto_1fr] text-sm">
-                {options.showRows && node.rows !== undefined && (
-                  <>
-                    <span className="px-2.5 py-1 text-neutral-500 dark:text-neutral-400 border-b border-neutral-200 dark:border-neutral-700">{rowsLabel}</span>
-                    <span className="px-2.5 py-1 text-right font-bold text-neutral-900 dark:text-neutral-100 tabular-nums border-b border-neutral-200 dark:border-neutral-700">{formatNumberShort(node.rows)}</span>
-                  </>
-                )}
-                {options.showCost && node.cost !== undefined && (
-                  <>
-                    <span className="px-2.5 py-1 text-neutral-500 dark:text-neutral-400 border-b border-neutral-200 dark:border-neutral-700">Cost</span>
-                    <span className="px-2.5 py-1 text-right font-bold text-neutral-900 dark:text-neutral-100 tabular-nums border-b border-neutral-200 dark:border-neutral-700">{formatNumberShort(node.cost)}</span>
-                  </>
-                )}
-                {options.showBytes && node.bytes !== undefined && (
-                  <>
-                    <span className="px-2.5 py-1 text-neutral-500 dark:text-neutral-400 border-b border-neutral-200 dark:border-neutral-700">Bytes</span>
-                    <span className="px-2.5 py-1 text-right font-bold text-neutral-900 dark:text-neutral-100 tabular-nums border-b border-neutral-200 dark:border-neutral-700">{formatBytes(node.bytes)}</span>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Actual runtime stats — separated by a thicker divider */}
-            {hasActualStats && ((options.showActualRows && node.actualRows !== undefined) || (options.showActualTime && node.actualTime !== undefined) || (options.showStarts && node.starts !== undefined)) && (
-              <div className="grid grid-cols-[auto_1fr] text-sm border-t-2 border-blue-300 dark:border-blue-700">
-                {options.showActualRows && node.actualRows !== undefined && (
-                  <>
-                    <span className="px-2.5 py-1 text-blue-600 dark:text-blue-400 font-medium border-b border-neutral-200 dark:border-neutral-700">A-Rows</span>
-                    <span className="px-2.5 py-1 text-right font-bold text-neutral-900 dark:text-neutral-100 tabular-nums border-b border-neutral-200 dark:border-neutral-700">{formatNumberShort(node.actualRows)}</span>
-                  </>
-                )}
-                {options.showActualTime && node.actualTime !== undefined && (
-                  <>
-                    <span className="px-2.5 py-1 text-blue-600 dark:text-blue-400 font-medium border-b border-neutral-200 dark:border-neutral-700">A-Time</span>
-                    <span className="px-2.5 py-1 text-right font-bold text-neutral-900 dark:text-neutral-100 tabular-nums border-b border-neutral-200 dark:border-neutral-700">{formatTimeCompact(node.actualTime)}</span>
-                  </>
-                )}
-                {options.showStarts && node.starts !== undefined && (
-                  <>
-                    <span className="px-2.5 py-1 text-blue-600 dark:text-blue-400 font-medium border-b border-neutral-200 dark:border-neutral-700">Starts</span>
-                    <span className="px-2.5 py-1 text-right font-bold text-neutral-900 dark:text-neutral-100 tabular-nums border-b border-neutral-200 dark:border-neutral-700">{formatNumberShort(node.starts)}</span>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
         ) : (
           /* Standard modes: inline badge layout */
           <>
@@ -594,30 +534,20 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             {hasActualStats && (
               <div className="flex flex-wrap gap-2 text-xs mt-1">
                 {options.showActualRows && node.actualRows !== undefined && (
-                  <span className={`px-1.5 py-0.5 rounded font-medium ${
-                    isMono
-                      ? 'bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300'
-                      : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
-                  }`}>
+                  <span className="px-1.5 py-0.5 rounded font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
                     A-Rows: {formatNumberShort(node.actualRows)}
                   </span>
                 )}
                 {options.showActualTime && node.actualTime !== undefined && (
-                  <span className={`px-1.5 py-0.5 rounded font-medium ${
-                    isMono
-                      ? 'bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300'
-                      : 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-                  }`}>
+                  <span className="px-1.5 py-0.5 rounded font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300">
                     A-Time: {formatTimeCompact(node.actualTime)}
                   </span>
                 )}
                 {options.showStarts && node.starts !== undefined && (
                   <span className={`px-1.5 py-0.5 rounded font-medium ${
-                    isMono
-                      ? 'bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300'
-                      : node.starts >= 1000
-                        ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
-                        : 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300'
+                    node.starts >= 1000
+                      ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+                      : 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300'
                   }`}>
                     Starts: {formatNumberShort(node.starts)}
                   </span>
@@ -629,26 +559,14 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
         {/* Predicate indicators (rail scheme renders them as footer chips) */}
         {!isRail && options.showPredicateIndicators && (node.accessPredicates || node.filterPredicates) && (
-          <div className={`flex gap-1 mt-2 ${isReadable ? 'gap-1.5' : ''}`}>
+          <div className="flex gap-1 mt-2">
             {node.accessPredicates && (
-              <span className={`rounded font-semibold ${
-                isReadable
-                  ? 'px-2 py-1 text-sm bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 border border-green-300 dark:border-green-700'
-                  : isMono
-                    ? 'px-1.5 py-0.5 text-xs bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
-                    : 'px-1.5 py-0.5 text-xs bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200'
-              }`}>
+              <span className="rounded font-semibold px-1.5 py-0.5 text-xs bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200">
                 Access
               </span>
             )}
             {node.filterPredicates && (
-              <span className={`rounded font-semibold ${
-                isReadable
-                  ? 'px-2 py-1 text-sm bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700'
-                  : isMono
-                    ? 'px-1.5 py-0.5 text-xs bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
-                    : 'px-1.5 py-0.5 text-xs bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200'
-              }`}>
+              <span className="rounded font-semibold px-1.5 py-0.5 text-xs bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200">
                 Filter
               </span>
             )}
@@ -660,7 +578,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           <div className="mt-2 space-y-1">
             {node.accessPredicates && (
               <div className="text-xs">
-                <span className={`font-medium ${isMono ? 'text-neutral-500 dark:text-neutral-400' : 'text-green-700 dark:text-green-300'}`}>A: </span>
+                <span className="font-medium text-green-700 dark:text-green-300">A: </span>
                 <code className="text-gray-600 dark:text-gray-400 break-all">
                   <HighlightText text={node.accessPredicates} query={searchText} />
                 </code>
@@ -668,7 +586,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             )}
             {node.filterPredicates && (
               <div className="text-xs">
-                <span className={`font-medium ${isMono ? 'text-neutral-500 dark:text-neutral-400' : 'text-amber-700 dark:text-amber-300'}`}>F: </span>
+                <span className="font-medium text-amber-700 dark:text-amber-300">F: </span>
                 <code className="text-gray-600 dark:text-gray-400 break-all">
                   <HighlightText text={node.filterPredicates} query={searchText} />
                 </code>
