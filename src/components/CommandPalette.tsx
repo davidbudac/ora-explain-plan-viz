@@ -62,7 +62,6 @@ const VIEW_MODE_LABELS: Record<ViewMode, string> = {
 const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
   contrast: 'High Contrast',
   semantic: 'Semantic',
-  focus: 'Data Focus',
   estact: 'Est ⇄ Act',
   rail: 'Icon Rail',
   ticker: 'Ticker',
