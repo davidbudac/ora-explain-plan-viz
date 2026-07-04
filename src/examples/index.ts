@@ -53,8 +53,8 @@ function parseFilename(path: string): { order: number; category: SamplePlan['cat
   return { order, category, name };
 }
 
-// Build the sample plans array from loaded files
-export const SAMPLE_PLANS: SamplePlan[] = Object.entries(exampleFiles)
+// Build the sample plans array from loaded files (with order retained for lookups)
+const sortedPlansWithOrder: Array<SamplePlan & { order: number }> = Object.entries(exampleFiles)
   .map(([path, data]) => {
     const meta = parseFilename(path);
     if (!meta) return null;
@@ -64,8 +64,12 @@ export const SAMPLE_PLANS: SamplePlan[] = Object.entries(exampleFiles)
     };
   })
   .filter((plan): plan is SamplePlan & { order: number } => plan !== null)
-  .sort((a, b) => a.order - b.order)
-  .map(({ name, category, data }) => ({ name, category, data }));
+  .sort((a, b) => a.order - b.order);
+
+// Same list, with the NN order prefix retained. Used to resolve `?example=<NN>` deep links.
+export const SAMPLE_PLANS_WITH_ORDER: Array<SamplePlan & { order: number }> = sortedPlansWithOrder;
+
+export const SAMPLE_PLANS: SamplePlan[] = sortedPlansWithOrder.map(({ name, category, data }) => ({ name, category, data }));
 
 // Group plans by category for the dropdown menu
 export const SAMPLE_PLANS_BY_CATEGORY = {
