@@ -10,13 +10,14 @@ export type DensityPreset = 'compact' | 'detailed';
 export type DensitySelection = DensityPreset | 'custom';
 
 export const DENSITY_PRESETS: Record<DensityPreset, NodeDisplayOptions> = {
-  // Triage mode: tree shape + where the time goes, nothing else.
+  // Triage mode: tree shape + where the time goes. Keeps the bottom
+  // icon/badge row (predicate chips, hotspot, spill) visible for orientation.
   compact: {
     showRows: false,
     showCost: false,
     showBytes: false,
     showObjectName: true,
-    showPredicateIndicators: false,
+    showPredicateIndicators: true,
     showPredicateDetails: false,
     showQueryBlockBadge: false,
     showQueryBlockGrouping: false,

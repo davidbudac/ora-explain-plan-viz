@@ -61,12 +61,14 @@ export const defaultNodeDisplayOptions: NodeDisplayOptions = {
   showAnnotations: true,
 };
 
+const VALID_COLOR_SCHEMES: ColorScheme[] = ['contrast', 'semantic', 'estact', 'rail', 'ticker'];
+
 const defaultSettings: UserSettings = {
   version: SETTINGS_VERSION,
   viewMode: 'hierarchical',
   sankeyMetric: 'rows',
   nodeIndicatorMetric: 'cost',
-  colorScheme: 'muted',
+  colorScheme: 'semantic',
   hotspotsEnabled: true,
   legendVisible: false,
   inputPanelCollapsed: false,
@@ -94,6 +96,11 @@ export function loadSettings(): UserSettings {
     }
 
     const parsed = JSON.parse(stored) as Partial<UserSettings>;
+
+    // Drop color schemes that no longer exist (removed themes fall back to the default)
+    if (parsed.colorScheme && !VALID_COLOR_SCHEMES.includes(parsed.colorScheme)) {
+      delete parsed.colorScheme;
+    }
 
     // Handle version migrations in the future
     if (parsed.version !== SETTINGS_VERSION) {

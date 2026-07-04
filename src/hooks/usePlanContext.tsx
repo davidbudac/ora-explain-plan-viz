@@ -241,7 +241,7 @@ const getInitialState = (): PlanState => {
     treeCompareEnabled: false,
     sankeyMetric: settings.sankeyMetric,
     nodeIndicatorMetric: settings.nodeIndicatorMetric,
-    colorScheme: settings.colorScheme ?? 'muted',
+    colorScheme: settings.colorScheme ?? 'semantic',
     theme: getInitialTheme(),
     filters: applySettingsToFilters(initialFilters, settings),
     highlightStyle: settings.highlightStyle ?? 'circle',
