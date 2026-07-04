@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { getOperationCategory, COLOR_SCHEMES, getMetricColor, getOperationTooltip } from '../../lib/types';
 import { formatNumberShort, formatBytes, formatTimeCompact, formatCardinalityRatio, cardinalityRatioSeverity, computeCardinalityRatio } from '../../lib/format';
@@ -64,7 +65,13 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   const colors = schemeColors[category] || schemeColors['Other'];
   const isMono = colorScheme === 'monochrome';
   const isReadable = colorScheme === 'readable';
-  const borderClass = colorScheme === 'professional' ? '' : isReadable ? '' : isMono ? 'border' : 'border-2';
+  const isEstAct = colorScheme === 'estact';
+  const isRail = colorScheme === 'rail';
+  const isTicker = colorScheme === 'ticker';
+  // Schemes whose border classes are fully specified in COLOR_SCHEMES (width included)
+  const hasSelfContainedBorder = ['professional', 'readable', 'contrast', 'semantic', 'focus', 'estact', 'rail', 'ticker'].includes(colorScheme);
+  const borderClass = hasSelfContainedBorder ? '' : isMono ? 'border' : 'border-2';
+  const isQuietScheme = isMono || ['semantic', 'focus', 'contrast', 'estact', 'rail', 'ticker'].includes(colorScheme);
 
   const indicator = computeIndicatorMetric(node, nodeIndicatorMetric, totalCost, maxActualRows, maxStarts, totalElapsedTime);
 
@@ -116,6 +123,44 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   const showHot = isHotNode && options.showHotspotBadge;
   const showAnnotationsOverlay = options.showAnnotations;
 
+  // 'estact' shows the mismatch inline in the stats grid; 'rail' moves badges to the footer rail
+  const showHotInRow = showHot && !isRail;
+  const showSpillInRow = hasSpill && options.showSpillBadge && !isRail;
+  const showCardBadgeInRow =
+    options.showCardinalityBadge && cardSeverity !== 'good' && !!cardLabel && !isEstAct && !isRail;
+
+  // Rows for the 'estact'/'rail' comparison grid: metric | estimated | actual (| deviation)
+  const estActRows = isEstAct || isRail
+    ? [
+        {
+          label: 'Rows',
+          est: options.showRows && node.rows !== undefined ? formatNumberShort(node.rows) : undefined,
+          act: options.showActualRows && node.actualRows !== undefined ? formatNumberShort(node.actualRows) : undefined,
+          isRowsRow: true,
+        },
+        {
+          label: 'Time',
+          est: undefined,
+          act: options.showActualTime && node.actualTime !== undefined ? formatTimeCompact(node.actualTime) : undefined,
+        },
+        {
+          label: 'Cost',
+          est: options.showCost && node.cost !== undefined ? formatNumberShort(node.cost) : undefined,
+          act: undefined,
+        },
+        {
+          label: 'Bytes',
+          est: options.showBytes && node.bytes !== undefined ? formatBytes(node.bytes) : undefined,
+          act: undefined,
+        },
+        {
+          label: 'Starts',
+          est: undefined,
+          act: options.showStarts && node.starts !== undefined ? formatNumberShort(node.starts) : undefined,
+        },
+      ].filter((r) => r.est !== undefined || r.act !== undefined)
+    : [];
+
   // Highlight is active when: has color and annotations visible (coexists with hot node)
   const showHighlight = !!(highlightColor && showAnnotationsOverlay);
   const colorDef = highlightColor ? getHighlightColorDef(highlightColor) : null;
@@ -130,7 +175,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   return (
     <div
       className={`
-        relative ${isReadable ? 'w-[290px]' : 'w-[260px]'} rounded-xl ${borderClass} ${isMono ? 'shadow-sm' : 'shadow-lg'} transition-all duration-300
+        relative ${isReadable ? 'w-[290px]' : isTicker ? 'w-[240px]' : 'w-[260px]'} rounded-xl ${borderClass} ${isQuietScheme ? 'shadow-sm' : 'shadow-lg'} transition-all duration-300
         ${colors.bg} ${colors.border}
         ${isSelected ? 'ring-2 ring-blue-600 ring-offset-4 dark:ring-offset-slate-950 scale-105 z-30' : ''}
         ${isInFocusPath && !(highlightColor && showAnnotationsOverlay) ? 'ring-2 ring-blue-400/40' : ''}
@@ -242,20 +287,20 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         </div>
 
         {/* Warning badges row (hot node, spill, cardinality, metadata) */}
-        {(showHot || (hasSpill && options.showSpillBadge) || (options.showCardinalityBadge && cardSeverity !== 'good' && cardLabel) || (metadataBadges && metadataBadges.length > 0)) && (
+        {(showHotInRow || showSpillInRow || showCardBadgeInRow || (metadataBadges && metadataBadges.length > 0)) && (
           <div className="flex flex-wrap gap-1 mb-1.5">
-            {showHot && (
+            {showHotInRow && (
               <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-[10px] rounded font-semibold flex items-center gap-0.5" title="Slowest operation in plan (self time, excluding children)">
                 <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" /></svg>
                 Hotspot
               </span>
             )}
-            {hasSpill && options.showSpillBadge && (
+            {showSpillInRow && (
               <span className="px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 text-[10px] rounded font-semibold" title="Spill to disk — temp space used">
                 Spill
               </span>
             )}
-            {options.showCardinalityBadge && cardSeverity !== 'good' && cardLabel && (
+            {showCardBadgeInRow && (
               <span
                 className={`px-1.5 py-0.5 text-[10px] rounded font-semibold ${
                   cardSeverity === 'bad'
@@ -288,6 +333,9 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         <div className="relative">
           <div className={`${isReadable ? 'font-bold text-base' : 'font-semibold text-sm'} leading-tight mb-1 ${colors.text}`} title={tooltip}>
             <HighlightText text={node.operation} query={searchText} />
+            {isTicker && options.showObjectName && node.objectName && (
+              <span className="font-mono font-semibold text-neutral-700 dark:text-neutral-200"> · <HighlightText text={node.objectName} query={searchText} /></span>
+            )}
           </div>
           {showHighlight && highlightStyle === 'underline' && (
             <svg
@@ -309,15 +357,15 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           )}
         </div>
 
-        {/* Object name if present */}
-        {options.showObjectName && node.objectName && (
+        {/* Object name if present (ticker scheme renders it inline in the operation name) */}
+        {!isTicker && options.showObjectName && node.objectName && (
           <div className={`${isReadable ? 'text-base' : 'text-sm'} font-semibold font-mono text-neutral-700 dark:text-neutral-200 mb-2 truncate`}>
             <HighlightText text={node.objectName} query={searchText} />
           </div>
         )}
 
-        {/* Query block badge */}
-        {options.showQueryBlockBadge && node.queryBlock && (
+        {/* Query block badge (rail scheme moves it to the footer rail) */}
+        {!isRail && options.showQueryBlockBadge && node.queryBlock && (
           <div className="flex flex-wrap gap-1 mb-2">
             <span className={`px-1.5 py-0.5 text-xs rounded font-mono ${
               isMono
@@ -335,7 +383,142 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         )}
 
         {/* Stats - Estimated & Actual statistics */}
-        {isReadable ? (
+        {isTicker ? (
+          /* Ticker mode: ultra-compact monospace ticker lines */
+          (() => {
+            const showRowsLine = (options.showRows && node.rows !== undefined) || (options.showActualRows && node.actualRows !== undefined);
+            const showRuntimeLine = hasActualStats && ((options.showActualTime && node.actualTime !== undefined) || (options.showStarts && node.starts !== undefined));
+            const showCostLine = (options.showCost && node.cost !== undefined) || (options.showBytes && node.bytes !== undefined);
+            if (!showRowsLine && !showRuntimeLine && !showCostLine) return null;
+            const showActRows = options.showActualRows && node.actualRows !== undefined;
+            const showEstRows = options.showRows && node.rows !== undefined;
+            const showActualTimePart = options.showActualTime && node.actualTime !== undefined;
+            const showStartsPart = options.showStarts && node.starts !== undefined;
+            const showCostPart = options.showCost && node.cost !== undefined;
+            const showBytesPart = options.showBytes && node.bytes !== undefined;
+            return (
+              <div
+                className="mt-1.5 space-y-0.5 font-mono text-[11px] leading-tight text-neutral-700 dark:text-neutral-300"
+                style={{ fontVariantNumeric: 'tabular-nums' }}
+              >
+                {showRowsLine && (
+                  <div>
+                    <span className="text-[9px] text-neutral-400 dark:text-neutral-500">rows </span>
+                    {showEstRows && (
+                      <span className={showActRows ? 'text-neutral-400 dark:text-neutral-500' : 'font-semibold'}>
+                        {formatNumberShort(node.rows)}
+                      </span>
+                    )}
+                    {showActRows && (
+                      <span className={`font-semibold ${
+                        cardSeverity === 'bad'
+                          ? 'text-red-600 dark:text-red-400'
+                          : cardSeverity === 'warn'
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : ''
+                      }`}>
+                        →{formatNumberShort(node.actualRows)}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {showRuntimeLine && (
+                  <div>
+                    {showActualTimePart && (
+                      <>
+                        <span className="text-[9px] text-neutral-400 dark:text-neutral-500">t </span>
+                        <span className="font-semibold">{formatTimeCompact(node.actualTime)}</span>
+                      </>
+                    )}
+                    {showActualTimePart && showStartsPart && (
+                      <span className="text-neutral-300 dark:text-neutral-600"> · </span>
+                    )}
+                    {showStartsPart && (
+                      <>
+                        <span className="text-[9px] text-neutral-400 dark:text-neutral-500">starts </span>
+                        <span className="font-semibold">{formatNumberShort(node.starts)}</span>
+                      </>
+                    )}
+                  </div>
+                )}
+                {showCostLine && (
+                  <div>
+                    {showCostPart && (
+                      <>
+                        <span className="text-[9px] text-neutral-400 dark:text-neutral-500">cost </span>
+                        <span className="font-semibold">{formatNumberShort(node.cost)}</span>
+                      </>
+                    )}
+                    {showCostPart && showBytesPart && (
+                      <span className="text-neutral-300 dark:text-neutral-600"> · </span>
+                    )}
+                    {showBytesPart && (
+                      <span className="font-semibold">{formatBytes(node.bytes)}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()
+        ) : isEstAct || isRail ? (
+          /* Est ⇄ Act mode: comparison grid — metric | estimated | actual | deviation */
+          estActRows.length > 0 && (
+            <div className="mt-1 rounded border border-neutral-200 dark:border-neutral-700 overflow-hidden bg-neutral-50/60 dark:bg-neutral-900/40">
+              <div className={`grid ${hasActualStats ? 'grid-cols-[auto_1fr_1fr_auto]' : 'grid-cols-[auto_1fr]'} text-[11px] leading-tight`}>
+                {hasActualStats && (
+                  <>
+                    <span className="px-2 py-0.5 bg-neutral-100/80 dark:bg-neutral-800/80" />
+                    <span className="px-2 py-0.5 bg-neutral-100/80 dark:bg-neutral-800/80 text-right text-[9px] font-bold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Est</span>
+                    <span className="px-2 py-0.5 bg-neutral-100/80 dark:bg-neutral-800/80 text-right text-[9px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400">Act</span>
+                    <span className="px-2 py-0.5 bg-neutral-100/80 dark:bg-neutral-800/80" />
+                  </>
+                )}
+                {estActRows.map((r, i) => {
+                  const rowBorder = i > 0 || hasActualStats ? 'border-t border-neutral-200/70 dark:border-neutral-700/70' : '';
+                  return (
+                    <Fragment key={r.label}>
+                      <span className={`px-2 py-0.5 text-neutral-500 dark:text-neutral-400 ${rowBorder}`}>{r.label}</span>
+                      <span className={`px-2 py-0.5 text-right font-mono tabular-nums ${rowBorder} ${
+                        hasActualStats
+                          ? r.est !== undefined ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-300 dark:text-neutral-600'
+                          : 'font-semibold text-neutral-900 dark:text-neutral-100'
+                      }`}>
+                        {r.est ?? '—'}
+                      </span>
+                      {hasActualStats && (
+                        <span className={`px-2 py-0.5 text-right font-mono tabular-nums ${rowBorder} ${
+                          r.act !== undefined ? 'font-semibold text-neutral-900 dark:text-neutral-100' : 'text-neutral-300 dark:text-neutral-600'
+                        }`}>
+                          {r.act ?? '—'}
+                        </span>
+                      )}
+                      {hasActualStats && (
+                        <span className={`pl-0.5 pr-1.5 py-0.5 flex items-center justify-end ${rowBorder}`}>
+                          {'isRowsRow' in r && r.isRowsRow && cardLabel && cardSeverity !== 'good' ? (
+                            <em
+                              className={`not-italic px-1 rounded text-[9px] font-bold whitespace-nowrap ${
+                                cardSeverity === 'bad'
+                                  ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+                                  : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
+                              }`}
+                              title={`Cardinality mismatch: E-Rows=${formatNumberShort(node.rows)} vs A-Rows=${formatNumberShort(node.actualRows)}`}
+                            >
+                              {cardLabel}
+                            </em>
+                          ) : 'isRowsRow' in r && r.isRowsRow && r.est !== undefined && r.act !== undefined ? (
+                            <em className="not-italic px-1 rounded text-[9px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" title="Estimate matches actual rows">
+                              ≈
+                            </em>
+                          ) : null}
+                        </span>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </div>
+            </div>
+          )
+        ) : isReadable ? (
           /* Readable mode: two-column grid layout, one stat per row */
           <div className="mt-1 rounded bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200 dark:border-neutral-700 overflow-hidden">
             {/* Estimated stats */}
@@ -444,8 +627,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           </>
         )}
 
-        {/* Predicate indicators */}
-        {options.showPredicateIndicators && (node.accessPredicates || node.filterPredicates) && (
+        {/* Predicate indicators (rail scheme renders them as footer chips) */}
+        {!isRail && options.showPredicateIndicators && (node.accessPredicates || node.filterPredicates) && (
           <div className={`flex gap-1 mt-2 ${isReadable ? 'gap-1.5' : ''}`}>
             {node.accessPredicates && (
               <span className={`rounded font-semibold ${
@@ -493,6 +676,58 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             )}
           </div>
         )}
+
+        {/* Icon badge rail (rail scheme): fixed footer slot for badges + query block.
+            Cardinality mismatch is shown inline in the comparison grid instead. */}
+        {isRail &&
+          (showHot ||
+            (hasSpill && options.showSpillBadge) ||
+            (options.showPredicateIndicators && (node.accessPredicates || node.filterPredicates)) ||
+            (options.showQueryBlockBadge && node.queryBlock)) && (
+            <div className="flex items-center gap-1 mt-2 pt-1.5 border-t border-neutral-200 dark:border-neutral-700">
+              {showHot && (
+                <span
+                  className="w-5 h-5 rounded bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 flex items-center justify-center shrink-0"
+                  title="Hotspot — slowest operation in plan (self time, excluding children)"
+                >
+                  <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" /></svg>
+                </span>
+              )}
+              {hasSpill && options.showSpillBadge && (
+                <span
+                  className="w-5 h-5 rounded bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 flex items-center justify-center text-[10px] font-bold shrink-0"
+                  title={`Spill to disk — temp space used${node.tempUsed !== undefined ? `: ${formatBytes(node.tempUsed)}` : ''}`}
+                >
+                  ▾
+                </span>
+              )}
+              {options.showPredicateIndicators && node.accessPredicates && (
+                <span
+                  className="w-5 h-5 rounded bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-700 flex items-center justify-center text-[10px] font-extrabold shrink-0"
+                  title={`Access: ${node.accessPredicates}`}
+                >
+                  A
+                </span>
+              )}
+              {options.showPredicateIndicators && node.filterPredicates && (
+                <span
+                  className="w-5 h-5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 flex items-center justify-center text-[10px] font-extrabold shrink-0"
+                  title={`Filter: ${node.filterPredicates}`}
+                >
+                  F
+                </span>
+              )}
+              {options.showQueryBlockBadge && node.queryBlock && (
+                <span
+                  className="ml-auto font-mono text-[10px] text-neutral-400 dark:text-neutral-500 truncate"
+                  title={node.objectAlias ? `${node.queryBlock} · ${node.objectAlias}` : node.queryBlock}
+                >
+                  {node.queryBlock}
+                  {node.objectAlias ? ` · ${node.objectAlias}` : ''}
+                </span>
+              )}
+            </div>
+          )}
 
         {/* Annotation preview */}
         {showAnnotationsOverlay && annotationText && (

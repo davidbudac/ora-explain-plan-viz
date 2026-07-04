@@ -9,6 +9,12 @@ const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
   vibrant: 'Vibrant',
   monochrome: 'Monochrome',
   readable: 'Readable',
+  contrast: 'High Contrast',
+  semantic: 'Semantic',
+  focus: 'Data Focus',
+  estact: 'Est ⇄ Act',
+  rail: 'Icon Rail',
+  ticker: 'Ticker',
 };
 
 export function Header() {
