@@ -1075,6 +1075,15 @@ function HierarchicalViewContent({
           // Escape clears selection regardless
           if (e.key === 'Escape') {
             selectNodeForPlan(resolvedPlanIndex, null);
+            return;
+          }
+          // With nothing selected, an arrow key starts navigation at the root
+          if (
+            parsedPlan?.rootNode &&
+            (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')
+          ) {
+            e.preventDefault();
+            selectNodeForPlan(resolvedPlanIndex, parsedPlan.rootNode.id);
           }
           return;
         }
@@ -1104,19 +1113,15 @@ function HierarchicalViewContent({
         }
         case 'ArrowLeft':
         case 'ArrowRight': {
-          // Go to sibling
-          if (node.parentId !== undefined) {
-            const parent = nodeById.get(node.parentId);
-            if (parent) {
-              const siblings = parent.children;
-              const idx = siblings.findIndex(s => s.id === node.id);
-              if (idx >= 0) {
-                const delta = e.key === 'ArrowLeft' ? -1 : 1;
-                const newIdx = idx + delta;
-                if (newIdx >= 0 && newIdx < siblings.length) {
-                  targetId = siblings[newIdx].id;
-                }
-              }
+          // Go to the previous/next node at the same depth, anywhere in the
+          // tree (siblings first, since they are adjacent in plan order)
+          const sameDepth = parsedPlan.allNodes.filter(n => n.depth === node.depth);
+          const idx = sameDepth.findIndex(n => n.id === node.id);
+          if (idx >= 0) {
+            const delta = e.key === 'ArrowLeft' ? -1 : 1;
+            const newIdx = idx + delta;
+            if (newIdx >= 0 && newIdx < sameDepth.length) {
+              targetId = sameDepth[newIdx].id;
             }
           }
           break;
