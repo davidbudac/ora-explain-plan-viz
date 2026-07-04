@@ -424,7 +424,7 @@ function HierarchicalViewContent({
   const selectedNodeId = slot?.selectedNodeId ?? null;
   const selectedNodeIds = slot?.selectedNodeIds ?? EMPTY_SELECTED_NODE_IDS;
   const containerRef = useRef<HTMLDivElement>(null);
-  const { fitView, setNodes: rfSetNodes, getNodes, setCenter, getViewport, getInternalNode } = useReactFlow();
+  const { fitView, getNodes, setCenter, getViewport, getInternalNode } = useReactFlow();
   const nodeById = useMemo(() => {
     if (!parsedPlan) return new Map<number, PlanNode>();
     return new Map(parsedPlan.allNodes.map((node) => [node.id, node]));
@@ -897,10 +897,13 @@ function HierarchicalViewContent({
     setTimeout(() => fitView({ padding: 0.2 }), 50);
   }, [layoutData, setNodes, setEdges, fitView]);
 
-  // Update node data properties separately (selection, filtering, display options)
-  // Use rfSetNodes from useReactFlow to ensure React Flow detects the change
+  // Update node data properties separately (selection, filtering, display options).
+  // Must use the React state setter (not useReactFlow's setNodes): the store-based
+  // setter reads stale pre-layout nodes when this effect runs in the same commit as
+  // the layout sync above, clobbering freshly computed positions (e.g. on density
+  // preset changes) until a manual redraw.
   useEffect(() => {
-    rfSetNodes((currentNodes) =>
+    setNodes((currentNodes) =>
       currentNodes.map((node) => {
         if (node.type === 'queryBlockGroup' || node.type === 'annotationGroup') {
           return node;
@@ -951,7 +954,7 @@ function HierarchicalViewContent({
     parsedPlan?.maxActualRows,
     parsedPlan?.maxStarts,
     parsedPlan?.totalElapsedTime,
-    rfSetNodes,
+    setNodes,
     filterKey,
     selectionSets.ancestorIds,
     selectionSets.descendantIds,
