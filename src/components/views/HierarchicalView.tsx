@@ -95,45 +95,58 @@ function calculateNodeHeight(
   displayOptions: NodeDisplayOptions,
   hasActualStats: boolean,
   hasAnnotation?: boolean,
-  isReadable?: boolean,
+  usesGrid?: boolean,
+  isRail?: boolean,
+  isTicker?: boolean,
 ): number {
   let height = NODE_BASE_HEIGHT;
-
-  // Readable mode: larger operation name + object name
-  if (isReadable) {
-    height += 6; // extra space for text-base font
-  }
 
   // Warning badges row (hotspot, spill, cardinality mismatch)
   const hasSpill = (node.tempUsed !== undefined && node.tempUsed > 0);
   const cardRatio = hasActualStats ? computeCardinalityRatio(node.rows, node.actualRows) : undefined;
-  const hasCardBadge = cardinalityRatioSeverity(cardRatio) !== 'good';
+  const hasCardBadge = cardinalityRatioSeverity(cardRatio) !== 'good' && !usesGrid;
   // We always add space for badges if there's a potential hot node (we don't know which is hottest at layout time)
-  if (hasSpill || hasCardBadge || (hasActualStats && node.actualTime !== undefined)) {
+  // Rail mode moves these badges into the footer rail, so no badge row.
+  if (!isRail && (hasSpill || hasCardBadge || (hasActualStats && node.actualTime !== undefined))) {
     height += 24;
   }
 
-  // Object name row
-  if (displayOptions.showObjectName && node.objectName) {
-    height += isReadable ? 24 : 20;
+  // Object name row (ticker scheme renders it inline in the operation name — no extra row)
+  if (!isTicker && displayOptions.showObjectName && node.objectName) {
+    height += 20;
   }
 
-  // Query block badge row
-  if (displayOptions.showQueryBlockBadge && node.queryBlock) {
+  // Query block badge row (rail mode moves it into the footer rail)
+  if (!isRail && displayOptions.showQueryBlockBadge && node.queryBlock) {
     height += 24;
+  }
+
+  // Est ⇄ Act / Icon Rail comparison grid: one row per metric + header row when actuals exist
+  if (usesGrid) {
+    let rowCount = 0;
+    if ((displayOptions.showRows && node.rows !== undefined) || (displayOptions.showActualRows && node.actualRows !== undefined)) rowCount++;
+    if (displayOptions.showActualTime && node.actualTime !== undefined) rowCount++;
+    if (displayOptions.showCost && node.cost !== undefined) rowCount++;
+    if (displayOptions.showBytes && node.bytes !== undefined) rowCount++;
+    if (displayOptions.showStarts && node.starts !== undefined) rowCount++;
+    if (rowCount > 0) {
+      height += rowCount * 19 + (hasActualStats ? 17 : 0) + 8;
+    }
+  }
+
+  // Ticker mode: compact monospace lines — rows / runtime / cost, one line each
+  if (isTicker) {
+    let lineCount = 0;
+    if ((displayOptions.showRows && node.rows !== undefined) || (displayOptions.showActualRows && node.actualRows !== undefined)) lineCount++;
+    if (hasActualStats && ((displayOptions.showActualTime && node.actualTime !== undefined) || (displayOptions.showStarts && node.starts !== undefined))) lineCount++;
+    if ((displayOptions.showCost && node.cost !== undefined) || (displayOptions.showBytes && node.bytes !== undefined)) lineCount++;
+    if (lineCount > 0) {
+      height += lineCount * 15 + 6;
+    }
   }
 
   // Estimated stats (rows, cost, bytes)
-  if (isReadable) {
-    // Grid layout: each stat gets its own row (~28px each) + container border/padding (~6px)
-    let estCount = 0;
-    if (displayOptions.showRows && node.rows !== undefined) estCount++;
-    if (displayOptions.showCost && node.cost !== undefined) estCount++;
-    if (displayOptions.showBytes && node.bytes !== undefined) estCount++;
-    if (estCount > 0) {
-      height += estCount * 28 + 6;
-    }
-  } else {
+  if (!usesGrid && !isTicker) {
     const hasEstimatedStats =
       (displayOptions.showRows && node.rows !== undefined) ||
       (displayOptions.showCost && node.cost !== undefined) ||
@@ -144,29 +157,24 @@ function calculateNodeHeight(
   }
 
   // Actual stats (A-Rows, A-Time, Starts)
-  if (hasActualStats) {
-    if (isReadable) {
-      let actCount = 0;
-      if (displayOptions.showActualRows && node.actualRows !== undefined) actCount++;
-      if (displayOptions.showActualTime && node.actualTime !== undefined) actCount++;
-      if (displayOptions.showStarts && node.starts !== undefined) actCount++;
-      if (actCount > 0) {
-        height += actCount * 28 + 4; // rows + blue divider
-      }
-    } else {
-      const hasActualStatsToShow =
-        (displayOptions.showActualRows && node.actualRows !== undefined) ||
-        (displayOptions.showActualTime && node.actualTime !== undefined) ||
-        (displayOptions.showStarts && node.starts !== undefined);
-      if (hasActualStatsToShow) {
-        height += 26;
-      }
+  if (hasActualStats && !usesGrid && !isTicker) {
+    const hasActualStatsToShow =
+      (displayOptions.showActualRows && node.actualRows !== undefined) ||
+      (displayOptions.showActualTime && node.actualTime !== undefined) ||
+      (displayOptions.showStarts && node.starts !== undefined);
+    if (hasActualStatsToShow) {
+      height += 26;
     }
   }
 
-  // Predicate indicators row
-  if (displayOptions.showPredicateIndicators && (node.accessPredicates || node.filterPredicates)) {
-    height += isReadable ? 36 : 28;
+  // Predicate indicators row (rail mode renders them in the footer rail)
+  if (!isRail && displayOptions.showPredicateIndicators && (node.accessPredicates || node.filterPredicates)) {
+    height += 28;
+  }
+
+  // Footer rail row (badges + query block chips)
+  if (isRail) {
+    height += 28;
   }
 
   // Predicate details (can be multiple lines)
@@ -571,8 +579,11 @@ function HierarchicalViewContent({
       return { nodes: [] as Node[], edges: [] as Edge[] };
     }
 
-    const isReadable = colorScheme === 'readable';
-    const effectiveNodeWidth = isReadable ? 290 : NODE_WIDTH;
+    const isRail = colorScheme === 'rail';
+    const isTicker = colorScheme === 'ticker';
+    // Schemes that render stats as the Est ⇄ Act comparison grid (mirrors PlanNode)
+    const usesGrid = ['estact', 'rail', 'contrast', 'semantic'].includes(colorScheme);
+    const effectiveNodeWidth = isTicker ? 240 : NODE_WIDTH;
 
     const planNodes: Node[] = [];
     const edges: Edge[] = [];
@@ -591,7 +602,7 @@ function HierarchicalViewContent({
       const hasActualStats = parsedPlan!.hasActualStats || false;
       const hasAnnotation = effectiveAnnotations.nodeAnnotations.has(node.id);
       // Calculate dynamic height for this node
-      const height = calculateNodeHeight(node, effectiveDisplayOptions, hasActualStats, hasAnnotation, isReadable);
+      const height = calculateNodeHeight(node, effectiveDisplayOptions, hasActualStats, hasAnnotation, usesGrid, isRail, isTicker);
       nodeDimensions.set(node.id.toString(), { width: effectiveNodeWidth, height });
       const match = bundle ? findObjectInBundle(bundle, node.objectName) : null;
       const cardSeverity = parsedPlan!.hasActualStats
@@ -614,7 +625,9 @@ function HierarchicalViewContent({
         { ...effectiveDisplayOptions, showPredicateDetails: true },
         hasActualStats,
         hasAnnotation,
-        isReadable,
+        usesGrid,
+        isRail,
+        isTicker,
       );
       nodeGroupDimensions.set(node.id.toString(), { width: effectiveNodeWidth, height: groupHeight });
 
@@ -1172,11 +1185,11 @@ function HierarchicalViewContent({
             type="button"
             onClick={resetLayout}
             className="p-1.5 rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-sm"
-            title="Reset layout"
-            aria-label="Reset layout"
+            title="Redraw layout"
+            aria-label="Redraw layout"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h5M20 20v-5h-5M5.64 19.36A9 9 0 0020 12M4 12a9 9 0 0014.36-7.36" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
             </svg>
           </button>
         </Panel>

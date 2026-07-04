@@ -4,11 +4,11 @@ import type { ColorScheme } from '../lib/types';
 import { hasAnnotations } from '../lib/annotations';
 
 const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
-  muted: 'Muted',
-  professional: 'Professional',
-  vibrant: 'Vibrant',
-  monochrome: 'Monochrome',
-  readable: 'Readable',
+  contrast: 'High Contrast',
+  semantic: 'Semantic',
+  estact: 'Est ⇄ Act',
+  rail: 'Icon Rail',
+  ticker: 'Ticker',
 };
 
 export function Header() {
