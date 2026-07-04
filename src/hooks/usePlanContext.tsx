@@ -16,6 +16,8 @@ import type { AnnotationState, AnnotationGroup, HighlightColor, HighlightStyle, 
 import { createEmptyAnnotationState, hasAnnotations, serializeAnnotations, deserializeAnnotations, validateExport, downloadAnnotatedPlan, generateGroupId } from '../lib/annotations';
 import type { MetadataBundle } from '../lib/metadata/bundle';
 import { parseBundle, emptyBundleWarning } from '../lib/metadata/bundle';
+import { SAMPLE_PLANS_WITH_ORDER } from '../examples';
+import type { SamplePlan } from '../examples';
 
 function combineWarnings(...warnings: Array<string | null>): string | null {
   const present = warnings.filter((w): w is string => Boolean(w));
@@ -142,6 +144,60 @@ const getInitialTheme = (): Theme => {
   if (stored === 'dark' || stored === 'light') return stored;
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 };
+
+// Matches `?example=<name>` against the bundled sample plans.
+// Accepts (case-insensitively): the display name, a URL-encoded display name,
+// or the two-digit NN order prefix from the example's filename (e.g. "22").
+function findSampleByUrlParam(rawValue: string): SamplePlan | null {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(rawValue);
+  } catch {
+    decoded = rawValue;
+  }
+  const normalized = decoded.trim().toLowerCase();
+  if (!normalized) return null;
+
+  // Try matching by exact (case-insensitive) display name first.
+  const byName = SAMPLE_PLANS_WITH_ORDER.find((plan) => plan.name.trim().toLowerCase() === normalized);
+  if (byName) return byName;
+
+  // Fall back to matching by the two-digit NN order prefix, if numeric.
+  if (/^\d+$/.test(normalized)) {
+    const order = parseInt(normalized, 10);
+    const byOrder = SAMPLE_PLANS_WITH_ORDER.find((plan) => plan.order === order);
+    if (byOrder) return byOrder;
+  }
+
+  return null;
+}
+
+// `?view=` accepts a few friendly aliases in addition to the canonical ViewMode values.
+// The `compare` view requires two loaded plans and is intentionally not supported here.
+function parseViewModeFromUrlParam(rawValue: string): ViewMode | null {
+  const normalized = rawValue.trim().toLowerCase();
+  switch (normalized) {
+    case 'hierarchical':
+    case 'tree':
+      return 'hierarchical';
+    case 'sankey':
+      return 'sankey';
+    case 'text':
+    case 'plantext':
+    case 'plan-text':
+    case 'plan_text':
+      return 'text';
+    case 'tabular':
+    case 'table':
+      return 'tabular';
+    case 'sql':
+      return 'sql';
+    case 'monitor':
+      return 'monitor';
+    default:
+      return null;
+  }
+}
 
 function getParsedPlanIndices(plans: PlanSlot[]): number[] {
   return plans.reduce<number[]>((indices, slot, index) => {
@@ -991,6 +1047,29 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         }
       }
       return;
+    }
+
+    // Marketing/deep-link params: `?example=<name>` and `?view=<tab>`.
+    // Applied only when there's no shared-plan URL to restore (handled above).
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+
+    const exampleParam = params.get('example');
+    if (exampleParam) {
+      const sample = findSampleByUrlParam(exampleParam);
+      if (sample) {
+        importPlanInput(sample.data);
+      }
+      // No match: ignore silently, normal empty-state startup.
+    }
+
+    const viewParam = params.get('view');
+    if (viewParam) {
+      const mode = parseViewModeFromUrlParam(viewParam);
+      // `compare` requires two loaded plans and is intentionally not supported via URL param.
+      if (mode && mode !== 'compare') {
+        dispatch({ type: 'SET_VIEW_MODE', payload: mode });
+      }
     }
   }, [buildPlanSlotsFromInputs, importPlanInput]);
 
