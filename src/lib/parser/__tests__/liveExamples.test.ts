@@ -8,10 +8,10 @@ function readExample(filename: string): string {
 }
 
 const LIVE_EXAMPLES = [
-  '21-sql_monitor-Live Star Schema Rollup.txt',
-  '22-sql_monitor-Live Cardinality Trap (NL).txt',
-  '23-sql_monitor-Live Window Sort Spill.txt',
-  '24-sql_monitor-Live Recursive BOM.txt',
+  '21-sql_monitor-Star Schema Rollup.txt',
+  '22-sql_monitor-Cardinality Trap (NL).txt',
+  '23-sql_monitor-Window Sort Spill.txt',
+  '24-sql_monitor-Recursive BOM.txt',
 ] as const;
 
 describe('Live-captured SQL Monitor XML examples', () => {
@@ -46,7 +46,7 @@ describe('Live-captured SQL Monitor XML examples', () => {
   describe('22 - Cardinality Trap (NL)', () => {
     it('shows the ORDERS full scan cardinality misestimate (32 est vs 20000 actual)', () => {
       const result = sqlMonitorXmlParser.parse(
-        readExample('22-sql_monitor-Live Cardinality Trap (NL).txt')
+        readExample('22-sql_monitor-Cardinality Trap (NL).txt')
       );
       const orders = result.allNodes.find(
         (n) => n.operation === 'TABLE ACCESS FULL' && n.objectName === 'ORDERS'
@@ -60,7 +60,7 @@ describe('Live-captured SQL Monitor XML examples', () => {
   describe('23 - Window Sort Spill', () => {
     it('has at least one node with temp space usage', () => {
       const result = sqlMonitorXmlParser.parse(
-        readExample('23-sql_monitor-Live Window Sort Spill.txt')
+        readExample('23-sql_monitor-Window Sort Spill.txt')
       );
       const spilling = result.allNodes.filter((n) => (n.tempUsed ?? 0) > 0);
       expect(spilling.length).toBeGreaterThan(0);
@@ -70,7 +70,7 @@ describe('Live-captured SQL Monitor XML examples', () => {
   describe('24 - Recursive BOM', () => {
     it('contains a RECURSIVE WITH PUMP operation', () => {
       const result = sqlMonitorXmlParser.parse(
-        readExample('24-sql_monitor-Live Recursive BOM.txt')
+        readExample('24-sql_monitor-Recursive BOM.txt')
       );
       const pump = result.allNodes.find((n) =>
         n.operation.includes('RECURSIVE WITH PUMP')
