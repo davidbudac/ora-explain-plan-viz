@@ -6,7 +6,6 @@ import { hasAnnotations } from '../lib/annotations';
 const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
   contrast: 'High Contrast',
   semantic: 'Semantic',
-  focus: 'Data Focus',
   estact: 'Est ⇄ Act',
   rail: 'Icon Rail',
   ticker: 'Ticker',

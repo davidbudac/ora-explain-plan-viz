@@ -249,7 +249,7 @@ export function getOperationCategory(operation: string): string {
   return 'Other';
 }
 
-export type ColorScheme = 'contrast' | 'semantic' | 'focus' | 'estact' | 'rail' | 'ticker';
+export type ColorScheme = 'contrast' | 'semantic' | 'estact' | 'rail' | 'ticker';
 
 export const COLOR_SCHEME_PALETTES: Record<ColorScheme, Record<string, string>> = {
   contrast: {
@@ -274,18 +274,6 @@ export const COLOR_SCHEME_PALETTES: Record<ColorScheme, Record<string, string>> 
     'Filter/View': '#64748b',
     'Partition': '#64748b',
     'Parallelism': '#7c3aed',
-    'Other': '#94a3b8',
-  },
-  focus: {
-    'Table Access': '#d97706',
-    'Index Operations': '#059669',
-    'Join Operations': '#94a3b8',
-    'Set Operations': '#94a3b8',
-    'Aggregation': '#94a3b8',
-    'Sort Operations': '#94a3b8',
-    'Filter/View': '#94a3b8',
-    'Partition': '#94a3b8',
-    'Parallelism': '#94a3b8',
     'Other': '#94a3b8',
   },
   estact: {
@@ -338,10 +326,6 @@ export const EDGE_SCHEME_COLORS: Record<ColorScheme, {
     light: { active: '#64748b', default: '#cbd5e1', focus: '#334155', dimmed: '#f1f5f9' },
     dark: { active: '#64748b', default: '#334155', focus: '#94a3b8', dimmed: '#1e293b' },
   },
-  focus: {
-    light: { active: '#94a3b8', default: '#e2e8f0', focus: '#475569', dimmed: '#f8fafc' },
-    dark: { active: '#64748b', default: '#334155', focus: '#94a3b8', dimmed: '#1e293b' },
-  },
   estact: {
     light: { active: '#94a3b8', default: '#cbd5e1', focus: '#475569', dimmed: '#f1f5f9' },
     dark: { active: '#64748b', default: '#334155', focus: '#94a3b8', dimmed: '#1e293b' },
@@ -386,21 +370,6 @@ const COLORS_SEMANTIC: Record<string, { bg: string; border: string; text: string
   'Other': { bg: 'bg-white dark:bg-neutral-800/90', border: 'border-l-4 border-l-neutral-300 dark:border-l-neutral-600 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-700 dark:text-neutral-200' },
 };
 
-// Option G: Data Focus — only the leaves where data enters the plan are tinted (amber=table scan, green=index);
-// all structural operations stay neutral, so the eye finds the data sources instantly.
-const COLORS_FOCUS: Record<string, { bg: string; border: string; text: string }> = {
-  'Table Access': { bg: 'bg-amber-100/80 dark:bg-amber-900/30', border: 'border-2 border-amber-400 dark:border-amber-600', text: 'text-amber-900 dark:text-amber-200' },
-  'Index Operations': { bg: 'bg-emerald-100/80 dark:bg-emerald-900/30', border: 'border-2 border-emerald-400 dark:border-emerald-600', text: 'text-emerald-900 dark:text-emerald-200' },
-  'Join Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border border-neutral-200 dark:border-neutral-700', text: 'text-neutral-800 dark:text-neutral-100' },
-  'Set Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border border-neutral-200 dark:border-neutral-700', text: 'text-neutral-800 dark:text-neutral-100' },
-  'Aggregation': { bg: 'bg-white dark:bg-neutral-800', border: 'border border-neutral-200 dark:border-neutral-700', text: 'text-neutral-800 dark:text-neutral-100' },
-  'Sort Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border border-neutral-200 dark:border-neutral-700', text: 'text-neutral-800 dark:text-neutral-100' },
-  'Filter/View': { bg: 'bg-white dark:bg-neutral-800', border: 'border border-neutral-200 dark:border-neutral-700', text: 'text-neutral-800 dark:text-neutral-100' },
-  'Partition': { bg: 'bg-white dark:bg-neutral-800', border: 'border border-neutral-200 dark:border-neutral-700', text: 'text-neutral-800 dark:text-neutral-100' },
-  'Parallelism': { bg: 'bg-white dark:bg-neutral-800', border: 'border border-neutral-200 dark:border-neutral-700', text: 'text-neutral-800 dark:text-neutral-100' },
-  'Other': { bg: 'bg-white dark:bg-neutral-800', border: 'border border-neutral-200 dark:border-neutral-700', text: 'text-neutral-800 dark:text-neutral-100' },
-};
-
 // Shared card chrome for the layout-focused schemes ('estact', 'rail'):
 // quiet white cards with a single neutral border; category color carried by the operation name.
 const COLORS_QUIET: Record<string, { bg: string; border: string; text: string }> = {
@@ -419,7 +388,6 @@ const COLORS_QUIET: Record<string, { bg: string; border: string; text: string }>
 export const COLOR_SCHEMES: Record<ColorScheme, Record<string, { bg: string; border: string; text: string }>> = {
   contrast: COLORS_CONTRAST,
   semantic: COLORS_SEMANTIC,
-  focus: COLORS_FOCUS,
   estact: COLORS_QUIET,
   rail: COLORS_QUIET,
   ticker: COLORS_QUIET,

@@ -61,7 +61,7 @@ export const defaultNodeDisplayOptions: NodeDisplayOptions = {
   showAnnotations: true,
 };
 
-const VALID_COLOR_SCHEMES: ColorScheme[] = ['contrast', 'semantic', 'focus', 'estact', 'rail', 'ticker'];
+const VALID_COLOR_SCHEMES: ColorScheme[] = ['contrast', 'semantic', 'estact', 'rail', 'ticker'];
 
 const defaultSettings: UserSettings = {
   version: SETTINGS_VERSION,
