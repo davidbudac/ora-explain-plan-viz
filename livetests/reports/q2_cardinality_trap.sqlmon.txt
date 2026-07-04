@@ -1,0 +1,44 @@
+SQL Monitoring Report
+
+SQL Text
+------------------------------
+SELECT /*+ MONITOR */ /* LIVETEST_Q2 */ o.ship_country, COUNT(*) AS num_items, SUM(i.line_amount) AS total_line_amount, MAX(i.line_amount) AS max_line_amount FROM orders o JOIN order_items i ON i.order_id = o.order_id WHERE o.ship_country = 'COUNTRY_0' AND o.ship_currency = 'CURRENCY_0' AND o.ship_language = 'LANG_0' GROUP BY o.ship_country
+
+Global Information
+------------------------------
+ Status              :  DONE (ALL ROWS)
+ Instance ID         :  1
+ Session             :  PLANVIZ (270:30811)
+ SQL ID              :  96d05a34rtfqx
+ SQL Execution ID    :  16777216
+ Execution Started   :  07/04/2026 18:51:54
+ First Refresh Time  :  07/04/2026 18:51:54
+ Last Refresh Time   :  07/04/2026 18:51:54
+ Duration            :  .146466s
+ Module/Action       :  SQL*Plus/-
+ Service             :  pdb1
+ Program             :  sqlplus@poug-dg1.localdomain (TNS V1-V3)
+ Fetch Calls         :  2
+
+Global Stats
+================================================================
+| Elapsed |   Cpu   |    IO    | Fetch | Buffer | Read | Read  |
+| Time(s) | Time(s) | Waits(s) | Calls |  Gets  | Reqs | Bytes |
+================================================================
+|    0.15 |    0.15 |     0.00 |     2 |   126K |    7 | 57344 |
+================================================================
+
+SQL Plan Monitoring Details (Plan Hash Value=2058068615)
+==============================================================================================================================================================
+| Id |            Operation            |      Name      |  Rows   | Cost |   Time    | Start  | Execs |   Rows   | Read | Read  | Activity | Activity Detail |
+|    |                                 |                | (Estim) |      | Active(s) | Active |       | (Actual) | Reqs | Bytes |   (%)    |   (# samples)   |
+==============================================================================================================================================================
+|  0 | SELECT STATEMENT                |                |         |      |         1 |     +0 |     1 |        1 |      |       |          |                 |
+|  1 |   SORT GROUP BY NOSORT          |                |     126 | 1165 |         1 |     +0 |     1 |        1 |      |       |          |                 |
+|  2 |    NESTED LOOPS                 |                |     126 | 1165 |         1 |     +0 |     1 |    80000 |      |       |          |                 |
+|  3 |     NESTED LOOPS                |                |     128 | 1165 |         1 |     +0 |     1 |    80000 |      |       |          |                 |
+|  4 |      TABLE ACCESS FULL          | ORDERS         |      32 |  973 |         1 |     +0 |     1 |    20000 |      |       |          |                 |
+|  5 |      INDEX RANGE SCAN           | ORDER_ITEMS_IX |       4 |    2 |         1 |     +0 | 20000 |    80000 |    7 | 57344 |          |                 |
+|  6 |     TABLE ACCESS BY INDEX ROWID | ORDER_ITEMS    |       4 |    6 |         1 |     +0 | 80000 |    80000 |      |       |          |                 |
+==============================================================================================================================================================
+

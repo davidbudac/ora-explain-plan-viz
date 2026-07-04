@@ -1,0 +1,47 @@
+SQL Monitoring Report
+
+SQL Text
+------------------------------
+SELECT /*+ MONITOR */ /* LIVETEST_Q1 */ p.category, st.region, COUNT(*) AS num_sales, SUM(s.amount) AS total_amount, ROUND(AVG(s.amount), 2) AS avg_amount, SUM(s.quantity) AS total_quantity FROM sales s JOIN dim_products p ON p.product_id = s.product_id JOIN dim_stores st ON st.store_id = s.store_id JOIN dim_customers c ON c.customer_id = s.customer_id WHERE s.sale_date >= DATE '2025-01-01' AND c.segment IN ('Consumer', 'Corporate') AND p.category IN ('Electronics', 'Grocery', 'Apparel',
+'Home') GROUP BY ROLLUP(p.category, st.region) ORDER BY p.category, st.region
+
+Global Information
+------------------------------
+ Status              :  DONE (ALL ROWS)
+ Instance ID         :  1
+ Session             :  PLANVIZ (270:37672)
+ SQL ID              :  1ut2mkhussb5g
+ SQL Execution ID    :  16777216
+ Execution Started   :  07/04/2026 18:51:54
+ First Refresh Time  :  07/04/2026 18:51:54
+ Last Refresh Time   :  07/04/2026 18:51:54
+ Duration            :  .399675s
+ Module/Action       :  SQL*Plus/-
+ Service             :  pdb1
+ Program             :  sqlplus@poug-dg1.localdomain (TNS V1-V3)
+ Fetch Calls         :  3
+
+Global Stats
+======================================
+| Elapsed |   Cpu   | Fetch | Buffer |
+| Time(s) | Time(s) | Calls |  Gets  |
+======================================
+|    0.40 |    0.40 |     3 |  11000 |
+======================================
+
+SQL Plan Monitoring Details (Plan Hash Value=1247008444)
+==============================================================================================================================================
+| Id |        Operation        |     Name      |  Rows   | Cost |   Time    | Start  | Execs |   Rows   |  Mem  | Activity | Activity Detail |
+|    |                         |               | (Estim) |      | Active(s) | Active |       | (Actual) | (Max) |   (%)    |   (# samples)   |
+==============================================================================================================================================
+|  0 | SELECT STATEMENT        |               |         |      |         1 |     +0 |     1 |       25 |     . |          |                 |
+|  1 |   SORT GROUP BY ROLLUP  |               |      15 | 3064 |         1 |     +0 |     1 |       25 |  4096 |          |                 |
+|  2 |    HASH JOIN            |               |    247K | 3056 |         1 |     +0 |     1 |     249K |   2MB |          |                 |
+|  3 |     TABLE ACCESS FULL   | DIM_STORES    |     200 |    3 |         1 |     +0 |     1 |      200 |     . |          |                 |
+|  4 |     HASH JOIN           |               |    247K | 3053 |         1 |     +0 |     1 |     249K |   2MB |          |                 |
+|  5 |      TABLE ACCESS FULL  | DIM_PRODUCTS  |     500 |    4 |         1 |     +0 |     1 |      500 |     . |          |                 |
+|  6 |      HASH JOIN          |               |    494K | 3047 |         1 |     +0 |     1 |     498K |   3MB |          |                 |
+|  7 |       TABLE ACCESS FULL | DIM_CUSTOMERS |   25000 |   82 |         1 |     +0 |     1 |    25000 |     . |          |                 |
+|  8 |       TABLE ACCESS FULL | SALES         |    999K | 2962 |         1 |     +0 |     1 |     997K |     . |          |                 |
+==============================================================================================================================================
+

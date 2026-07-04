@@ -1,0 +1,53 @@
+SQL Monitoring Report
+
+SQL Text
+------------------------------
+WITH exploded (root_part_id, part_id, ext_qty, lvl) AS ( SELECT p.part_id, p.part_id, 1, 1 FROM parts p WHERE p.part_type = 'FINISHED' UNION ALL SELECT e.root_part_id, b.child_id, e.ext_qty * b.qty, e.lvl + 1 FROM exploded e JOIN bom b ON b.parent_id = e.part_id ) SELECT /*+ MONITOR */ /* LIVETEST_Q4 */ e.root_part_id, rp.part_name, MAX(e.lvl) AS max_level, COUNT(*) AS num_components, ROUND(SUM(e.ext_qty * p.unit_cost), 2) AS total_cost FROM exploded e JOIN parts p ON p.part_id = e.part_id JOIN
+parts rp ON rp.part_id = e.root_part_id GROUP BY e.root_part_id, rp.part_name ORDER BY 1
+
+Global Information
+------------------------------
+ Status              :  DONE (ALL ROWS)
+ Instance ID         :  1
+ Session             :  PLANVIZ (270:30344)
+ SQL ID              :  dvtu0mmxybwuh
+ SQL Execution ID    :  16777216
+ Execution Started   :  07/04/2026 18:52:03
+ First Refresh Time  :  07/04/2026 18:52:03
+ Last Refresh Time   :  07/04/2026 18:52:03
+ Duration            :  .13751s
+ Module/Action       :  SQL*Plus/-
+ Service             :  pdb1
+ Program             :  sqlplus@poug-dg1.localdomain (TNS V1-V3)
+ Fetch Calls         :  2
+
+Global Stats
+============================================================
+| Elapsed |   Cpu   |    IO    |  Other   | Fetch | Buffer |
+| Time(s) | Time(s) | Waits(s) | Waits(s) | Calls |  Gets  |
+============================================================
+|    0.14 |    0.14 |     0.00 |     0.00 |     2 |  98942 |
+============================================================
+
+SQL Plan Monitoring Details (Plan Hash Value=1624175810)
+=================================================================================================================================================================
+| Id |                    Operation                    |   Name   |  Rows   | Cost |   Time    | Start  | Execs |   Rows   |  Mem  | Activity | Activity Detail |
+|    |                                                 |          | (Estim) |      | Active(s) | Active |       | (Actual) | (Max) |   (%)    |   (# samples)   |
+=================================================================================================================================================================
+|  0 | SELECT STATEMENT                                |          |         |      |         1 |     +0 |     1 |       10 |     . |          |                 |
+|  1 |   SORT GROUP BY                                 |          |   50740 |   1G |         1 |     +0 |     1 |       10 |  2048 |          |                 |
+|  2 |    NESTED LOOPS                                 |          |    896G |  65M |         1 |     +0 |     1 |    27210 |     . |          |                 |
+|  3 |     NESTED LOOPS                                |          |    896G |  65M |         1 |     +0 |     1 |    27210 |     . |          |                 |
+|  4 |      HASH JOIN                                  |          |    896G |   6M |         1 |     +0 |     1 |    27210 |   5MB |          |                 |
+|  5 |       TABLE ACCESS FULL                         | PARTS    |   51000 |   72 |         1 |     +0 |     1 |    51000 |     . |          |                 |
+|  6 |       VIEW                                      |          |    896G |   3M |         1 |     +0 |     1 |    27210 |     . |          |                 |
+|  7 |        UNION ALL (RECURSIVE WITH) BREADTH FIRST |          |         |      |         1 |     +0 |     1 |    27210 |   1MB |          |                 |
+|  8 |         TABLE ACCESS FULL                       | PARTS    |   17000 |   72 |         1 |     +0 |     1 |       10 |     . |          |                 |
+|  9 |         HASH JOIN                               |          |    896G |   3M |         1 |     +0 |     4 |    27200 |   3MB |          |                 |
+| 10 |          BUFFER SORT (REUSE)                    |          |         |      |         1 |     +0 |     4 |    50720 | 550KB |          |                 |
+| 11 |           TABLE ACCESS FULL                     | BOM      |   12680 |    9 |         1 |     +0 |     1 |    12680 |     . |          |                 |
+| 12 |          RECURSIVE WITH PUMP                    |          |         |      |         1 |     +0 |     4 |    27210 |     . |          |                 |
+| 13 |      INDEX UNIQUE SCAN                          | PK_PARTS |       1 |      |         1 |     +0 | 27210 |    27210 |     . |          |                 |
+| 14 |     TABLE ACCESS BY INDEX ROWID                 | PARTS    |       1 |    1 |         1 |     +0 | 27210 |    27210 |     . |          |                 |
+=================================================================================================================================================================
+
