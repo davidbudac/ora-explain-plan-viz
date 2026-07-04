@@ -956,7 +956,8 @@ function parseMonitorOperation(op: Element, planEstimates: Map<number, PlanEstim
   const actualRows = getStatByName(statsEl, 'cardinality');
   const starts = getStatByName(statsEl, 'starts');
   const maxMemory = getStatByName(statsEl, 'max_memory');
-  const maxTempSeg = getStatByName(statsEl, 'max_tempseg');
+  const maxTempSeg =
+    getStatByName(statsEl, 'max_tempseg') ?? getStatByName(statsEl, 'max_temp');
   const readReqs = getStatByName(statsEl, 'read_reqs');
   const readBytes = getStatByName(statsEl, 'read_bytes');
   const writeReqs = getStatByName(statsEl, 'write_reqs');
