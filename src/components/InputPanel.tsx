@@ -8,7 +8,7 @@ import { classifyDroppedFile } from '../lib/metadata/dropClassify';
 import { MetadataChip } from './MetadataChip';
 
 export function InputPanel() {
-  const { rawInput, setInput, parsePlan, loadAndParsePlan, loadMetadataBundle, attachMetadataBundleToSlot, clearPlan, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex, metadataBundle, metadataBundleWarning, detachMetadataBundle } = usePlan();
+  const { rawInput, setInput, parsePlan, loadAndParsePlan, loadMetadataBundle, attachMetadataBundleToSlot, clearPlan, removePlanSlot, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex, metadataBundle, metadataBundleWarning, detachMetadataBundle } = usePlan();
   const [showSampleMenu, setShowSampleMenu] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [bundleMessage, setBundleMessage] = useState<{ tone: 'ok' | 'warn' | 'error'; text: string } | null>(null);
@@ -302,6 +302,15 @@ export function InputPanel() {
                 className="h-8 px-3 border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors font-semibold text-xs"
               >
                 Clear
+              </button>
+            )}
+            {!parsedPlan && plans.length > 1 && (
+              <button
+                onClick={() => removePlanSlot(activePlanIndex)}
+                className="h-8 px-3 border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors font-semibold text-xs"
+                title="Discard this empty plan"
+              >
+                Cancel
               </button>
             )}
             {parsedPlan && (
