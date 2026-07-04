@@ -60,11 +60,6 @@ const VIEW_MODE_LABELS: Record<ViewMode, string> = {
 };
 
 const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
-  muted: 'Muted',
-  professional: 'Professional',
-  vibrant: 'Vibrant',
-  monochrome: 'Monochrome',
-  readable: 'Readable',
   contrast: 'High Contrast',
   semantic: 'Semantic',
   focus: 'Data Focus',

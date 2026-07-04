@@ -4,11 +4,6 @@ import type { ColorScheme } from '../lib/types';
 import { hasAnnotations } from '../lib/annotations';
 
 const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
-  muted: 'Muted',
-  professional: 'Professional',
-  vibrant: 'Vibrant',
-  monochrome: 'Monochrome',
-  readable: 'Readable',
   contrast: 'High Contrast',
   semantic: 'Semantic',
   focus: 'Data Focus',
