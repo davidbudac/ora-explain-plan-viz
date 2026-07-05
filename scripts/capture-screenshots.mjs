@@ -248,8 +248,9 @@ async function main() {
   }
   await screenshot('cardinality.png');
 
-  // ---- 5. sankey.png — Hash Join (05), Sankey view
-  // Example 05 renders a clean, readable Sankey; large parallel plans
+  // ---- 5. sankey.png — Sankey view
+  // TODO: example 05 (Hash Join) was removed; pick a replacement sql_monitor
+  // example that renders a clean, readable Sankey. Large parallel plans
   // (e.g. 18) produce oversized cramped bars at this viewport.
   console.log('shot 5: sankey.png');
   await goto(`${BASE}/?example=05&view=sankey`, { waitNodes: false });
@@ -260,6 +261,8 @@ async function main() {
   await screenshot('sankey.png');
 
   // ---- 6. compare.png — Plan A = 22, Plan B = 09, Compare dashboard
+  // TODO: example 09 (Nested Loops) was removed; pick a replacement
+  // sql_monitor example with actual stats for Plan B.
   console.log('shot 6: compare.png');
   await goto(`${BASE}/?example=22&view=hierarchical`);
   await clickEl(btnByText('Add Plan'), { label: 'Add Plan button' });

@@ -7,6 +7,10 @@ function readExample(filename: string): string {
   return readFileSync(join(__dirname, '../../../examples', filename), 'utf-8');
 }
 
+function readFixture(filename: string): string {
+  return readFileSync(join(__dirname, 'fixtures', filename), 'utf-8');
+}
+
 describe('sqlMonitorXmlParser - Real Oracle XML Format', () => {
   describe('canParse', () => {
     it('detects real Oracle SQL Monitor XML', () => {
@@ -35,11 +39,11 @@ Plan hash value: 123456
     });
   });
 
-  describe('Hash Join example (05-sql_monitor-SQL Monitor XML (Hash Join).txt)', () => {
+  describe('Hash Join example (sql-monitor-xml-hash-join.txt)', () => {
     let result: ReturnType<typeof sqlMonitorXmlParser.parse>;
 
     it('parses without errors', () => {
-      const xml = readExample('05-sql_monitor-SQL Monitor XML (Hash Join).txt');
+      const xml = readFixture('sql-monitor-xml-hash-join.txt');
       result = sqlMonitorXmlParser.parse(xml);
       expect(result.rootNode).not.toBeNull();
     });
@@ -144,11 +148,11 @@ Plan hash value: 123456
     });
   });
 
-  describe('Nested Loops example (09-sql_monitor-SQL Monitor XML (Nested Loops).txt)', () => {
+  describe('Nested Loops example (sql-monitor-xml-nested-loops.txt)', () => {
     let result: ReturnType<typeof sqlMonitorXmlParser.parse>;
 
     it('parses without errors', () => {
-      const xml = readExample('09-sql_monitor-SQL Monitor XML (Nested Loops).txt');
+      const xml = readFixture('sql-monitor-xml-nested-loops.txt');
       result = sqlMonitorXmlParser.parse(xml);
       expect(result.rootNode).not.toBeNull();
     });
