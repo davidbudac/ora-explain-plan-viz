@@ -37,9 +37,6 @@ const COLUMN_MIN_WIDTH: Record<ColumnKey, number> = {
 };
 const COLUMN_WIDTHS_STORAGE_KEY = 'tabularView.columnWidths.v1';
 
-/** Deepest nesting level that gets its own indent guide; deeper rows show a "+N" chip instead. */
-const INDENT_CAP = 12;
-
 /** Collect all descendant IDs of a node (not including the node itself). */
 function collectDescendantIds(node: PlanNode, out: Set<number>) {
   for (const child of node.children) {
@@ -607,17 +604,8 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                 {/* Operation */}
                 <td className="px-2 py-0 sticky left-0 bg-inherit overflow-hidden">
                   <div className="flex items-stretch min-w-0">
-                    {/* Tree lines (capped: very deep rows get a fixed indent + depth chip) */}
-                    {node.depth > INDENT_CAP && (
-                      <span
-                        className="self-center flex-shrink-0 mr-1 px-1 py-0 text-[9px] font-medium bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 rounded"
-                        style={{ marginLeft: `${INDENT_CAP * 16}px` }}
-                        title={`Nesting depth ${node.depth}`}
-                      >
-                        +{node.depth - INDENT_CAP}
-                      </span>
-                    )}
-                    {node.depth > 0 && node.depth <= INDENT_CAP && isTreeOrder && Array.from({ length: node.depth }, (_, i) => {
+                    {/* Tree lines */}
+                    {node.depth > 0 && isTreeOrder && Array.from({ length: node.depth }, (_, i) => {
                       const isConnector = i === node.depth - 1;
                       const isLast = isConnector && !continuing.has(node.depth);
                       const hasVert = continuing.has(i + 1);
@@ -639,7 +627,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                       return <span key={i} className="w-4 flex-shrink-0" />;
                     })}
                     {/* Padding fallback when not in tree order */}
-                    {(!isTreeOrder && node.depth > 0 && node.depth <= INDENT_CAP) && (
+                    {(!isTreeOrder && node.depth > 0) && (
                       <span className="flex-shrink-0" style={{ width: `${node.depth * 16}px` }} />
                     )}
                     {/* Content */}
