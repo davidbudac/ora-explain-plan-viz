@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { usePlan } from '../../hooks/usePlanContext';
 import type { PlanNode } from '../../lib/types';
-import { formatNumberShort, formatBytes, formatTimeCompact, computeCardinalityRatio, formatCardinalityRatio, cardinalityRatioSeverity } from '../../lib/format';
+import { formatNumberShort, formatBytes, formatTimeCompact, computeCardinalityRatio, formatCardinalityRatio, cardinalityRatioSeverity, formatPartitionRange } from '../../lib/format';
 import { getHighlightColorDef } from '../../lib/annotations';
 import type { AnnotationGroup } from '../../lib/annotations';
 import { matchesFilters } from '../../lib/filtering';
@@ -730,8 +730,8 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                           );
                         })}
                       </div>
-                      {/* Inline predicates */}
-                      {(node.accessPredicates || node.filterPredicates) && (
+                      {/* Inline predicates + partition pruning */}
+                      {(node.accessPredicates || node.filterPredicates || formatPartitionRange(node.pstart, node.pstop)) && (
                         <div className="ml-[calc(0.875rem+0.25rem)] mt-0.5 text-[10px] font-mono text-neutral-400 dark:text-neutral-500 whitespace-pre-wrap break-all leading-tight">
                           {node.accessPredicates && (
                             <span><span className="text-blue-400 dark:text-blue-500">A:</span> {node.accessPredicates}</span>
@@ -741,6 +741,12 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                           )}
                           {node.filterPredicates && (
                             <span><span className="text-amber-400 dark:text-amber-500">F:</span> {node.filterPredicates}</span>
+                          )}
+                          {(node.accessPredicates || node.filterPredicates) && formatPartitionRange(node.pstart, node.pstop) && (
+                            <span className="mx-1.5 text-neutral-300 dark:text-neutral-600">|</span>
+                          )}
+                          {formatPartitionRange(node.pstart, node.pstop) && (
+                            <span title={`Pstart: ${node.pstart ?? '—'}, Pstop: ${node.pstop ?? '—'}`}><span className="text-indigo-400 dark:text-indigo-500">Part:</span> {formatPartitionRange(node.pstart, node.pstop)}</span>
                           )}
                         </div>
                       )}

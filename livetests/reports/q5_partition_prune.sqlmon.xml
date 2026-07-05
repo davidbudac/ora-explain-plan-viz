@@ -1,0 +1,822 @@
+<report db_version="19.0.0.0.0" elapsed_time="0.11" cpu_time="0.11" cpu_cores="2" hyperthread="N" con_id="1" con_name="CDB$ROOT" timezone_offset="0" packs="2" service_type="0">
+  <report_id><![CDATA[/orarep/sqlmonitor/main%3finst_id%3d1%26session_id%3d285%26session_serial%3d59781%26sql_exec_id%3d16777216%26sql_exec_start%3d07%3a05%3a2026%2010%3a17%3a19%26sql_id%3d40bjq87dnk21c]]></report_id>
+  <sql_monitor_report version="4.0" sysdate="07/05/2026 10:17:19">
+    <report_parameters>
+      <sql_id>40bjq87dnk21c</sql_id>
+      <sql_exec_id>16777216</sql_exec_id>
+      <session_id>285</session_id>
+      <session_serial>59781</session_serial>
+      <sql_exec_start>07/05/2026 10:17:19</sql_exec_start>
+      <bucket_count>2</bucket_count>
+      <interval_start>07/05/2026 10:17:19</interval_start>
+      <interval_end>07/05/2026 10:17:20</interval_end>
+    </report_parameters>
+    <target instance_id="1" session_id="285" session_serial="59781" sql_id="40bjq87dnk21c" sql_exec_start="07/05/2026 10:17:19" sql_exec_id="16777216" sql_plan_hash="4218842216" sql_full_plan_hash="123073720" db_unique_name="cdb1" db_platform_name="x86_64/Linux 2.4.xx" report_host_name="poug-dg1">
+      <servers_requested>8</servers_requested>
+      <servers_allocated>8</servers_allocated>
+      <user_id>136</user_id>
+      <user>PLANVIZ</user>
+      <con_id>3</con_id>
+      <con_name>PDB1</con_name>
+      <program>sqlplus@poug-dg1.localdomain (TNS V1-V3)</program>
+      <module>SQL*Plus</module>
+      <service>pdb1</service>
+      <sql_fulltext is_full="Y">SELECT /*+ MONITOR PARALLEL(4) */ /* LIVETEST_Q5 */
+   p.category,
+   st.region,
+   TO_CHAR(sp.sale_date, &apos;YYYY-MM&apos;)            AS sale_month,
+   COUNT(*)                                     AS num_sales,
+   ROUND(SUM(sp.amount), 2)                      AS total_amount,
+   ROUND(AVG(sp.amount), 2)                       AS avg_amount,
+   SUM(sp.quantity)                              AS total_quantity
+FROM sales_part sp
+JOIN dim_products p  ON p.product_id = sp.product_id
+JOIN dim_stores   st ON st.store_id  = sp.store_id
+WHERE sp.sale_date &gt;= DATE &apos;2025-03-01&apos;
+  AND sp.sale_date &lt;  DATE &apos;2025-09-01&apos;
+  AND p.category IN (&apos;Electronics&apos;, &apos;Grocery&apos;, &apos;Apparel&apos;, &apos;Home&apos;)
+GROUP BY p.category, st.region, TO_CHAR(sp.sale_date, &apos;YYYY-MM&apos;)
+ORDER BY p.category, st.region, sale_month</sql_fulltext>
+      <status>DONE (ALL ROWS)</status>
+      <refresh_count>36</refresh_count>
+      <first_refresh_time>07/05/2026 10:17:19</first_refresh_time>
+      <last_refresh_time>07/05/2026 10:17:19</last_refresh_time>
+      <duration>.0861</duration>
+      <optimizer_env>
+        <param name="active_instance_count">1</param>
+        <param name="is_recur_flags">0</param>
+        <param name="parallel_autodop">0</param>
+        <param name="parallel_ddl_mode">enabled</param>
+        <param name="parallel_ddldml">0</param>
+        <param name="parallel_degree">4</param>
+        <param name="parallel_execution_enabled">true</param>
+        <param name="parallel_hinted">degree</param>
+        <param name="parallel_max_degree">2</param>
+        <param name="parallel_query_default_dop">2</param>
+        <param name="parallel_query_mode">enabled</param>
+        <param name="pga_aggregate_target">524288 KB</param>
+        <param name="sqlstat_enabled">true</param>
+        <param name="statistics_level">all</param>
+        <param name="total_cpu_count">2</param>
+      </optimizer_env>
+    </target>
+    <stats type="monitor">
+      <stat name="elapsed_time">325716</stat>
+      <stat name="cpu_time">134544</stat>
+      <stat name="user_io_wait_time">7575</stat>
+      <stat name="application_wait_time">31396</stat>
+      <stat name="concurrency_wait_time">16885</stat>
+      <stat name="other_wait_time">135316</stat>
+      <stat name="user_fetch_count">9</stat>
+      <stat name="buffer_gets">2807</stat>
+      <stat name="disk_reads">56</stat>
+      <stat name="read_reqs">56</stat>
+      <stat name="read_bytes">22224896</stat>
+    </stats>
+    <parallel_info qc_instance_id="1" qc_session_id="285" is_cross_instance="N" dop="4" max_dop_instances="1" inst_count="1" server_group_count="1" server_set_count="2">
+      <sessions max_io_reqs="20" max_io_bytes="5677056" max_buffer_gets="745" max_elapsed_time="86100">
+        <session inst_id="1" process_name="PX Coordinator" session_id="285" session_serial="59781">
+          <stats type="monitor">
+            <stat name="elapsed_time">86100</stat>
+            <stat name="cpu_time">8698</stat>
+            <stat name="application_wait_time">31396</stat>
+            <stat name="concurrency_wait_time">655</stat>
+            <stat name="other_wait_time">45351</stat>
+            <stat name="user_fetch_count">9</stat>
+            <stat name="buffer_gets">18</stat>
+          </stats>
+        </session>
+        <session inst_id="1" process_name="p000" session_id="237" session_serial="1540" server_group="1" server_set="1" server_num="1">
+          <stats type="monitor">
+            <stat name="elapsed_time">3576</stat>
+            <stat name="cpu_time">3375</stat>
+            <stat name="concurrency_wait_time">201</stat>
+          </stats>
+        </session>
+        <session inst_id="1" process_name="p001" session_id="54" session_serial="59829" server_group="1" server_set="1" server_num="2">
+          <stats type="monitor">
+            <stat name="elapsed_time">2843</stat>
+            <stat name="cpu_time">2843</stat>
+          </stats>
+        </session>
+        <session inst_id="1" process_name="p002" session_id="41" session_serial="48128" server_group="1" server_set="1" server_num="3">
+          <stats type="monitor">
+            <stat name="elapsed_time">2603</stat>
+            <stat name="cpu_time">2603</stat>
+          </stats>
+        </session>
+        <session inst_id="1" process_name="p003" session_id="272" session_serial="44677" server_group="1" server_set="1" server_num="4">
+          <stats type="monitor">
+            <stat name="elapsed_time">2980</stat>
+            <stat name="cpu_time">2763</stat>
+            <stat name="concurrency_wait_time">217</stat>
+          </stats>
+        </session>
+        <session inst_id="1" process_name="p004" session_id="37" session_serial="19739" server_group="1" server_set="2" server_num="1">
+          <stats type="monitor">
+            <stat name="elapsed_time">50465</stat>
+            <stat name="cpu_time">28295</stat>
+            <stat name="user_io_wait_time">732</stat>
+            <stat name="concurrency_wait_time">10144</stat>
+            <stat name="other_wait_time">11294</stat>
+            <stat name="buffer_gets">687</stat>
+            <stat name="disk_reads">12</stat>
+            <stat name="read_reqs">12</stat>
+            <stat name="read_bytes">5562368</stat>
+          </stats>
+        </session>
+        <session inst_id="1" process_name="p005" session_id="282" session_serial="3643" server_group="1" server_set="2" server_num="2">
+          <stats type="monitor">
+            <stat name="elapsed_time">67052</stat>
+            <stat name="cpu_time">31797</stat>
+            <stat name="user_io_wait_time">2709</stat>
+            <stat name="concurrency_wait_time">240</stat>
+            <stat name="other_wait_time">32306</stat>
+            <stat name="buffer_gets">745</stat>
+            <stat name="disk_reads">20</stat>
+            <stat name="read_reqs">20</stat>
+            <stat name="read_bytes">5677056</stat>
+          </stats>
+        </session>
+        <session inst_id="1" process_name="p006" session_id="42" session_serial="12661" server_group="1" server_set="2" server_num="3">
+          <stats type="monitor">
+            <stat name="elapsed_time">48344</stat>
+            <stat name="cpu_time">26502</stat>
+            <stat name="user_io_wait_time">2017</stat>
+            <stat name="concurrency_wait_time">2913</stat>
+            <stat name="other_wait_time">16912</stat>
+            <stat name="buffer_gets">672</stat>
+            <stat name="disk_reads">12</stat>
+            <stat name="read_reqs">12</stat>
+            <stat name="read_bytes">5439488</stat>
+          </stats>
+        </session>
+        <session inst_id="1" process_name="p007" session_id="52" session_serial="45942" server_group="1" server_set="2" server_num="4">
+          <stats type="monitor">
+            <stat name="elapsed_time">61753</stat>
+            <stat name="cpu_time">27668</stat>
+            <stat name="user_io_wait_time">2117</stat>
+            <stat name="concurrency_wait_time">2515</stat>
+            <stat name="other_wait_time">29453</stat>
+            <stat name="buffer_gets">685</stat>
+            <stat name="disk_reads">12</stat>
+            <stat name="read_reqs">12</stat>
+            <stat name="read_bytes">5545984</stat>
+          </stats>
+        </session>
+      </sessions>
+    </parallel_info>
+    <plan>
+      <operation name="SELECT STATEMENT" id="0" depth="0" pos="221">
+        <cost>221</cost>
+      </operation>
+      <operation name="PX COORDINATOR" id="1" depth="1" pos="1">
+        <qblock>SEL$9E43CB6E</qblock>
+        <other_xml>
+          <info type="nodeid/pflags">000012000001</info>
+          <info type="nodeid/pflags">000011000001</info>
+          <info type="derived_cpu_dop" id="1">0</info>
+          <info type="derived_io_dop" id="1">0</info>
+          <info type="dop_reason" note="y">hint</info>
+          <info type="dop" note="y">4</info>
+          <info type="px_in_memory_imc" note="y">no</info>
+          <info type="px_in_memory" note="y">no</info>
+          <info type="has_user_tab">yes</info>
+          <info type="db_version">19.0.0.0</info>
+          <info type="parse_schema"><![CDATA["PLANVIZ"]]></info>
+          <info type="plan_hash_full">123073720</info>
+          <info type="plan_hash">4218842216</info>
+          <info type="plan_hash_2">123073720</info>
+          <stats type="compilation">
+            <stat name="bg">2</stat>
+          </stats>
+          <qb_registry>
+            <q o="18" f="y" h="y">
+              <n><![CDATA[SEL$9E43CB6E]]></n>
+              <p><![CDATA[SEL$3]]></p>
+              <i>
+                <o>
+                  <t>VW</t>
+                  <v><![CDATA[SEL$58A6D7F6]]></v>
+                </o>
+              </i>
+              <f>
+                <h>
+                  <t><![CDATA[P]]></t>
+                  <s><![CDATA[SEL$1]]></s>
+                </h>
+                <h>
+                  <t><![CDATA[SP]]></t>
+                  <s><![CDATA[SEL$1]]></s>
+                </h>
+                <h>
+                  <t><![CDATA[ST]]></t>
+                  <s><![CDATA[SEL$2]]></s>
+                </h>
+              </f>
+            </q>
+            <q o="2">
+              <n><![CDATA[SEL$1]]></n>
+              <f>
+                <h>
+                  <t><![CDATA[P]]></t>
+                  <s><![CDATA[SEL$1]]></s>
+                </h>
+                <h>
+                  <t><![CDATA[SP]]></t>
+                  <s><![CDATA[SEL$1]]></s>
+                </h>
+              </f>
+            </q>
+            <q o="18" h="y">
+              <n><![CDATA[SEL$58A6D7F6]]></n>
+              <p><![CDATA[SEL$2]]></p>
+              <i>
+                <o>
+                  <t>VW</t>
+                  <v><![CDATA[SEL$1]]></v>
+                </o>
+              </i>
+              <f>
+                <h>
+                  <t><![CDATA[P]]></t>
+                  <s><![CDATA[SEL$1]]></s>
+                </h>
+                <h>
+                  <t><![CDATA[SP]]></t>
+                  <s><![CDATA[SEL$1]]></s>
+                </h>
+                <h>
+                  <t><![CDATA[ST]]></t>
+                  <s><![CDATA[SEL$2]]></s>
+                </h>
+              </f>
+            </q>
+            <q o="2">
+              <n><![CDATA[SEL$2]]></n>
+              <f>
+                <h>
+                  <t><![CDATA[ST]]></t>
+                  <s><![CDATA[SEL$2]]></s>
+                </h>
+                <h>
+                  <t><![CDATA[from$_subquery$_003]]></t>
+                  <s><![CDATA[SEL$2]]></s>
+                </h>
+              </f>
+            </q>
+            <q o="2">
+              <n><![CDATA[SEL$3]]></n>
+              <f>
+                <h>
+                  <t><![CDATA[from$_subquery$_005]]></t>
+                  <s><![CDATA[SEL$3]]></s>
+                </h>
+              </f>
+            </q>
+          </qb_registry>
+          <outline_data>
+            <hint><![CDATA[IGNORE_OPTIM_EMBEDDED_HINTS]]></hint>
+            <hint><![CDATA[OPTIMIZER_FEATURES_ENABLE('19.1.0')]]></hint>
+            <hint><![CDATA[DB_VERSION('19.1.0')]]></hint>
+            <hint><![CDATA[ALL_ROWS]]></hint>
+            <hint><![CDATA[OUTLINE_LEAF(@"SEL$9E43CB6E")]]></hint>
+            <hint><![CDATA[MERGE(@"SEL$58A6D7F6" >"SEL$3")]]></hint>
+            <hint><![CDATA[OUTLINE(@"SEL$3")]]></hint>
+            <hint><![CDATA[OUTLINE(@"SEL$58A6D7F6")]]></hint>
+            <hint><![CDATA[MERGE(@"SEL$1" >"SEL$2")]]></hint>
+            <hint><![CDATA[OUTLINE(@"SEL$2")]]></hint>
+            <hint><![CDATA[OUTLINE(@"SEL$1")]]></hint>
+            <hint><![CDATA[FULL(@"SEL$9E43CB6E" "P"@"SEL$1")]]></hint>
+            <hint><![CDATA[FULL(@"SEL$9E43CB6E" "SP"@"SEL$1")]]></hint>
+            <hint><![CDATA[FULL(@"SEL$9E43CB6E" "ST"@"SEL$2")]]></hint>
+            <hint><![CDATA[LEADING(@"SEL$9E43CB6E" "P"@"SEL$1" "SP"@"SEL$1" "ST"@"SEL$2")]]></hint>
+            <hint><![CDATA[USE_HASH(@"SEL$9E43CB6E" "SP"@"SEL$1")]]></hint>
+            <hint><![CDATA[USE_HASH(@"SEL$9E43CB6E" "ST"@"SEL$2")]]></hint>
+            <hint><![CDATA[PQ_DISTRIBUTE(@"SEL$9E43CB6E" "SP"@"SEL$1" BROADCAST NONE)]]></hint>
+            <hint><![CDATA[PQ_REPLICATE(@"SEL$9E43CB6E" "SP"@"SEL$1")]]></hint>
+            <hint><![CDATA[PQ_DISTRIBUTE(@"SEL$9E43CB6E" "ST"@"SEL$2" NONE BROADCAST)]]></hint>
+            <hint><![CDATA[PQ_REPLICATE(@"SEL$9E43CB6E" "ST"@"SEL$2")]]></hint>
+            <hint><![CDATA[SWAP_JOIN_INPUTS(@"SEL$9E43CB6E" "ST"@"SEL$2")]]></hint>
+            <hint><![CDATA[GBY_PUSHDOWN(@"SEL$9E43CB6E")]]></hint>
+            <hint><![CDATA[USE_HASH_GBY_FOR_PUSHDOWN(@"SEL$9E43CB6E")]]></hint>
+          </outline_data>
+          <hint_usage>
+            <s>
+              <h o="EM">
+                <x><![CDATA[PARALLEL(4)]]></x>
+              </h>
+            </s>
+          </hint_usage>
+        </other_xml>
+      </operation>
+      <operation name="PX SEND" options="QC (ORDER)" id="2" depth="2" pos="1">
+        <object>:TQ10001</object>
+        <card>1850</card>
+        <bytes>85100</bytes>
+        <cost>221</cost>
+        <io_cost>216</io_cost>
+        <cpu_cost>149700124</cpu_cost>
+        <time>00:00:01 </time>
+        <node>:Q1001</node>
+        <distrib>QC (ORDER)</distrib>
+      </operation>
+      <operation name="SORT" options="GROUP BY" id="3" depth="3" pos="1">
+        <card>1850</card>
+        <bytes>85100</bytes>
+        <cost>221</cost>
+        <io_cost>216</io_cost>
+        <cpu_cost>149700124</cpu_cost>
+        <time>00:00:01 </time>
+        <node>:Q1001</node>
+      </operation>
+      <operation name="PX RECEIVE" id="4" depth="4" pos="1">
+        <card>1850</card>
+        <bytes>85100</bytes>
+        <cost>221</cost>
+        <io_cost>216</io_cost>
+        <cpu_cost>149700124</cpu_cost>
+        <time>00:00:01 </time>
+        <node>:Q1001</node>
+      </operation>
+      <operation name="PX SEND" options="RANGE" id="5" depth="5" pos="1">
+        <object>:TQ10000</object>
+        <card>1850</card>
+        <bytes>85100</bytes>
+        <cost>221</cost>
+        <io_cost>216</io_cost>
+        <cpu_cost>149700124</cpu_cost>
+        <time>00:00:01 </time>
+        <node>:Q1000</node>
+        <distrib>RANGE</distrib>
+      </operation>
+      <operation name="HASH" options="GROUP BY" id="6" depth="6" pos="1">
+        <card>1850</card>
+        <bytes>85100</bytes>
+        <cost>221</cost>
+        <io_cost>216</io_cost>
+        <cpu_cost>149700124</cpu_cost>
+        <time>00:00:01 </time>
+        <node>:Q1000</node>
+      </operation>
+      <operation name="HASH JOIN" id="7" depth="7" pos="1">
+        <card>253770</card>
+        <bytes>11673420</bytes>
+        <cost>218</cost>
+        <io_cost>216</io_cost>
+        <cpu_cost>68148270</cpu_cost>
+        <time>00:00:01 </time>
+        <node>:Q1000</node>
+        <predicates type="access">&quot;ST&quot;.&quot;STORE_ID&quot;=&quot;SP&quot;.&quot;STORE_ID&quot;</predicates>
+      </operation>
+      <operation name="TABLE ACCESS" options="FULL" id="8" depth="8" pos="1">
+        <object>DIM_STORES</object>
+        <card>200</card>
+        <bytes>2000</bytes>
+        <cost>2</cost>
+        <io_cost>2</io_cost>
+        <cpu_cost>11667</cpu_cost>
+        <time>00:00:01 </time>
+        <node>:Q1000</node>
+        <qblock>SEL$9E43CB6E</qblock>
+        <object_alias>&quot;ST&quot;@&quot;SEL$2&quot;</object_alias>
+      </operation>
+      <operation name="HASH JOIN" id="9" depth="8" pos="2">
+        <card>253770</card>
+        <bytes>9135720</bytes>
+        <cost>216</cost>
+        <io_cost>214</io_cost>
+        <cpu_cost>61184803</cpu_cost>
+        <time>00:00:01 </time>
+        <node>:Q1000</node>
+        <predicates type="access">&quot;P&quot;.&quot;PRODUCT_ID&quot;=&quot;SP&quot;.&quot;PRODUCT_ID&quot;</predicates>
+      </operation>
+      <operation name="TABLE ACCESS" options="FULL" id="10" depth="9" pos="1">
+        <object>DIM_PRODUCTS</object>
+        <card>500</card>
+        <bytes>6000</bytes>
+        <cost>2</cost>
+        <io_cost>2</io_cost>
+        <cpu_cost>98758</cpu_cost>
+        <time>00:00:01 </time>
+        <node>:Q1000</node>
+        <predicates type="filter">(&quot;P&quot;.&quot;CATEGORY&quot;=&apos;Apparel&apos; OR &quot;P&quot;.&quot;CATEGORY&quot;=&apos;Electronics&apos; OR &quot;P&quot;.&quot;CATEGORY&quot;=&apos;Grocery&apos; OR &quot;P&quot;.&quot;CATEGORY&quot;=&apos;Home&apos;)</predicates>
+        <qblock>SEL$9E43CB6E</qblock>
+        <object_alias>&quot;P&quot;@&quot;SEL$1&quot;</object_alias>
+      </operation>
+      <operation name="PX BLOCK" options="ITERATOR" id="11" depth="9" pos="2">
+        <card>507541</card>
+        <bytes>12180984</bytes>
+        <cost>214</cost>
+        <io_cost>212</io_cost>
+        <cpu_cost>47778696</cpu_cost>
+        <time>00:00:01 </time>
+        <partition start="15" stop="20"/>
+        <node>:Q1000</node>
+      </operation>
+      <operation name="TABLE ACCESS" options="FULL" id="12" depth="10" pos="1">
+        <object>SALES_PART</object>
+        <card>507541</card>
+        <bytes>12180984</bytes>
+        <cost>214</cost>
+        <io_cost>212</io_cost>
+        <cpu_cost>47778696</cpu_cost>
+        <time>00:00:01 </time>
+        <partition start="15" stop="20"/>
+        <node>:Q1000</node>
+        <predicates type="access">:Z&gt;=:Z AND :Z&lt;=:Z</predicates>
+        <predicates type="filter">(&quot;SP&quot;.&quot;SALE_DATE&quot;&gt;=TO_DATE(&apos; 2025-03-01 00:00:00&apos;, &apos;syyyy-mm-dd hh24:mi:ss&apos;) AND &quot;SP&quot;.&quot;SALE_DATE&quot;&lt;TO_DATE(&apos; 2025-09-01 00:00:00&apos;, &apos;syyyy-mm-dd hh24:mi:ss&apos;))</predicates>
+        <qblock>SEL$9E43CB6E</qblock>
+        <object_alias>&quot;SP&quot;@&quot;SEL$1&quot;</object_alias>
+      </operation>
+    </plan>
+    <plan_monitor max_io_reqs="48" max_io_bytes="22126592">
+      <operation id="0" name="SELECT STATEMENT" depth="0" position="0" skp="0" px_type="1">
+        <stats type="plan_monitor">
+          <stat name="first_active">07/05/2026 10:17:19</stat>
+          <stat name="last_active">07/05/2026 10:17:19</stat>
+          <stat name="duration">1</stat>
+          <stat name="from_most_recent">0</stat>
+          <stat name="from_sql_exec_start">0</stat>
+          <stat name="starts">9</stat>
+          <stat name="cardinality">120</stat>
+        </stats>
+      </operation>
+      <operation id="1" parent_id="0" name="PX COORDINATOR" depth="1" position="1" skp="0" px_type="QC">
+        <stats type="plan_monitor">
+          <stat name="first_active">07/05/2026 10:17:19</stat>
+          <stat name="last_active">07/05/2026 10:17:19</stat>
+          <stat name="duration">1</stat>
+          <stat name="from_most_recent">0</stat>
+          <stat name="from_sql_exec_start">0</stat>
+          <stat name="starts">9</stat>
+          <stat name="cardinality">120</stat>
+        </stats>
+        <rwsstats group_id="8">
+          <metadata>
+            <stat id="1" name="Min DOP after downgrade" desc="actual Minimum DOP across all executions" type="7"/>
+            <stat id="2" name="downgrade reason" desc="reason for DOP downgrading" type="5"/>
+          </metadata>
+        </rwsstats>
+      </operation>
+      <operation id="2" parent_id="1" name="PX SEND" options="QC (ORDER)" depth="2" position="1" skp="0" px_type="1">
+        <object>
+          <owner>SYS</owner>
+          <name>:TQ10001</name>
+        </object>
+        <optimizer>
+          <cardinality>1850</cardinality>
+          <bytes>85100</bytes>
+          <cost>221</cost>
+          <cpu_cost>149700124</cpu_cost>
+          <io_cost>216</io_cost>
+          <time>1</time>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="first_active">07/05/2026 10:17:19</stat>
+          <stat name="last_active">07/05/2026 10:17:19</stat>
+          <stat name="duration">1</stat>
+          <stat name="from_most_recent">0</stat>
+          <stat name="from_sql_exec_start">0</stat>
+          <stat name="starts">4</stat>
+          <stat name="max_starts" sid="272">1</stat>
+          <stat name="dop">4</stat>
+          <stat name="cardinality">120</stat>
+          <stat name="max_card" sid="54">31</stat>
+        </stats>
+        <rwsstats group_id="6">
+          <metadata>
+            <stat id="1" name="Distribution method" desc="The distribution method chosen at runtime" type="3"/>
+            <stat id="2" name="Times hash func called" desc="Number of times hash func is called" type="1"/>
+            <stat id="3" name="Skewed Values from Histogram" desc="Number of skewed values retrieved from the histogram" type="3"/>
+            <stat id="4" name="Skewed Values from Sampling" desc="Number of skewed values retrieved from sampling query" type="3"/>
+            <stat id="5" name="Sampling Query Timed Out" desc="Dynamic sampling query timed out" type="3"/>
+          </metadata>
+        </rwsstats>
+      </operation>
+      <operation id="3" parent_id="2" name="SORT" options="GROUP BY" depth="3" position="1" skp="0" px_type="1">
+        <optimizer>
+          <cardinality>1850</cardinality>
+          <bytes>85100</bytes>
+          <cost>221</cost>
+          <cpu_cost>149700124</cpu_cost>
+          <io_cost>216</io_cost>
+          <time>1</time>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="first_active">07/05/2026 10:17:19</stat>
+          <stat name="last_active">07/05/2026 10:17:19</stat>
+          <stat name="duration">1</stat>
+          <stat name="from_most_recent">0</stat>
+          <stat name="from_sql_exec_start">0</stat>
+          <stat name="starts">4</stat>
+          <stat name="max_starts" sid="272">1</stat>
+          <stat name="dop">4</stat>
+          <stat name="cardinality">120</stat>
+          <stat name="max_card" sid="54">31</stat>
+          <stat name="max_memory">22528</stat>
+          <stat name="min_max_mem" sid="272">4096</stat>
+        </stats>
+        <rwsstats group_id="20">
+          <metadata>
+            <stat id="1" name="Total Number of Rowsets" desc="Total number of rowsets received from underlying input" type="1"/>
+            <stat id="2" name="Rowsets with Encodings" desc="Number of rowsets with encodings" type="1"/>
+            <stat id="3" name="Rowsets Leveraging Encodings" desc="Number of rowsets leveraging encodings" type="1"/>
+            <stat id="4" name="Rowsets Leveraging Storage Aggregation" desc="Number of rowsets leveraging storage aggregation pushdown" type="1"/>
+          </metadata>
+        </rwsstats>
+      </operation>
+      <operation id="4" parent_id="3" name="PX RECEIVE" depth="4" position="1" skp="0" px_type="1">
+        <optimizer>
+          <cardinality>1850</cardinality>
+          <bytes>85100</bytes>
+          <cost>221</cost>
+          <cpu_cost>149700124</cpu_cost>
+          <io_cost>216</io_cost>
+          <time>1</time>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="first_active">07/05/2026 10:17:19</stat>
+          <stat name="last_active">07/05/2026 10:17:19</stat>
+          <stat name="duration">1</stat>
+          <stat name="from_most_recent">0</stat>
+          <stat name="from_sql_exec_start">0</stat>
+          <stat name="starts">4</stat>
+          <stat name="max_starts" sid="272">1</stat>
+          <stat name="dop">4</stat>
+          <stat name="cardinality">440</stat>
+          <stat name="max_card" sid="54">114</stat>
+        </stats>
+      </operation>
+      <operation id="5" parent_id="4" name="PX SEND" options="RANGE" depth="5" position="1" skp="0" px_type="2">
+        <object>
+          <owner>SYS</owner>
+          <name>:TQ10000</name>
+        </object>
+        <optimizer>
+          <cardinality>1850</cardinality>
+          <bytes>85100</bytes>
+          <cost>221</cost>
+          <cpu_cost>149700124</cpu_cost>
+          <io_cost>216</io_cost>
+          <time>1</time>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="first_active">07/05/2026 10:17:19</stat>
+          <stat name="last_active">07/05/2026 10:17:19</stat>
+          <stat name="duration">1</stat>
+          <stat name="from_most_recent">0</stat>
+          <stat name="from_sql_exec_start">0</stat>
+          <stat name="starts">4</stat>
+          <stat name="max_starts" sid="282">1</stat>
+          <stat name="dop">4</stat>
+          <stat name="cardinality">440</stat>
+          <stat name="max_card" sid="42">120</stat>
+        </stats>
+        <rwsstats group_id="6"/>
+      </operation>
+      <operation id="6" parent_id="5" name="HASH" options="GROUP BY" depth="6" position="1" skp="0" px_type="2">
+        <optimizer>
+          <cardinality>1850</cardinality>
+          <bytes>85100</bytes>
+          <cost>221</cost>
+          <cpu_cost>149700124</cpu_cost>
+          <io_cost>216</io_cost>
+          <time>1</time>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="first_active">07/05/2026 10:17:19</stat>
+          <stat name="last_active">07/05/2026 10:17:19</stat>
+          <stat name="duration">1</stat>
+          <stat name="from_most_recent">0</stat>
+          <stat name="from_sql_exec_start">0</stat>
+          <stat name="starts">4</stat>
+          <stat name="max_starts" sid="282">1</stat>
+          <stat name="dop">4</stat>
+          <stat name="cardinality">440</stat>
+          <stat name="max_card" sid="42">120</stat>
+          <stat name="max_memory">5890048</stat>
+          <stat name="min_max_mem" sid="52">1466368</stat>
+        </stats>
+        <rwsstats group_id="21">
+          <metadata>
+            <stat id="1" name="Total Number of Rowsets" desc="Total number of rowsets received from underlying input" type="1"/>
+            <stat id="2" name="Rowsets with Encodings" desc="Number of rowsets with encodings" type="1"/>
+            <stat id="3" name="Rowsets Leveraging Encodings" desc="Number of rowsets leveraging encodings" type="1"/>
+            <stat id="4" name="Rowsets Leveraging Storage Aggregation" desc="Number of rowsets leveraging storage aggregation pushdown" type="1"/>
+          </metadata>
+          <stat id="1">2701</stat>
+        </rwsstats>
+      </operation>
+      <operation id="7" parent_id="6" name="HASH JOIN" depth="7" position="1" skp="0" px_type="2">
+        <optimizer>
+          <cardinality>253770</cardinality>
+          <bytes>11673420</bytes>
+          <cost>218</cost>
+          <cpu_cost>68148270</cpu_cost>
+          <io_cost>216</io_cost>
+          <time>1</time>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="first_active">07/05/2026 10:17:19</stat>
+          <stat name="last_active">07/05/2026 10:17:19</stat>
+          <stat name="duration">1</stat>
+          <stat name="from_most_recent">0</stat>
+          <stat name="from_sql_exec_start">0</stat>
+          <stat name="starts">4</stat>
+          <stat name="max_starts" sid="282">1</stat>
+          <stat name="dop">4</stat>
+          <stat name="cardinality">252047</stat>
+          <stat name="max_card" sid="52">63558</stat>
+          <stat name="max_memory">7061504</stat>
+          <stat name="min_max_mem" sid="37">1764352</stat>
+        </stats>
+        <rwsstats group_id="0">
+          <metadata>
+            <stat id="1" name="Build Size" desc="Size of the build input in bytes" type="4" flags="1"/>
+            <stat id="2" name="Build Row Count" desc="Number of rows for the build" type="5"/>
+            <stat id="3" name="Fan-out" desc="Number of partitions used to split both inputs" type="5"/>
+            <stat id="4" name="Slot Size" desc="Size of an in-memory hash-join slot" type="5"/>
+            <stat id="5" name="Total Build Partitions" desc="Total number of build partitions" type="1"/>
+            <stat id="6" name="Total Cached Partitions" desc="Total number of build partitions left in-memory before probing" type="1"/>
+            <stat id="7" name="Multi-pass Partition Pairs" desc="Total number of partition pairs processed multi-pass" type="1"/>
+            <stat id="8" name="Total Spilled Probe Rows" desc="Total number of rows from the probe spilled to disk (excluding buffering)" type="1"/>
+            <stat id="9" name="Columnar Encodings Leveraged" desc="Total number of encodings leveraged for probing during probe phase" type="1"/>
+            <stat id="10" name="Columnar Encodings Observed" desc="Total number of encodings observed during probe phase" type="1"/>
+          </metadata>
+          <stat id="1">983040</stat>
+          <stat id="2">200</stat>
+          <stat id="3">8</stat>
+          <stat id="4">122880</stat>
+          <stat id="5">32</stat>
+          <stat id="6">32</stat>
+        </rwsstats>
+      </operation>
+      <operation id="8" parent_id="7" name="TABLE ACCESS" options="FULL" depth="8" position="1" skp="0" px_type="2">
+        <object type="TABLE">
+          <owner>PLANVIZ</owner>
+          <name>DIM_STORES</name>
+        </object>
+        <optimizer>
+          <cardinality>200</cardinality>
+          <bytes>2000</bytes>
+          <cost>2</cost>
+          <cpu_cost>11667</cpu_cost>
+          <io_cost>2</io_cost>
+          <time>1</time>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="first_active">07/05/2026 10:17:19</stat>
+          <stat name="last_active">07/05/2026 10:17:19</stat>
+          <stat name="duration">1</stat>
+          <stat name="from_most_recent">0</stat>
+          <stat name="from_sql_exec_start">0</stat>
+          <stat name="starts">4</stat>
+          <stat name="max_starts" sid="282">1</stat>
+          <stat name="dop">4</stat>
+          <stat name="cardinality">800</stat>
+          <stat name="max_card" sid="282">200</stat>
+          <stat name="read_reqs">2</stat>
+          <stat name="max_read_reqs" sid="282">2</stat>
+          <stat name="read_bytes">16384</stat>
+          <stat name="max_read_bytes" sid="282">16384</stat>
+        </stats>
+        <rwsstats group_id="3">
+          <metadata>
+            <stat id="1" name="Slow metadata bytes" desc="Size of slow metadata in bytes" type="3"/>
+            <stat id="2" name="Eligible bytes" desc="Total bytes eligible for offload" type="1"/>
+            <stat id="3" name="Filtered bytes" desc="Total bytes returned after offload" type="1"/>
+            <stat id="4" name="SI saved bytes" desc="Total bytes saved by storage index" type="1"/>
+            <stat id="5" name="Flash cache bytes" desc="Total bytes fetched from flash cache" type="1"/>
+            <stat id="6" name="Partial flash cache and disk bytes" desc="Total bytes where IO was partially fetched from flash cache and disk" type="1"/>
+            <stat id="7" name="Cell passthru IO bytes" desc="Total cell passthru IO bytes" type="1"/>
+            <stat id="8" name="Block IO bytes" desc="Total block IO bytes" type="1"/>
+            <stat id="9" name="Columnar cache saved bytes" desc="Total bytes saved by columnar cache" type="1"/>
+            <stat id="10" name="Dynamic Scan Tasks on Thread" desc="Number of dynamic scan tasks completed by thread" type="1"/>
+          </metadata>
+        </rwsstats>
+      </operation>
+      <operation id="9" parent_id="7" name="HASH JOIN" depth="8" position="2" skp="0" px_type="2">
+        <optimizer>
+          <cardinality>253770</cardinality>
+          <bytes>9135720</bytes>
+          <cost>216</cost>
+          <cpu_cost>61184803</cpu_cost>
+          <io_cost>214</io_cost>
+          <time>1</time>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="first_active">07/05/2026 10:17:19</stat>
+          <stat name="last_active">07/05/2026 10:17:19</stat>
+          <stat name="duration">1</stat>
+          <stat name="from_most_recent">0</stat>
+          <stat name="from_sql_exec_start">0</stat>
+          <stat name="starts">4</stat>
+          <stat name="max_starts" sid="282">1</stat>
+          <stat name="dop">4</stat>
+          <stat name="cardinality">252047</stat>
+          <stat name="max_card" sid="52">63558</stat>
+          <stat name="max_memory">6843392</stat>
+          <stat name="min_max_mem" sid="37">1709056</stat>
+        </stats>
+        <rwsstats group_id="0">
+          <stat id="1">983040</stat>
+          <stat id="2">500</stat>
+          <stat id="3">8</stat>
+          <stat id="4">122880</stat>
+          <stat id="5">32</stat>
+          <stat id="6">32</stat>
+        </rwsstats>
+      </operation>
+      <operation id="10" parent_id="9" name="TABLE ACCESS" options="FULL" depth="9" position="1" skp="0" px_type="2">
+        <object type="TABLE">
+          <owner>PLANVIZ</owner>
+          <name>DIM_PRODUCTS</name>
+        </object>
+        <optimizer>
+          <cardinality>500</cardinality>
+          <bytes>6000</bytes>
+          <cost>2</cost>
+          <cpu_cost>98758</cpu_cost>
+          <io_cost>2</io_cost>
+          <time>1</time>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="first_active">07/05/2026 10:17:19</stat>
+          <stat name="last_active">07/05/2026 10:17:19</stat>
+          <stat name="duration">1</stat>
+          <stat name="from_most_recent">0</stat>
+          <stat name="from_sql_exec_start">0</stat>
+          <stat name="starts">4</stat>
+          <stat name="max_starts" sid="282">1</stat>
+          <stat name="dop">4</stat>
+          <stat name="cardinality">2000</stat>
+          <stat name="max_card" sid="282">500</stat>
+          <stat name="read_reqs">2</stat>
+          <stat name="max_read_reqs" sid="282">2</stat>
+          <stat name="read_bytes">49152</stat>
+          <stat name="max_read_bytes" sid="282">49152</stat>
+        </stats>
+        <rwsstats group_id="3"/>
+      </operation>
+      <operation id="11" parent_id="9" name="PX BLOCK" options="ITERATOR" depth="9" position="2" skp="0" px_type="2">
+        <partition_start>15</partition_start>
+        <partition_stop>20</partition_stop>
+        <optimizer>
+          <cardinality>507541</cardinality>
+          <bytes>12180984</bytes>
+          <cost>214</cost>
+          <cpu_cost>47778696</cpu_cost>
+          <io_cost>212</io_cost>
+          <time>1</time>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="first_active">07/05/2026 10:17:19</stat>
+          <stat name="last_active">07/05/2026 10:17:19</stat>
+          <stat name="duration">1</stat>
+          <stat name="from_most_recent">0</stat>
+          <stat name="from_sql_exec_start">0</stat>
+          <stat name="starts">4</stat>
+          <stat name="max_starts" sid="282">1</stat>
+          <stat name="dop">4</stat>
+          <stat name="cardinality">504203</stat>
+          <stat name="max_card" sid="37">126928</stat>
+        </stats>
+      </operation>
+      <operation id="12" parent_id="11" name="TABLE ACCESS" options="FULL" depth="10" position="1" skp="0" px_type="2">
+        <object type="TABLE">
+          <owner>PLANVIZ</owner>
+          <name>SALES_PART</name>
+        </object>
+        <partition_start>15</partition_start>
+        <partition_stop>20</partition_stop>
+        <optimizer>
+          <cardinality>507541</cardinality>
+          <bytes>12180984</bytes>
+          <cost>214</cost>
+          <cpu_cost>47778696</cpu_cost>
+          <io_cost>212</io_cost>
+          <time>1</time>
+        </optimizer>
+        <stats type="plan_monitor">
+          <stat name="first_active">07/05/2026 10:17:19</stat>
+          <stat name="last_active">07/05/2026 10:17:19</stat>
+          <stat name="duration">1</stat>
+          <stat name="from_most_recent">0</stat>
+          <stat name="from_sql_exec_start">0</stat>
+          <stat name="starts">48</stat>
+          <stat name="max_starts" sid="282">12</stat>
+          <stat name="dop">4</stat>
+          <stat name="cardinality">504203</stat>
+          <stat name="max_card" sid="37">126928</stat>
+          <stat name="read_reqs">48</stat>
+          <stat name="max_read_reqs" sid="282">12</stat>
+          <stat name="read_bytes">22126592</stat>
+          <stat name="max_read_bytes" sid="282">5578752</stat>
+        </stats>
+        <rwsstats group_id="3"/>
+      </operation>
+    </plan_monitor>
+  </sql_monitor_report>
+</report>
+

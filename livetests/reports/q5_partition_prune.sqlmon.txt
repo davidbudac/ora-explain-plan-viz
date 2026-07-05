@@ -1,0 +1,67 @@
+SQL Monitoring Report
+
+SQL Text
+------------------------------
+SELECT /*+ MONITOR PARALLEL(4) */ /* LIVETEST_Q5 */ p.category, st.region, TO_CHAR(sp.sale_date, 'YYYY-MM') AS sale_month, COUNT(*) AS num_sales, ROUND(SUM(sp.amount), 2) AS total_amount, ROUND(AVG(sp.amount), 2) AS avg_amount, SUM(sp.quantity) AS total_quantity FROM sales_part sp JOIN dim_products p ON p.product_id = sp.product_id JOIN dim_stores st ON st.store_id = sp.store_id WHERE sp.sale_date >= DATE '2025-03-01' AND sp.sale_date < DATE '2025-09-01' AND p.category IN ('Electronics',
+'Grocery', 'Apparel', 'Home') GROUP BY p.category, st.region, TO_CHAR(sp.sale_date, 'YYYY-MM') ORDER BY p.category, st.region, sale_month
+
+Global Information
+------------------------------
+ Status              :  DONE (ALL ROWS)
+ Instance ID         :  1
+ Session             :  PLANVIZ (285:59781)
+ SQL ID              :  40bjq87dnk21c
+ SQL Execution ID    :  16777216
+ Execution Started   :  07/05/2026 10:17:19
+ First Refresh Time  :  07/05/2026 10:17:19
+ Last Refresh Time   :  07/05/2026 10:17:19
+ Duration            :  .0861s
+ Module/Action       :  SQL*Plus/-
+ Service             :  pdb1
+ Program             :  sqlplus@poug-dg1.localdomain (TNS V1-V3)
+ Fetch Calls         :  9
+
+Global Stats
+=======================================================================================================
+| Elapsed |   Cpu   |    IO    | Application | Concurrency |  Other   | Fetch | Buffer | Read | Read  |
+| Time(s) | Time(s) | Waits(s) |  Waits(s)   |  Waits(s)   | Waits(s) | Calls |  Gets  | Reqs | Bytes |
+=======================================================================================================
+|    0.33 |    0.13 |     0.01 |        0.03 |        0.02 |     0.14 |     9 |   2807 |   56 |  21MB |
+=======================================================================================================
+
+Parallel Execution Details (DOP=4 , Servers Allocated=8)
+================================================================================================================================================
+|      Name      | Type  | Server# | Elapsed |   Cpu   |    IO    | Application | Concurrency |  Other   | Buffer | Read | Read  | Wait Events |
+|                |       |         | Time(s) | Time(s) | Waits(s) |  Waits(s)   |  Waits(s)   | Waits(s) |  Gets  | Reqs | Bytes | (sample #)  |
+================================================================================================================================================
+| PX Coordinator | QC    |         |    0.09 |    0.01 |          |        0.03 |        0.00 |     0.05 |     18 |      |     . |             |
+| p000           | Set 1 |       1 |    0.00 |    0.00 |          |             |        0.00 |          |        |      |     . |             |
+| p001           | Set 1 |       2 |    0.00 |    0.00 |          |             |             |          |        |      |     . |             |
+| p002           | Set 1 |       3 |    0.00 |    0.00 |          |             |             |          |        |      |     . |             |
+| p003           | Set 1 |       4 |    0.00 |    0.00 |          |             |        0.00 |          |        |      |     . |             |
+| p004           | Set 2 |       1 |    0.05 |    0.03 |     0.00 |             |        0.01 |     0.01 |    687 |   12 |   5MB |             |
+| p005           | Set 2 |       2 |    0.07 |    0.03 |     0.00 |             |        0.00 |     0.03 |    745 |   20 |   5MB |             |
+| p006           | Set 2 |       3 |    0.05 |    0.03 |     0.00 |             |        0.00 |     0.02 |    672 |   12 |   5MB |             |
+| p007           | Set 2 |       4 |    0.06 |    0.03 |     0.00 |             |        0.00 |     0.03 |    685 |   12 |   5MB |             |
+================================================================================================================================================
+
+SQL Plan Monitoring Details (Plan Hash Value=4218842216)
+=================================================================================================================================================================
+| Id |          Operation           |     Name     |  Rows   | Cost |   Time    | Start  | Execs |   Rows   | Read | Read  |  Mem  | Activity | Activity Detail |
+|    |                              |              | (Estim) |      | Active(s) | Active |       | (Actual) | Reqs | Bytes | (Max) |   (%)    |   (# samples)   |
+=================================================================================================================================================================
+|  0 | SELECT STATEMENT             |              |         |      |         1 |     +0 |     9 |      120 |      |       |     . |          |                 |
+|  1 |   PX COORDINATOR             |              |         |      |         1 |     +0 |     9 |      120 |      |       |     . |          |                 |
+|  2 |    PX SEND QC (ORDER)        | :TQ10001     |    1850 |  221 |         1 |     +0 |     4 |      120 |      |       |     . |          |                 |
+|  3 |     SORT GROUP BY            |              |    1850 |  221 |         1 |     +0 |     4 |      120 |      |       | 22528 |          |                 |
+|  4 |      PX RECEIVE              |              |    1850 |  221 |         1 |     +0 |     4 |      440 |      |       |     . |          |                 |
+|  5 |       PX SEND RANGE          | :TQ10000     |    1850 |  221 |         1 |     +0 |     4 |      440 |      |       |     . |          |                 |
+|  6 |        HASH GROUP BY         |              |    1850 |  221 |         1 |     +0 |     4 |      440 |      |       |   6MB |          |                 |
+|  7 |         HASH JOIN            |              |    254K |  218 |         1 |     +0 |     4 |     252K |      |       |   7MB |          |                 |
+|  8 |          TABLE ACCESS FULL   | DIM_STORES   |     200 |    2 |         1 |     +0 |     4 |      800 |    2 | 16384 |     . |          |                 |
+|  9 |          HASH JOIN           |              |    254K |  216 |         1 |     +0 |     4 |     252K |      |       |   7MB |          |                 |
+| 10 |           TABLE ACCESS FULL  | DIM_PRODUCTS |     500 |    2 |         1 |     +0 |     4 |     2000 |    2 | 49152 |     . |          |                 |
+| 11 |           PX BLOCK ITERATOR  |              |    508K |  214 |         1 |     +0 |     4 |     504K |      |       |     . |          |                 |
+| 12 |            TABLE ACCESS FULL | SALES_PART   |    508K |  214 |         1 |     +0 |    48 |     504K |   48 |  21MB |     . |          |                 |
+=================================================================================================================================================================
+
