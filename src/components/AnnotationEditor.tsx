@@ -75,8 +75,8 @@ export function AnnotationEditor({
   };
 
   return (
-    <div className="p-3 border-b border-neutral-200 dark:border-neutral-800">
-      <h4 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2 uppercase tracking-wide">
+    <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+      <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
         Annotation
       </h4>
 
@@ -86,11 +86,11 @@ export function AnnotationEditor({
         onBlur={handleBlur}
         placeholder="Add a note..."
         rows={2}
-        className="w-full px-2.5 py-1.5 text-xs border border-neutral-200 dark:border-neutral-700 rounded-md bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500/60 resize-y"
+        className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/60 resize-y"
       />
 
       <div className="flex items-center gap-1.5 mt-2">
-        <span className="text-[11px] text-neutral-500 dark:text-neutral-400 mr-1">Highlight:</span>
+        <span className="text-[11px] text-slate-500 dark:text-slate-400 mr-1">Highlight:</span>
         {HIGHLIGHT_COLORS.map((colorDef) => {
           const isActive = highlightColor === colorDef.name;
           return (
@@ -98,7 +98,7 @@ export function AnnotationEditor({
               key={colorDef.name}
               onClick={() => handleColorClick(colorDef.name)}
               className={`w-5 h-5 rounded-full transition-all ${
-                isActive ? colorDef.chipActive : colorDef.chip
+                isActive ? `${colorDef.chipActive} ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900` : colorDef.chip
               } hover:scale-110`}
               title={`${colorDef.label}${isActive ? ' (click to remove)' : ''}`}
             />
@@ -110,21 +110,21 @@ export function AnnotationEditor({
         <>
           <div className="mt-1.5 flex items-center gap-1">
             <div className={`w-2.5 h-2.5 rounded-full ${getHighlightColorDef(highlightColor).chip}`} />
-            <span className="text-[11px] text-neutral-500 dark:text-neutral-400">
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">
               {getHighlightColorDef(highlightColor).label} highlight
             </span>
           </div>
 
           <div className="flex items-center gap-1 mt-2 flex-wrap">
-            <span className="text-[11px] text-neutral-500 dark:text-neutral-400 mr-0.5">Style:</span>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 mr-0.5">Style:</span>
             {HIGHLIGHT_STYLES.map((styleDef) => (
               <button
                 key={styleDef.name}
                 onClick={() => onHighlightStyleChange(styleDef.name)}
-                className={`px-1.5 py-0.5 text-[11px] rounded transition-all ${
+                className={`px-1.5 py-0.5 text-[11px] rounded border border-slate-200 dark:border-slate-700 transition-all ${
                   highlightStyle === styleDef.name
-                    ? 'bg-neutral-700 dark:bg-neutral-200 text-white dark:text-neutral-900 font-semibold'
-                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+                    ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
                 }`}
                 title={styleDef.description}
               >
@@ -163,7 +163,7 @@ export function BulkHighlightPicker({
 
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-[11px] text-neutral-500 dark:text-neutral-400 mr-1">Highlight all:</span>
+      <span className="text-[11px] text-slate-500 dark:text-slate-400 mr-1">Highlight all:</span>
       {HIGHLIGHT_COLORS.map((colorDef) => (
         <button
           key={colorDef.name}
@@ -174,7 +174,7 @@ export function BulkHighlightPicker({
       ))}
       <button
         onClick={handleClear}
-        className="ml-1 text-[11px] text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+        className="ml-1 text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
         title="Clear all highlights"
       >
         Clear
