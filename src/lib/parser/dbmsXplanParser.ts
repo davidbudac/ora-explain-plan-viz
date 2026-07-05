@@ -1,5 +1,6 @@
 import type { PlanNode, ParsedPlan } from '../types';
 import type { PlanParser } from './types';
+import { parseNoteSection } from './noteSection';
 
 interface RawPlanRow {
   id: number;
@@ -11,6 +12,11 @@ interface RawPlanRow {
   cost?: number;
   cpuPercent?: number;
   time?: string;
+  pstart?: string;
+  pstop?: string;
+  tq?: string;
+  inOut?: string;
+  pqDistrib?: string;
   depth: number;
   hasStarPrefix: boolean;
 }
@@ -23,6 +29,11 @@ interface ColumnPositions {
   bytes?: { start: number; end: number };
   cost?: { start: number; end: number };
   time?: { start: number; end: number };
+  pstart?: { start: number; end: number };
+  pstop?: { start: number; end: number };
+  tq?: { start: number; end: number };
+  inOut?: { start: number; end: number };
+  pqDistrib?: { start: number; end: number };
 }
 
 /**
@@ -74,6 +85,9 @@ export const dbmsXplanParser: PlanParser = {
     const totalCost = allNodes.reduce((sum, node) => sum + (node.cost || 0), 0);
     const maxRows = Math.max(...allNodes.map(node => node.rows || 0));
 
+    // Parse the trailing "Note" section, if present.
+    const notes = parseNoteSection(lines);
+
     return {
       planHashValue,
       sqlId,
@@ -84,6 +98,7 @@ export const dbmsXplanParser: PlanParser = {
       maxRows,
       source: 'dbms_xplan',
       hasActualStats: false,
+      notes,
     };
   },
 };
@@ -331,6 +346,16 @@ function parseColumnPositions(headerLine: string): ColumnPositions {
       cols.cost = { start, end };
     } else if (segment === 'time' || segment === 'e-time') {
       cols.time = { start, end };
+    } else if (segment === 'pstart') {
+      cols.pstart = { start, end };
+    } else if (segment === 'pstop') {
+      cols.pstop = { start, end };
+    } else if (segment === 'tq') {
+      cols.tq = { start, end };
+    } else if (segment === 'in-out') {
+      cols.inOut = { start, end };
+    } else if (segment === 'pq distrib') {
+      cols.pqDistrib = { start, end };
     }
   }
 
@@ -341,9 +366,11 @@ function parseDataRow(line: string, columns: ColumnPositions): RawPlanRow | null
   // Extract ID column
   const idStr = line.substring(columns.id.start, columns.id.end).trim();
 
-  // Check for star prefix (indicates predicate info)
-  const hasStarPrefix = idStr.startsWith('*');
-  const idMatch = idStr.match(/\*?\s*(\d+)/);
+  // Check for star prefix (indicates predicate info). Adaptive plans may prefix
+  // inactive rows with a "-" marker (e.g. "- * 3"), so detect the star anywhere
+  // in the cell rather than only as the very first character.
+  const hasStarPrefix = idStr.includes('*');
+  const idMatch = idStr.match(/[-\s*]*(\d+)/);
   if (!idMatch) {
     return null;
   }
@@ -397,6 +424,32 @@ function parseDataRow(line: string, columns: ColumnPositions): RawPlanRow | null
     time = line.substring(columns.time.start, columns.time.end).trim() || undefined;
   }
 
+  let pstart: string | undefined;
+  let pstop: string | undefined;
+  let tq: string | undefined;
+  let inOut: string | undefined;
+  let pqDistrib: string | undefined;
+
+  if (columns.pstart) {
+    pstart = line.substring(columns.pstart.start, columns.pstart.end).trim() || undefined;
+  }
+
+  if (columns.pstop) {
+    pstop = line.substring(columns.pstop.start, columns.pstop.end).trim() || undefined;
+  }
+
+  if (columns.tq) {
+    tq = line.substring(columns.tq.start, columns.tq.end).trim() || undefined;
+  }
+
+  if (columns.inOut) {
+    inOut = line.substring(columns.inOut.start, columns.inOut.end).trim() || undefined;
+  }
+
+  if (columns.pqDistrib) {
+    pqDistrib = line.substring(columns.pqDistrib.start, columns.pqDistrib.end).trim() || undefined;
+  }
+
   return {
     id,
     operation,
@@ -406,6 +459,11 @@ function parseDataRow(line: string, columns: ColumnPositions): RawPlanRow | null
     cost,
     cpuPercent,
     time,
+    pstart,
+    pstop,
+    tq,
+    inOut,
+    pqDistrib,
     depth,
     hasStarPrefix,
   };
@@ -586,6 +644,11 @@ function buildTree(
       cost: row.cost,
       cpuPercent: row.cpuPercent,
       time: row.time,
+      pstart: row.pstart,
+      pstop: row.pstop,
+      tq: row.tq,
+      inOut: row.inOut,
+      pqDistrib: row.pqDistrib,
       accessPredicates: preds?.access,
       filterPredicates: preds?.filter,
       queryBlock: qb?.queryBlock,

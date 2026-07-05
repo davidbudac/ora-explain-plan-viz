@@ -1,5 +1,7 @@
 import type { BindVariable } from './parser/types';
+import type { PlanNotes } from './parser/noteSection';
 export type { BindVariable } from './parser/types';
+export type { PlanNotes } from './parser/noteSection';
 
 export interface PlanNode {
   id: number;
@@ -15,6 +17,13 @@ export interface PlanNode {
   cpuPercent?: number;
   time?: string;
   tempSpace?: number;
+
+  // Partitioning and parallel execution columns (DBMS_XPLAN Pstart/Pstop/TQ/IN-OUT/PQ Distrib)
+  pstart?: string;
+  pstop?: string;
+  tq?: string;
+  inOut?: string;
+  pqDistrib?: string;
 
   // Actual runtime statistics (from SQL Monitor)
   actualRows?: number;
@@ -67,6 +76,9 @@ export interface ParsedPlan {
 
   // Rich metadata from SQL Monitor XML reports
   monitorMetadata?: SqlMonitorMetadata;
+
+  // Parsed "Note" section (dynamic sampling, adaptive plan, SQL profile, etc.)
+  notes?: PlanNotes;
 }
 
 export interface SqlMonitorMetadata {
@@ -105,6 +117,11 @@ export interface SqlMonitorMetadata {
 
   // Optimizer environment (param name -> value)
   optimizerEnv?: Record<string, string>;
+
+  // Parallel execution (from <target> attributes / global <stats type="monitor">)
+  dop?: number;
+  pxServersRequested?: number;
+  pxServersAllocated?: number;
 }
 
 export type PredicateType = 'access' | 'filter' | 'none';
@@ -116,6 +133,7 @@ export interface NodeDisplayOptions {
   showObjectName: boolean;
   showPredicateIndicators: boolean;
   showPredicateDetails: boolean;
+  showPartitionInfo: boolean;
   showQueryBlockBadge: boolean;
   showQueryBlockGrouping: boolean;
   // SQL Monitor actual statistics
@@ -126,6 +144,7 @@ export interface NodeDisplayOptions {
   showHotspotBadge: boolean;
   showSpillBadge: boolean;
   showCardinalityBadge: boolean;
+  showAdvisorBadge: boolean;
   // Metadata indicators (from bundle)
   showStaleStatsBadge: boolean;
   showMissingStatsBadge: boolean;
@@ -154,8 +173,9 @@ export interface FilterState {
   minCardinalityMismatch: number;
 }
 
-export type ViewMode = 'hierarchical' | 'sankey' | 'tabular' | 'text' | 'sql' | 'compare' | 'monitor';
+export type ViewMode = 'hierarchical' | 'sankey' | 'flame' | 'tabular' | 'text' | 'sql' | 'compare' | 'monitor';
 export type SankeyMetric = 'rows' | 'cost' | 'actualRows' | 'actualTime';
+export type { FlameMetric } from './flameLayout';
 export type Theme = 'light' | 'dark';
 
 export const OPERATION_CATEGORIES: Record<string, string[]> = {

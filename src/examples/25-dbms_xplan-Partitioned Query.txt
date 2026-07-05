@@ -1,0 +1,40 @@
+Plan hash value: 3877261940
+
+----------------------------------------------------------------------------------------------------------------------
+| Id | Operation                           | Name        | Rows | Bytes | Cost (%CPU) |     Time |  Pstart |   Pstop |
+----------------------------------------------------------------------------------------------------------------------
+|  0 | SELECT STATEMENT                    |             | 1000 | 95000 |   850   (3) | 00:00:11 |         |         |
+|  1 |  PARTITION RANGE ALL                |             | 1000 | 95000 |   850   (3) | 00:00:11 |       1 |      12 |
+|  2 |   TABLE ACCESS FULL                 | SALES       | 1000 | 95000 |   850   (3) | 00:00:11 |       1 |      12 |
+|  3 |  PARTITION RANGE SINGLE             |             |  200 | 19000 |   120   (2) | 00:00:02 |       9 |       9 |
+|  4 |   TABLE ACCESS FULL                 | SALES_Q1    |  200 | 19000 |   120   (2) | 00:00:02 |       9 |       9 |
+|  5 |  PARTITION RANGE ITERATOR           |             |  300 | 28500 |   180   (1) | 00:00:03 |     KEY |     KEY |
+|  6 |   TABLE ACCESS FULL                 | SALES_HIST  |  300 | 28500 |   180   (1) | 00:00:03 |     KEY |     KEY |
+|  7 |  TABLE ACCESS BY LOCAL INDEX ROWID  | ORDERS      |   50 |  4500 |   12    (0) | 00:00:01 |  KEY(I) |  KEY(I) |
+|  8 |   INDEX RANGE SCAN                  | ORDERS_IDX  |   50 |       |   3     (0) | 00:00:01 |  KEY(I) |  KEY(I) |
+|  9 |  TABLE ACCESS BY GLOBAL INDEX ROWID | REGIONS     |   20 |  1800 |   5     (0) | 00:00:01 | :BF0000 | :BF0000 |
+| 10 |   INDEX RANGE SCAN                  | REGIONS_IDX |   20 |       |   2     (0) | 00:00:01 | :BF0000 | :BF0000 |
+----------------------------------------------------------------------------------------------------------------------
+
+Query Block Name / Object Alias (identified by operation id):
+---------------------------------------------------------------
+
+   1 - SEL$1
+   2 - SEL$1 / SALES@SEL$1
+   3 - SEL$2
+   4 - SEL$2 / SALES_Q1@SEL$2
+   5 - SEL$3
+   6 - SEL$3 / SALES_HIST@SEL$3
+   7 - SEL$4 / ORDERS@SEL$4
+   8 - SEL$4 / ORDERS@SEL$4
+   9 - SEL$4 / REGIONS@SEL$4
+  10 - SEL$4 / REGIONS@SEL$4
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+   8 - access("ORDERS"."SALE_ID"="SALES"."SALE_ID")
+  10 - access("REGIONS"."REGION_ID"="ORDERS"."REGION_ID")
+
+Note
+-----
+   - dynamic statistics used: dynamic sampling (level=2)
