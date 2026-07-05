@@ -1,0 +1,301 @@
+{
+    "format": "ora-plan-metadata",
+    "version": 1,
+    "captured_at": "2026-07-05T19:38:45.415Z",
+    "source": {
+        "db_name": "CDB1",
+        "oracle_version": "19.27.0.0.0",
+        "container_name": "PDB1"
+    },
+    "plan_ref": {
+        "sql_id": "gwt6xjc6gcs2f",
+        "plan_hash_value": 767733636
+    },
+    "objects": {
+        "PLANVIZ.DIM_STORES": {
+            "type": "TABLE",
+            "stats": {
+                "num_rows": 200,
+                "blocks": 4,
+                "avg_row_len": 28,
+                "last_analyzed": "2026-07-04T21:03:06Z",
+                "stale_stats": "NO",
+                "partitioned": false
+            },
+            "columns": {
+                "STORE_ID": {
+                    "data_type": "NUMBER",
+                    "nullable": false,
+                    "num_distinct": 200,
+                    "num_nulls": 0,
+                    "low_value": "1",
+                    "high_value": "200",
+                    "density": 0.005,
+                    "histogram": {
+                        "type": "NONE",
+                        "buckets": 1
+                    }
+                },
+                "STORE_NAME": {
+                    "data_type": "VARCHAR2",
+                    "nullable": true,
+                    "num_distinct": 200,
+                    "num_nulls": 0,
+                    "low_value": "Store 1",
+                    "high_value": "Store 99",
+                    "density": 0.005,
+                    "histogram": {
+                        "type": "NONE",
+                        "buckets": 1
+                    }
+                },
+                "COUNTRY": {
+                    "data_type": "VARCHAR2",
+                    "nullable": true,
+                    "num_distinct": 10,
+                    "num_nulls": 0,
+                    "low_value": "COUNTRY_0",
+                    "high_value": "COUNTRY_9",
+                    "density": 0.1,
+                    "histogram": {
+                        "type": "NONE",
+                        "buckets": 1
+                    }
+                },
+                "REGION": {
+                    "data_type": "VARCHAR2",
+                    "nullable": true,
+                    "num_distinct": 5,
+                    "num_nulls": 0,
+                    "low_value": "Central",
+                    "high_value": "West",
+                    "density": 0.2,
+                    "histogram": {
+                        "type": "NONE",
+                        "buckets": 1
+                    }
+                }
+            },
+            "indexes": [
+                "PLANVIZ.PK_DIM_STORES"
+            ]
+        },
+        "PLANVIZ.DIM_PRODUCTS": {
+            "type": "TABLE",
+            "stats": {
+                "num_rows": 1000,
+                "blocks": 8,
+                "avg_row_len": 29,
+                "last_analyzed": "2026-07-04T21:03:06Z",
+                "stale_stats": "NO",
+                "partitioned": false
+            },
+            "columns": {
+                "PRODUCT_ID": {
+                    "data_type": "NUMBER",
+                    "nullable": false,
+                    "num_distinct": 1000,
+                    "num_nulls": 0,
+                    "low_value": "1",
+                    "high_value": "1000",
+                    "density": 0.001,
+                    "histogram": {
+                        "type": "NONE",
+                        "buckets": 1
+                    }
+                },
+                "PRODUCT_NAME": {
+                    "data_type": "VARCHAR2",
+                    "nullable": true,
+                    "num_distinct": 1000,
+                    "num_nulls": 0,
+                    "low_value": "Product 1",
+                    "high_value": "Product 999",
+                    "density": 0.001,
+                    "histogram": {
+                        "type": "NONE",
+                        "buckets": 1
+                    }
+                },
+                "CATEGORY": {
+                    "data_type": "VARCHAR2",
+                    "nullable": true,
+                    "num_distinct": 8,
+                    "num_nulls": 0,
+                    "low_value": "Apparel",
+                    "high_value": "Toys",
+                    "density": 0.0005,
+                    "histogram": {
+                        "type": "FREQUENCY",
+                        "buckets": 8
+                    }
+                },
+                "LIST_PRICE": {
+                    "data_type": "NUMBER",
+                    "nullable": true,
+                    "num_distinct": 986,
+                    "num_nulls": 0,
+                    "low_value": "5.43",
+                    "high_value": "499.99",
+                    "density": 0.00101419878296146,
+                    "histogram": {
+                        "type": "NONE",
+                        "buckets": 1
+                    }
+                }
+            },
+            "indexes": [
+                "PLANVIZ.PK_DIM_PRODUCTS"
+            ]
+        },
+        "PLANVIZ.SALES_PART": {
+            "type": "TABLE",
+            "stats": {
+                "num_rows": 2000000,
+                "blocks": 11144,
+                "avg_row_len": 33,
+                "last_analyzed": "2026-07-05T13:18:52Z",
+                "stale_stats": "NO",
+                "partitioned": true,
+                "partition_count": 24
+            },
+            "columns": {
+                "SALE_ID": {
+                    "data_type": "NUMBER",
+                    "nullable": true,
+                    "num_distinct": 1996800,
+                    "num_nulls": 0,
+                    "low_value": "1",
+                    "high_value": "2000000",
+                    "density": 5.00801282051282e-07,
+                    "histogram": {
+                        "type": "NONE",
+                        "buckets": 1
+                    }
+                },
+                "CUSTOMER_ID": {
+                    "data_type": "NUMBER",
+                    "nullable": true,
+                    "num_distinct": 50536,
+                    "num_nulls": 0,
+                    "low_value": "1",
+                    "high_value": "50000",
+                    "density": 1.97878739908184e-05,
+                    "histogram": {
+                        "type": "NONE",
+                        "buckets": 1
+                    }
+                },
+                "PRODUCT_ID": {
+                    "data_type": "NUMBER",
+                    "nullable": true,
+                    "num_distinct": 1000,
+                    "num_nulls": 0,
+                    "low_value": "1",
+                    "high_value": "1000",
+                    "density": 0.001,
+                    "histogram": {
+                        "type": "NONE",
+                        "buckets": 1
+                    }
+                },
+                "STORE_ID": {
+                    "data_type": "NUMBER",
+                    "nullable": true,
+                    "num_distinct": 200,
+                    "num_nulls": 0,
+                    "low_value": "1",
+                    "high_value": "200",
+                    "density": 2.5e-07,
+                    "histogram": {
+                        "type": "FREQUENCY",
+                        "buckets": 200
+                    }
+                },
+                "SALE_DATE": {
+                    "data_type": "DATE",
+                    "nullable": true,
+                    "num_distinct": 730,
+                    "num_nulls": 0,
+                    "low_value": "2024-01-01T00:00:00",
+                    "high_value": "2025-12-30T00:00:00",
+                    "density": 0.00136986301369863,
+                    "histogram": {
+                        "type": "NONE",
+                        "buckets": 1
+                    }
+                },
+                "QUANTITY": {
+                    "data_type": "NUMBER",
+                    "nullable": true,
+                    "num_distinct": 10,
+                    "num_nulls": 0,
+                    "low_value": "1",
+                    "high_value": "10",
+                    "density": 0.1,
+                    "histogram": {
+                        "type": "NONE",
+                        "buckets": 1
+                    }
+                },
+                "AMOUNT": {
+                    "data_type": "NUMBER",
+                    "nullable": true,
+                    "num_distinct": 199120,
+                    "num_nulls": 0,
+                    "low_value": "5",
+                    "high_value": "2000",
+                    "density": 5.02209722780233e-06,
+                    "histogram": {
+                        "type": "NONE",
+                        "buckets": 1
+                    }
+                }
+            },
+            "indexes": []
+        },
+        "PLANVIZ.PK_DIM_STORES": {
+            "type": "INDEX",
+            "stats": {
+                "uniqueness": "UNIQUE",
+                "index_type": "NORMAL",
+                "status": "VALID",
+                "visibility": "VISIBLE",
+                "partitioned": false,
+                "clustering_factor": 1,
+                "blevel": 0,
+                "leaf_blocks": 1,
+                "distinct_keys": 200
+            },
+            "columns": [
+                "STORE_ID"
+            ],
+            "table": "PLANVIZ.DIM_STORES"
+        },
+        "PLANVIZ.PK_DIM_PRODUCTS": {
+            "type": "INDEX",
+            "stats": {
+                "uniqueness": "UNIQUE",
+                "index_type": "NORMAL",
+                "status": "VALID",
+                "visibility": "VISIBLE",
+                "partitioned": false,
+                "clustering_factor": 5,
+                "blevel": 1,
+                "leaf_blocks": 2,
+                "distinct_keys": 1000
+            },
+            "columns": [
+                "PRODUCT_ID"
+            ],
+            "table": "PLANVIZ.DIM_PRODUCTS"
+        }
+    },
+    "coverage_warnings": [],
+    "system_params": {
+        "db_block_size": 8192,
+        "optimizer_features_enable": "19.1.0",
+        "optimizer_index_cost_adj": 100,
+        "optimizer_index_caching": 0
+    }
+}

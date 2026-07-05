@@ -75,7 +75,7 @@ export function InputPanel() {
 
   const handleLoadSample = (sample: SamplePlan) => {
     wasParsingRef.current = true;
-    loadAndParsePlan(sample.data);
+    loadAndParsePlan(sample.data, sample.metadata);
     setShowSampleMenu(false);
   };
 

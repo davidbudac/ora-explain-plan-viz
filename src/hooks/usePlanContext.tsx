@@ -691,7 +691,7 @@ interface PlanContextValue {
   // Actions
   setInput: (input: string) => void;
   parsePlan: () => void;
-  loadAndParsePlan: (input: string) => void;
+  loadAndParsePlan: (input: string, metadataText?: string) => void;
   loadMetadataBundle: (text: string) => LoadMetadataBundleResult;
   attachMetadataBundleToSlot: (bundle: MetadataBundle, index: number) => { ok: true; warning: string | null } | { ok: false; error: string };
   applyMetadataToAllSlots: (bundle: MetadataBundle) => Array<{ index: number; warning: string | null }>;
@@ -810,14 +810,37 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     return meaningfulInputs.map((input, index) => createPlanSlotFromInput(input, index));
   }, [createPlanSlotFromInput]);
 
-  const importPlanInput = useCallback((input: string, options?: { replaceAll?: boolean }) => {
+  const importPlanInput = useCallback((input: string, options?: { replaceAll?: boolean; metadataText?: string }) => {
     const splitInputs = splitDbmsXplanPlanBatches(input).filter((batch) => batch.trim());
     const shouldReplaceAll = options?.replaceAll ?? splitInputs.length > 1;
     const slots = buildPlanSlotsFromInputs(shouldReplaceAll ? splitInputs : [input]);
     const parsedPlanCount = slots.filter((slot) => slot.parsedPlan).length;
 
+    // Curated examples may ship a metadata-bundle sidecar. Parse it once and
+    // pair it against the freshly built slots (never the stale reducer state).
+    let attachBundle: MetadataBundle | null = null;
+    if (options?.metadataText) {
+      try {
+        attachBundle = parseBundle(options.metadataText);
+      } catch {
+        attachBundle = null;
+      }
+    }
+
     if (shouldReplaceAll) {
-      dispatch({ type: 'REPLACE_PLANS', payload: { plans: slots, activePlanIndex: 0 } });
+      let plans = slots;
+      if (attachBundle) {
+        const decision = pairBundleWithSlots(attachBundle, slots);
+        if (decision.kind === 'auto-attach') {
+          const warning = combineWarnings(decision.warning, emptyBundleWarning(attachBundle));
+          plans = slots.map((slot, i) =>
+            i === decision.slotIndex
+              ? { ...slot, metadataBundle: attachBundle, metadataBundleWarning: warning }
+              : slot,
+          );
+        }
+      }
+      dispatch({ type: 'REPLACE_PLANS', payload: { plans, activePlanIndex: 0 } });
       dispatch({ type: 'CLEAR_ANNOTATIONS' });
       dispatch({ type: 'SET_INPUT_PANEL_COLLAPSED', payload: parsedPlanCount > 0 });
       if (parsedPlanCount === 0) {
@@ -842,7 +865,20 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
     dispatch({ type: 'SET_PARSED_PLAN', payload: slot.parsedPlan });
     dispatch({ type: 'SET_INPUT_PANEL_COLLAPSED', payload: true });
-  }, [buildPlanSlotsFromInputs]);
+
+    // The single-plan path replaces the active slot's plan in place, so attach
+    // the bundle to that same slot once the plan is confirmed to parse.
+    if (attachBundle) {
+      const decision = pairBundleWithSlots(attachBundle, [slot]);
+      if (decision.kind === 'auto-attach') {
+        const warning = combineWarnings(decision.warning, emptyBundleWarning(attachBundle));
+        dispatch({
+          type: 'ATTACH_METADATA_BUNDLE',
+          payload: { index: state.activePlanIndex, bundle: attachBundle, warning },
+        });
+      }
+    }
+  }, [buildPlanSlotsFromInputs, state.activePlanIndex]);
 
   const loadMetadataBundle = useCallback(
     (text: string): LoadMetadataBundleResult => {
@@ -1074,7 +1110,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     if (exampleParam) {
       const sample = findSampleByUrlParam(exampleParam);
       if (sample) {
-        importPlanInput(sample.data);
+        importPlanInput(sample.data, sample.metadata ? { metadataText: sample.metadata } : undefined);
       }
       // No match: ignore silently, normal empty-state startup.
     }
@@ -1139,8 +1175,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     importPlanInput(rawInput);
   }, [importPlanInput, rawInput]);
 
-  const loadAndParsePlan = useCallback((input: string) => {
-    importPlanInput(input);
+  const loadAndParsePlan = useCallback((input: string, metadataText?: string) => {
+    importPlanInput(input, metadataText ? { metadataText } : undefined);
   }, [importPlanInput]);
 
   const selectNode = useCallback((id: number | null, options?: { additive?: boolean }) => {

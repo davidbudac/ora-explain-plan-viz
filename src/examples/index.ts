@@ -21,6 +21,13 @@ export interface SamplePlan {
   name: string;
   category: 'dbms_xplan' | 'sql_monitor' | 'json' | 'xbi';
   data: string;
+  /**
+   * Optional raw metadata-bundle JSON (gather_plan_metadata.sql output) shipped
+   * alongside the example. A sidecar file named `<same stem>.meta.json` is
+   * auto-attached when the example loads, so curated examples can demo the
+   * schema-metadata feature without a manual drop.
+   */
+  metadata?: string;
 }
 
 // Use Vite's glob import to load all .txt files as raw strings
@@ -29,6 +36,20 @@ const exampleFiles = import.meta.glob<string>('./*.txt', {
   import: 'default',
   eager: true,
 });
+
+// Optional metadata-bundle sidecars, keyed by the plan file's stem so
+// `28-...-Partition Range Iterator.meta.json` pairs with the like-named .txt.
+const metadataFiles = import.meta.glob<string>('./*.meta.json', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
+
+const metadataByStem: Record<string, string> = {};
+for (const [path, raw] of Object.entries(metadataFiles)) {
+  const stem = path.split('/').pop()?.replace(/\.meta\.json$/, '') ?? '';
+  if (stem) metadataByStem[stem] = raw;
+}
 
 // Parse filename to extract metadata
 function parseFilename(path: string): { order: number; category: SamplePlan['category']; name: string } | null {
@@ -55,12 +76,14 @@ function parseFilename(path: string): { order: number; category: SamplePlan['cat
 
 // Build the sample plans array from loaded files (with order retained for lookups)
 const sortedPlansWithOrder: Array<SamplePlan & { order: number }> = Object.entries(exampleFiles)
-  .map(([path, data]) => {
+  .map(([path, data]): (SamplePlan & { order: number }) | null => {
     const meta = parseFilename(path);
     if (!meta) return null;
+    const stem = path.split('/').pop()?.replace(/\.txt$/, '') ?? '';
     return {
       ...meta,
       data,
+      metadata: metadataByStem[stem],
     };
   })
   .filter((plan): plan is SamplePlan & { order: number } => plan !== null)
@@ -69,7 +92,7 @@ const sortedPlansWithOrder: Array<SamplePlan & { order: number }> = Object.entri
 // Same list, with the NN order prefix retained. Used to resolve `?example=<NN>` deep links.
 export const SAMPLE_PLANS_WITH_ORDER: Array<SamplePlan & { order: number }> = sortedPlansWithOrder;
 
-export const SAMPLE_PLANS: SamplePlan[] = sortedPlansWithOrder.map(({ name, category, data }) => ({ name, category, data }));
+export const SAMPLE_PLANS: SamplePlan[] = sortedPlansWithOrder.map(({ name, category, data, metadata }) => ({ name, category, data, metadata }));
 
 // Group plans by category for the dropdown menu
 export const SAMPLE_PLANS_BY_CATEGORY = {
