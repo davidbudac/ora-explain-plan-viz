@@ -35,6 +35,23 @@ the bundle's `coverage_warnings` array. Run as a DBA for full coverage.
 Note: the AWR fallback (`DBA_HIST_SQL_PLAN`, used when the cursor has aged
 out of the shared pool) requires the Diagnostics Pack license.
 
+**Non-DBA users — use LIST mode.** SQL_ID mode (Mode 1) resolves the object
+list from `V$SQL_PLAN` / `DBA_HIST_SQL_PLAN`, which a plain schema owner
+usually can't read. In that case the script still emits a valid bundle, but an
+empty one whose `coverage_warnings` tell you to switch to LIST mode. If you
+don't have `SELECT_CATALOG_ROLE`, gather your own tables directly with Mode 2:
+
+```sql
+SQL> @gather_plan_metadata.sql LIST "MYSCHEMA.ORDERS,MYSCHEMA.CUSTOMERS"
+```
+
+Table, column, and index statistics come from `ALL_*` views (everything you
+own), so a LIST-mode bundle is complete for your own objects. Only the
+`source.db_name` and `system_params` fields require `V$` access and come back
+`null` without it — harmless for the plan-annotation use case. (Note: bundles
+gathered this way have no `sql_id`, so you attach them to a plan by hand rather
+than by auto-pairing.)
+
 **Output:** The script spools the JSON bundle itself — by default to
 `bundle.json` in the current directory. Pass a different file name as the
 last argument to override:

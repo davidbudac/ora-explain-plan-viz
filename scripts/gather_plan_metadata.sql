@@ -234,54 +234,54 @@ DECLARE
     END IF;
   END;
 
+  -- Resolve referenced objects from a plan-source view (V$SQL_PLAN or
+  -- DBA_HIST_SQL_PLAN). Uses native dynamic SQL on purpose: a plain schema
+  -- owner has no SELECT on these views, and a *static* reference would make
+  -- the whole anonymous block fail to COMPILE (ORA-06550) before any
+  -- EXCEPTION handler can run. Dynamic SQL turns the missing view into a
+  -- catchable runtime ORA-00942, which we downgrade to a coverage warning.
+  PROCEDURE resolve_from_plan_view(
+    p_view     IN VARCHAR2,
+    p_warn_obj IN VARCHAR2,
+    p_warn_msg IN VARCHAR2
+  ) IS
+    l_cur   SYS_REFCURSOR;
+    l_owner VARCHAR2(128);
+    l_name  VARCHAR2(128);
+    l_type  VARCHAR2(128);
+    l_sql   VARCHAR2(1000);
+  BEGIN
+    l_sql := 'SELECT DISTINCT object_owner, object_name, object_type '
+          || 'FROM ' || p_view || ' '
+          || 'WHERE sql_id = :a '
+          || 'AND (:b IS NULL OR plan_hash_value = :c) '
+          || 'AND object_owner IS NOT NULL AND object_name IS NOT NULL';
+    OPEN l_cur FOR l_sql USING g_sql_id, g_plan_hash, g_plan_hash;
+    LOOP
+      FETCH l_cur INTO l_owner, l_name, l_type;
+      EXIT WHEN l_cur%NOTFOUND;
+      add_object(l_owner, l_name, l_type);
+    END LOOP;
+    CLOSE l_cur;
+  EXCEPTION
+    WHEN OTHERS THEN
+      IF l_cur%ISOPEN THEN CLOSE l_cur; END IF;
+      IF SQLCODE = -942 THEN
+        add_warning(p_warn_obj, p_warn_msg);
+      ELSE
+        RAISE;
+      END IF;
+  END;
+
   PROCEDURE resolve_objects_for_sql_id IS
   BEGIN
-    BEGIN
-      FOR r IN (
-        SELECT DISTINCT
-               object_owner AS owner,
-               object_name  AS name,
-               object_type  AS type
-        FROM   v$sql_plan
-        WHERE  sql_id = g_sql_id
-          AND  (g_plan_hash IS NULL OR plan_hash_value = g_plan_hash)
-          AND  object_owner IS NOT NULL
-          AND  object_name IS NOT NULL
-      ) LOOP
-        add_object(r.owner, r.name, r.type);
-      END LOOP;
-    EXCEPTION
-      WHEN OTHERS THEN
-        IF SQLCODE = -942 THEN
-          add_warning('V$SQL_PLAN', 'No SELECT on V$SQL_PLAN - cannot resolve referenced objects from cursor cache.');
-        ELSE
-          RAISE;
-        END IF;
-    END;
+    resolve_from_plan_view('v$sql_plan', 'V$SQL_PLAN',
+      'No SELECT on V$SQL_PLAN - cannot resolve referenced objects from cursor cache. '
+      || 'Re-run as a user with SELECT_CATALOG_ROLE, or use LIST mode with explicit OWNER.OBJECT names.');
 
     IF l_objects.COUNT = 0 THEN
-      BEGIN
-        FOR r IN (
-          SELECT DISTINCT
-                 object_owner AS owner,
-                 object_name  AS name,
-                 object_type  AS type
-          FROM   dba_hist_sql_plan
-          WHERE  sql_id = g_sql_id
-            AND  (g_plan_hash IS NULL OR plan_hash_value = g_plan_hash)
-            AND  object_owner IS NOT NULL
-            AND  object_name IS NOT NULL
-        ) LOOP
-          add_object(r.owner, r.name, r.type);
-        END LOOP;
-      EXCEPTION
-        WHEN OTHERS THEN
-          IF SQLCODE = -942 THEN
-            add_warning('DBA_HIST_SQL_PLAN', 'No SELECT on DBA_HIST_SQL_PLAN - cannot resolve referenced objects from AWR history.');
-          ELSE
-            RAISE;
-          END IF;
-      END;
+      resolve_from_plan_view('dba_hist_sql_plan', 'DBA_HIST_SQL_PLAN',
+        'No SELECT on DBA_HIST_SQL_PLAN - cannot resolve referenced objects from AWR history.');
     END IF;
   END;
 
@@ -661,19 +661,23 @@ DECLARE
     l_ofe         VARCHAR2(64);
     l_index_cost  VARCHAR2(64);
     l_index_cache VARCHAR2(64);
+
+    -- Dynamic so a non-privileged user (no SELECT on V$PARAMETER) degrades to
+    -- null values at runtime instead of an ORA-06550 compile failure. The
+    -- function body must follow the item declarations above (PL/SQL rule).
+    FUNCTION get_param(p_name IN VARCHAR2) RETURN VARCHAR2 IS
+      l_val VARCHAR2(512);
+    BEGIN
+      EXECUTE IMMEDIATE 'SELECT value FROM v$parameter WHERE name = :1'
+        INTO l_val USING p_name;
+      RETURN l_val;
+    EXCEPTION WHEN OTHERS THEN RETURN NULL;
+    END;
   BEGIN
-    BEGIN
-      SELECT value INTO l_block_size FROM v$parameter WHERE name = 'db_block_size';
-    EXCEPTION WHEN OTHERS THEN l_block_size := NULL; END;
-    BEGIN
-      SELECT value INTO l_ofe FROM v$parameter WHERE name = 'optimizer_features_enable';
-    EXCEPTION WHEN OTHERS THEN l_ofe := NULL; END;
-    BEGIN
-      SELECT value INTO l_index_cost FROM v$parameter WHERE name = 'optimizer_index_cost_adj';
-    EXCEPTION WHEN OTHERS THEN l_index_cost := NULL; END;
-    BEGIN
-      SELECT value INTO l_index_cache FROM v$parameter WHERE name = 'optimizer_index_caching';
-    EXCEPTION WHEN OTHERS THEN l_index_cache := NULL; END;
+    l_block_size  := get_param('db_block_size');
+    l_ofe         := get_param('optimizer_features_enable');
+    l_index_cost  := get_param('optimizer_index_cost_adj');
+    l_index_cache := get_param('optimizer_index_caching');
 
     DBMS_LOB.APPEND(p_buffer,
       '"system_params":{'
@@ -704,15 +708,20 @@ BEGIN
   -- Source metadata
   ----------------------------------------------------------------------------
   SELECT SYS_CONTEXT('USERENV', 'CON_NAME') INTO g_container FROM DUAL;
+  -- Dynamic SQL for the dictionary/dynamic-performance views below: a plain
+  -- schema owner may lack SELECT on V$DATABASE and PRODUCT_COMPONENT_VERSION,
+  -- and a static reference would fail the whole block at COMPILE time.
   BEGIN
-    SELECT name INTO g_db_name FROM v$database;
+    EXECUTE IMMEDIATE 'SELECT name FROM v$database' INTO g_db_name;
   EXCEPTION WHEN OTHERS THEN g_db_name := NULL; END;
   BEGIN
-    SELECT version_full INTO g_oracle_version FROM product_component_version WHERE ROWNUM = 1;
+    EXECUTE IMMEDIATE 'SELECT version_full FROM product_component_version WHERE ROWNUM = 1'
+      INTO g_oracle_version;
   EXCEPTION
     WHEN OTHERS THEN
       BEGIN
-        SELECT version INTO g_oracle_version FROM product_component_version WHERE ROWNUM = 1;
+        EXECUTE IMMEDIATE 'SELECT version FROM product_component_version WHERE ROWNUM = 1'
+          INTO g_oracle_version;
       EXCEPTION WHEN OTHERS THEN g_oracle_version := NULL; END;
   END;
 
