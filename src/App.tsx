@@ -1,4 +1,4 @@
-import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { PlanProvider, usePlan } from './hooks/usePlanContext';
 import { Header } from './components/Header';
 import { InputPanel } from './components/InputPanel';
@@ -8,6 +8,55 @@ import { VisualizationTabs } from './components/VisualizationTabs';
 import { NodeDetailPanel } from './components/NodeDetailPanel';
 import { CommandPalette } from './components/CommandPalette';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay';
+import { SAMPLE_PLANS_BY_CATEGORY } from './examples';
+import type { SamplePlan } from './examples';
+
+const FEATURED_EXAMPLES: Array<{ category: SamplePlan['category']; name: string }> = [
+  { category: 'dbms_xplan', name: 'Simple Plan' },
+  { category: 'dbms_xplan', name: 'Parallel Query' },
+  { category: 'sql_monitor', name: 'Partitioned Star Query' },
+  { category: 'sql_monitor', name: 'Cardinality Trap (NL)' },
+];
+
+function getFeaturedExamples(): SamplePlan[] {
+  const usedByCategory = new Map<SamplePlan['category'], Set<SamplePlan>>();
+  const results: SamplePlan[] = [];
+
+  for (const { category, name } of FEATURED_EXAMPLES) {
+    const pool = SAMPLE_PLANS_BY_CATEGORY[category] as SamplePlan[] | undefined;
+    if (!pool || pool.length === 0) continue;
+
+    let used = usedByCategory.get(category);
+    if (!used) {
+      used = new Set();
+      usedByCategory.set(category, used);
+    }
+
+    const exact = pool.find((p) => p.name === name && !used!.has(p));
+    const fallback = exact ?? pool.find((p) => !used!.has(p));
+    if (!fallback) continue;
+
+    used.add(fallback);
+    results.push(fallback);
+  }
+
+  return results;
+}
+
+function categoryLabel(category: SamplePlan['category']): string {
+  switch (category) {
+    case 'dbms_xplan':
+      return 'DBMS_XPLAN';
+    case 'sql_monitor':
+      return 'SQL Monitor';
+    case 'json':
+      return 'JSON';
+    case 'xbi':
+      return 'XBI';
+    default:
+      return category;
+  }
+}
 
 const LEFT_PANEL_MIN = 250;
 const RIGHT_PANEL_MIN = 300;
@@ -54,8 +103,9 @@ function clampPanelWidths(widths: PanelWidths, viewportWidth: number): PanelWidt
 }
 
 function AppContent() {
-  const { plans, viewMode, visualizationMaximized, setVisualizationMaximized } = usePlan();
+  const { plans, viewMode, visualizationMaximized, setVisualizationMaximized, loadAndParsePlan } = usePlan();
   const anyPlanParsed = plans.some(p => p.parsedPlan);
+  const featuredExamples = useMemo(() => getFeaturedExamples(), []);
   const isComparisonWorkspace = viewMode === 'compare';
   const [panelWidths, setPanelWidths] = useState<PanelWidths>({
     left: DEFAULT_LEFT_PANEL_WIDTH,
@@ -185,9 +235,52 @@ function AppContent() {
           <h2 className="text-xl font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
             No Execution Plan Loaded
           </h2>
-          <p className="text-center max-w-md mb-4">
-            Paste Oracle DBMS_XPLAN output in the text area above, or load one of the sample plans to get started.
-          </p>
+
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 mb-6 text-sm text-center">
+            <div className="flex items-center gap-2">
+              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300">1</span>
+              <span>Paste DBMS_XPLAN / SQL Monitor output above, or drop a file</span>
+            </div>
+            <span className="hidden sm:inline text-neutral-300 dark:text-neutral-700">&rarr;</span>
+            <div className="flex items-center gap-2">
+              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300">2</span>
+              <span>Explore the interactive plan tree</span>
+            </div>
+            <span className="hidden sm:inline text-neutral-300 dark:text-neutral-700">&rarr;</span>
+            <div className="flex items-center gap-2">
+              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300">3</span>
+              <span>Click nodes for details &amp; findings</span>
+            </div>
+          </div>
+
+          {featuredExamples.length > 0 && (
+            <div className="w-full max-w-2xl mb-4">
+              <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400 dark:text-neutral-500 mb-2 text-center">
+                Try an example
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {featuredExamples.map((sample) => (
+                  <button
+                    key={`${sample.category}-${sample.name}`}
+                    type="button"
+                    onClick={() => loadAndParsePlan(sample.data)}
+                    className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors text-left"
+                  >
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
+                      {sample.name}
+                    </span>
+                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded">
+                      {categoryLabel(sample.category)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="text-xs text-neutral-400 dark:text-neutral-500 text-center mt-2">
+                All examples are available under &quot;Load Example&quot; in the input panel above.
+              </div>
+            </div>
+          )}
+
           <div className="text-sm text-neutral-400 dark:text-neutral-500">
             Repeated DBMS_XPLAN sections with different plan hash values are imported as separate plan tabs.
           </div>
