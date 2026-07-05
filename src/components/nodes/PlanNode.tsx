@@ -1,12 +1,14 @@
 import { Fragment } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { getOperationCategory, COLOR_SCHEMES, getMetricColor, getOperationTooltip } from '../../lib/types';
-import { formatNumberShort, formatBytes, formatTimeCompact, formatCardinalityRatio, cardinalityRatioSeverity, computeCardinalityRatio } from '../../lib/format';
+import { formatNumberShort, formatBytes, formatTimeCompact, formatCardinalityRatio, cardinalityRatioSeverity, computeCardinalityRatio, formatPartitionRange } from '../../lib/format';
 import type { PlanNode as PlanNodeType, NodeDisplayOptions, ColorScheme, NodeIndicatorMetric } from '../../lib/types';
 import { HighlightText } from '../HighlightText';
 import { getHighlightColorDef } from '../../lib/annotations';
 import type { HighlightColor, HighlightStyle } from '../../lib/annotations';
 import type { MetadataBadge } from '../../lib/metadata/badges';
+import type { ParallelSignal, PartitionPruning } from '../../lib/planSignals';
+import type { FindingSeverity } from '../../lib/advisor';
 
 export interface PlanNodeData extends Record<string, unknown> {
   label: string;
@@ -32,6 +34,11 @@ export interface PlanNodeData extends Record<string, unknown> {
   highlightColor?: HighlightColor;
   highlightStyle?: HighlightStyle;
   metadataBadges?: MetadataBadge[];
+  partitionPruning?: PartitionPruning;
+  parallelSignals?: ParallelSignal[];
+  advisorSeverity?: FindingSeverity;
+  advisorCount?: number;
+  advisorTitles?: string[];
 }
 
 interface PlanNodeProps {
@@ -59,6 +66,11 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     highlightColor,
     highlightStyle = 'circle',
     metadataBadges,
+    partitionPruning,
+    parallelSignals,
+    advisorSeverity,
+    advisorCount,
+    advisorTitles,
   } = data;
   const category = getOperationCategory(node.operation);
   const schemeColors = COLOR_SCHEMES[colorScheme];
@@ -78,6 +90,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     showObjectName: true,
     showPredicateIndicators: true,
     showPredicateDetails: false,
+    showPartitionInfo: true,
     showQueryBlockBadge: true,
     showQueryBlockGrouping: true,
     showActualRows: true,
@@ -86,6 +99,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     showHotspotBadge: true,
     showSpillBadge: true,
     showCardinalityBadge: true,
+    showAdvisorBadge: true,
     showStaleStatsBadge: true,
     showMissingStatsBadge: true,
     showMismatchNoHistogramBadge: true,
@@ -123,6 +137,12 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   const showSpillInRow = hasSpill && options.showSpillBadge && !isRail;
   const showCardBadgeInRow =
     options.showCardinalityBadge && cardSeverity !== 'good' && !!cardLabel && !usesEstActGrid;
+  const showAdvisorBadge = !!advisorSeverity && options.showAdvisorBadge;
+  const advisorBadgeClasses: Record<FindingSeverity, string> = {
+    info: 'bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300',
+    warning: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300',
+    critical: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',
+  };
 
   // Rows for the comparison grid: metric | estimated | actual (| deviation)
   const estActRows = usesEstActGrid
@@ -281,9 +301,17 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           {node.id}
         </div>
 
-        {/* Warning badges row (hot node, spill, cardinality, metadata) */}
-        {(showHotInRow || showSpillInRow || showCardBadgeInRow || (metadataBadges && metadataBadges.length > 0)) && (
+        {/* Warning badges row (hot node, spill, cardinality, advisor, metadata, pruning, parallel) */}
+        {(showHotInRow || showSpillInRow || showCardBadgeInRow || showAdvisorBadge || (metadataBadges && metadataBadges.length > 0) || partitionPruning === 'none' || (parallelSignals && parallelSignals.length > 0)) && (
           <div className="flex flex-wrap gap-1 mb-1.5">
+            {showAdvisorBadge && (
+              <span
+                className={`px-1.5 py-0.5 text-[10px] rounded font-semibold flex items-center gap-0.5 ${advisorBadgeClasses[advisorSeverity!]}`}
+                title={advisorTitles && advisorTitles.length > 0 ? advisorTitles.join('\n') : undefined}
+              >
+                ⚠ {advisorCount ?? 1}
+              </span>
+            )}
             {showHotInRow && (
               <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-[10px] rounded font-semibold flex items-center gap-0.5" title="Slowest operation in plan (self time, excluding children)">
                 <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" /></svg>
@@ -319,6 +347,20 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                   : badge.kind === 'missing-stats'
                     ? 'Missing stats'
                     : 'No histogram'}
+              </span>
+            ))}
+            {partitionPruning === 'none' && (
+              <span className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[10px] rounded font-semibold" title="No partition pruning — all partitions are scanned">
+                No pruning
+              </span>
+            )}
+            {parallelSignals?.map((signal, idx) => (
+              <span
+                key={`px-${signal.kind}-${idx}`}
+                className="px-1.5 py-0.5 bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-[10px] rounded font-semibold"
+                title={signal.reason}
+              >
+                {signal.kind === 'broadcast-large' ? 'Broadcast' : 'Serial point'}
               </span>
             ))}
           </div>
@@ -573,6 +615,18 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           </div>
         )}
 
+        {/* Partition pruning indicator (Pstart/Pstop) — mirrors predicate chips */}
+        {!isRail && options.showPartitionInfo && formatPartitionRange(node.pstart, node.pstop) && (
+          <div className="flex gap-1 mt-2">
+            <span
+              className="rounded font-semibold px-1.5 py-0.5 text-xs bg-indigo-200 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-200"
+              title={`Partitions accessed — Pstart: ${node.pstart ?? '—'}, Pstop: ${node.pstop ?? '—'}`}
+            >
+              Part {formatPartitionRange(node.pstart, node.pstop)}
+            </span>
+          </div>
+        )}
+
         {/* Predicate details */}
         {options.showPredicateDetails && (node.accessPredicates || node.filterPredicates) && (
           <div className="mt-2 space-y-1">
@@ -601,6 +655,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           (showHot ||
             (hasSpill && options.showSpillBadge) ||
             (options.showPredicateIndicators && (node.accessPredicates || node.filterPredicates)) ||
+            (options.showPartitionInfo && formatPartitionRange(node.pstart, node.pstop)) ||
             (options.showQueryBlockBadge && node.queryBlock)) && (
             <div className="flex items-center gap-1 mt-2 pt-1.5 border-t border-neutral-200 dark:border-neutral-700">
               {showHot && (
@@ -633,6 +688,14 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                   title={`Filter: ${node.filterPredicates}`}
                 >
                   F
+                </span>
+              )}
+              {options.showPartitionInfo && formatPartitionRange(node.pstart, node.pstop) && (
+                <span
+                  className="h-5 px-1 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-700 flex items-center justify-center text-[10px] font-extrabold shrink-0"
+                  title={`Partitions accessed — Pstart: ${node.pstart ?? '—'}, Pstop: ${node.pstop ?? '—'}`}
+                >
+                  P {formatPartitionRange(node.pstart, node.pstop)}
                 </span>
               )}
               {options.showQueryBlockBadge && node.queryBlock && (

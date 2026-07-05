@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, type PointerEvent as ReactPointerEvent } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { getOperationCategory, COLOR_SCHEMES, getMetricColor, getOperationTooltip } from '../lib/types';
-import { formatBytes, formatNumberShort, formatTimeCompact, formatTimeDetailed, computeCardinalityRatio, formatCardinalityRatio, cardinalityRatioSeverity } from '../lib/format';
+import { formatBytes, formatNumberShort, formatTimeCompact, formatTimeDetailed } from '../lib/format';
 import type { PlanNode as PlanNodeType, NodeIndicatorMetric } from '../lib/types';
 import { HighlightText } from './HighlightText';
 import { FormattedPredicate } from './FormattedPredicate';
@@ -15,6 +15,9 @@ import { resolveIndexesForBlock, findUsedIndexKeys, type ResolvedIndex } from '.
 import { findCoverageWarning } from '../lib/metadata/dropClassify';
 import type { TableStats, ColumnStats, TableObject, MetadataBundle } from '../lib/metadata/bundle';
 import { GatherScriptModal } from './GatherScriptModal';
+import { assessPartitionPruning, computeParallelSignals } from '../lib/planSignals';
+import type { ParallelSignal } from '../lib/planSignals';
+import { FindingsList, NodeFindings } from './FindingsPanel';
 
 const HIGHLIGHT_COLORS_MAP: Record<HighlightColor, string> = Object.fromEntries(
   HIGHLIGHT_COLORS.map((c) => [c.name, c.chip])
@@ -35,6 +38,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
     detailPanelCollapsed: isCollapsed, setDetailPanelCollapsed: setIsCollapsed,
     highlightStyle, setHighlightStyle,
     metadataBundle, metadataBundleWarning,
+    advisorReport,
   } = usePlan();
   const searchText = filters.searchText;
   const [showGroupDialog, setShowGroupDialog] = useState(false);
@@ -45,7 +49,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
   // Compute worst nodes — must be before any early returns to satisfy Rules of Hooks
   const worstNodes = useMemo(() => {
-    if (!parsedPlan) return { byCost: [], byTime: [], byCardinalityMismatch: [] };
+    if (!parsedPlan) return { byCost: [], byTime: [] };
 
     const nonRoot = parsedPlan.allNodes.filter(n => n.parentId !== undefined);
 
@@ -62,28 +66,18 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           .slice(0, 5)
       : [];
 
-    const byCardinalityMismatch = parsedPlan.hasActualStats
-      ? [...nonRoot]
-          .map(n => ({
-            node: n,
-            ratio: computeCardinalityRatio(n.rows, n.actualRows),
-          }))
-          .filter(item => item.ratio !== undefined && item.ratio !== 1)
-          .sort((a, b) => {
-            const devA = (a.ratio! >= 1 ? a.ratio! : 1 / a.ratio!);
-            const devB = (b.ratio! >= 1 ? b.ratio! : 1 / b.ratio!);
-            return devB - devA;
-          })
-          .slice(0, 5)
-      : [];
-
-    return { byCost, byTime, byCardinalityMismatch };
+    return { byCost, byTime };
   }, [parsedPlan]);
 
   const usedIndexKeys = useMemo(() => {
     if (!metadataBundle || !parsedPlan) return new Set<string>();
     return findUsedIndexKeys(metadataBundle, parsedPlan.allNodes);
   }, [metadataBundle, parsedPlan]);
+
+  const parallelSignals = useMemo(() => {
+    if (!parsedPlan) return [] as ParallelSignal[];
+    return computeParallelSignals(parsedPlan);
+  }, [parsedPlan]);
 
   if (isCollapsed) {
     return (
@@ -160,6 +154,16 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
            </div>
         </div>
 
+        {advisorReport && advisorReport.findings.length > 0 && (
+          <Accordion
+            title="Findings"
+            subtitle={`${advisorReport.findings.length}`}
+            icon={<svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>}
+          >
+            <FindingsList />
+          </Accordion>
+        )}
+
         {hotspotsEnabled && (
           <>
             {/* Worst by A-Time */}
@@ -215,32 +219,6 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
               </Accordion>
             )}
 
-            {/* Worst Cardinality Mismatches */}
-            {worstNodes.byCardinalityMismatch.length > 0 && (
-              <Accordion title="Cardinality Mismatch" defaultOpen={false}>
-                <div className="space-y-1">
-                  {worstNodes.byCardinalityMismatch.map(({ node: n, ratio }) => {
-                    const severity = cardinalityRatioSeverity(ratio);
-                    const label = formatCardinalityRatio(ratio);
-                    return (
-                      <button
-                        key={n.id}
-                        onClick={() => selectNode(n.id)}
-                        className="w-full text-left px-2 py-1.5 text-[11px] rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between gap-2 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 font-mono"
-                      >
-                        <span className="flex items-center gap-1.5 truncate">
-                          <span className="w-4 h-4 rounded bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 text-[9px] font-bold flex items-center justify-center shrink-0">{n.id}</span>
-                          <span className="truncate font-semibold">{n.operation}</span>
-                        </span>
-                        <span className={`font-bold whitespace-nowrap ${
-                          severity === 'bad' ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
-                        }`}>{label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </Accordion>
-            )}
           </>
         )}
 
@@ -463,6 +441,8 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
   const schemeColors = COLOR_SCHEMES[colorScheme];
   const colors = schemeColors[category] || schemeColors['Other'];
   const indicator = computeNodeDetailIndicator(node, parsedPlan, nodeIndicatorMetric);
+  const pruning = assessPartitionPruning(node);
+  const nodeParallelSignals = parallelSignals.filter((s) => s.nodeId === node.id);
 
   return (
     <div
@@ -527,50 +507,8 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         })()}
       </div>
 
-      {/* Cardinality Mismatch */}
-      {(() => {
-        const ratio = computeCardinalityRatio(node.rows, node.actualRows);
-        const severity = cardinalityRatioSeverity(ratio);
-        const label = formatCardinalityRatio(ratio);
-        if (severity === 'good' || !label) return null;
-        return (
-          <div className={`p-3 border-b border-neutral-200 dark:border-neutral-800 ${
-            severity === 'bad'
-              ? 'bg-red-50 dark:bg-red-950/30'
-              : 'bg-amber-50 dark:bg-amber-950/30'
-          }`}>
-            <div className="flex items-center justify-between mb-1">
-              <span className={`text-xs font-semibold tracking-wide ${
-                severity === 'bad'
-                  ? 'text-red-700 dark:text-red-300'
-                  : 'text-amber-700 dark:text-amber-300'
-              }`}>Cardinality Mismatch</span>
-              <span className={`text-xs font-bold ${
-                severity === 'bad'
-                  ? 'text-red-600 dark:text-red-400'
-                  : 'text-amber-600 dark:text-amber-400'
-              }`}>{label}</span>
-            </div>
-            <div className="text-xs text-neutral-600 dark:text-neutral-400">
-              E-Rows: {formatNumberShort(node.rows)} → A-Rows: {formatNumberShort(node.actualRows)}
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Spill Warning */}
-      {node.tempUsed !== undefined && node.tempUsed > 0 && (
-        <div className="p-3 border-b border-neutral-200 dark:border-neutral-800 bg-yellow-50 dark:bg-yellow-950/30">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-semibold tracking-wide text-yellow-700 dark:text-yellow-300">
-              Spill to Disk
-            </span>
-            <span className="text-xs text-yellow-600 dark:text-yellow-400">
-              {formatBytes(node.tempUsed)} temp space used
-            </span>
-          </div>
-        </div>
-      )}
+      {/* Advisor findings for this node */}
+      <NodeFindings nodeId={node.id} />
 
       {/* Node indicator */}
       <Accordion title={indicator.title} icon={<svg className="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>}>
@@ -612,8 +550,42 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           <StatItem label="CPU %" value={node.cpuPercent ? `${node.cpuPercent}%` : undefined} />
           <StatItem label="Time" value={node.time} />
           <StatItem label="Temp Space" value={node.tempSpace ? formatBytes(node.tempSpace) : undefined} />
+          <StatItem label="Pstart" value={node.pstart} />
+          <StatItem label="Pstop" value={node.pstop} />
         </div>
+        {pruning === 'static' && (
+          <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">Static pruning</div>
+        )}
+        {pruning === 'runtime' && (
+          <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">Runtime pruning (determined at execution time, e.g. bloom filter/bind)</div>
+        )}
+        {pruning === 'none' && (
+          <div className="mt-2 text-[11px] font-semibold text-amber-700 dark:text-amber-300">No pruning — all partitions scanned</div>
+        )}
       </Accordion>
+
+      {/* Parallel Execution */}
+      {(node.tq || node.inOut || node.pqDistrib) && (
+        <Accordion title="Parallel Execution" defaultOpen={false}>
+          <div className="grid grid-cols-2 gap-2">
+            <StatItem label="TQ" value={node.tq} />
+            <StatItem label="IN-OUT" value={node.inOut} />
+            <StatItem label="PQ Distrib" value={node.pqDistrib} />
+          </div>
+          {nodeParallelSignals.length > 0 && (
+            <div className="mt-2 space-y-2">
+              {nodeParallelSignals.map((signal, idx) => (
+                <div
+                  key={`${signal.kind}-${idx}`}
+                  className="p-2 text-[11px] rounded border bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 leading-snug"
+                >
+                  {signal.reason}
+                </div>
+              ))}
+            </div>
+          )}
+        </Accordion>
+      )}
 
       {/* Predicates */}
       {(node.accessPredicates || node.filterPredicates) && (

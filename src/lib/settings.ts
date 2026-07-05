@@ -1,4 +1,4 @@
-import type { FilterState, ViewMode, SankeyMetric, NodeIndicatorMetric, NodeDisplayOptions, ColorScheme } from './types';
+import type { FilterState, ViewMode, SankeyMetric, FlameMetric, NodeIndicatorMetric, NodeDisplayOptions, ColorScheme } from './types';
 import type { CompareMetric } from './compare';
 import type { HighlightStyle } from './annotations';
 
@@ -16,6 +16,7 @@ export interface UserSettings {
   // View settings
   viewMode: ViewMode;
   sankeyMetric: SankeyMetric;
+  flameMetric: FlameMetric;
   nodeIndicatorMetric: NodeIndicatorMetric;
   colorScheme: ColorScheme;
 
@@ -47,6 +48,7 @@ export const defaultNodeDisplayOptions: NodeDisplayOptions = {
   showObjectName: true,
   showPredicateIndicators: true,
   showPredicateDetails: true,
+  showPartitionInfo: true,
   showQueryBlockBadge: true,
   showQueryBlockGrouping: true,
   showActualRows: true,
@@ -55,6 +57,7 @@ export const defaultNodeDisplayOptions: NodeDisplayOptions = {
   showHotspotBadge: true,
   showSpillBadge: true,
   showCardinalityBadge: true,
+  showAdvisorBadge: true,
   showStaleStatsBadge: true,
   showMissingStatsBadge: true,
   showMismatchNoHistogramBadge: true,
@@ -67,6 +70,7 @@ const defaultSettings: UserSettings = {
   version: SETTINGS_VERSION,
   viewMode: 'hierarchical',
   sankeyMetric: 'rows',
+  flameMetric: 'actualTime',
   nodeIndicatorMetric: 'cost',
   colorScheme: 'semantic',
   hotspotsEnabled: true,
