@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { HierarchicalView } from './views/HierarchicalView';
 import { SankeyView } from './views/SankeyView';
+import { FlameView } from './views/FlameView';
 import { TabularView } from './views/TabularView';
 import { TabularCompareView } from './views/TabularCompareView';
 import { CompareView } from './views/CompareView';
@@ -35,6 +36,7 @@ export function VisualizationTabs() {
         {viewMode === 'hierarchical' && (treeCompareEnabled ? <TreeCompareView /> : <HierarchicalView />)}
         {viewMode === 'compare' && <CompareView />}
         {viewMode === 'sankey' && <SankeyView />}
+        {viewMode === 'flame' && <FlameView />}
         {viewMode === 'tabular' && (treeCompareEnabled ? <TabularCompareView /> : <TabularView />)}
         {viewMode === 'text' && (
           <div className="h-full overflow-auto bg-slate-50 dark:bg-slate-950 p-4 font-mono">
@@ -45,7 +47,7 @@ export function VisualizationTabs() {
         )}
         {viewMode === 'sql' && <SqlTextView />}
         {viewMode === 'monitor' && <MonitorDetailsView />}
-        {(viewMode === 'hierarchical' || viewMode === 'sankey' || viewMode === 'tabular') && <Legend />}
+        {(viewMode === 'hierarchical' || viewMode === 'sankey' || viewMode === 'flame' || viewMode === 'tabular') && <Legend />}
       </div>
     </div>
   );

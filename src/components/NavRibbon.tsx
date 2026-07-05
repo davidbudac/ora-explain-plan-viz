@@ -41,6 +41,15 @@ const tabs: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
+    id: 'flame',
+    label: 'Flame',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2c1 3-2 4-2 7a2 2 0 004 0c1 1 2 2.5 2 4.5A6 6 0 016 13.5c0-3 1.5-4.5 3-7 .5 1.5 1.5 2 2 1.5C10.5 6 11 4 12 2z" />
+      </svg>
+    ),
+  },
+  {
     id: 'text',
     label: 'Plan Text',
     icon: (
