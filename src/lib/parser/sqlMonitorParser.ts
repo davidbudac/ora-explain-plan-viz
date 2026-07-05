@@ -1,5 +1,6 @@
 import type { PlanNode, ParsedPlan, SqlMonitorMetadata } from '../types';
 import type { PlanParser, BindVariable } from './types';
+import { parseNoteSection } from './noteSection';
 
 /**
  * Parser for Oracle SQL Monitor text report output.
@@ -55,6 +56,9 @@ export const sqlMonitorTextParser: PlanParser = {
     // A-Time is cumulative: root node's actualTime is the total elapsed time
     const totalElapsedTime = rootNode?.actualTime || 0;
 
+    // Parse the trailing "Note" section, if present.
+    const notes = parseNoteSection(lines);
+
     return {
       planHashValue,
       sqlId,
@@ -67,6 +71,7 @@ export const sqlMonitorTextParser: PlanParser = {
       source: 'sql_monitor_text',
       hasActualStats,
       totalElapsedTime,
+      notes,
     };
   },
 };
@@ -645,6 +650,8 @@ interface PlanEstimates {
   accessPredicates?: string;
   filterPredicates?: string;
   options?: string;
+  pstart?: string;
+  pstop?: string;
 }
 
 function parseRealOracleXml(doc: Document): ParsedPlan {
@@ -796,6 +803,11 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
 
     // Optimizer environment
     optimizerEnv: parseOptimizerEnv(doc),
+
+    // Parallel execution
+    dop: parseIntOrUndef(target?.getAttribute('dop')),
+    pxServersRequested: getStatByName(globalStats, 'servers_requested'),
+    pxServersAllocated: getStatByName(globalStats, 'servers_allocated'),
   };
 
   // Strip undefined values
@@ -897,6 +909,15 @@ function parsePlanSection(doc: Document): Map<number, PlanEstimates> {
       estimates.options = options;
     }
 
+    // Partition pruning: <partition start="15" stop="20"/> (Pstart/Pstop)
+    const partition = op.querySelector(':scope > partition');
+    if (partition) {
+      const start = partition.getAttribute('start');
+      const stop = partition.getAttribute('stop');
+      if (start) estimates.pstart = start;
+      if (stop) estimates.pstop = stop;
+    }
+
     result.set(id, estimates);
   });
 
@@ -942,6 +963,10 @@ function parseMonitorOperation(op: Element, planEstimates: Map<number, PlanEstim
     if (costEl?.textContent) cost = parseInt(costEl.textContent, 10) || undefined;
   }
 
+  // Partition pruning: <partition_start>15</partition_start><partition_stop>20</partition_stop>
+  let pstart = op.querySelector(':scope > partition_start')?.textContent?.trim() || undefined;
+  let pstop = op.querySelector(':scope > partition_stop')?.textContent?.trim() || undefined;
+
   // Merge with <plan> section estimates (predicates, aliases, etc.)
   const estimates = planEstimates.get(id);
   if (estimates) {
@@ -949,6 +974,8 @@ function parseMonitorOperation(op: Element, planEstimates: Map<number, PlanEstim
     if (bytes === undefined) bytes = estimates.bytes;
     if (cost === undefined) cost = estimates.cost;
     if (!objectName) objectName = estimates.objectName;
+    if (!pstart) pstart = estimates.pstart;
+    if (!pstop) pstop = estimates.pstop;
   }
 
   // Parse actual runtime stats from <stats type="plan_monitor">
@@ -997,6 +1024,8 @@ function parseMonitorOperation(op: Element, planEstimates: Map<number, PlanEstim
     ioWriteBytes: writeBytes,
     accessPredicates: estimates?.accessPredicates,
     filterPredicates: estimates?.filterPredicates,
+    pstart,
+    pstop,
     children: [],
   };
 
@@ -1038,6 +1067,8 @@ function parsePlanOnlyOperation(op: Element): PlanNode | null {
     rows: getDirectChildInt(op, 'card'),
     bytes: getDirectChildInt(op, 'bytes'),
     cost: getDirectChildInt(op, 'cost'),
+    pstart: op.querySelector(':scope > partition')?.getAttribute('start') || undefined,
+    pstop: op.querySelector(':scope > partition')?.getAttribute('stop') || undefined,
     children: [],
   };
 

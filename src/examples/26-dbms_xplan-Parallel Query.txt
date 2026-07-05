@@ -1,0 +1,33 @@
+Plan hash value: 2198374650
+
+--------------------------------------------------------------------------------------------------------------------
+| Id | Operation                | Name      |  Rows | Bytes | Cost (%CPU) |     Time |    TQ | IN-OUT | PQ Distrib |
+--------------------------------------------------------------------------------------------------------------------
+|  0 | SELECT STATEMENT         |           |  1000 | 95000 |   850   (3) | 00:00:11 |       |        |            |
+|  1 |  PX COORDINATOR          |           |  1000 | 95000 |   850   (3) | 00:00:11 |       |   S->P |            |
+|  2 |   PX SEND QC (RANDOM)    | :TQ10002  |  1000 | 95000 |   850   (3) | 00:00:11 | Q1,02 |   P->S |  QC (RAND) |
+|  3 |    HASH JOIN             |           |  1000 | 95000 |   850   (3) | 00:00:11 | Q1,02 |   PCWP |            |
+|  4 |     PX RECEIVE           |           |   500 | 42500 |   300   (2) | 00:00:04 | Q1,02 |   PCWP |            |
+|  5 |      PX SEND HASH        | :TQ10000  |   500 | 42500 |   300   (2) | 00:00:04 | Q1,00 |   P->P |       HASH |
+|  6 |       PX BLOCK ITERATOR  |           |   500 | 42500 |   300   (2) | 00:00:04 | Q1,00 |   PCWC |            |
+|  7 |        TABLE ACCESS FULL | CUSTOMERS |   500 | 42500 |   300   (2) | 00:00:04 | Q1,00 |   PCWP |            |
+|  8 |     PX RECEIVE           |           | 2000K | 170M  |   540   (4) | 00:00:07 | Q1,02 |   PCWP |            |
+|  9 |      PX SEND BROADCAST   | :TQ10001  | 2000K | 170M  |   540   (4) | 00:00:07 | Q1,01 |   P->P |  BROADCAST |
+| 10 |       TABLE ACCESS FULL  | ORDERS    | 2000K | 170M  |   540   (4) | 00:00:07 | Q1,01 |   PCWP |            |
+--------------------------------------------------------------------------------------------------------------------
+
+Query Block Name / Object Alias (identified by operation id):
+---------------------------------------------------------------
+
+   3 - SEL$1
+   7 - SEL$1 / CUSTOMERS@SEL$1
+  10 - SEL$1 / ORDERS@SEL$1
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+   3 - access("CUSTOMERS"."CUSTOMER_ID"="ORDERS"."CUSTOMER_ID")
+
+Note
+-----
+   - Degree of Parallelism is 4 because of hint
+   - this is an adaptive plan

@@ -82,3 +82,19 @@ export function cardinalityRatioSeverity(ratio: number | undefined): 'good' | 'w
   if (deviation >= 3) return 'warn';
   return 'good';
 }
+
+/**
+ * Format a partition Pstart/Pstop pair as a compact range string.
+ * Returns e.g. "15–20", or "9" when start === stop (single partition),
+ * or undefined when no partition range is present. Non-numeric markers
+ * (KEY, KEY(I), :BFnnnn, ROWID, etc.) are passed through unchanged.
+ */
+export function formatPartitionRange(pstart?: string, pstop?: string): string | undefined {
+  const start = pstart?.trim() || undefined;
+  const stop = pstop?.trim() || undefined;
+  if (!start && !stop) return undefined;
+  if (start && stop) {
+    return start === stop ? start : `${start}–${stop}`;
+  }
+  return start ?? stop;
+}

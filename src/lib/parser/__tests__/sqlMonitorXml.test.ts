@@ -214,6 +214,56 @@ Plan hash value: 123456
     });
   });
 
+  describe('Parallel execution metadata (DOP)', () => {
+    function buildXml({ dop, serversRequested, serversAllocated }: {
+      dop?: string;
+      serversRequested?: string;
+      serversAllocated?: string;
+    }): string {
+      const dopAttr = dop ? ` dop="${dop}"` : '';
+      const statLines = [
+        serversRequested ? `<stat name="servers_requested">${serversRequested}</stat>` : '',
+        serversAllocated ? `<stat name="servers_allocated">${serversAllocated}</stat>` : '',
+      ].join('\n');
+
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<report>
+  <sql_monitor_report version="4.0">
+    <report_parameters>
+      <sql_id>parallel123</sql_id>
+    </report_parameters>
+    <target sql_id="parallel123" sql_plan_hash="42"${dopAttr}>
+      <status>DONE</status>
+    </target>
+    <stats type="monitor">
+      ${statLines}
+    </stats>
+    <plan_monitor>
+      <operation id="0" name="SELECT STATEMENT" depth="0">
+        <stats type="plan_monitor"><stat name="cardinality">1</stat></stats>
+      </operation>
+    </plan_monitor>
+  </sql_monitor_report>
+</report>`;
+    }
+
+    it('populates dop, pxServersRequested, pxServersAllocated when present', () => {
+      const xml = buildXml({ dop: '8', serversRequested: '8', serversAllocated: '4' });
+      const result = sqlMonitorXmlParser.parse(xml);
+      expect(result.monitorMetadata?.dop).toBe(8);
+      expect(result.monitorMetadata?.pxServersRequested).toBe(8);
+      expect(result.monitorMetadata?.pxServersAllocated).toBe(4);
+    });
+
+    it('leaves fields undefined when absent', () => {
+      const xml = buildXml({});
+      const result = sqlMonitorXmlParser.parse(xml);
+      expect(result.monitorMetadata?.dop).toBeUndefined();
+      expect(result.monitorMetadata?.pxServersRequested).toBeUndefined();
+      expect(result.monitorMetadata?.pxServersAllocated).toBeUndefined();
+    });
+  });
+
   describe('Legacy XML format backward compatibility', () => {
     it('parses old simplified XML format', () => {
       const legacyXml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -252,6 +302,91 @@ Plan hash value: 123456
       expect(result.allNodes[1].objectName).toBe('EMPLOYEES');
       expect(result.allNodes[2].accessPredicates).toBe('DEPARTMENT_ID=10');
       expect(result.hasActualStats).toBe(true);
+    });
+  });
+
+  describe('Partition pruning example (27-sql_monitor-Partitioned Star Query.txt)', () => {
+    let result: ReturnType<typeof sqlMonitorXmlParser.parse>;
+
+    it('parses without errors', () => {
+      const xml = readExample('27-sql_monitor-Partitioned Star Query.txt');
+      result = sqlMonitorXmlParser.parse(xml);
+      expect(result.rootNode).not.toBeNull();
+    });
+
+    it('extracts Pstart/Pstop partition range on the partitioned table scan', () => {
+      // The interval-partitioned SALES_PART fact is pruned to partitions 15-20
+      // (the six months 2025-03 .. 2025-08).
+      const salesScan = result.allNodes.find(
+        (n) => n.objectName === 'SALES_PART' && n.operation.startsWith('TABLE ACCESS'),
+      );
+      expect(salesScan).toBeDefined();
+      expect(salesScan!.pstart).toBe('15');
+      expect(salesScan!.pstop).toBe('20');
+    });
+
+    it('surfaces parallel execution (PX) operators', () => {
+      const pxNodes = result.allNodes.filter((n) => n.operation.startsWith('PX '));
+      expect(pxNodes.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Partition range iterator example (28-sql_monitor-Partition Range Iterator.txt)', () => {
+    let result: ReturnType<typeof sqlMonitorXmlParser.parse>;
+
+    it('parses without errors', () => {
+      const xml = readExample('28-sql_monitor-Partition Range Iterator.txt');
+      result = sqlMonitorXmlParser.parse(xml);
+      expect(result.rootNode).not.toBeNull();
+    });
+
+    it('has an explicit PARTITION RANGE ITERATOR operator with Pstart/Pstop', () => {
+      const iterator = result.allNodes.find((n) => n.operation === 'PARTITION RANGE ITERATOR');
+      expect(iterator).toBeDefined();
+      expect(iterator!.pstart).toBe('15');
+      expect(iterator!.pstop).toBe('20');
+    });
+
+    it('carries the same partition range on the child SALES_PART scan', () => {
+      const salesScan = result.allNodes.find(
+        (n) => n.objectName === 'SALES_PART' && n.operation.startsWith('TABLE ACCESS'),
+      );
+      expect(salesScan).toBeDefined();
+      expect(salesScan!.pstart).toBe('15');
+      expect(salesScan!.pstop).toBe('20');
+    });
+
+    it('is a serial plan (no PX operators)', () => {
+      const pxNodes = result.allNodes.filter((n) => n.operation.startsWith('PX '));
+      expect(pxNodes.length).toBe(0);
+    });
+  });
+
+  describe('partition pruning attribute parsing (synthetic)', () => {
+    it('reads <partition_start>/<partition_stop> from plan_monitor operations', () => {
+      const xml = `<report><sql_monitor_report>
+        <plan_monitor>
+          <operation id="0" name="SELECT STATEMENT" depth="0"/>
+          <operation id="1" parent_id="0" name="PARTITION RANGE" options="ITERATOR" depth="1">
+            <partition_start>3</partition_start>
+            <partition_stop>7</partition_stop>
+          </operation>
+          <operation id="2" parent_id="1" name="TABLE ACCESS" options="FULL" depth="2">
+            <object type="TABLE"><name>ORDERS_PART</name></object>
+            <partition_start>3</partition_start>
+            <partition_stop>7</partition_stop>
+          </operation>
+        </plan_monitor>
+      </sql_monitor_report></report>`;
+
+      const result = sqlMonitorXmlParser.parse(xml);
+      const iterator = result.allNodes.find((n) => n.id === 1)!;
+      expect(iterator.operation).toBe('PARTITION RANGE ITERATOR');
+      expect(iterator.pstart).toBe('3');
+      expect(iterator.pstop).toBe('7');
+      const scan = result.allNodes.find((n) => n.id === 2)!;
+      expect(scan.pstart).toBe('3');
+      expect(scan.pstop).toBe('7');
     });
   });
 });

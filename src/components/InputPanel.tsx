@@ -6,6 +6,8 @@ import { SAMPLE_PLANS_BY_CATEGORY, type SamplePlan } from '../examples';
 import { looksLikeMetadataBundle, type MetadataBundle } from '../lib/metadata/bundle';
 import { classifyDroppedFile } from '../lib/metadata/dropClassify';
 import { MetadataChip } from './MetadataChip';
+import { getDopDowngrade } from '../lib/planSignals';
+import type { ParsedPlan } from '../lib/types';
 
 export function InputPanel() {
   const { rawInput, setInput, parsePlan, loadAndParsePlan, loadMetadataBundle, attachMetadataBundleToSlot, clearPlan, removePlanSlot, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex, metadataBundle, metadataBundleWarning, detachMetadataBundle } = usePlan();
@@ -182,6 +184,7 @@ export function InputPanel() {
                   {parsedPlan.bindVariables.length} bind{parsedPlan.bindVariables.length !== 1 ? 's' : ''}
                 </span>
               )}
+              <PlanNoteChips parsedPlan={parsedPlan} />
               <span className="text-xs text-neutral-500 dark:text-neutral-400">
                 ({parsedPlan.allNodes.length} operations{parsedPlan.rootNode?.cost != null ? `, Cost: ${formatNumberShort(parsedPlan.rootNode.cost)}` : ''}{parsedPlan.hasActualStats && parsedPlan.rootNode?.actualRows != null ? `, A-Rows: ${formatNumberShort(parsedPlan.rootNode.actualRows)}` : ''}{parsedPlan.hasActualStats && parsedPlan.rootNode?.actualTime != null ? `, A-Time: ${formatTimeShort(parsedPlan.rootNode.actualTime)}` : ''})
               </span>
@@ -323,6 +326,7 @@ export function InputPanel() {
                     Actual Stats
                   </span>
                 )}
+                <PlanNoteChips parsedPlan={parsedPlan} />
                 <span>
                   {parsedPlan.allNodes.length} operations
                 </span>
@@ -393,6 +397,67 @@ export function InputPanel() {
         />
       )}
     </div>
+  );
+}
+
+const NOTE_CHIP_CLASS = 'px-2 py-0.5 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 rounded text-[11px] font-medium';
+
+function PlanNoteChips({ parsedPlan }: { parsedPlan: ParsedPlan }) {
+  const notes = parsedPlan.notes;
+  const dopDowngrade = getDopDowngrade(parsedPlan.monitorMetadata);
+  if (!notes && !dopDowngrade) return null;
+
+  return (
+    <>
+      {notes?.dynamicSampling && (
+        <span className={NOTE_CHIP_CLASS} title="Dynamic sampling — statistics were sampled at parse time; estimates may be less reliable">
+          Dyn. sampling{notes.dynamicSamplingLevel ? ` (L${notes.dynamicSamplingLevel})` : ''}
+        </span>
+      )}
+      {notes?.planDirectives && (
+        <span className={NOTE_CHIP_CLASS} title="SQL plan directives were used — the optimizer adjusted estimates based on past misestimates">
+          Plan directives
+        </span>
+      )}
+      {notes?.cardinalityFeedback && (
+        <span className={NOTE_CHIP_CLASS} title="Cardinality feedback — the optimizer re-estimated based on a prior execution; the plan may change between executions">
+          Card. feedback
+        </span>
+      )}
+      {notes?.statisticsFeedback && (
+        <span className={NOTE_CHIP_CLASS} title="Statistics feedback — the optimizer re-estimated based on a prior execution; the plan may change between executions">
+          Stats feedback
+        </span>
+      )}
+      {notes?.adaptivePlan && (
+        <span className={NOTE_CHIP_CLASS} title="This is an adaptive plan — the final shape was decided at runtime">
+          Adaptive plan
+        </span>
+      )}
+      {notes?.sqlProfile && (
+        <span className={NOTE_CHIP_CLASS} title={`SQL profile "${notes.sqlProfile}" was applied to this plan`}>
+          Profile "{notes.sqlProfile}"
+        </span>
+      )}
+      {notes?.sqlPlanBaseline && (
+        <span className={NOTE_CHIP_CLASS} title={`SQL plan baseline "${notes.sqlPlanBaseline}" was applied to this plan`}>
+          Baseline "{notes.sqlPlanBaseline}"
+        </span>
+      )}
+      {notes?.outline && (
+        <span className={NOTE_CHIP_CLASS} title={`Outline "${notes.outline}" was used to shape this plan`}>
+          Outline "{notes.outline}"
+        </span>
+      )}
+      {dopDowngrade && (
+        <span
+          className="px-2 py-0.5 border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded text-[11px] font-medium"
+          title={`DOP downgraded: requested ${dopDowngrade.requested} PX servers, allocated ${dopDowngrade.allocated}`}
+        >
+          DOP {dopDowngrade.allocated}/{dopDowngrade.requested}
+        </span>
+      )}
+    </>
   );
 }
 
