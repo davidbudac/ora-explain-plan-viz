@@ -175,7 +175,7 @@ export function Header() {
                   ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30'
                   : 'border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700'
             }`}
-            title={shareStatus === 'copied' ? 'URL copied to clipboard!' : shareStatus === 'warning' ? 'URL copied — some data was trimmed' : shareStatus === 'error' ? shareMessage ?? 'Error' : 'Share plan via URL'}
+            title={shareStatus === 'copied' ? 'URL copied to clipboard!' : shareStatus === 'warning' ? shareMessage ?? 'URL copied with a warning' : shareStatus === 'error' ? shareMessage ?? 'Error' : 'Share plan via URL'}
           >
             {shareStatus === 'copied' || shareStatus === 'warning' ? (
               <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
