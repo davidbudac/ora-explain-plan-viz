@@ -52,6 +52,7 @@ const SANKEY_METRIC_LABELS: Record<SankeyMetric, string> = {
 const VIEW_MODE_LABELS: Record<ViewMode, string> = {
   hierarchical: 'Tree',
   sankey: 'Sankey',
+  flame: 'Flame',
   tabular: 'Table',
   text: 'Plan Text',
   sql: 'SQL',
@@ -243,6 +244,7 @@ function useCommands(): Command[] {
       { key: 'showBytes', label: 'Bytes', keywords: ['bytes', 'size', 'memory'] },
       { key: 'showPredicateIndicators', label: 'Predicate indicators', keywords: ['predicate', 'indicator'] },
       { key: 'showPredicateDetails', label: 'Predicate details', keywords: ['predicate', 'details', 'expressions'] },
+      { key: 'showPartitionInfo', label: 'Partition pruning', keywords: ['partition', 'pruning', 'pstart', 'pstop', 'range'] },
       { key: 'showQueryBlockBadge', label: 'Query block badge', keywords: ['query', 'block', 'badge'] },
       { key: 'showQueryBlockGrouping', label: 'Query block grouping', keywords: ['query', 'block', 'group'] },
     ];
@@ -283,6 +285,7 @@ function useCommands(): Command[] {
       { key: 'showHotspotBadge', label: 'Hotspot badge', keywords: ['hotspot', 'hot', 'badge'], runtime: true },
       { key: 'showSpillBadge', label: 'Spill to disk badge', keywords: ['spill', 'disk', 'temp', 'badge'] },
       { key: 'showCardinalityBadge', label: 'Cardinality mismatch badge', keywords: ['cardinality', 'mismatch', 'badge'], runtime: true },
+      { key: 'showAdvisorBadge', label: 'Advisor findings badge', keywords: ['advisor', 'findings', 'badge'] },
     ];
 
     for (const item of warningItems) {

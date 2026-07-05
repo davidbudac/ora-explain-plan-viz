@@ -72,6 +72,7 @@ const DEFAULT_NODE_DISPLAY_OPTIONS: NodeDisplayOptions = {
   showObjectName: true,
   showPredicateIndicators: true,
   showPredicateDetails: false,
+  showPartitionInfo: true,
   showQueryBlockBadge: true,
   showQueryBlockGrouping: true,
   showActualRows: true,
@@ -80,6 +81,7 @@ const DEFAULT_NODE_DISPLAY_OPTIONS: NodeDisplayOptions = {
   showHotspotBadge: true,
   showSpillBadge: true,
   showCardinalityBadge: true,
+  showAdvisorBadge: true,
   showStaleStatsBadge: true,
   showMissingStatsBadge: true,
   showMismatchNoHistogramBadge: true,
@@ -96,7 +98,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
     parsedPlan, filters, setFilters, filteredNodes, selectNode,
     filterPanelCollapsed: isCollapsed, setFilterPanelCollapsed: setIsCollapsed,
     nodeIndicatorMetric, setNodeIndicatorMetric,
-    viewMode, sankeyMetric, setSankeyMetric, treeCompareEnabled
+    viewMode, sankeyMetric, setSankeyMetric, flameMetric, setFlameMetric, treeCompareEnabled
   } = usePlan();
   // null = no match navigated to yet (first "Next" selects the first match)
   const [activeMatchIndex, setActiveMatchIndex] = useState<number | null>(null);
@@ -360,6 +362,21 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
                   <>
                     <IndicatorButton metric="actualRows" label="Rows × Starts" current={sankeyMetric} onClick={setSankeyMetric} />
                     <IndicatorButton metric="actualTime" label="A-Time" current={sankeyMetric} onClick={setSankeyMetric} />
+                  </>
+                )}
+            </div>
+          </div>
+        )}
+
+        {viewMode === 'flame' && parsedPlan && (
+           <div className="mb-4">
+            <span className="block text-[11px] text-slate-500 dark:text-slate-400 mb-2 font-medium">Flame Metric</span>
+            <div className="grid grid-cols-2 gap-1 bg-slate-100 dark:bg-slate-800 rounded-md p-1 border border-slate-200 dark:border-slate-700">
+                <IndicatorButton metric="cost" label="Cost" current={flameMetric} onClick={setFlameMetric} />
+                {parsedPlan.hasActualStats && (
+                  <>
+                    <IndicatorButton metric="actualTime" label="A-Time" current={flameMetric} onClick={setFlameMetric} />
+                    <IndicatorButton metric="actualRows" label="A-Rows" current={flameMetric} onClick={setFlameMetric} />
                   </>
                 )}
             </div>
