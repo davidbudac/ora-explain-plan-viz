@@ -42,6 +42,12 @@ sqlplus -S -L "${PDB_CONNECT}" @queries/q3_window_spill.sql
 echo "==> [4/7] Running Q4: BOM explosion (recursive WITH)"
 sqlplus -S -L "${PDB_CONNECT}" @queries/q4_bom_explosion.sql
 
+echo "==> [4/7] Running Q5: partition pruning (parallel, interval-partitioned)"
+sqlplus -S -L "${PDB_CONNECT}" @queries/q5_partition_prune.sql
+
+echo "==> [4/7] Running Q6: partition range iterator (serial, interval-partitioned)"
+sqlplus -S -L "${PDB_CONNECT}" @queries/q6_partition_iterator.sql
+
 echo "==> [5/7] Waiting for SQL Monitor entries to finalize"
 sleep 2
 

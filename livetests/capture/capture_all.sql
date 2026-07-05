@@ -95,4 +95,40 @@ SPOOL reports/q4_bom_explosion.sqlmon.xml
 SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id => '&sqlid_q4', type => 'XML', report_level => 'ALL') FROM dual;
 SPOOL OFF
 
+-----------------------------------------------------------------------------
+-- Q5: partition_prune
+-----------------------------------------------------------------------------
+COLUMN sid_q5 NEW_VALUE sqlid_q5
+SELECT sql_id sid_q5 FROM (
+   SELECT sql_id FROM v$sql_monitor
+   WHERE sql_text LIKE '%LIVETEST_Q5%' AND sql_text NOT LIKE '%v$sql_monitor%'
+   ORDER BY last_refresh_time DESC
+) WHERE ROWNUM = 1;
+
+SPOOL reports/q5_partition_prune.sqlmon.txt
+SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id => '&sqlid_q5', type => 'TEXT', report_level => 'ALL') FROM dual;
+SPOOL OFF
+
+SPOOL reports/q5_partition_prune.sqlmon.xml
+SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id => '&sqlid_q5', type => 'XML', report_level => 'ALL') FROM dual;
+SPOOL OFF
+
+-----------------------------------------------------------------------------
+-- Q6: partition_iterator
+-----------------------------------------------------------------------------
+COLUMN sid_q6 NEW_VALUE sqlid_q6
+SELECT sql_id sid_q6 FROM (
+   SELECT sql_id FROM v$sql_monitor
+   WHERE sql_text LIKE '%LIVETEST_Q6%' AND sql_text NOT LIKE '%v$sql_monitor%'
+   ORDER BY last_refresh_time DESC
+) WHERE ROWNUM = 1;
+
+SPOOL reports/q6_partition_iterator.sqlmon.txt
+SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id => '&sqlid_q6', type => 'TEXT', report_level => 'ALL') FROM dual;
+SPOOL OFF
+
+SPOOL reports/q6_partition_iterator.sqlmon.xml
+SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id => '&sqlid_q6', type => 'XML', report_level => 'ALL') FROM dual;
+SPOOL OFF
+
 EXIT

@@ -18,7 +18,7 @@ SET TIMING ON FEEDBACK ON
 -----------------------------------------------------------------------------
 BEGIN
    FOR t IN (SELECT table_name FROM user_tables
-             WHERE table_name IN ('SALES','DIM_PRODUCTS','DIM_STORES','DIM_CUSTOMERS',
+             WHERE table_name IN ('SALES','SALES_PART','DIM_PRODUCTS','DIM_STORES','DIM_CUSTOMERS',
                                    'ORDER_ITEMS','ORDERS','BOM','PARTS'))
    LOOP
       EXECUTE IMMEDIATE 'DROP TABLE ' || t.table_name || ' CASCADE CONSTRAINTS PURGE';
@@ -102,6 +102,16 @@ FROM (
    FROM (SELECT LEVEL n FROM dual CONNECT BY LEVEL <= 2000) a,
         (SELECT LEVEL n FROM dual CONNECT BY LEVEL <= 1000) b
 );
+
+-- sales_part: same 2,000,000 rows as SALES, but RANGE-partitioned by month on
+-- sale_date via INTERVAL partitioning. sale_date spans 2024-01-01 .. 2025-12-31,
+-- so Oracle materializes 24 monthly partitions. Used by q5 to demonstrate
+-- partition pruning (PX PARTITION RANGE ITERATOR with Pstart/Pstop).
+CREATE TABLE sales_part
+   PARTITION BY RANGE (sale_date)
+   INTERVAL (NUMTOYMINTERVAL(1, 'MONTH'))
+   (PARTITION p_2024_01 VALUES LESS THAN (DATE '2024-02-01'))
+AS SELECT * FROM sales;
 
 -----------------------------------------------------------------------------
 -- 2. CARDINALITY-TRAP SCHEMA
@@ -240,6 +250,7 @@ BEGIN
    DBMS_STATS.GATHER_TABLE_STATS(ownname => 'PLANVIZ', tabname => 'DIM_STORES');
    DBMS_STATS.GATHER_TABLE_STATS(ownname => 'PLANVIZ', tabname => 'DIM_CUSTOMERS');
    DBMS_STATS.GATHER_TABLE_STATS(ownname => 'PLANVIZ', tabname => 'SALES');
+   DBMS_STATS.GATHER_TABLE_STATS(ownname => 'PLANVIZ', tabname => 'SALES_PART');
 
    -- CRITICAL: no histograms, no extended stats on ORDERS so the optimizer
    -- multiplies the three correlated predicates' selectivities independently

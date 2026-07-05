@@ -2,19 +2,19 @@
 
 This directory contains a reproducible, self-contained set of SQL*Plus scripts that
 generate **real** Oracle SQL Monitor reports against a live Oracle 19c database. The
-captured reports (TEXT + XML) are meant to be copied into `src/examples/` as examples
-21-24, giving the Oracle Execution Plan Visualizer real-world plans that exercise
-star-schema joins/rollups, cardinality misestimation, workarea spills to disk, and
-recursive CONNECT-BY-style (`WITH ... UNION ALL`) BOM explosion.
+captured reports (TEXT + XML) are meant to be copied into `src/examples/`, giving the
+Oracle Execution Plan Visualizer real-world plans that exercise star-schema
+joins/rollups, cardinality misestimation, workarea spills to disk, recursive
+CONNECT-BY-style (`WITH ... UNION ALL`) BOM explosion, and parallel partition pruning.
 
 ## Purpose
 
 Hand-written or lightly-edited example plans are useful, but nothing beats a plan
 captured straight from `DBMS_SQL_MONITOR.REPORT_SQL_MONITOR`. This suite:
 
-1. Creates a dedicated `PLANVIZ` schema with four purpose-built datasets.
-2. Runs four SQL statements, each tagged with `/*+ MONITOR */` so SQL Monitor
-   always captures them, and each carrying a unique text tag (`LIVETEST_Q1` .. `LIVETEST_Q4`)
+1. Creates a dedicated `PLANVIZ` schema with several purpose-built datasets.
+2. Runs six SQL statements, each tagged with `/*+ MONITOR */` so SQL Monitor
+   always captures them, and each carrying a unique text tag (`LIVETEST_Q1` .. `LIVETEST_Q6`)
    so the capture step can find the right `sql_id` reliably.
 3. Captures both the `TEXT` and `XML` SQL Monitor reports for each statement into
    `livetests/reports/`.
@@ -27,10 +27,12 @@ The XML reports captured on 2026-07-04 against the `dbmint` test database
 (Oracle 19.27, PDB1) are committed both here in `reports/` and as these examples:
 
 ```
-src/examples/21-sql_monitor-Live Star Schema Rollup.txt
-src/examples/22-sql_monitor-Live Cardinality Trap (NL).txt
-src/examples/23-sql_monitor-Live Window Sort Spill.txt
-src/examples/24-sql_monitor-Live Recursive BOM.txt
+src/examples/21-sql_monitor-Star Schema Rollup.txt
+src/examples/22-sql_monitor-Cardinality Trap (NL).txt
+src/examples/23-sql_monitor-Window Sort Spill.txt
+src/examples/24-sql_monitor-Recursive BOM.txt
+src/examples/27-sql_monitor-Partitioned Star Query.txt
+src/examples/28-sql_monitor-Partition Range Iterator.txt
 ```
 
 ## Prerequisites
@@ -92,6 +94,8 @@ sqlplus -S -L planviz/planviz@//localhost:1521/pdb1 @queries/q1_star_rollup.sql
 sqlplus -S -L planviz/planviz@//localhost:1521/pdb1 @queries/q2_cardinality_trap.sql
 sqlplus -S -L planviz/planviz@//localhost:1521/pdb1 @queries/q3_window_spill.sql
 sqlplus -S -L planviz/planviz@//localhost:1521/pdb1 @queries/q4_bom_explosion.sql
+sqlplus -S -L planviz/planviz@//localhost:1521/pdb1 @queries/q5_partition_prune.sql
+sqlplus -S -L planviz/planviz@//localhost:1521/pdb1 @queries/q6_partition_iterator.sql
 
 sqlplus -S -L / as sysdba @capture/capture_all.sql
 ```
@@ -106,6 +110,8 @@ Reports land in `livetests/reports/`.
 | Q2 | `queries/q2_cardinality_trap.sql` | A cardinality estimation trap: `orders` has three columns (`ship_country`, `ship_currency`, `ship_language`) that are perfectly correlated (all derived from the same `mod(rownum,25)`), but stats are gathered without histograms or extended stats. The optimizer multiplies the three independent selectivities and drastically underestimates the row count (~32 estimated vs. ~20,000 actual orders / ~80,000 items), which typically results in a nested-loops plan that performs badly at runtime — a great example of the app's cardinality-mismatch detection. |
 | Q3 | `queries/q3_window_spill.sql` | Forces a `WINDOW SORT` (via `ROW_NUMBER()` and a windowed `SUM() OVER`) over the 2,000,000-row `sales` fact table with `workarea_size_policy = MANUAL` and a tiny 2 MB sort/hash area, guaranteeing a spill to temp — exercises the app's spill-to-disk / temp-space badges. |
 | Q4 | `queries/q4_bom_explosion.sql` | A recursive `WITH ... UNION ALL` bill-of-materials explosion over a 4+ level `parts`/`bom` graph (10 finished goods exploding down through assemblies to ~51,000 components), showing recursive `WITH` / `CONNECT BY`-style plan shapes with multiple join back-references. |
+| Q5 | `queries/q5_partition_prune.sql` | A parallel (`DOP=4`) star-schema query over `sales_part`, an INTERVAL-partitioned copy of the 2,000,000-row fact table (one range partition per month, 24 total). A `sale_date` predicate over a six-month window prunes 18 of the 24 partitions, so the plan shows `PX` parallel operators plus partition pruning (`Pstart=15` / `Pstop=20`) on the partitioned scan — exercises the app's partition and parallel-operator rendering. |
+| Q6 | `queries/q6_partition_iterator.sql` | The **serial** (`NO_PARALLEL`) counterpart to Q5, over the same `sales_part` table and six-month window. Without parallelism the optimizer drives the pruned scan with an explicit `PARTITION RANGE ITERATOR` operator (`Pstart=15` / `Pstop=20`, `Starts=6` — one per surviving partition) instead of a `PX BLOCK ITERATOR` — the clearest demonstration of a partition-iterator plan shape. |
 
 ## Files
 
@@ -120,7 +126,9 @@ livetests/
 │   ├── q1_star_rollup.sql
 │   ├── q2_cardinality_trap.sql
 │   ├── q3_window_spill.sql
-│   └── q4_bom_explosion.sql
+│   ├── q4_bom_explosion.sql
+│   ├── q5_partition_prune.sql
+│   └── q6_partition_iterator.sql
 ├── capture/
 │   └── capture_all.sql             # finds sql_id per tag, spools TEXT + XML reports
 └── reports/                        # output directory (SQL Monitor reports land here)
