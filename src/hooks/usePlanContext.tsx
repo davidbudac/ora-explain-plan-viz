@@ -5,7 +5,7 @@ import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, FlameMe
 import type { PlanSlot, CompareMetric } from '../lib/compare';
 import { createEmptySlot, DEFAULT_COMPARE_METRICS, getPlanSlotLabel } from '../lib/compare';
 import { parseExplainPlan, splitDbmsXplanPlanBatches } from '../lib/parser';
-import { loadSettings, saveSettings, extractFilterSettings, applySettingsToFilters } from '../lib/settings';
+import { loadSettings, saveSettings, extractFilterSettings, applySettingsToFilters, defaultNodeDisplayOptions } from '../lib/settings';
 import { matchesFilters } from '../lib/filtering';
 import { computeHottestNodeId } from '../lib/analysis';
 import { DENSITY_PRESETS, matchDensityPreset } from '../lib/density';
@@ -108,33 +108,8 @@ const initialFilters: FilterState = {
   predicateTypes: [],
   animateEdges: false,
   scaleEdgeWidth: true,
-  focusSelection: false,
-  nodeDisplayOptions: {
-    showRows: true,
-    showCost: true,
-    showBytes: true,
-    showObjectName: true,
-    showPredicateIndicators: true,
-    showPredicateDetails: false,
-    showPartitionInfo: true,
-    showQueryBlockBadge: true,
-    showQueryBlockGrouping: true,
-    // SQL Monitor actual statistics (shown by default when available)
-    showActualRows: true,
-    showActualTime: true,
-    showStarts: true,
-    // Warning badges
-    showHotspotBadge: true,
-    showSpillBadge: true,
-    showCardinalityBadge: true,
-    showAdvisorBadge: true,
-    // Metadata indicators (from bundle)
-    showStaleStatsBadge: true,
-    showMissingStatsBadge: true,
-    showMismatchNoHistogramBadge: true,
-    // Annotations overlay
-    showAnnotations: true,
-  },
+  focusSelection: true,
+  nodeDisplayOptions: defaultNodeDisplayOptions,
   // SQL Monitor actual statistics filters
   minActualRows: 0,
   maxActualRows: Infinity,
