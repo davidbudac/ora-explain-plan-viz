@@ -19,8 +19,19 @@ realistic plan fits.
 **Key constraint:** existing share URLs use **lz-string**, a JS-specific algorithm
 impractical to reimplement in PL/SQL. So the DB script emits a second, Oracle-friendly
 encoding — **gzip (`UTL_COMPRESS.LZ_COMPRESS`, RFC-1952) + base64url** — and the app gains
-read support via native `DecompressionStream('gzip')` (no new dependencies). The lz-string
-share button stays untouched.
+read support via native `DecompressionStream('gzip')` (no new dependencies).
+
+**Superseded note (2026-07-05):** the app-side `#gz=` read path described below, *and* a
+matching write path for the in-app share button, were implemented by
+`docs/plans/share-url-large-plans.md` (`src/lib/url.ts`: `encodeGzipPlanParam` /
+`decodeGzipPlanParam` / `getGzipPlanParamFromHash`, wired into `sharePlan()` and the
+mount effect in `src/hooks/usePlanContext.tsx`). The share button now writes `#gz=`
+(gzip + hash fragment) by default, with the lz-string `?plan=` format kept only as a
+fallback for browsers without `CompressionStream` and for decoding old links — the
+"share button keeps lz-string" statement below is out of date. The DB-side script
+section is unchanged: `scripts/plan_to_url.sql` produces raw plan text (not the JSON
+`SharePayload`), and the unified `classifyDecodedPlanText()` classifier in `url.ts`
+routes that raw text through the legacy plain-text path automatically.
 
 **Decisions confirmed with the user:**
 - Sources v1: **DISPLAY_CURSOR** (default, no pack license) + **SQL Monitor TEXT**

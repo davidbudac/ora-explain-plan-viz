@@ -10,8 +10,8 @@ import { matchesFilters } from '../lib/filtering';
 import { computeHottestNodeId } from '../lib/analysis';
 import { DENSITY_PRESETS, matchDensityPreset } from '../lib/density';
 import type { DensityPreset, DensitySelection } from '../lib/density';
-import { getPlanFromUrl, clearPlanFromUrl, buildShareUrl, stripUnusedXmlSections } from '../lib/url';
-import type { SharePayload } from '../lib/url';
+import { getPlanFromUrl, getGzipPlanParamFromHash, clearPlanFromUrl, buildShareUrl, decodeGzipPlanParam, classifyDecodedPlanText, stripUnusedXmlSections } from '../lib/url';
+import type { SharePayload, UrlPlanData } from '../lib/url';
 import type { AnnotationState, AnnotationGroup, HighlightColor, HighlightStyle, AnnotatedPlanExport } from '../lib/annotations';
 import { createEmptyAnnotationState, hasAnnotations, serializeAnnotations, deserializeAnnotations, validateExport, downloadAnnotatedPlan, generateGroupId } from '../lib/annotations';
 import type { MetadataBundle } from '../lib/metadata/bundle';
@@ -1000,49 +1000,68 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   // Load plan from URL param or default example on first mount
   const hasLoadedDefaultRef = useRef(false);
+
+  const applyUrlPlanData = useCallback((urlData: UrlPlanData) => {
+    if (urlData.type === 'legacy') {
+      importPlanInput(urlData.planText);
+    } else {
+      const { plans, annotations: legacyAnnotations } = urlData.payload;
+      const restoredPlans = buildPlanSlotsFromInputs(plans.map((plan) => plan.rawInput));
+
+      // Restore per-plan annotations from URL
+      for (let i = 0; i < restoredPlans.length && i < plans.length; i++) {
+        const planAnnotations = plans[i].annotations;
+        if (planAnnotations) {
+          try {
+            restoredPlans[i] = { ...restoredPlans[i], annotations: deserializeAnnotations(planAnnotations) };
+          } catch {
+            // Per-plan annotations failed to deserialize
+          }
+        }
+      }
+
+      dispatch({ type: 'REPLACE_PLANS', payload: { plans: restoredPlans, activePlanIndex: 0 } });
+      dispatch({
+        type: 'SET_INPUT_PANEL_COLLAPSED',
+        payload: restoredPlans.some((slot) => slot.parsedPlan),
+      });
+
+      // Legacy: restore global annotations to active plan (older share URLs)
+      if (legacyAnnotations && !plans.some(p => p.annotations)) {
+        try {
+          const annotationState = deserializeAnnotations(legacyAnnotations);
+          dispatch({ type: 'LOAD_ANNOTATIONS', payload: annotationState });
+        } catch {
+          // Annotations from URL failed to deserialize
+        }
+      }
+    }
+  }, [buildPlanSlotsFromInputs, importPlanInput]);
+
   useEffect(() => {
     if (hasLoadedDefaultRef.current) return;
     hasLoadedDefaultRef.current = true;
 
-    // Check URL for shared plan first
+    // Check URL for shared plan first (legacy ?plan= wins for back-compat)
     const urlData = getPlanFromUrl();
     if (urlData) {
       clearPlanFromUrl();
+      applyUrlPlanData(urlData);
+      return;
+    }
 
-      if (urlData.type === 'legacy') {
-        importPlanInput(urlData.planText);
-      } else {
-        const { plans, annotations: legacyAnnotations } = urlData.payload;
-        const restoredPlans = buildPlanSlotsFromInputs(plans.map((plan) => plan.rawInput));
-
-        // Restore per-plan annotations from URL
-        for (let i = 0; i < restoredPlans.length && i < plans.length; i++) {
-          const planAnnotations = plans[i].annotations;
-          if (planAnnotations) {
-            try {
-              restoredPlans[i] = { ...restoredPlans[i], annotations: deserializeAnnotations(planAnnotations) };
-            } catch {
-              // Per-plan annotations failed to deserialize
-            }
-          }
-        }
-
-        dispatch({ type: 'REPLACE_PLANS', payload: { plans: restoredPlans, activePlanIndex: 0 } });
-        dispatch({
-          type: 'SET_INPUT_PANEL_COLLAPSED',
-          payload: restoredPlans.some((slot) => slot.parsedPlan),
-        });
-
-        // Legacy: restore global annotations to active plan (older share URLs)
-        if (legacyAnnotations && !plans.some(p => p.annotations)) {
-          try {
-            const annotationState = deserializeAnnotations(legacyAnnotations);
-            dispatch({ type: 'LOAD_ANNOTATIONS', payload: annotationState });
-          } catch {
-            // Annotations from URL failed to deserialize
-          }
-        }
-      }
+    // New gzip hash-fragment format. Effect stays synchronous; decode is a
+    // guarded fire-and-forget promise. StrictMode double-mount is already
+    // handled by hasLoadedDefaultRef being set before any async work.
+    const gzParam = getGzipPlanParamFromHash();
+    if (gzParam) {
+      clearPlanFromUrl();
+      void decodeGzipPlanParam(gzParam)
+        .then((text) => applyUrlPlanData(classifyDecodedPlanText(text)))
+        .catch(() => dispatch({
+          type: 'SET_ERROR',
+          payload: 'The shared plan link is corrupt or truncated. Ask for a fresh link or paste the plan text directly.',
+        }));
       return;
     }
 
@@ -1068,7 +1087,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_VIEW_MODE', payload: mode });
       }
     }
-  }, [buildPlanSlotsFromInputs, importPlanInput]);
+  }, [applyUrlPlanData, importPlanInput]);
 
   // Persist settings when they change (debounced)
   useEffect(() => {
@@ -1351,19 +1370,24 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
     // Try full input first
     const fullInputs = slotsWithInput.map(slot => slot.rawInput);
-    let result = buildShareUrl(buildPayload(fullInputs));
+    let result = await buildShareUrl(buildPayload(fullInputs));
 
     // If too large, retry with stripped XML
     let warning: string | undefined;
     if (!result.ok) {
       const strippedInputs = fullInputs.map(stripUnusedXmlSections);
-      const strippedResult = buildShareUrl(buildPayload(strippedInputs));
+      const strippedResult = await buildShareUrl(buildPayload(strippedInputs));
       if (strippedResult.ok) {
         result = strippedResult;
         warning = 'Some non-essential data was stripped to fit the URL size limit.';
       } else {
         return strippedResult;
       }
+    }
+
+    // A stripped share can still be long enough to warn — surface both messages.
+    if (result.ok && result.warning) {
+      warning = warning ? `${warning} ${result.warning}` : result.warning;
     }
 
     if (result.ok) {
