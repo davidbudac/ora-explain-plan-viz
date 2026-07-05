@@ -83,16 +83,16 @@
 
   <div class="relative max-w-5xl mx-auto px-6 pt-20 pb-20 text-center">
     <span class="inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/70 px-3.5 py-1.5 text-xs font-mono text-slate-400">
-      🔒 Fully client-side — your plans never leave the browser
+      🔒 Fully client-side, your plans never leave the browser
     </span>
 
     <h1 class="mt-7 text-4xl sm:text-5xl font-semibold tracking-tight text-slate-50 text-balance">
-      See your Oracle execution plans,<br class="hidden sm:block" /> don't read them
+      The Oracle execution plan visualization<br class="hidden sm:block" /> that I always wanted to have
     </h1>
 
     <p class="mt-5 max-w-2xl mx-auto text-lg text-slate-400 text-balance">
       Paste DBMS_XPLAN or SQL Monitor output and get an interactive diagram with
-      hotspots, cardinality analysis, and plan comparison — no more scrolling
+      hotspots, cardinality analysis, and plan comparison. No more scrolling
       through a wall of ASCII pipes.
     </p>
 
@@ -135,17 +135,17 @@
       <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-6">
         <span class="font-mono text-3xl text-amber-500">1</span>
         <h3 class="mt-3 font-medium text-slate-100">Paste your plan</h3>
-        <p class="mt-2 text-sm text-slate-400">Any supported format — DBMS_XPLAN, SQL Monitor text, or SQL Monitor XML. Format is auto-detected.</p>
+        <p class="mt-2 text-sm text-slate-400">Any supported format: DBMS_XPLAN, SQL Monitor text, or SQL Monitor XML. Format is auto-detected.</p>
       </div>
       <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-6">
         <span class="font-mono text-3xl text-amber-500">2</span>
         <h3 class="mt-3 font-medium text-slate-100">Pick a view</h3>
-        <p class="mt-2 text-sm text-slate-400">Tree, Sankey, raw plan text, or compare — switch anytime without re-parsing.</p>
+        <p class="mt-2 text-sm text-slate-400">Tree, Sankey, raw plan text, or compare. Switch anytime without re-parsing.</p>
       </div>
       <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-6">
         <span class="font-mono text-3xl text-amber-500">3</span>
         <h3 class="mt-3 font-medium text-slate-100">Find the problem</h3>
-        <p class="mt-2 text-sm text-slate-400">Hotspots and cardinality mismatches are flagged automatically — no manual hunting.</p>
+        <p class="mt-2 text-sm text-slate-400">Hotspots and cardinality mismatches are flagged automatically. No manual hunting.</p>
       </div>
     </div>
   </div>
@@ -166,8 +166,8 @@
           <p class="mt-3 text-slate-400 leading-relaxed">
             The plan renders as a real tree, laid out with a custom algorithm (Dagre as fallback),
             not a scrollable text block. Click any node to see its full attributes, predicates,
-            and cardinality analysis. Cmd/Ctrl-click for multi-select with aggregated stats, and
-            navigate with arrow keys — parent, child, and sibling.
+            and cardinality analysis. Cmd/Ctrl-click for multi-select with aggregated stats.
+            Arrow keys move between parent, child, and sibling nodes.
           </p>
           <a data-app-link data-app-query="?example=22" href="https://github.com/davidbudac/ora-explain-plan-viz"
              class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-amber-500 hover:text-amber-400">
@@ -189,7 +189,7 @@
             When SQL Monitor data is available, every node shows A-Rows, E-Rows, A-Time, and Starts.
             The node with the highest A-Time gets a red ring and a "Hotspot" badge automatically.
             When nothing is selected, a summary panel lists the top 5 nodes by A-Time, cost, and
-            worst cardinality mismatch — click any entry to jump straight to it.
+            worst cardinality mismatch. Click any entry to jump straight to it.
           </p>
           <a data-app-link data-app-query="?example=22" href="https://github.com/davidbudac/ora-explain-plan-viz"
              class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-amber-500 hover:text-amber-400">
@@ -209,9 +209,9 @@
           <h3 class="text-xl font-semibold text-slate-50">Cardinality mismatch analysis</h3>
           <p class="mt-3 text-slate-400 leading-relaxed">
             Compares the optimizer's E-Rows estimate against the actual A-Rows for every node and
-            flags the divergence with severity badges — warn at 3x, bad at 10x. A dedicated filter
-            slider lets you hide everything except nodes that exceed a mismatch threshold you set,
-            so stale statistics and bad selectivity guesses surface immediately.
+            flags the divergence with severity badges (warn at 3x, bad at 10x). A dedicated filter
+            slider hides everything except nodes that exceed a mismatch threshold you set, so
+            stale statistics and bad selectivity guesses surface right away.
           </p>
           <a data-app-link data-app-query="?example=22" href="https://github.com/davidbudac/ora-explain-plan-viz"
              class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-amber-500 hover:text-amber-400">
@@ -231,8 +231,8 @@
           <h3 class="text-xl font-semibold text-slate-50">Sankey data-flow view</h3>
           <p class="mt-3 text-slate-400 leading-relaxed">
             The same plan rendered as a D3 Sankey diagram, where band width encodes volume flowing
-            between operations. Toggle the metric — rows, cost, A-Rows, or A-Time — to see which
-            step in the plan is actually moving the most data or burning the most time.
+            between operations. Toggle the metric (rows, cost, A-Rows, or A-Time) to see which
+            step is moving the most data or burning the most time.
           </p>
           <a data-app-link data-app-query="?example=05&amp;view=sankey" href="https://github.com/davidbudac/ora-explain-plan-viz"
              class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-amber-500 hover:text-amber-400">
@@ -251,11 +251,11 @@
         <div>
           <h3 class="text-xl font-semibold text-slate-50">Plan comparison</h3>
           <p class="mt-3 text-slate-400 leading-relaxed">
-            Load two plans side by side — before and after an index change, a hint, or a statistics
+            Load two plans side by side: before and after an index change, a hint, or a statistics
             refresh. A 3-pass node matcher (exact ID, then heuristic operation/object signature)
             lines up equivalent steps across both plans and computes deltas across 8 metrics: cost,
-            rows, bytes, A-Rows, A-Time, starts, temp space, and memory, with improvement/regression
-            indicators on each.
+            rows, bytes, A-Rows, A-Time, starts, temp space, and memory, with improvement or
+            regression flagged on each.
           </p>
           <a data-app-link data-app-query="" href="https://github.com/davidbudac/ora-explain-plan-viz"
              class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-amber-500 hover:text-amber-400">
@@ -275,9 +275,9 @@
           <h3 class="text-xl font-semibold text-slate-50">Annotations & sharing</h3>
           <p class="mt-3 text-slate-400 leading-relaxed">
             Attach timestamped notes to any node, mark it with one of 7 highlight colors, or group
-            several nodes under a named label. Export the annotated plan as a JSON file and load it
-            back later, or hand it to a teammate — validation checks it matches the plan before
-            re-importing.
+            several nodes under a named label. Export the annotated plan as a JSON file, load it
+            back later, or hand it to a teammate. Re-importing validates it against the original
+            plan.
           </p>
           <a data-app-link data-app-query="?example=02" href="https://github.com/davidbudac/ora-explain-plan-viz"
              class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-amber-500 hover:text-amber-400">
@@ -301,8 +301,8 @@
     <p class="font-mono text-xs uppercase tracking-widest text-amber-500 text-center">Input formats</p>
     <h2 class="mt-2 text-2xl sm:text-3xl font-semibold text-slate-50 text-center">Paste what you already have</h2>
     <p class="mt-3 text-slate-400 text-center max-w-2xl mx-auto">
-      No conversion step. Copy the output straight from SQL*Plus or SQL Developer and paste it in —
-      the format is detected automatically.
+      No conversion step. Copy the output straight from SQL*Plus or SQL Developer, paste it in,
+      and the format is detected automatically.
     </p>
 
     <div class="mt-12 grid gap-6 md:grid-cols-3">
