@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useReducer, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, NodeIndicatorMetric, Theme, ColorScheme } from '../lib/types';
+import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, FlameMetric, NodeIndicatorMetric, Theme, ColorScheme } from '../lib/types';
 import type { PlanSlot, CompareMetric } from '../lib/compare';
 import { createEmptySlot, DEFAULT_COMPARE_METRICS, getPlanSlotLabel } from '../lib/compare';
 import { parseExplainPlan, splitDbmsXplanPlanBatches } from '../lib/parser';
@@ -18,6 +18,8 @@ import type { MetadataBundle } from '../lib/metadata/bundle';
 import { parseBundle, emptyBundleWarning } from '../lib/metadata/bundle';
 import { SAMPLE_PLANS_WITH_ORDER } from '../examples';
 import type { SamplePlan } from '../examples';
+import { runAdvisor } from '../lib/advisor';
+import type { AdvisorReport } from '../lib/advisor';
 
 function combineWarnings(...warnings: Array<string | null>): string | null {
   const present = warnings.filter((w): w is string => Boolean(w));
@@ -38,6 +40,7 @@ interface PlanState {
   viewMode: ViewMode;
   treeCompareEnabled: boolean;
   sankeyMetric: SankeyMetric;
+  flameMetric: FlameMetric;
   nodeIndicatorMetric: NodeIndicatorMetric;
   colorScheme: ColorScheme;
   theme: Theme;
@@ -63,6 +66,7 @@ type PlanAction =
   | { type: 'SET_VIEW_MODE'; payload: ViewMode }
   | { type: 'SET_TREE_COMPARE_ENABLED'; payload: boolean }
   | { type: 'SET_SANKEY_METRIC'; payload: SankeyMetric }
+  | { type: 'SET_FLAME_METRIC'; payload: FlameMetric }
   | { type: 'SET_NODE_INDICATOR_METRIC'; payload: NodeIndicatorMetric }
   | { type: 'SET_COLOR_SCHEME'; payload: ColorScheme }
   | { type: 'SET_THEME'; payload: Theme }
@@ -112,6 +116,7 @@ const initialFilters: FilterState = {
     showObjectName: true,
     showPredicateIndicators: true,
     showPredicateDetails: false,
+    showPartitionInfo: true,
     showQueryBlockBadge: true,
     showQueryBlockGrouping: true,
     // SQL Monitor actual statistics (shown by default when available)
@@ -122,6 +127,7 @@ const initialFilters: FilterState = {
     showHotspotBadge: true,
     showSpillBadge: true,
     showCardinalityBadge: true,
+    showAdvisorBadge: true,
     // Metadata indicators (from bundle)
     showStaleStatsBadge: true,
     showMissingStatsBadge: true,
@@ -182,6 +188,10 @@ function parseViewModeFromUrlParam(rawValue: string): ViewMode | null {
       return 'hierarchical';
     case 'sankey':
       return 'sankey';
+    case 'flame':
+    case 'icicle':
+    case 'flamegraph':
+      return 'flame';
     case 'text':
     case 'plantext':
     case 'plan-text':
@@ -296,6 +306,7 @@ const getInitialState = (): PlanState => {
     viewMode: settings.viewMode,
     treeCompareEnabled: false,
     sankeyMetric: settings.sankeyMetric,
+    flameMetric: settings.flameMetric ?? 'actualTime',
     nodeIndicatorMetric: settings.nodeIndicatorMetric,
     colorScheme: settings.colorScheme ?? 'semantic',
     theme: getInitialTheme(),
@@ -419,6 +430,9 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
 
     case 'SET_SANKEY_METRIC':
       return { ...state, sankeyMetric: action.payload };
+
+    case 'SET_FLAME_METRIC':
+      return { ...state, flameMetric: action.payload };
 
     case 'SET_NODE_INDICATOR_METRIC':
       return { ...state, nodeIndicatorMetric: action.payload };
@@ -680,6 +694,7 @@ interface PlanContextValue {
   // Global state
   viewMode: ViewMode;
   sankeyMetric: SankeyMetric;
+  flameMetric: FlameMetric;
   nodeIndicatorMetric: NodeIndicatorMetric;
   colorScheme: ColorScheme;
   theme: Theme;
@@ -712,6 +727,7 @@ interface PlanContextValue {
   setViewMode: (mode: ViewMode) => void;
   setTreeCompareEnabled: (enabled: boolean) => void;
   setSankeyMetric: (metric: SankeyMetric) => void;
+  setFlameMetric: (metric: FlameMetric) => void;
   setNodeIndicatorMetric: (metric: NodeIndicatorMetric) => void;
   setColorScheme: (scheme: ColorScheme) => void;
   setTheme: (theme: Theme) => void;
@@ -725,6 +741,7 @@ interface PlanContextValue {
   filteredNodeIds: Set<number>;
   nodeById: Map<number, PlanNode>;
   hottestNodeId: number | null;
+  advisorReport: AdvisorReport | null;
   highlightStyle: HighlightStyle;
   setHighlightStyle: (style: HighlightStyle) => void;
   hotspotsEnabled: boolean;
@@ -990,6 +1007,11 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     [parsedPlan, state.hotspotsEnabled]
   );
 
+  const advisorReport = useMemo(
+    (): AdvisorReport | null => (parsedPlan ? runAdvisor(parsedPlan, metadataBundle ?? null) : null),
+    [parsedPlan, metadataBundle]
+  );
+
   // Apply theme to document
   useEffect(() => {
     const root = document.documentElement;
@@ -1082,6 +1104,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       saveSettings({
         viewMode: state.viewMode === 'compare' ? 'hierarchical' : state.viewMode,
         sankeyMetric: state.sankeyMetric,
+        flameMetric: state.flameMetric,
         nodeIndicatorMetric: state.nodeIndicatorMetric,
         colorScheme: state.colorScheme,
         highlightStyle: state.highlightStyle,
@@ -1102,6 +1125,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   }, [
     state.viewMode,
     state.sankeyMetric,
+    state.flameMetric,
     state.nodeIndicatorMetric,
     state.colorScheme,
     state.highlightStyle,
@@ -1143,6 +1167,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   const setSankeyMetric = useCallback((metric: SankeyMetric) => {
     dispatch({ type: 'SET_SANKEY_METRIC', payload: metric });
+  }, []);
+
+  const setFlameMetric = useCallback((metric: FlameMetric) => {
+    dispatch({ type: 'SET_FLAME_METRIC', payload: metric });
   }, []);
 
   const setNodeIndicatorMetric = useCallback((metric: NodeIndicatorMetric) => {
@@ -1392,6 +1420,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     // Global state
     viewMode: state.viewMode,
     sankeyMetric: state.sankeyMetric,
+    flameMetric: state.flameMetric,
     nodeIndicatorMetric: state.nodeIndicatorMetric,
     colorScheme: state.colorScheme,
     theme: state.theme,
@@ -1423,6 +1452,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setViewMode,
     setTreeCompareEnabled,
     setSankeyMetric,
+    setFlameMetric,
     setNodeIndicatorMetric,
     setColorScheme,
     setTheme,
@@ -1436,6 +1466,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     filteredNodeIds,
     nodeById,
     hottestNodeId,
+    advisorReport,
     highlightStyle: state.highlightStyle,
     setHighlightStyle,
     hotspotsEnabled: state.hotspotsEnabled,

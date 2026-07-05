@@ -19,7 +19,7 @@ import '@xyflow/react/dist/style.css';
 
 import { usePlan } from '../../hooks/usePlanContext';
 import { PlanNodeMemo } from '../nodes/PlanNode';
-import { formatNumberShort, computeCardinalityRatio, cardinalityRatioSeverity } from '../../lib/format';
+import { formatNumberShort, computeCardinalityRatio, cardinalityRatioSeverity, formatPartitionRange } from '../../lib/format';
 import type { PlanNode, NodeDisplayOptions } from '../../lib/types';
 import { EDGE_SCHEME_COLORS } from '../../lib/types';
 import { createEmptyAnnotationState, getHighlightColorDef } from '../../lib/annotations';
@@ -29,6 +29,9 @@ import { findObjectInBundle } from '../../lib/metadata/lookup';
 import { evaluateBadges } from '../../lib/metadata/badges';
 import type { MetadataBadge } from '../../lib/metadata/badges';
 import { extractPredicateColumns } from '../../lib/metadata/predicateColumns';
+import { assessPartitionPruning, computeParallelSignals } from '../../lib/planSignals';
+import type { ParallelSignal } from '../../lib/planSignals';
+import { runAdvisor } from '../../lib/advisor';
 
 // Query block group component
 interface QueryBlockGroupData extends Record<string, unknown> {
@@ -98,16 +101,17 @@ function calculateNodeHeight(
   usesGrid?: boolean,
   isRail?: boolean,
   isTicker?: boolean,
+  hasAdvisorBadge?: boolean,
 ): number {
   let height = NODE_BASE_HEIGHT;
 
-  // Warning badges row (hotspot, spill, cardinality mismatch)
+  // Warning badges row (hotspot, spill, cardinality mismatch, advisor)
   const hasSpill = (node.tempUsed !== undefined && node.tempUsed > 0);
   const cardRatio = hasActualStats ? computeCardinalityRatio(node.rows, node.actualRows) : undefined;
   const hasCardBadge = cardinalityRatioSeverity(cardRatio) !== 'good' && !usesGrid;
   // We always add space for badges if there's a potential hot node (we don't know which is hottest at layout time)
   // Rail mode moves these badges into the footer rail, so no badge row.
-  if (!isRail && (hasSpill || hasCardBadge || (hasActualStats && node.actualTime !== undefined))) {
+  if (!isRail && (hasSpill || hasCardBadge || hasAdvisorBadge || (hasActualStats && node.actualTime !== undefined))) {
     height += 24;
   }
 
@@ -169,6 +173,11 @@ function calculateNodeHeight(
 
   // Predicate indicators row (rail mode renders them in the footer rail)
   if (!isRail && displayOptions.showPredicateIndicators && (node.accessPredicates || node.filterPredicates)) {
+    height += 28;
+  }
+
+  // Partition pruning indicator row (rail mode renders it in the footer rail)
+  if (!isRail && displayOptions.showPartitionInfo && formatPartitionRange(node.pstart, node.pstop)) {
     height += 28;
   }
 
@@ -442,6 +451,10 @@ function HierarchicalViewContent({
     (): number | null => (hotspotsEnabled ? computeHottestNodeId(parsedPlan) : null),
     [parsedPlan, hotspotsEnabled]
   );
+  const advisorReport = useMemo(
+    () => (parsedPlan ? runAdvisor(parsedPlan, slot?.metadataBundle ?? null) : null),
+    [parsedPlan, slot?.metadataBundle]
+  );
   const planAnnotations = getAnnotationsForPlan(resolvedPlanIndex);
   const effectiveAnnotations = useMemo(
     () => (showAnnotations ? planAnnotations : createEmptyAnnotationState()),
@@ -598,11 +611,23 @@ function HierarchicalViewContent({
       'mismatch-no-histogram': effectiveDisplayOptions.showMismatchNoHistogramBadge,
     } as const;
 
+    const parallelSignals = computeParallelSignals(parsedPlan);
+    const parallelSignalsByNode = new Map<number, ParallelSignal[]>();
+    for (const sig of parallelSignals) {
+      const arr = parallelSignalsByNode.get(sig.nodeId) ?? [];
+      arr.push(sig);
+      parallelSignalsByNode.set(sig.nodeId, arr);
+    }
+
     function traverse(node: PlanNode) {
       const hasActualStats = parsedPlan!.hasActualStats || false;
       const hasAnnotation = effectiveAnnotations.nodeAnnotations.has(node.id);
+      const nodeFindings = advisorReport?.findingsByNodeId.get(node.id);
+      const advisorSeverity = advisorReport?.maxSeverityByNodeId.get(node.id);
+      const advisorTitles = nodeFindings?.map((f) => f.title);
+      const hasAdvisorBadge = effectiveDisplayOptions.showAdvisorBadge && !!advisorSeverity;
       // Calculate dynamic height for this node
-      const height = calculateNodeHeight(node, effectiveDisplayOptions, hasActualStats, hasAnnotation, usesGrid, isRail, isTicker);
+      const height = calculateNodeHeight(node, effectiveDisplayOptions, hasActualStats, hasAnnotation, usesGrid, isRail, isTicker, hasAdvisorBadge);
       nodeDimensions.set(node.id.toString(), { width: effectiveNodeWidth, height });
       const match = bundle ? findObjectInBundle(bundle, node.objectName) : null;
       const cardSeverity = parsedPlan!.hasActualStats
@@ -617,6 +642,8 @@ function HierarchicalViewContent({
             predicateColumns,
           })
         : [];
+      const partitionPruning = assessPartitionPruning(node);
+      const nodeParallelSignals = parallelSignalsByNode.get(node.id);
 
       // Keep query block envelopes stable across predicate-detail toggles by
       // sizing groups against the expanded node-height baseline.
@@ -628,6 +655,7 @@ function HierarchicalViewContent({
         usesGrid,
         isRail,
         isTicker,
+        hasAdvisorBadge,
       );
       nodeGroupDimensions.set(node.id.toString(), { width: effectiveNodeWidth, height: groupHeight });
 
@@ -646,6 +674,11 @@ function HierarchicalViewContent({
           width: effectiveNodeWidth,
           height,
           metadataBadges,
+          partitionPruning,
+          parallelSignals: nodeParallelSignals,
+          advisorSeverity,
+          advisorCount: nodeFindings?.length,
+          advisorTitles,
         },
       });
 

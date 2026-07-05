@@ -19,6 +19,7 @@ type NodeOptionKey =
   | 'showBytes'
   | 'showPredicateIndicators'
   | 'showPredicateDetails'
+  | 'showPartitionInfo'
   | 'showQueryBlockBadge'
   | 'showQueryBlockGrouping'
   | 'showActualRows'
@@ -27,6 +28,7 @@ type NodeOptionKey =
   | 'showHotspotBadge'
   | 'showSpillBadge'
   | 'showCardinalityBadge'
+  | 'showAdvisorBadge'
   | 'showStaleStatsBadge'
   | 'showMissingStatsBadge'
   | 'showMismatchNoHistogramBadge'
@@ -108,6 +110,12 @@ function buildCommands(hasActualStats: boolean): ViewCommand[] {
       keywords: ['predicate', 'details', 'expressions'],
     },
     {
+      key: 'showPartitionInfo',
+      section: 'Node fields',
+      label: 'Partition pruning',
+      keywords: ['partition', 'pruning', 'pstart', 'pstop', 'range', 'iterator'],
+    },
+    {
       key: 'showQueryBlockBadge',
       section: 'Node fields',
       label: 'Query block badge',
@@ -159,6 +167,12 @@ function buildCommands(hasActualStats: boolean): ViewCommand[] {
       label: 'Cardinality mismatch',
       keywords: ['cardinality', 'mismatch', 'estimate', 'warning', 'badge'],
       runtimeOnly: true,
+    },
+    {
+      key: 'showAdvisorBadge',
+      section: 'Warning badges',
+      label: 'Advisor findings',
+      keywords: ['advisor', 'findings', 'rules', 'warning', 'badge'],
     },
     {
       key: 'showStaleStatsBadge',

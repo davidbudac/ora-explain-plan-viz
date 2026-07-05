@@ -1,7 +1,7 @@
 import type { NodeDisplayOptions } from './types';
 
 /**
- * Density presets bundle the 18 node-display toggles into two curated
+ * Density presets bundle the 19 node-display toggles into two curated
  * levels. Presets are DERIVED, never stored: the active selection is computed
  * by comparing the current options against these tables, so any manual toggle
  * automatically reads as "custom" with no coordination code.
@@ -19,6 +19,7 @@ export const DENSITY_PRESETS: Record<DensityPreset, NodeDisplayOptions> = {
     showObjectName: true,
     showPredicateIndicators: true,
     showPredicateDetails: false,
+    showPartitionInfo: true,
     showQueryBlockBadge: false,
     showQueryBlockGrouping: false,
     showActualRows: false,
@@ -27,6 +28,7 @@ export const DENSITY_PRESETS: Record<DensityPreset, NodeDisplayOptions> = {
     showHotspotBadge: true,
     showSpillBadge: true,
     showCardinalityBadge: true,
+    showAdvisorBadge: true,
     showStaleStatsBadge: false,
     showMissingStatsBadge: false,
     showMismatchNoHistogramBadge: false,
@@ -39,6 +41,7 @@ export const DENSITY_PRESETS: Record<DensityPreset, NodeDisplayOptions> = {
     showObjectName: true,
     showPredicateIndicators: true,
     showPredicateDetails: true,
+    showPartitionInfo: true,
     showQueryBlockBadge: true,
     showQueryBlockGrouping: true,
     showActualRows: true,
@@ -47,6 +50,7 @@ export const DENSITY_PRESETS: Record<DensityPreset, NodeDisplayOptions> = {
     showHotspotBadge: true,
     showSpillBadge: true,
     showCardinalityBadge: true,
+    showAdvisorBadge: true,
     showStaleStatsBadge: true,
     showMissingStatsBadge: true,
     showMismatchNoHistogramBadge: true,
