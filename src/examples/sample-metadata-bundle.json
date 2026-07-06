@@ -48,6 +48,7 @@
     },
     "ADHOC.EMPLOYEES": {
       "type": "TABLE",
+      "ddl": "CREATE TABLE \"ADHOC\".\"EMPLOYEES\"\n(\t\"ID\" NUMBER NOT NULL ENABLE,\n\t\"STAFFNO\" NUMBER,\n\t\"DEPT_ID\" NUMBER,\n\t\"ROLE_ID\" NUMBER,\n\t CONSTRAINT \"EMPLOYEES_PK\" PRIMARY KEY (\"ID\")\n) ;",
       "stats": {
         "num_rows": 500000,
         "blocks": 4200,
@@ -136,6 +137,7 @@
     },
     "ADHOC.EMPLOYEES_DEPT_IDX": {
       "type": "INDEX",
+      "ddl": "CREATE INDEX \"ADHOC\".\"EMPLOYEES_DEPT_IDX\" ON \"ADHOC\".\"EMPLOYEES\" (\"DEPT_ID\")\n  PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS ;",
       "stats": {
         "uniqueness": "NONUNIQUE",
         "index_type": "NORMAL",
@@ -149,6 +151,87 @@
       },
       "columns": ["DEPT_ID"],
       "table": "ADHOC.EMPLOYEES"
+    },
+    "ADHOC.SALES": {
+      "type": "TABLE",
+      "ddl": "CREATE TABLE \"ADHOC\".\"SALES\"\n(\t\"SALE_ID\" NUMBER NOT NULL ENABLE,\n\t\"SALE_DATE\" DATE NOT NULL ENABLE,\n\t\"CUSTOMER_ID\" NUMBER,\n\t\"AMOUNT\" NUMBER(12,2),\n\t CONSTRAINT \"SALES_PK\" PRIMARY KEY (\"SALE_ID\")\n)\nPARTITION BY RANGE (\"SALE_DATE\") INTERVAL (NUMTOYMINTERVAL(1,'MONTH'))\n(\tPARTITION \"SALES_P_INITIAL\" VALUES LESS THAN (TO_DATE(' 2026-01-01 00:00:00', 'SYYYY-MM-DD HH24:MI:SS', 'NLS_CALENDAR=GREGORIAN'))\n) ;",
+      "stats": {
+        "num_rows": 9600000,
+        "blocks": 168000,
+        "avg_row_len": 48,
+        "last_analyzed": "2026-06-01T02:00:00Z",
+        "stale_stats": "NO",
+        "partitioned": true,
+        "partition_count": 24,
+        "partition_type": "RANGE",
+        "subpartition_type": "NONE",
+        "interval": "NUMTOYMINTERVAL(1,'MONTH')",
+        "partition_key": ["SALE_DATE"],
+        "subpartition_key": []
+      },
+      "columns": {
+        "SALE_ID": {
+          "data_type": "NUMBER",
+          "nullable": false,
+          "num_distinct": 9600000,
+          "num_nulls": 0,
+          "low_value": "1",
+          "high_value": "9600000",
+          "density": 0.0000001,
+          "histogram": { "type": "NONE", "buckets": 0 }
+        },
+        "SALE_DATE": {
+          "data_type": "DATE",
+          "nullable": false,
+          "num_distinct": 730,
+          "num_nulls": 0,
+          "low_value": "2024-01-01",
+          "high_value": "2026-01-01",
+          "density": 0.00137,
+          "histogram": { "type": "HEIGHT BALANCED", "buckets": 254 }
+        },
+        "CUSTOMER_ID": {
+          "data_type": "NUMBER",
+          "nullable": true,
+          "num_distinct": 120000,
+          "num_nulls": 0,
+          "low_value": "1",
+          "high_value": "120000",
+          "density": 0.0000083,
+          "histogram": { "type": "NONE", "buckets": 0 }
+        },
+        "AMOUNT": {
+          "data_type": "NUMBER",
+          "nullable": true,
+          "num_distinct": 45000,
+          "num_nulls": 0,
+          "low_value": "0.01",
+          "high_value": "99999.99",
+          "density": 0.0000222,
+          "histogram": { "type": "NONE", "buckets": 0 }
+        }
+      },
+      "indexes": ["ADHOC.SALES_CUST_IX"]
+    },
+    "ADHOC.SALES_CUST_IX": {
+      "type": "INDEX",
+      "ddl": "CREATE INDEX \"ADHOC\".\"SALES_CUST_IX\" ON \"ADHOC\".\"SALES\" (\"CUSTOMER_ID\") LOCAL\n  PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS ;",
+      "stats": {
+        "uniqueness": "NONUNIQUE",
+        "index_type": "NORMAL",
+        "status": "VALID",
+        "visibility": "VISIBLE",
+        "partitioned": true,
+        "clustering_factor": 5400000,
+        "blevel": 2,
+        "leaf_blocks": 21000,
+        "distinct_keys": 120000,
+        "partition_type": "RANGE",
+        "locality": "LOCAL",
+        "partition_key": ["SALE_DATE"]
+      },
+      "columns": ["CUSTOMER_ID"],
+      "table": "ADHOC.SALES"
     }
   },
   "coverage_warnings": []

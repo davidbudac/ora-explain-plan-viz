@@ -5,7 +5,8 @@
 -- by a specific SQL_ID/PLAN_HASH_VALUE, or for an explicit list of objects.
 --
 -- The bundle is consumed by the Oracle Execution Plan Visualizer to annotate
--- plan nodes with table, column, and index statistics from the data dictionary.
+-- plan nodes with table, column, and index statistics from the data dictionary,
+-- plus partitioning method/keys and a simplified CREATE DDL per object.
 --
 -- Usage (SQL*Plus or SQLcl, Oracle 12.2+):
 --
@@ -119,20 +120,28 @@ DECLARE
     l_warnings(l_warn_count).reason := SUBSTR(p_reason, 1, 4000);
   END;
 
-  -- JSON-safe quoting for an arbitrary string value.
-  FUNCTION js_string(p_value IN VARCHAR2) RETURN VARCHAR2 IS
+  -- Escape a string for embedding *inside* JSON double quotes (no surrounding
+  -- quotes). Shared by js_string and the CLOB DDL emitter, which escapes the
+  -- DDL one bounded chunk at a time.
+  FUNCTION js_escape(p_value IN VARCHAR2) RETURN VARCHAR2 IS
     l_out VARCHAR2(32767);
   BEGIN
-    IF p_value IS NULL THEN
-      RETURN 'null';
-    END IF;
     l_out := p_value;
     l_out := REPLACE(l_out, '\', '\\');
     l_out := REPLACE(l_out, '"', '\"');
     l_out := REPLACE(l_out, CHR(10), '\n');
     l_out := REPLACE(l_out, CHR(13), '\r');
     l_out := REPLACE(l_out, CHR(9), '\t');
-    RETURN '"' || l_out || '"';
+    RETURN l_out;
+  END;
+
+  -- JSON-safe quoting for an arbitrary string value.
+  FUNCTION js_string(p_value IN VARCHAR2) RETURN VARCHAR2 IS
+  BEGIN
+    IF p_value IS NULL THEN
+      RETURN 'null';
+    END IF;
+    RETURN '"' || js_escape(p_value) || '"';
   END;
 
   FUNCTION js_number(p_value IN NUMBER) RETURN VARCHAR2 IS
@@ -165,6 +174,93 @@ DECLARE
   BEGIN
     IF p_value IS NULL THEN RETURN 'null'; END IF;
     RETURN '"' || TO_CHAR(p_value, 'YYYY-MM-DD"T"HH24:MI:SS.FF3"Z"') || '"';
+  END;
+
+  -- Fetch a simplified CREATE DDL for one object via DBMS_METADATA. Transform
+  -- params (set once in the main block) strip storage/segment/tablespace noise
+  -- and pretty-print. DBMS_METADATA respects privileges: a user can always get
+  -- DDL for its own objects, but needs SELECT_CATALOG_ROLE (or explicit grants)
+  -- for others, in which case GET_DDL raises ORA-31603 - downgrade that to a
+  -- coverage warning and emit a null ddl rather than failing the whole gather.
+  FUNCTION get_object_ddl(
+    p_md_type IN VARCHAR2,   -- DBMS_METADATA object type, e.g. 'TABLE' or 'INDEX'
+    p_owner   IN VARCHAR2,
+    p_name    IN VARCHAR2
+  ) RETURN CLOB IS
+    l_ddl CLOB;
+  BEGIN
+    -- Dynamic call so the block still COMPILES in a hardened DB where EXECUTE
+    -- on DBMS_METADATA has been revoked from PUBLIC; there it degrades to a
+    -- runtime error caught below rather than an ORA-06550 that kills the gather.
+    EXECUTE IMMEDIATE 'BEGIN :ddl := DBMS_METADATA.GET_DDL(:t, :n, :o); END;'
+      USING OUT l_ddl, IN p_md_type, IN p_name, IN p_owner;
+    RETURN l_ddl;
+  EXCEPTION
+    WHEN OTHERS THEN
+      add_warning(p_owner || '.' || p_name,
+        'Simplified DDL not captured (needs SELECT_CATALOG_ROLE or object ownership): '
+        || SUBSTR(SQLERRM, 1, 200));
+      RETURN NULL;
+  END;
+
+  -- Append a "ddl":<json-string|null> field, escaping the DDL CLOB one bounded
+  -- chunk at a time so it never overflows the 32767-char VARCHAR2 limit that a
+  -- whole-CLOB js_string() call would hit on a wide table.
+  PROCEDURE append_ddl_field(p_buffer IN OUT NOCOPY CLOB, p_ddl IN CLOB) IS
+    l_len   INTEGER;
+    l_off   INTEGER := 1;
+    l_amt   INTEGER;
+    l_chunk VARCHAR2(32767);
+  BEGIN
+    IF p_ddl IS NULL THEN
+      DBMS_LOB.APPEND(p_buffer, '"ddl":null');
+      RETURN;
+    END IF;
+    DBMS_LOB.APPEND(p_buffer, '"ddl":"');
+    l_len := DBMS_LOB.GETLENGTH(p_ddl);
+    WHILE l_off <= l_len LOOP
+      l_amt   := LEAST(8000, l_len - l_off + 1);
+      l_chunk := DBMS_LOB.SUBSTR(p_ddl, l_amt, l_off);
+      DBMS_LOB.APPEND(p_buffer, js_escape(l_chunk));
+      l_off   := l_off + l_amt;
+    END LOOP;
+    DBMS_LOB.APPEND(p_buffer, '"');
+  END;
+
+  -- Partition (or subpartition) key columns of a table or index, rendered as a
+  -- JSON array string like ["SALE_DATE","REGION"]. Best-effort: any error
+  -- (including ORA-00942 on the *_PART_KEY_COLUMNS view) yields [].
+  FUNCTION js_part_key_cols(
+    p_owner       IN VARCHAR2,
+    p_name        IN VARCHAR2,
+    p_object_type IN VARCHAR2,   -- 'TABLE' or 'INDEX'
+    p_subpart     IN BOOLEAN,
+    p_use_dba     IN BOOLEAN
+  ) RETURN VARCHAR2 IS
+    l_view  VARCHAR2(64);
+    l_cols  SYS.ODCIVARCHAR2LIST;
+    l_out   VARCHAR2(4000);
+    l_first BOOLEAN := TRUE;
+  BEGIN
+    IF p_subpart THEN
+      l_view := CASE WHEN p_use_dba THEN 'dba_subpart_key_columns' ELSE 'all_subpart_key_columns' END;
+    ELSE
+      l_view := CASE WHEN p_use_dba THEN 'dba_part_key_columns' ELSE 'all_part_key_columns' END;
+    END IF;
+    EXECUTE IMMEDIATE
+      'SELECT column_name FROM ' || l_view
+      || ' WHERE owner = :1 AND name = :2 AND object_type = :3 ORDER BY column_position'
+      BULK COLLECT INTO l_cols USING p_owner, p_name, p_object_type;
+    l_out := '[';
+    FOR i IN 1 .. l_cols.COUNT LOOP
+      IF NOT l_first THEN l_out := l_out || ','; END IF;
+      l_first := FALSE;
+      l_out := l_out || js_string(l_cols(i));
+    END LOOP;
+    RETURN l_out || ']';
+  EXCEPTION
+    WHEN OTHERS THEN
+      RETURN '[]';
   END;
 
   -- Try the DBA_/ALL_ pair. Returns TRUE if DBA_ succeeded, FALSE if it fell
@@ -327,6 +423,9 @@ DECLARE
     l_stale         VARCHAR2(3);
     l_partitioned   VARCHAR2(3);
     l_partition_cnt NUMBER;
+    l_part_type     VARCHAR2(32);
+    l_subpart_type  VARCHAR2(32);
+    l_interval      VARCHAR2(1000);
     l_view          VARCHAR2(64);
     l_part_view     VARCHAR2(64);
     l_stmt          VARCHAR2(1000);
@@ -384,6 +483,29 @@ DECLARE
         l_partitioned := NULL;
     END;
 
+    -- Partitioning method + interval expression (only meaningful when the
+    -- table is partitioned). Try the DBA_ view, fall back to ALL_ on any error.
+    IF l_partitioned = 'YES' THEN
+      BEGIN
+        EXECUTE IMMEDIATE
+          'SELECT partitioning_type, subpartitioning_type, interval FROM '
+          || CASE WHEN g_use_dba_part THEN 'dba_part_tables' ELSE 'all_part_tables' END
+          || ' WHERE owner = :1 AND table_name = :2'
+          INTO l_part_type, l_subpart_type, l_interval USING p_owner, p_name;
+      EXCEPTION
+        WHEN OTHERS THEN
+          BEGIN
+            EXECUTE IMMEDIATE
+              'SELECT partitioning_type, subpartitioning_type, interval FROM all_part_tables'
+              || ' WHERE owner = :1 AND table_name = :2'
+              INTO l_part_type, l_subpart_type, l_interval USING p_owner, p_name;
+          EXCEPTION
+            WHEN OTHERS THEN
+              l_part_type := NULL; l_subpart_type := NULL; l_interval := NULL;
+          END;
+      END;
+    END IF;
+
     DBMS_LOB.APPEND(p_buffer,
       '"stats":{'
       || '"num_rows":' || js_number(l_num_rows)
@@ -393,6 +515,15 @@ DECLARE
       || ',"stale_stats":' || CASE WHEN l_stale IS NULL THEN 'null' ELSE js_string(l_stale) END
       || ',"partitioned":' || js_bool(l_partitioned = 'YES')
       || CASE WHEN l_partition_cnt IS NOT NULL THEN ',"partition_count":' || js_number(l_partition_cnt) ELSE '' END
+      || CASE WHEN l_partitioned = 'YES' THEN
+             ',"partition_type":' || js_string(l_part_type)
+             || ',"subpartition_type":' || js_string(l_subpart_type)
+             || ',"interval":' || js_string(TRIM(l_interval))
+             || ',"partition_key":' || js_part_key_cols(p_owner, p_name, 'TABLE', FALSE, g_use_dba_part)
+             || CASE WHEN l_subpart_type IS NOT NULL AND l_subpart_type <> 'NONE'
+                     THEN ',"subpartition_key":' || js_part_key_cols(p_owner, p_name, 'TABLE', TRUE, g_use_dba_part)
+                     ELSE '' END
+           ELSE '' END
       || '}'
     );
   END;
@@ -524,6 +655,8 @@ DECLARE
     l_distinct    NUMBER;
     l_table_owner VARCHAR2(128);
     l_table_name  VARCHAR2(128);
+    l_part_type   VARCHAR2(32);
+    l_locality    VARCHAR2(32);
     l_stmt        VARCHAR2(2000);
     l_cols_stmt   VARCHAR2(2000);
     l_cols_view   VARCHAR2(64);
@@ -564,6 +697,28 @@ DECLARE
       WHEN OTHERS THEN l_cols := SYS.ODCIVARCHAR2LIST();
     END;
 
+    -- Partition method + locality (LOCAL/GLOBAL) for partitioned indexes only.
+    IF l_partitioned = 'YES' THEN
+      BEGIN
+        EXECUTE IMMEDIATE
+          'SELECT partitioning_type, locality FROM '
+          || CASE WHEN g_use_dba_indexes THEN 'dba_part_indexes' ELSE 'all_part_indexes' END
+          || ' WHERE owner = :1 AND index_name = :2'
+          INTO l_part_type, l_locality USING p_owner, p_name;
+      EXCEPTION
+        WHEN OTHERS THEN
+          BEGIN
+            EXECUTE IMMEDIATE
+              'SELECT partitioning_type, locality FROM all_part_indexes'
+              || ' WHERE owner = :1 AND index_name = :2'
+              INTO l_part_type, l_locality USING p_owner, p_name;
+          EXCEPTION
+            WHEN OTHERS THEN
+              l_part_type := NULL; l_locality := NULL;
+          END;
+      END;
+    END IF;
+
     DBMS_LOB.APPEND(p_buffer,
       '"' || p_owner || '.' || p_name || '":{'
       || '"type":"INDEX"'
@@ -573,6 +728,11 @@ DECLARE
       || ',"status":' || js_string(l_status)
       || ',"visibility":' || js_string(l_visibility)
       || ',"partitioned":' || js_bool(l_partitioned = 'YES')
+      || CASE WHEN l_partitioned = 'YES' THEN
+             ',"partition_type":' || js_string(l_part_type)
+             || ',"locality":' || js_string(l_locality)
+             || ',"partition_key":' || js_part_key_cols(p_owner, p_name, 'INDEX', FALSE, g_use_dba_indexes)
+           ELSE '' END
       || ',"clustering_factor":' || js_number(l_cf)
       || ',"blevel":' || js_number(l_blevel)
       || ',"leaf_blocks":' || js_number(l_leaf)
@@ -588,8 +748,10 @@ DECLARE
     DBMS_LOB.APPEND(p_buffer, ']');
     DBMS_LOB.APPEND(p_buffer,
       ',"table":' || js_string(l_table_owner || '.' || l_table_name)
-      || '}'
     );
+    DBMS_LOB.APPEND(p_buffer, ',');
+    append_ddl_field(p_buffer, get_object_ddl('INDEX', p_owner, p_name));
+    DBMS_LOB.APPEND(p_buffer, '}');
   END;
 
   PROCEDURE write_table_object(
@@ -607,6 +769,8 @@ DECLARE
     write_columns(p_owner, p_name, p_buffer);
     DBMS_LOB.APPEND(p_buffer, ',');
     write_indexes_list(p_owner, p_name, p_buffer);
+    DBMS_LOB.APPEND(p_buffer, ',');
+    append_ddl_field(p_buffer, get_object_ddl('TABLE', p_owner, p_name));
     DBMS_LOB.APPEND(p_buffer, '}');
   END;
 
@@ -723,6 +887,21 @@ BEGIN
         EXECUTE IMMEDIATE 'SELECT version FROM product_component_version WHERE ROWNUM = 1'
           INTO g_oracle_version;
       EXCEPTION WHEN OTHERS THEN g_oracle_version := NULL; END;
+  END;
+
+  -- Simplify DBMS_METADATA.GET_DDL output: strip storage/segment/tablespace
+  -- physical noise and pretty-print, so the captured DDL shows structure, not
+  -- placement. Dynamic (and swallowing errors) so it never breaks the gather -
+  -- defaults are fine if the session can't set params or can't reach the pkg.
+  BEGIN
+    EXECUTE IMMEDIATE q'{BEGIN
+      DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'STORAGE', FALSE);
+      DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'SEGMENT_ATTRIBUTES', FALSE);
+      DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'TABLESPACE', FALSE);
+      DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'PRETTY', TRUE);
+      DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'SQLTERMINATOR', TRUE);
+    END;}';
+  EXCEPTION WHEN OTHERS THEN NULL;
   END;
 
   DBMS_LOB.CREATETEMPORARY(l_buffer, TRUE);
