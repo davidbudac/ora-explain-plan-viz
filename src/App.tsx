@@ -8,6 +8,7 @@ import { VisualizationTabs } from './components/VisualizationTabs';
 import { NodeDetailPanel } from './components/NodeDetailPanel';
 import { CommandPalette } from './components/CommandPalette';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay';
+import { ShareResultDialog } from './components/ShareResultDialog';
 import { PopoutWindow } from './components/PopoutWindow';
 import { MetadataExplorer } from './components/metadata/MetadataExplorer';
 import { SAMPLE_PLANS_BY_CATEGORY } from './examples';
@@ -220,6 +221,7 @@ function AppContent() {
     <div className="flex flex-col h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden">
       <CommandPalette />
       <ShortcutsOverlay />
+      <ShareResultDialog />
       {metadataPopoutOpen && metadataBundle && (
         <PopoutWindow title="Metadata Explorer" onClose={() => setMetadataPopoutOpen(false)}>
           <MetadataPopoutContent onReturn={() => setMetadataPopoutOpen(false)} />

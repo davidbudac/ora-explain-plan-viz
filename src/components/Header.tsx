@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState, useEffect } from 'react';
+import { useRef, useCallback, useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import type { ColorScheme } from '../lib/types';
 import { hasAnnotations } from '../lib/annotations';
@@ -23,7 +23,8 @@ export function Header() {
     exportAnnotatedPlan,
     importAnnotatedPlan,
     exportPngFnRef,
-    sharePlan,
+    share,
+    shareNotice,
     plans,
     viewMode,
     treeCompareEnabled,
@@ -31,8 +32,10 @@ export function Header() {
   } = usePlan();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [exporting, setExporting] = useState(false);
-  const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'warning' | 'error'>('idle');
-  const [shareMessage, setShareMessage] = useState<string | null>(null);
+  // `manual`/`warning`/`error` are shown in the App-level share dialog; the
+  // button itself only needs to reflect the current outcome at a glance.
+  const shareKind = shareNotice?.kind ?? null;
+  const shareCopied = shareKind === 'copied' || shareKind === 'warning';
 
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
@@ -51,26 +54,7 @@ export function Header() {
     }
   }, [exportPngFnRef]);
 
-  const handleShare = useCallback(async () => {
-    const result = await sharePlan();
-    if (result.ok) {
-      setShareStatus(result.warning ? 'warning' : 'copied');
-      setShareMessage(result.warning ?? null);
-    } else {
-      setShareStatus('error');
-      setShareMessage(result.error);
-    }
-  }, [sharePlan]);
-
-  // Reset share status after a delay
-  useEffect(() => {
-    if (shareStatus === 'idle') return;
-    const timer = setTimeout(() => {
-      setShareStatus('idle');
-      setShareMessage(null);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [shareStatus]);
+  const handleShare = useCallback(() => { void share(); }, [share]);
 
   const handleLoad = useCallback(() => {
     fileInputRef.current?.click();
@@ -164,40 +148,36 @@ export function Header() {
         </button>
 
         {/* Share plan via URL */}
-        <div className="relative">
-          <button
-            onClick={handleShare}
-            disabled={!hasAnyInput}
-            className={`h-8 w-8 flex items-center justify-center rounded-md border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-              shareStatus === 'copied' || shareStatus === 'warning'
-                ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30'
-                : shareStatus === 'error'
-                  ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30'
+        <button
+          onClick={handleShare}
+          disabled={!hasAnyInput}
+          className={`h-8 w-8 flex items-center justify-center rounded-md border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+            shareCopied
+              ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30'
+              : shareKind === 'error'
+                ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30'
+                : shareKind === 'manual'
+                  ? 'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30'
                   : 'border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700'
-            }`}
-            title={shareStatus === 'copied' ? 'URL copied to clipboard!' : shareStatus === 'warning' ? shareMessage ?? 'URL copied with a warning' : shareStatus === 'error' ? shareMessage ?? 'Error' : 'Share plan via URL'}
-          >
-            {shareStatus === 'copied' || shareStatus === 'warning' ? (
-              <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4 text-neutral-700 dark:text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-              </svg>
-            )}
-          </button>
-          {shareStatus === 'warning' && shareMessage && (
-            <div className="absolute right-0 top-full mt-1 z-50 w-64 p-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/50 border border-amber-200 dark:border-amber-800 rounded-md shadow-lg">
-              {shareMessage}
-            </div>
+          }`}
+          title={
+            shareKind === 'copied' ? 'URL copied to clipboard!'
+              : shareKind === 'warning' ? 'URL copied — verify the full link pasted'
+              : shareKind === 'manual' ? 'Copy the link manually'
+              : shareKind === 'error' ? 'Could not build a share link'
+              : 'Share plan via URL'
+          }
+        >
+          {shareCopied ? (
+            <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4 text-neutral-700 dark:text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
           )}
-          {shareStatus === 'error' && shareMessage && (
-            <div className="absolute right-0 top-full mt-1 z-50 w-64 p-2 text-xs text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-800 rounded-md shadow-lg">
-              {shareMessage}
-            </div>
-          )}
-        </div>
+        </button>
 
         {/* Command palette */}
         <button

@@ -119,7 +119,7 @@ function useCommands(): Command[] {
     setTreeCompareEnabled,
     exportAnnotatedPlan,
     clearAnnotations,
-    sharePlan,
+    share,
   } = usePlan();
 
   const anyPlanParsed = plans.some(p => p.parsedPlan);
@@ -411,7 +411,7 @@ function useCommands(): Command[] {
       label: 'Share plan via URL',
       category: 'Export & Share',
       keywords: ['share', 'url', 'link', 'copy', 'clipboard'],
-      execute: () => { sharePlan(); },
+      execute: () => { void share(); },
       isAvailable: () => hasAnyInput,
     });
 
@@ -520,7 +520,7 @@ function useCommands(): Command[] {
     setNodeIndicatorMetric, setHighlightStyle, setVisualizationMaximized,
     setInputPanelCollapsed, setFilterPanelCollapsed,
     setDetailPanelCollapsed, setHotspotsEnabled, setTreeCompareEnabled,
-    exportAnnotatedPlan, clearAnnotations, sharePlan, exportPngFnRef,
+    exportAnnotatedPlan, clearAnnotations, share, exportPngFnRef,
     toggleNodeDisplayOption, enableAllDisplayOptions, disableAllDisplayOptions,
   ]);
 }
