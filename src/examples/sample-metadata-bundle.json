@@ -1,64 +1,42 @@
 {
   "format": "ora-plan-metadata",
-  "version": 1,
-  "captured_at": "2026-05-15T09:42:00Z",
+  "version": 2,
+  "captured_at": "2026-07-06T14:51:49.604Z",
   "source": {
-    "db_name": "DEMO",
-    "oracle_version": "19.20.0.0.0",
+    "db_name": "CDB1",
+    "oracle_version": "19.27.0.0.0",
     "container_name": "PDB1"
   },
   "plan_ref": {
-    "sql_id": "an05rsj1up1k5",
+    "sql_id": null,
     "plan_hash_value": null
   },
   "objects": {
-    "ADHOC.DEPARTMENTS": {
+    "PLANVIZ.ORDERS": {
       "type": "TABLE",
       "stats": {
-        "num_rows": 8,
-        "blocks": 5,
-        "avg_row_len": 21,
-        "last_analyzed": "2026-05-14T22:00:00Z",
+        "num_rows": 500000,
+        "blocks": 3568,
+        "avg_row_len": 47,
+        "last_analyzed": "2026-07-04T21:03:06Z",
         "stale_stats": "NO",
         "partitioned": false
       },
-      "columns": {
-        "ID": {
-          "data_type": "NUMBER",
-          "nullable": false,
-          "num_distinct": 8,
-          "num_nulls": 0,
-          "low_value": "1",
-          "high_value": "8",
-          "density": 0.125,
-          "histogram": { "type": "NONE", "buckets": 0 }
-        },
-        "DNAME": {
-          "data_type": "VARCHAR2",
-          "nullable": true,
-          "num_distinct": 8,
-          "num_nulls": 0,
-          "low_value": "Department Name 1",
-          "high_value": "Department Name 8",
-          "density": 0.125,
-          "histogram": { "type": "NONE", "buckets": 0 }
-        }
+      "physical": {
+        "compression": "DISABLED",
+        "compress_for": null,
+        "degree": "1",
+        "temporary": false,
+        "cluster_name": null,
+        "iot_type": null,
+        "cache": false
       },
-      "indexes": ["ADHOC.DEPARTMENTS_PK"]
-    },
-    "ADHOC.EMPLOYEES": {
-      "type": "TABLE",
-      "ddl": "CREATE TABLE \"ADHOC\".\"EMPLOYEES\"\n(\t\"ID\" NUMBER NOT NULL ENABLE,\n\t\"STAFFNO\" NUMBER,\n\t\"DEPT_ID\" NUMBER,\n\t\"ROLE_ID\" NUMBER,\n\t CONSTRAINT \"EMPLOYEES_PK\" PRIMARY KEY (\"ID\")\n) ;",
-      "stats": {
-        "num_rows": 500000,
-        "blocks": 4200,
-        "avg_row_len": 64,
-        "last_analyzed": "2026-04-01T03:15:00Z",
-        "stale_stats": "YES",
-        "partitioned": false
+      "segment": {
+        "bytes": 29360128,
+        "extents": 43
       },
       "columns": {
-        "ID": {
+        "ORDER_ID": {
           "data_type": "NUMBER",
           "nullable": false,
           "num_distinct": 500000,
@@ -66,173 +44,546 @@
           "low_value": "1",
           "high_value": "500000",
           "density": 0.000002,
-          "histogram": { "type": "NONE", "buckets": 0 }
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
         },
-        "STAFFNO": {
-          "data_type": "NUMBER",
+        "SHIP_COUNTRY": {
+          "data_type": "VARCHAR2",
           "nullable": true,
-          "num_distinct": 9800,
+          "num_distinct": 25,
           "num_nulls": 0,
-          "low_value": "1",
-          "high_value": "10000",
-          "density": 0.0001,
-          "histogram": { "type": "NONE", "buckets": 0 }
+          "low_value": "COUNTRY_0",
+          "high_value": "COUNTRY_9",
+          "density": 0.000001,
+          "histogram": {
+            "type": "FREQUENCY",
+            "buckets": 25
+          }
         },
-        "DEPT_ID": {
+        "SHIP_CURRENCY": {
+          "data_type": "VARCHAR2",
+          "nullable": true,
+          "num_distinct": 25,
+          "num_nulls": 0,
+          "low_value": "CURRENCY_0",
+          "high_value": "CURRENCY_9",
+          "density": 0.000001,
+          "histogram": {
+            "type": "FREQUENCY",
+            "buckets": 25
+          }
+        },
+        "SHIP_LANGUAGE": {
+          "data_type": "VARCHAR2",
+          "nullable": true,
+          "num_distinct": 25,
+          "num_nulls": 0,
+          "low_value": "LANG_0",
+          "high_value": "LANG_9",
+          "density": 0.000001,
+          "histogram": {
+            "type": "FREQUENCY",
+            "buckets": 25
+          }
+        },
+        "ORDER_DATE": {
+          "data_type": "DATE",
+          "nullable": true,
+          "num_distinct": 730,
+          "num_nulls": 0,
+          "low_value": "2024-01-01T00:00:00",
+          "high_value": "2025-12-30T00:00:00",
+          "density": 0.00136986301369863,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "STATUS": {
           "data_type": "NUMBER",
           "nullable": true,
-          "num_distinct": 8,
-          "num_nulls": 50,
-          "low_value": "1",
-          "high_value": "8",
-          "density": 0.125,
-          "histogram": { "type": "NONE", "buckets": 0 }
-        },
-        "ROLE_ID": {
-          "data_type": "NUMBER",
-          "nullable": true,
-          "num_distinct": 20,
-          "num_nulls": 12,
-          "low_value": "1",
-          "high_value": "20",
-          "density": 0.05,
-          "histogram": { "type": "NONE", "buckets": 0 }
+          "num_distinct": 5,
+          "num_nulls": 0,
+          "low_value": "0",
+          "high_value": "4",
+          "density": 0.2,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
         }
       },
-      "indexes": ["ADHOC.EMPLOYEES_PK", "ADHOC.EMPLOYEES_DEPT_IDX"]
+      "constraints": {
+        "primary_key": {
+          "name": "PK_ORDERS",
+          "columns": [
+            "ORDER_ID"
+          ],
+          "status": "ENABLED",
+          "validated": "VALIDATED"
+        },
+        "unique": [],
+        "foreign_keys": [],
+        "checks": []
+      },
+      "extended_stats": [],
+      "indexes": [
+        "PLANVIZ.PK_ORDERS"
+      ],
+      "ddl": "\n  CREATE TABLE \"PLANVIZ\".\"ORDERS\" \n   (\t\"ORDER_ID\" NUMBER, \n\t\"SHIP_COUNTRY\" VARCHAR2(48), \n\t\"SHIP_CURRENCY\" VARCHAR2(49), \n\t\"SHIP_LANGUAGE\" VARCHAR2(45), \n\t\"ORDER_DATE\" DATE, \n\t\"STATUS\" NUMBER, \n\t CONSTRAINT \"PK_ORDERS\" PRIMARY KEY (\"ORDER_ID\")\n  USING INDEX  ENABLE\n   ) ;"
     },
-    "ADHOC.ROLES": {
+    "PLANVIZ.DIM_CUSTOMERS": {
       "type": "TABLE",
       "stats": {
-        "num_rows": 20,
-        "blocks": 5,
-        "avg_row_len": 25,
-        "last_analyzed": "2026-05-14T22:00:00Z",
+        "num_rows": 50000,
+        "blocks": 293,
+        "avg_row_len": 36,
+        "last_analyzed": "2026-07-04T21:03:06Z",
         "stale_stats": "NO",
         "partitioned": false
       },
+      "physical": {
+        "compression": "DISABLED",
+        "compress_for": null,
+        "degree": "1",
+        "temporary": false,
+        "cluster_name": null,
+        "iot_type": null,
+        "cache": false
+      },
+      "segment": {
+        "bytes": 3145728,
+        "extents": 18
+      },
       "columns": {
-        "ID": {
+        "CUSTOMER_ID": {
           "data_type": "NUMBER",
           "nullable": false,
-          "num_distinct": 20,
+          "num_distinct": 50000,
           "num_nulls": 0,
           "low_value": "1",
-          "high_value": "20",
-          "density": 0.05,
-          "histogram": { "type": "NONE", "buckets": 0 }
+          "high_value": "50000",
+          "density": 0.00002,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
         },
-        "RNAME": {
+        "CUST_NAME": {
           "data_type": "VARCHAR2",
           "nullable": true,
-          "num_distinct": 20,
+          "num_distinct": 49680,
           "num_nulls": 0,
-          "low_value": "Role 1",
-          "high_value": "Role 20",
-          "density": 0.05,
-          "histogram": { "type": "NONE", "buckets": 0 }
+          "low_value": "Customer 1",
+          "high_value": "Customer 9999",
+          "density": 0.0000201288244766506,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "SEGMENT": {
+          "data_type": "VARCHAR2",
+          "nullable": true,
+          "num_distinct": 4,
+          "num_nulls": 0,
+          "low_value": "Consumer",
+          "high_value": "SMB",
+          "density": 0.00001,
+          "histogram": {
+            "type": "FREQUENCY",
+            "buckets": 4
+          }
+        },
+        "SIGNUP_DATE": {
+          "data_type": "DATE",
+          "nullable": true,
+          "num_distinct": 1826,
+          "num_nulls": 0,
+          "low_value": "2021-07-04T00:00:00",
+          "high_value": "2026-07-03T00:00:00",
+          "density": 0.000547645125958379,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
         }
       },
-      "indexes": ["ADHOC.ROLES_PK"]
+      "constraints": {
+        "primary_key": {
+          "name": "PK_DIM_CUSTOMERS",
+          "columns": [
+            "CUSTOMER_ID"
+          ],
+          "status": "ENABLED",
+          "validated": "VALIDATED"
+        },
+        "unique": [],
+        "foreign_keys": [],
+        "checks": []
+      },
+      "extended_stats": [],
+      "indexes": [
+        "PLANVIZ.PK_DIM_CUSTOMERS"
+      ],
+      "ddl": "\n  CREATE TABLE \"PLANVIZ\".\"DIM_CUSTOMERS\" \n   (\t\"CUSTOMER_ID\" NUMBER, \n\t\"CUST_NAME\" VARCHAR2(49), \n\t\"SEGMENT\" VARCHAR2(9), \n\t\"SIGNUP_DATE\" DATE, \n\t CONSTRAINT \"PK_DIM_CUSTOMERS\" PRIMARY KEY (\"CUSTOMER_ID\")\n  USING INDEX  ENABLE\n   ) ;"
     },
-    "ADHOC.EMPLOYEES_DEPT_IDX": {
+    "PLANVIZ.PARTS": {
+      "type": "TABLE",
+      "stats": {
+        "num_rows": 51000,
+        "blocks": 259,
+        "avg_row_len": 30,
+        "last_analyzed": "2026-07-04T21:03:06Z",
+        "stale_stats": "NO",
+        "partitioned": false
+      },
+      "physical": {
+        "compression": "DISABLED",
+        "compress_for": null,
+        "degree": "1",
+        "temporary": false,
+        "cluster_name": null,
+        "iot_type": null,
+        "cache": false
+      },
+      "segment": {
+        "bytes": 3145728,
+        "extents": 18
+      },
+      "columns": {
+        "PART_ID": {
+          "data_type": "NUMBER",
+          "nullable": false,
+          "num_distinct": 51000,
+          "num_nulls": 0,
+          "low_value": "1",
+          "high_value": "51000",
+          "density": 0.0000196078431372549,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "PART_TYPE": {
+          "data_type": "VARCHAR2",
+          "nullable": true,
+          "num_distinct": 3,
+          "num_nulls": 0,
+          "low_value": "ASSEMBLY",
+          "high_value": "FINISHED",
+          "density": 0.00000980392156862745,
+          "histogram": {
+            "type": "FREQUENCY",
+            "buckets": 3
+          }
+        },
+        "PART_NAME": {
+          "data_type": "VARCHAR2",
+          "nullable": true,
+          "num_distinct": 50740,
+          "num_nulls": 0,
+          "low_value": "Part 1",
+          "high_value": "Part 9999",
+          "density": 0.0000197083169097359,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "UNIT_COST": {
+          "data_type": "NUMBER",
+          "nullable": true,
+          "num_distinct": 9896,
+          "num_nulls": 0,
+          "low_value": ".51",
+          "high_value": "100",
+          "density": 0.000101050929668553,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        }
+      },
+      "constraints": {
+        "primary_key": {
+          "name": "PK_PARTS",
+          "columns": [
+            "PART_ID"
+          ],
+          "status": "ENABLED",
+          "validated": "VALIDATED"
+        },
+        "unique": [],
+        "foreign_keys": [],
+        "checks": []
+      },
+      "extended_stats": [],
+      "indexes": [
+        "PLANVIZ.PK_PARTS"
+      ],
+      "ddl": "\n  CREATE TABLE \"PLANVIZ\".\"PARTS\" \n   (\t\"PART_ID\" NUMBER, \n\t\"PART_TYPE\" VARCHAR2(9), \n\t\"PART_NAME\" VARCHAR2(45), \n\t\"UNIT_COST\" NUMBER, \n\t CONSTRAINT \"PK_PARTS\" PRIMARY KEY (\"PART_ID\")\n  USING INDEX  ENABLE\n   ) ;"
+    },
+    "PLANVIZ.BOM": {
+      "type": "TABLE",
+      "stats": {
+        "num_rows": 12680,
+        "blocks": 28,
+        "avg_row_len": 11,
+        "last_analyzed": "2026-07-04T21:03:06Z",
+        "stale_stats": "NO",
+        "partitioned": false
+      },
+      "physical": {
+        "compression": "DISABLED",
+        "compress_for": null,
+        "degree": "1",
+        "temporary": false,
+        "cluster_name": null,
+        "iot_type": null,
+        "cache": false
+      },
+      "segment": {
+        "bytes": 262144,
+        "extents": 4
+      },
+      "columns": {
+        "PARENT_ID": {
+          "data_type": "NUMBER",
+          "nullable": false,
+          "num_distinct": 1000,
+          "num_nulls": 0,
+          "low_value": "1",
+          "high_value": "1000",
+          "density": 0.001,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "CHILD_ID": {
+          "data_type": "NUMBER",
+          "nullable": false,
+          "num_distinct": 10470,
+          "num_nulls": 0,
+          "low_value": "11",
+          "high_value": "10480",
+          "density": 0.0000955109837631328,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "QTY": {
+          "data_type": "NUMBER",
+          "nullable": false,
+          "num_distinct": 4,
+          "num_nulls": 0,
+          "low_value": "1",
+          "high_value": "4",
+          "density": 0.25,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        }
+      },
+      "constraints": {
+        "primary_key": {
+          "name": "PK_BOM",
+          "columns": [
+            "PARENT_ID",
+            "CHILD_ID",
+            "QTY"
+          ],
+          "status": "ENABLED",
+          "validated": "VALIDATED"
+        },
+        "unique": [],
+        "foreign_keys": [],
+        "checks": [
+          {
+            "name": "SYS_C009629",
+            "condition": "\"PARENT_ID\" IS NOT NULL",
+            "status": "ENABLED",
+            "generated": true
+          },
+          {
+            "name": "SYS_C009630",
+            "condition": "\"CHILD_ID\" IS NOT NULL",
+            "status": "ENABLED",
+            "generated": true
+          },
+          {
+            "name": "SYS_C009631",
+            "condition": "\"QTY\" IS NOT NULL",
+            "status": "ENABLED",
+            "generated": true
+          }
+        ]
+      },
+      "extended_stats": [],
+      "indexes": [
+        "PLANVIZ.BOM_PARENT_IX",
+        "PLANVIZ.PK_BOM"
+      ],
+      "ddl": "\n  CREATE TABLE \"PLANVIZ\".\"BOM\" \n   (\t\"PARENT_ID\" NUMBER NOT NULL ENABLE, \n\t\"CHILD_ID\" NUMBER NOT NULL ENABLE, \n\t\"QTY\" NUMBER NOT NULL ENABLE, \n\t CONSTRAINT \"PK_BOM\" PRIMARY KEY (\"PARENT_ID\", \"CHILD_ID\", \"QTY\")\n  USING INDEX  ENABLE\n   ) ;"
+    },
+    "PLANVIZ.PK_ORDERS": {
       "type": "INDEX",
-      "ddl": "CREATE INDEX \"ADHOC\".\"EMPLOYEES_DEPT_IDX\" ON \"ADHOC\".\"EMPLOYEES\" (\"DEPT_ID\")\n  PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS ;",
+      "stats": {
+        "uniqueness": "UNIQUE",
+        "index_type": "NORMAL",
+        "status": "VALID",
+        "visibility": "VISIBLE",
+        "partitioned": false,
+        "clustering_factor": 3504,
+        "blevel": 2,
+        "leaf_blocks": 1043,
+        "distinct_keys": 500000,
+        "num_rows": 500000,
+        "avg_leaf_blocks_per_key": 1,
+        "avg_data_blocks_per_key": 1,
+        "last_analyzed": "2026-07-04T21:03:07Z",
+        "degree": "1",
+        "compression": "DISABLED"
+      },
+      "columns": [
+        "ORDER_ID"
+      ],
+      "table": "PLANVIZ.ORDERS",
+      "segment": {
+        "bytes": 9437184,
+        "extents": 24
+      },
+      "ddl": "\n  CREATE UNIQUE INDEX \"PLANVIZ\".\"PK_ORDERS\" ON \"PLANVIZ\".\"ORDERS\" (\"ORDER_ID\") \n  ;"
+    },
+    "PLANVIZ.PK_DIM_CUSTOMERS": {
+      "type": "INDEX",
+      "stats": {
+        "uniqueness": "UNIQUE",
+        "index_type": "NORMAL",
+        "status": "VALID",
+        "visibility": "VISIBLE",
+        "partitioned": false,
+        "clustering_factor": 279,
+        "blevel": 1,
+        "leaf_blocks": 104,
+        "distinct_keys": 50000,
+        "num_rows": 50000,
+        "avg_leaf_blocks_per_key": 1,
+        "avg_data_blocks_per_key": 1,
+        "last_analyzed": "2026-07-04T21:03:06Z",
+        "degree": "1",
+        "compression": "DISABLED"
+      },
+      "columns": [
+        "CUSTOMER_ID"
+      ],
+      "table": "PLANVIZ.DIM_CUSTOMERS",
+      "segment": {
+        "bytes": 983040,
+        "extents": 15
+      },
+      "ddl": "\n  CREATE UNIQUE INDEX \"PLANVIZ\".\"PK_DIM_CUSTOMERS\" ON \"PLANVIZ\".\"DIM_CUSTOMERS\" (\"CUSTOMER_ID\") \n  ;"
+    },
+    "PLANVIZ.PK_PARTS": {
+      "type": "INDEX",
+      "stats": {
+        "uniqueness": "UNIQUE",
+        "index_type": "NORMAL",
+        "status": "VALID",
+        "visibility": "VISIBLE",
+        "partitioned": false,
+        "clustering_factor": 245,
+        "blevel": 1,
+        "leaf_blocks": 106,
+        "distinct_keys": 51000,
+        "num_rows": 51000,
+        "avg_leaf_blocks_per_key": 1,
+        "avg_data_blocks_per_key": 1,
+        "last_analyzed": "2026-07-04T21:03:06Z",
+        "degree": "1",
+        "compression": "DISABLED"
+      },
+      "columns": [
+        "PART_ID"
+      ],
+      "table": "PLANVIZ.PARTS",
+      "segment": {
+        "bytes": 983040,
+        "extents": 15
+      },
+      "ddl": "\n  CREATE UNIQUE INDEX \"PLANVIZ\".\"PK_PARTS\" ON \"PLANVIZ\".\"PARTS\" (\"PART_ID\") \n  ;"
+    },
+    "PLANVIZ.BOM_PARENT_IX": {
+      "type": "INDEX",
       "stats": {
         "uniqueness": "NONUNIQUE",
         "index_type": "NORMAL",
         "status": "VALID",
         "visibility": "VISIBLE",
         "partitioned": false,
-        "clustering_factor": 4180,
-        "blevel": 2,
-        "leaf_blocks": 920,
-        "distinct_keys": 8
+        "clustering_factor": 429,
+        "blevel": 1,
+        "leaf_blocks": 27,
+        "distinct_keys": 1000,
+        "num_rows": 12680,
+        "avg_leaf_blocks_per_key": 1,
+        "avg_data_blocks_per_key": 1,
+        "last_analyzed": "2026-07-04T21:03:06Z",
+        "degree": "1",
+        "compression": "DISABLED"
       },
-      "columns": ["DEPT_ID"],
-      "table": "ADHOC.EMPLOYEES"
+      "columns": [
+        "PARENT_ID"
+      ],
+      "table": "PLANVIZ.BOM",
+      "segment": {
+        "bytes": 262144,
+        "extents": 4
+      },
+      "ddl": "\n  CREATE INDEX \"PLANVIZ\".\"BOM_PARENT_IX\" ON \"PLANVIZ\".\"BOM\" (\"PARENT_ID\") \n  ;"
     },
-    "ADHOC.SALES": {
-      "type": "TABLE",
-      "ddl": "CREATE TABLE \"ADHOC\".\"SALES\"\n(\t\"SALE_ID\" NUMBER NOT NULL ENABLE,\n\t\"SALE_DATE\" DATE NOT NULL ENABLE,\n\t\"CUSTOMER_ID\" NUMBER,\n\t\"AMOUNT\" NUMBER(12,2),\n\t CONSTRAINT \"SALES_PK\" PRIMARY KEY (\"SALE_ID\")\n)\nPARTITION BY RANGE (\"SALE_DATE\") INTERVAL (NUMTOYMINTERVAL(1,'MONTH'))\n(\tPARTITION \"SALES_P_INITIAL\" VALUES LESS THAN (TO_DATE(' 2026-01-01 00:00:00', 'SYYYY-MM-DD HH24:MI:SS', 'NLS_CALENDAR=GREGORIAN'))\n) ;",
-      "stats": {
-        "num_rows": 9600000,
-        "blocks": 168000,
-        "avg_row_len": 48,
-        "last_analyzed": "2026-06-01T02:00:00Z",
-        "stale_stats": "NO",
-        "partitioned": true,
-        "partition_count": 24,
-        "partition_type": "RANGE",
-        "subpartition_type": "NONE",
-        "interval": "NUMTOYMINTERVAL(1,'MONTH')",
-        "partition_key": ["SALE_DATE"],
-        "subpartition_key": []
-      },
-      "columns": {
-        "SALE_ID": {
-          "data_type": "NUMBER",
-          "nullable": false,
-          "num_distinct": 9600000,
-          "num_nulls": 0,
-          "low_value": "1",
-          "high_value": "9600000",
-          "density": 0.0000001,
-          "histogram": { "type": "NONE", "buckets": 0 }
-        },
-        "SALE_DATE": {
-          "data_type": "DATE",
-          "nullable": false,
-          "num_distinct": 730,
-          "num_nulls": 0,
-          "low_value": "2024-01-01",
-          "high_value": "2026-01-01",
-          "density": 0.00137,
-          "histogram": { "type": "HEIGHT BALANCED", "buckets": 254 }
-        },
-        "CUSTOMER_ID": {
-          "data_type": "NUMBER",
-          "nullable": true,
-          "num_distinct": 120000,
-          "num_nulls": 0,
-          "low_value": "1",
-          "high_value": "120000",
-          "density": 0.0000083,
-          "histogram": { "type": "NONE", "buckets": 0 }
-        },
-        "AMOUNT": {
-          "data_type": "NUMBER",
-          "nullable": true,
-          "num_distinct": 45000,
-          "num_nulls": 0,
-          "low_value": "0.01",
-          "high_value": "99999.99",
-          "density": 0.0000222,
-          "histogram": { "type": "NONE", "buckets": 0 }
-        }
-      },
-      "indexes": ["ADHOC.SALES_CUST_IX"]
-    },
-    "ADHOC.SALES_CUST_IX": {
+    "PLANVIZ.PK_BOM": {
       "type": "INDEX",
-      "ddl": "CREATE INDEX \"ADHOC\".\"SALES_CUST_IX\" ON \"ADHOC\".\"SALES\" (\"CUSTOMER_ID\") LOCAL\n  PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS ;",
       "stats": {
-        "uniqueness": "NONUNIQUE",
+        "uniqueness": "UNIQUE",
         "index_type": "NORMAL",
         "status": "VALID",
         "visibility": "VISIBLE",
-        "partitioned": true,
-        "clustering_factor": 5400000,
-        "blevel": 2,
-        "leaf_blocks": 21000,
-        "distinct_keys": 120000,
-        "partition_type": "RANGE",
-        "locality": "LOCAL",
-        "partition_key": ["SALE_DATE"]
+        "partitioned": false,
+        "clustering_factor": 425,
+        "blevel": 1,
+        "leaf_blocks": 37,
+        "distinct_keys": 12680,
+        "num_rows": 12680,
+        "avg_leaf_blocks_per_key": 1,
+        "avg_data_blocks_per_key": 1,
+        "last_analyzed": "2026-07-04T21:03:06Z",
+        "degree": "1",
+        "compression": "DISABLED"
       },
-      "columns": ["CUSTOMER_ID"],
-      "table": "ADHOC.SALES"
+      "columns": [
+        "PARENT_ID",
+        "CHILD_ID",
+        "QTY"
+      ],
+      "table": "PLANVIZ.BOM",
+      "segment": {
+        "bytes": 393216,
+        "extents": 6
+      },
+      "ddl": "\n  CREATE UNIQUE INDEX \"PLANVIZ\".\"PK_BOM\" ON \"PLANVIZ\".\"BOM\" (\"PARENT_ID\", \"CHILD_ID\", \"QTY\") \n  ;"
     }
   },
-  "coverage_warnings": []
+  "coverage_warnings": [],
+  "system_params": {
+    "db_block_size": 8192,
+    "optimizer_features_enable": "19.1.0",
+    "optimizer_index_cost_adj": 100,
+    "optimizer_index_caching": 0
+  }
 }

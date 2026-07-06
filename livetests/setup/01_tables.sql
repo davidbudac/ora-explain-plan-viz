@@ -113,6 +113,16 @@ CREATE TABLE sales_part
    (PARTITION p_2024_01 VALUES LESS THAN (DATE '2024-02-01'))
 AS SELECT * FROM sales;
 
+-- Constraints + a column-group extended stat on the fact table so gathered
+-- metadata bundles (scripts/gather_plan_metadata.sql) exercise the
+-- visualizer's constraints and extended-stats sections with real data.
+ALTER TABLE sales_part MODIFY (sale_date NOT NULL);
+ALTER TABLE sales_part ADD CONSTRAINT fk_sales_part_product FOREIGN KEY (product_id) REFERENCES dim_products (product_id);
+ALTER TABLE sales_part ADD CONSTRAINT fk_sales_part_store FOREIGN KEY (store_id) REFERENCES dim_stores (store_id);
+ALTER TABLE sales_part ADD CONSTRAINT chk_sales_part_qty CHECK (quantity > 0);
+
+SELECT DBMS_STATS.CREATE_EXTENDED_STATS(USER, 'SALES_PART', '(PRODUCT_ID, STORE_ID)') AS ext_name FROM dual;
+
 -----------------------------------------------------------------------------
 -- 2. CARDINALITY-TRAP SCHEMA
 -----------------------------------------------------------------------------
