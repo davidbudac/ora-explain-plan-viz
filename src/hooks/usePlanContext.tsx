@@ -16,6 +16,7 @@ import type { AnnotationState, AnnotationGroup, HighlightColor, HighlightStyle, 
 import { createEmptyAnnotationState, hasAnnotations, serializeAnnotations, deserializeAnnotations, validateExport, downloadAnnotatedPlan, generateGroupId } from '../lib/annotations';
 import type { MetadataBundle } from '../lib/metadata/bundle';
 import { parseBundle, emptyBundleWarning } from '../lib/metadata/bundle';
+import { copyToClipboard } from '../lib/clipboard';
 import { SAMPLE_PLANS_WITH_ORDER } from '../examples';
 import type { SamplePlan } from '../examples';
 import { runAdvisor } from '../lib/advisor';
@@ -657,6 +658,20 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
   }
 }
 
+/**
+ * Outcome of a share action, surfaced to the UI so it can react appropriately:
+ * - `copied`  — link copied cleanly; a brief confirmation is enough.
+ * - `warning` — copied, but the link is long enough that some clients may
+ *               truncate it; show the full URL so the user can verify.
+ * - `manual`  — the clipboard was blocked; the user must copy the shown URL.
+ * - `error`   — the link could not be built (e.g. plan too large).
+ */
+export type ShareNotice =
+  | { kind: 'copied'; url: string }
+  | { kind: 'warning'; url: string; warning?: string }
+  | { kind: 'manual'; url: string; warning?: string }
+  | { kind: 'error'; message: string };
+
 interface PlanContextValue {
   // Backward-compatible derived values from active plan
   rawInput: string;
@@ -764,7 +779,11 @@ interface PlanContextValue {
   clearAnnotations: () => void;
 
   // Share URL
-  sharePlan: () => Promise<{ ok: true; url: string; warning?: string } | { ok: false; error: string }>;
+  sharePlan: () => Promise<{ ok: true; url: string; warning?: string; copied: boolean } | { ok: false; error: string }>;
+  /** Build the share URL and publish the outcome as a dismissable notice. */
+  share: () => Promise<void>;
+  shareNotice: ShareNotice | null;
+  dismissShareNotice: () => void;
 
   // Export PNG — HierarchicalView registers a capture function, Header calls it
   exportPngFnRef: React.MutableRefObject<(() => Promise<void>) | null>;
@@ -781,6 +800,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
   const [metadataPopoutOpen, setMetadataPopoutOpen] = useState(false);
   const [prevMetadataBundle, setPrevMetadataBundle] = useState<MetadataBundle | null>(null);
+  const [shareNotice, setShareNotice] = useState<ShareNotice | null>(null);
 
   const createPlanSlotFromInput = useCallback((input: string, index: number): PlanSlot => {
     const slot = createEmptySlot(index);
@@ -1402,7 +1422,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     }
   }, [state.activePlanIndex]);
 
-  const sharePlan = useCallback(async (): Promise<{ ok: true; url: string; warning?: string } | { ok: false; error: string }> => {
+  const sharePlan = useCallback(async (): Promise<{ ok: true; url: string; warning?: string; copied: boolean } | { ok: false; error: string }> => {
     // Need at least one plan with input
     const hasAnyInput = state.plans.some(slot => slot.rawInput);
     if (!hasAnyInput) {
@@ -1445,15 +1465,42 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
     if (result.ok) {
       window.history.replaceState(null, '', result.url);
-      try {
-        await navigator.clipboard.writeText(result.url);
-      } catch {
-        // Clipboard write may fail in some contexts — URL is still in address bar
-      }
-      return { ...result, warning };
+      // Robust copy with an execCommand fallback for insecure (HTTP) origins and
+      // unfocused documents. `copied` is surfaced so the UI can offer a reliable
+      // manual-copy affordance instead of falsely claiming success.
+      const copied = await copyToClipboard(result.url);
+      return { ok: true, url: result.url, warning, copied };
     }
     return result;
   }, [state.plans]);
+
+  // Perform a share and publish the outcome as a dismissable notice, so every
+  // entry point (header button, command palette) gives consistent, recoverable
+  // feedback — especially when the clipboard write is blocked.
+  const share = useCallback(async () => {
+    const result = await sharePlan();
+    if (!result.ok) {
+      setShareNotice({ kind: 'error', message: result.error });
+      return;
+    }
+    if (!result.copied) {
+      setShareNotice({ kind: 'manual', url: result.url, warning: result.warning });
+    } else if (result.warning) {
+      setShareNotice({ kind: 'warning', url: result.url, warning: result.warning });
+    } else {
+      setShareNotice({ kind: 'copied', url: result.url });
+    }
+  }, [sharePlan]);
+
+  const dismissShareNotice = useCallback(() => setShareNotice(null), []);
+
+  // The clean "copied" confirmation is transient; manual/warning/error notices
+  // stay put until dismissed, since the user still needs to act on them.
+  useEffect(() => {
+    if (shareNotice?.kind !== 'copied') return;
+    const timer = setTimeout(() => setShareNotice(null), 2500);
+    return () => clearTimeout(timer);
+  }, [shareNotice]);
 
   const getSelectedNode = useCallback((): PlanNode | null => selectedNode, [selectedNode]);
 
@@ -1565,6 +1612,9 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
     // Share URL
     sharePlan,
+    share,
+    shareNotice,
+    dismissShareNotice,
 
     // Export PNG
     exportPngFnRef,
