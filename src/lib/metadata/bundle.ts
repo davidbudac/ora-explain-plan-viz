@@ -26,6 +26,7 @@ export interface TableObject {
   stats: TableStats;
   columns: Record<string, ColumnStats>;
   indexes: string[];
+  ddl?: string | null;
 }
 
 export interface IndexObject {
@@ -33,6 +34,7 @@ export interface IndexObject {
   stats: IndexStats;
   columns: string[];
   table: string;
+  ddl?: string | null;
 }
 
 export interface TableStats {
@@ -43,6 +45,16 @@ export interface TableStats {
   stale_stats: 'YES' | 'NO' | null;
   partitioned: boolean;
   partition_count?: number;
+  /** "RANGE" | "LIST" | "HASH" | "REFERENCE" | "SYSTEM" */
+  partition_type?: string | null;
+  /** "NONE" | "RANGE" | "LIST" | "HASH" | null */
+  subpartition_type?: string | null;
+  /** Interval expression when INTERVAL partitioning is in use, else null. */
+  interval?: string | null;
+  /** Ordered partition key columns; may be [] or absent. */
+  partition_key?: string[];
+  /** Ordered subpartition key columns; may be [] or absent. */
+  subpartition_key?: string[];
 }
 
 export interface ColumnStats {
@@ -71,6 +83,9 @@ export interface IndexStats {
   blevel: number | null;
   leaf_blocks: number | null;
   distinct_keys: number | null;
+  partition_type?: string | null;
+  locality?: 'LOCAL' | 'GLOBAL' | null;
+  partition_key?: string[];
 }
 
 export interface CoverageWarning {

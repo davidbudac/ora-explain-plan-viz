@@ -921,6 +921,7 @@ function MetadataSection({
           usedIndexKeys={usedIndexKeys}
           heading={indexBlock.tableKey ? `Other indexes on ${indexBlock.tableKey}` : 'Other indexes'}
         />
+        {match.object.ddl && <DdlBlock ddl={match.object.ddl} />}
       </Accordion>
     );
   }
@@ -941,7 +942,40 @@ function MetadataSection({
         usedIndexKeys={usedIndexKeys}
         heading="Indexes"
       />
+      {match.object.ddl && <DdlBlock ddl={match.object.ddl} />}
     </Accordion>
+  );
+}
+
+function DdlBlock({ ddl }: { ddl: string }) {
+  if (!ddl || !ddl.trim()) return null;
+  return (
+    <details className="group mt-4 pt-4 border-t border-slate-200 dark:border-slate-800" open={false}>
+      <summary className="flex items-center justify-between cursor-pointer list-none select-none mb-2">
+        <div className="flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5 text-slate-300 group-open:rotate-180 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+          </svg>
+          <h5 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            DDL
+          </h5>
+        </div>
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          className="inline-flex"
+        >
+          <CopyButton text={ddl} label="Copy DDL" />
+        </span>
+      </summary>
+      <pre className="text-[10px] leading-relaxed font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md p-2.5 text-slate-800 dark:text-slate-200 whitespace-pre overflow-auto max-h-72">
+        {ddl.trim()}
+      </pre>
+    </details>
   );
 }
 
@@ -1079,6 +1113,29 @@ function ObjectBlock({ objectKey, stats }: { objectKey: string; stats: TableStat
         <StatItem label="Analyzed" value={formatDateShort(stats.last_analyzed)} />
         <StatItem label="Partitioned" value={stats.partitioned ? 'YES' : 'NO'} />
       </div>
+      {stats.partitioned && stats.partition_type && (
+        <div className="mt-2 text-[10px] rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 p-2">
+          <div className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter mb-1">
+            Partitioning
+          </div>
+          <div className="font-mono text-slate-700 dark:text-slate-300">
+            {stats.partition_type}
+            {stats.interval ? ' · INTERVAL' : ''}
+            {stats.partition_key && stats.partition_key.length > 0 && (
+              <span> ({stats.partition_key.join(', ')})</span>
+            )}
+          </div>
+          {stats.subpartition_type && stats.subpartition_type !== 'NONE' && (
+            <div className="mt-1 font-mono text-slate-700 dark:text-slate-300">
+              <span className="text-slate-400 dark:text-slate-500 font-sans">Subpartition:</span>{' '}
+              {stats.subpartition_type}
+              {stats.subpartition_key && stats.subpartition_key.length > 0 && (
+                <span> ({stats.subpartition_key.join(', ')})</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1113,7 +1170,23 @@ function IndexObjectBlock({ objectKey, index }: { objectKey: string; index: impo
         <StatItem label="Visibility" value={stats.visibility} />
         <StatItem label="C-Factor" value={formatNumberShort(stats.clustering_factor ?? undefined)} />
         <StatItem label="B-Level" value={stats.blevel?.toString()} />
+        {stats.partitioned && (
+          <>
+            <StatItem label="Locality" value={stats.locality ?? undefined} />
+            <StatItem label="Partition Type" value={stats.partition_type ?? undefined} />
+          </>
+        )}
       </div>
+      {stats.partitioned && stats.partition_key && stats.partition_key.length > 0 && (
+        <div className="mt-2 text-[10px] rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 p-2">
+          <span className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter mr-1.5">
+            Partition Key:
+          </span>
+          <code className="font-mono text-slate-700 dark:text-slate-300">
+            ({stats.partition_key.join(', ')})
+          </code>
+        </div>
+      )}
     </div>
   );
 }
@@ -1169,6 +1242,11 @@ function IndexRow({ index, usedHere }: { index: ResolvedIndex; usedHere: boolean
           {usedHere && (
             <span className="px-1.5 py-0.5 text-[8px] rounded font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 uppercase">
               active
+            </span>
+          )}
+          {stats.partitioned && stats.locality && (
+            <span className="px-1.5 py-0.5 text-[8px] rounded font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 uppercase">
+              {stats.locality}
             </span>
           )}
           {isUnusable && (
