@@ -10,6 +10,7 @@ import { SqlTextView } from './views/SqlTextView';
 import { MonitorDetailsView } from './views/MonitorDetailsView';
 import { TreeCompareView } from './views/TreeCompareView';
 import { Legend } from './Legend';
+import { MetadataView } from './metadata/MetadataView';
 
 export function VisualizationTabs() {
   const {
@@ -46,6 +47,7 @@ export function VisualizationTabs() {
           </div>
         )}
         {viewMode === 'sql' && <SqlTextView />}
+        {viewMode === 'metadata' && <MetadataView />}
         {viewMode === 'monitor' && <MonitorDetailsView />}
         {(viewMode === 'hierarchical' || viewMode === 'sankey' || viewMode === 'flame' || viewMode === 'tabular') && <Legend />}
       </div>

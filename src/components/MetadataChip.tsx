@@ -109,6 +109,14 @@ export function MetadataChip({ bundle, warning, planSqlId, onDetach }: MetadataC
               </dd>
               <dt className="text-neutral-500 dark:text-neutral-400">Objects</dt>
               <dd>{tableCount} tables, {indexCount} indexes</dd>
+              {bundle.system_params && (
+                <>
+                  <dt className="text-neutral-500 dark:text-neutral-400">System params</dt>
+                  <dd className="font-mono truncate" title={`block size ${bundle.system_params.db_block_size}, optimizer_features_enable ${bundle.system_params.optimizer_features_enable}`}>
+                    block {bundle.system_params.db_block_size}B · features {bundle.system_params.optimizer_features_enable}
+                  </dd>
+                </>
+              )}
             </dl>
             {warning && (
               <div className="mt-2 p-2 rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300">
