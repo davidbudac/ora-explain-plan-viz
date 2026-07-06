@@ -299,6 +299,141 @@ describe('parseBundle', () => {
   });
 });
 
+describe('parseBundle — partitioning and DDL fields', () => {
+  it('round-trips a bundle carrying the new partitioning, locality, and ddl fields without loss', () => {
+    const json = JSON.stringify({
+      format: 'ora-plan-metadata',
+      version: 1,
+      captured_at: '2026-07-05T10:00:00Z',
+      source: { db_name: 'PROD1', oracle_version: '19.0.0.0.0', container_name: 'PDB1' },
+      plan_ref: { sql_id: 'an05rsj1up1k5', plan_hash_value: 3001234567 },
+      objects: {
+        'ADHOC.SALES': {
+          type: 'TABLE',
+          ddl: 'CREATE TABLE "ADHOC"."SALES" (...) PARTITION BY RANGE ("SALE_DATE") INTERVAL (NUMTOYMINTERVAL(1,\'MONTH\')) (...) ;',
+          stats: {
+            num_rows: 9600000,
+            blocks: 168000,
+            avg_row_len: 48,
+            last_analyzed: '2026-06-01T02:00:00Z',
+            stale_stats: 'NO',
+            partitioned: true,
+            partition_count: 24,
+            partition_type: 'RANGE',
+            subpartition_type: 'NONE',
+            interval: "NUMTOYMINTERVAL(1,'MONTH')",
+            partition_key: ['SALE_DATE'],
+            subpartition_key: [],
+          },
+          columns: {},
+          indexes: ['ADHOC.SALES_CUST_IX'],
+        },
+        'ADHOC.SALES_CUST_IX': {
+          type: 'INDEX',
+          ddl: 'CREATE INDEX "ADHOC"."SALES_CUST_IX" ON "ADHOC"."SALES" ("CUSTOMER_ID") LOCAL ;',
+          stats: {
+            uniqueness: 'NONUNIQUE',
+            index_type: 'NORMAL',
+            status: 'VALID',
+            visibility: 'VISIBLE',
+            partitioned: true,
+            clustering_factor: 5400000,
+            blevel: 2,
+            leaf_blocks: 21000,
+            distinct_keys: 120000,
+            partition_type: 'RANGE',
+            locality: 'LOCAL',
+            partition_key: ['SALE_DATE'],
+          },
+          columns: ['CUSTOMER_ID'],
+          table: 'ADHOC.SALES',
+        },
+      },
+      coverage_warnings: [],
+    });
+
+    const bundle = parseBundle(json);
+
+    const sales = bundle.objects['ADHOC.SALES'];
+    expect(sales?.type).toBe('TABLE');
+    if (sales?.type === 'TABLE') {
+      expect(sales.ddl).toContain('PARTITION BY RANGE');
+      expect(sales.stats.partition_type).toBe('RANGE');
+      expect(sales.stats.subpartition_type).toBe('NONE');
+      expect(sales.stats.interval).toBe("NUMTOYMINTERVAL(1,'MONTH')");
+      expect(sales.stats.partition_key).toEqual(['SALE_DATE']);
+      expect(sales.stats.subpartition_key).toEqual([]);
+    }
+
+    const idx = bundle.objects['ADHOC.SALES_CUST_IX'];
+    expect(idx?.type).toBe('INDEX');
+    if (idx?.type === 'INDEX') {
+      expect(idx.ddl).toContain('LOCAL');
+      expect(idx.stats.locality).toBe('LOCAL');
+      expect(idx.stats.partition_type).toBe('RANGE');
+      expect(idx.stats.partition_key).toEqual(['SALE_DATE']);
+    }
+  });
+
+  it('still parses an existing v1 bundle that omits all the new optional fields (regression guard)', () => {
+    const json = JSON.stringify({
+      format: 'ora-plan-metadata',
+      version: 1,
+      captured_at: '2026-05-15T10:23:00Z',
+      source: { db_name: 'PROD1', oracle_version: '19.0.0.0.0', container_name: 'PDB1' },
+      plan_ref: { sql_id: 'abc123def456', plan_hash_value: 1234567890 },
+      objects: {
+        'SH.SALES': {
+          type: 'TABLE',
+          stats: {
+            num_rows: 1200000,
+            blocks: 15000,
+            avg_row_len: 60,
+            last_analyzed: '2026-05-01T00:00:00Z',
+            stale_stats: 'NO',
+            partitioned: false,
+          },
+          columns: {},
+          indexes: ['SH.SALES_IDX'],
+        },
+        'SH.SALES_IDX': {
+          type: 'INDEX',
+          stats: {
+            uniqueness: 'NONUNIQUE',
+            index_type: 'NORMAL',
+            status: 'VALID',
+            visibility: 'VISIBLE',
+            partitioned: false,
+            clustering_factor: 100,
+            blevel: 1,
+            leaf_blocks: 50,
+            distinct_keys: 10,
+          },
+          columns: ['ID'],
+          table: 'SH.SALES',
+        },
+      },
+      coverage_warnings: [],
+    });
+
+    const bundle = parseBundle(json);
+
+    const sales = bundle.objects['SH.SALES'];
+    expect(sales?.type).toBe('TABLE');
+    if (sales?.type === 'TABLE') {
+      expect(sales.stats.partition_type).toBeUndefined();
+      expect(sales.ddl).toBeUndefined();
+    }
+
+    const idx = bundle.objects['SH.SALES_IDX'];
+    expect(idx?.type).toBe('INDEX');
+    if (idx?.type === 'INDEX') {
+      expect(idx.stats.locality).toBeUndefined();
+      expect(idx.ddl).toBeUndefined();
+    }
+  });
+});
+
 describe('looksLikeMetadataBundle', () => {
   it('matches bundle content even when wrapped in spool noise', () => {
     const spool = 'SQL> spool\n{"format":"ora-plan-metadata","version":1}\nSQL> spool off\n';
