@@ -1,7 +1,7 @@
 {
     "format": "ora-plan-metadata",
     "version": 1,
-    "captured_at": "2026-07-05T19:38:45.415Z",
+    "captured_at": "2026-07-05T21:14:03.914Z",
     "source": {
         "db_name": "CDB1",
         "oracle_version": "19.27.0.0.0",
@@ -78,7 +78,8 @@
             },
             "indexes": [
                 "PLANVIZ.PK_DIM_STORES"
-            ]
+            ],
+            "ddl": "\n  CREATE TABLE \"PLANVIZ\".\"DIM_STORES\" \n   (\t\"STORE_ID\" NUMBER, \n\t\"STORE_NAME\" VARCHAR2(46), \n\t\"COUNTRY\" VARCHAR2(48), \n\t\"REGION\" VARCHAR2(7), \n\t CONSTRAINT \"PK_DIM_STORES\" PRIMARY KEY (\"STORE_ID\")\n  USING INDEX  ENABLE\n   ) ;"
         },
         "PLANVIZ.DIM_PRODUCTS": {
             "type": "TABLE",
@@ -146,7 +147,8 @@
             },
             "indexes": [
                 "PLANVIZ.PK_DIM_PRODUCTS"
-            ]
+            ],
+            "ddl": "\n  CREATE TABLE \"PLANVIZ\".\"DIM_PRODUCTS\" \n   (\t\"PRODUCT_ID\" NUMBER, \n\t\"PRODUCT_NAME\" VARCHAR2(48), \n\t\"CATEGORY\" VARCHAR2(11), \n\t\"LIST_PRICE\" NUMBER, \n\t CONSTRAINT \"PK_DIM_PRODUCTS\" PRIMARY KEY (\"PRODUCT_ID\")\n  USING INDEX  ENABLE\n   ) ;"
         },
         "PLANVIZ.SALES_PART": {
             "type": "TABLE",
@@ -157,7 +159,13 @@
                 "last_analyzed": "2026-07-05T13:18:52Z",
                 "stale_stats": "NO",
                 "partitioned": true,
-                "partition_count": 24
+                "partition_count": 24,
+                "partition_type": "RANGE",
+                "subpartition_type": "NONE",
+                "interval": "NUMTOYMINTERVAL(1, 'MONTH')",
+                "partition_key": [
+                    "SALE_DATE"
+                ]
             },
             "columns": {
                 "SALE_ID": {
@@ -167,7 +175,7 @@
                     "num_nulls": 0,
                     "low_value": "1",
                     "high_value": "2000000",
-                    "density": 5.00801282051282e-07,
+                    "density": 5.00801282051282e-7,
                     "histogram": {
                         "type": "NONE",
                         "buckets": 1
@@ -180,7 +188,7 @@
                     "num_nulls": 0,
                     "low_value": "1",
                     "high_value": "50000",
-                    "density": 1.97878739908184e-05,
+                    "density": 0.0000197878739908184,
                     "histogram": {
                         "type": "NONE",
                         "buckets": 1
@@ -206,7 +214,7 @@
                     "num_nulls": 0,
                     "low_value": "1",
                     "high_value": "200",
-                    "density": 2.5e-07,
+                    "density": 2.5e-7,
                     "histogram": {
                         "type": "FREQUENCY",
                         "buckets": 200
@@ -245,14 +253,15 @@
                     "num_nulls": 0,
                     "low_value": "5",
                     "high_value": "2000",
-                    "density": 5.02209722780233e-06,
+                    "density": 0.00000502209722780233,
                     "histogram": {
                         "type": "NONE",
                         "buckets": 1
                     }
                 }
             },
-            "indexes": []
+            "indexes": [],
+            "ddl": "\n  CREATE TABLE \"PLANVIZ\".\"SALES_PART\" \n   (\t\"SALE_ID\" NUMBER, \n\t\"CUSTOMER_ID\" NUMBER, \n\t\"PRODUCT_ID\" NUMBER, \n\t\"STORE_ID\" NUMBER, \n\t\"SALE_DATE\" DATE, \n\t\"QUANTITY\" NUMBER, \n\t\"AMOUNT\" NUMBER\n   ) \n  PARTITION BY RANGE (\"SALE_DATE\") INTERVAL (NUMTOYMINTERVAL(1, 'MONTH')) \n (PARTITION \"P_2024_01\"  VALUES LESS THAN (TO_DATE(' 2024-02-01 00:00:00', 'SYYYY-MM-DD HH24:MI:SS', 'NLS_CALENDAR=GREGORIAN')) ) ;"
         },
         "PLANVIZ.PK_DIM_STORES": {
             "type": "INDEX",
@@ -270,7 +279,8 @@
             "columns": [
                 "STORE_ID"
             ],
-            "table": "PLANVIZ.DIM_STORES"
+            "table": "PLANVIZ.DIM_STORES",
+            "ddl": "\n  CREATE UNIQUE INDEX \"PLANVIZ\".\"PK_DIM_STORES\" ON \"PLANVIZ\".\"DIM_STORES\" (\"STORE_ID\") \n  ;"
         },
         "PLANVIZ.PK_DIM_PRODUCTS": {
             "type": "INDEX",
@@ -288,7 +298,8 @@
             "columns": [
                 "PRODUCT_ID"
             ],
-            "table": "PLANVIZ.DIM_PRODUCTS"
+            "table": "PLANVIZ.DIM_PRODUCTS",
+            "ddl": "\n  CREATE UNIQUE INDEX \"PLANVIZ\".\"PK_DIM_PRODUCTS\" ON \"PLANVIZ\".\"DIM_PRODUCTS\" (\"PRODUCT_ID\") \n  ;"
         }
     },
     "coverage_warnings": [],
