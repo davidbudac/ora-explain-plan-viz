@@ -25,6 +25,15 @@ describe('example metadata sidecars', () => {
       expect(bundle.format).toBe('ora-plan-metadata');
       expect(Object.keys(bundle.objects).length).toBeGreaterThan(0);
 
+      // The curated "Partition Range Iterator" sidecar is the v2 fixture —
+      // guard that it stays v2 and keeps its constraint data through parse.
+      if (sample.name === 'Partition Range Iterator') {
+        expect(bundle.version).toBe(2);
+        const tables = Object.values(bundle.objects).filter((o) => o.type === 'TABLE');
+        expect(tables.some((t) => t.type === 'TABLE' && t.constraints?.primary_key)).toBe(true);
+        expect(tables.some((t) => t.type === 'TABLE' && (t.constraints?.foreign_keys?.length ?? 0) > 0)).toBe(true);
+      }
+
       const slots = [{ parsedPlan: parsed } as unknown as PlanSlot];
       const decision = pairBundleWithSlots(bundle, slots);
       expect(decision.kind).toBe('auto-attach');

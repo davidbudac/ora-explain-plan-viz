@@ -1,312 +1,535 @@
 {
-    "format": "ora-plan-metadata",
-    "version": 1,
-    "captured_at": "2026-07-05T21:14:03.914Z",
-    "source": {
-        "db_name": "CDB1",
-        "oracle_version": "19.27.0.0.0",
-        "container_name": "PDB1"
-    },
-    "plan_ref": {
-        "sql_id": "gwt6xjc6gcs2f",
-        "plan_hash_value": 767733636
-    },
-    "objects": {
-        "PLANVIZ.DIM_STORES": {
-            "type": "TABLE",
-            "stats": {
-                "num_rows": 200,
-                "blocks": 4,
-                "avg_row_len": 28,
-                "last_analyzed": "2026-07-04T21:03:06Z",
-                "stale_stats": "NO",
-                "partitioned": false
-            },
-            "columns": {
-                "STORE_ID": {
-                    "data_type": "NUMBER",
-                    "nullable": false,
-                    "num_distinct": 200,
-                    "num_nulls": 0,
-                    "low_value": "1",
-                    "high_value": "200",
-                    "density": 0.005,
-                    "histogram": {
-                        "type": "NONE",
-                        "buckets": 1
-                    }
-                },
-                "STORE_NAME": {
-                    "data_type": "VARCHAR2",
-                    "nullable": true,
-                    "num_distinct": 200,
-                    "num_nulls": 0,
-                    "low_value": "Store 1",
-                    "high_value": "Store 99",
-                    "density": 0.005,
-                    "histogram": {
-                        "type": "NONE",
-                        "buckets": 1
-                    }
-                },
-                "COUNTRY": {
-                    "data_type": "VARCHAR2",
-                    "nullable": true,
-                    "num_distinct": 10,
-                    "num_nulls": 0,
-                    "low_value": "COUNTRY_0",
-                    "high_value": "COUNTRY_9",
-                    "density": 0.1,
-                    "histogram": {
-                        "type": "NONE",
-                        "buckets": 1
-                    }
-                },
-                "REGION": {
-                    "data_type": "VARCHAR2",
-                    "nullable": true,
-                    "num_distinct": 5,
-                    "num_nulls": 0,
-                    "low_value": "Central",
-                    "high_value": "West",
-                    "density": 0.2,
-                    "histogram": {
-                        "type": "NONE",
-                        "buckets": 1
-                    }
-                }
-            },
-            "indexes": [
-                "PLANVIZ.PK_DIM_STORES"
-            ],
-            "ddl": "\n  CREATE TABLE \"PLANVIZ\".\"DIM_STORES\" \n   (\t\"STORE_ID\" NUMBER, \n\t\"STORE_NAME\" VARCHAR2(46), \n\t\"COUNTRY\" VARCHAR2(48), \n\t\"REGION\" VARCHAR2(7), \n\t CONSTRAINT \"PK_DIM_STORES\" PRIMARY KEY (\"STORE_ID\")\n  USING INDEX  ENABLE\n   ) ;"
+  "format": "ora-plan-metadata",
+  "version": 2,
+  "captured_at": "2026-07-06T14:50:44.452Z",
+  "source": {
+    "db_name": "CDB1",
+    "oracle_version": "19.27.0.0.0",
+    "container_name": "PDB1"
+  },
+  "plan_ref": {
+    "sql_id": "gwt6xjc6gcs2f",
+    "plan_hash_value": 767733636
+  },
+  "objects": {
+    "PLANVIZ.DIM_STORES": {
+      "type": "TABLE",
+      "stats": {
+        "num_rows": 200,
+        "blocks": 4,
+        "avg_row_len": 28,
+        "last_analyzed": "2026-07-04T21:03:06Z",
+        "stale_stats": "NO",
+        "partitioned": false
+      },
+      "physical": {
+        "compression": "DISABLED",
+        "compress_for": null,
+        "degree": "1",
+        "temporary": false,
+        "cluster_name": null,
+        "iot_type": null,
+        "cache": false
+      },
+      "segment": {
+        "bytes": 65536,
+        "extents": 1
+      },
+      "columns": {
+        "STORE_ID": {
+          "data_type": "NUMBER",
+          "nullable": false,
+          "num_distinct": 200,
+          "num_nulls": 0,
+          "low_value": "1",
+          "high_value": "200",
+          "density": 0.005,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
         },
-        "PLANVIZ.DIM_PRODUCTS": {
-            "type": "TABLE",
-            "stats": {
-                "num_rows": 1000,
-                "blocks": 8,
-                "avg_row_len": 29,
-                "last_analyzed": "2026-07-04T21:03:06Z",
-                "stale_stats": "NO",
-                "partitioned": false
-            },
-            "columns": {
-                "PRODUCT_ID": {
-                    "data_type": "NUMBER",
-                    "nullable": false,
-                    "num_distinct": 1000,
-                    "num_nulls": 0,
-                    "low_value": "1",
-                    "high_value": "1000",
-                    "density": 0.001,
-                    "histogram": {
-                        "type": "NONE",
-                        "buckets": 1
-                    }
-                },
-                "PRODUCT_NAME": {
-                    "data_type": "VARCHAR2",
-                    "nullable": true,
-                    "num_distinct": 1000,
-                    "num_nulls": 0,
-                    "low_value": "Product 1",
-                    "high_value": "Product 999",
-                    "density": 0.001,
-                    "histogram": {
-                        "type": "NONE",
-                        "buckets": 1
-                    }
-                },
-                "CATEGORY": {
-                    "data_type": "VARCHAR2",
-                    "nullable": true,
-                    "num_distinct": 8,
-                    "num_nulls": 0,
-                    "low_value": "Apparel",
-                    "high_value": "Toys",
-                    "density": 0.0005,
-                    "histogram": {
-                        "type": "FREQUENCY",
-                        "buckets": 8
-                    }
-                },
-                "LIST_PRICE": {
-                    "data_type": "NUMBER",
-                    "nullable": true,
-                    "num_distinct": 986,
-                    "num_nulls": 0,
-                    "low_value": "5.43",
-                    "high_value": "499.99",
-                    "density": 0.00101419878296146,
-                    "histogram": {
-                        "type": "NONE",
-                        "buckets": 1
-                    }
-                }
-            },
-            "indexes": [
-                "PLANVIZ.PK_DIM_PRODUCTS"
-            ],
-            "ddl": "\n  CREATE TABLE \"PLANVIZ\".\"DIM_PRODUCTS\" \n   (\t\"PRODUCT_ID\" NUMBER, \n\t\"PRODUCT_NAME\" VARCHAR2(48), \n\t\"CATEGORY\" VARCHAR2(11), \n\t\"LIST_PRICE\" NUMBER, \n\t CONSTRAINT \"PK_DIM_PRODUCTS\" PRIMARY KEY (\"PRODUCT_ID\")\n  USING INDEX  ENABLE\n   ) ;"
+        "STORE_NAME": {
+          "data_type": "VARCHAR2",
+          "nullable": true,
+          "num_distinct": 200,
+          "num_nulls": 0,
+          "low_value": "Store 1",
+          "high_value": "Store 99",
+          "density": 0.005,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
         },
-        "PLANVIZ.SALES_PART": {
-            "type": "TABLE",
-            "stats": {
-                "num_rows": 2000000,
-                "blocks": 11144,
-                "avg_row_len": 33,
-                "last_analyzed": "2026-07-05T13:18:52Z",
-                "stale_stats": "NO",
-                "partitioned": true,
-                "partition_count": 24,
-                "partition_type": "RANGE",
-                "subpartition_type": "NONE",
-                "interval": "NUMTOYMINTERVAL(1, 'MONTH')",
-                "partition_key": [
-                    "SALE_DATE"
-                ]
-            },
-            "columns": {
-                "SALE_ID": {
-                    "data_type": "NUMBER",
-                    "nullable": true,
-                    "num_distinct": 1996800,
-                    "num_nulls": 0,
-                    "low_value": "1",
-                    "high_value": "2000000",
-                    "density": 5.00801282051282e-7,
-                    "histogram": {
-                        "type": "NONE",
-                        "buckets": 1
-                    }
-                },
-                "CUSTOMER_ID": {
-                    "data_type": "NUMBER",
-                    "nullable": true,
-                    "num_distinct": 50536,
-                    "num_nulls": 0,
-                    "low_value": "1",
-                    "high_value": "50000",
-                    "density": 0.0000197878739908184,
-                    "histogram": {
-                        "type": "NONE",
-                        "buckets": 1
-                    }
-                },
-                "PRODUCT_ID": {
-                    "data_type": "NUMBER",
-                    "nullable": true,
-                    "num_distinct": 1000,
-                    "num_nulls": 0,
-                    "low_value": "1",
-                    "high_value": "1000",
-                    "density": 0.001,
-                    "histogram": {
-                        "type": "NONE",
-                        "buckets": 1
-                    }
-                },
-                "STORE_ID": {
-                    "data_type": "NUMBER",
-                    "nullable": true,
-                    "num_distinct": 200,
-                    "num_nulls": 0,
-                    "low_value": "1",
-                    "high_value": "200",
-                    "density": 2.5e-7,
-                    "histogram": {
-                        "type": "FREQUENCY",
-                        "buckets": 200
-                    }
-                },
-                "SALE_DATE": {
-                    "data_type": "DATE",
-                    "nullable": true,
-                    "num_distinct": 730,
-                    "num_nulls": 0,
-                    "low_value": "2024-01-01T00:00:00",
-                    "high_value": "2025-12-30T00:00:00",
-                    "density": 0.00136986301369863,
-                    "histogram": {
-                        "type": "NONE",
-                        "buckets": 1
-                    }
-                },
-                "QUANTITY": {
-                    "data_type": "NUMBER",
-                    "nullable": true,
-                    "num_distinct": 10,
-                    "num_nulls": 0,
-                    "low_value": "1",
-                    "high_value": "10",
-                    "density": 0.1,
-                    "histogram": {
-                        "type": "NONE",
-                        "buckets": 1
-                    }
-                },
-                "AMOUNT": {
-                    "data_type": "NUMBER",
-                    "nullable": true,
-                    "num_distinct": 199120,
-                    "num_nulls": 0,
-                    "low_value": "5",
-                    "high_value": "2000",
-                    "density": 0.00000502209722780233,
-                    "histogram": {
-                        "type": "NONE",
-                        "buckets": 1
-                    }
-                }
-            },
-            "indexes": [],
-            "ddl": "\n  CREATE TABLE \"PLANVIZ\".\"SALES_PART\" \n   (\t\"SALE_ID\" NUMBER, \n\t\"CUSTOMER_ID\" NUMBER, \n\t\"PRODUCT_ID\" NUMBER, \n\t\"STORE_ID\" NUMBER, \n\t\"SALE_DATE\" DATE, \n\t\"QUANTITY\" NUMBER, \n\t\"AMOUNT\" NUMBER\n   ) \n  PARTITION BY RANGE (\"SALE_DATE\") INTERVAL (NUMTOYMINTERVAL(1, 'MONTH')) \n (PARTITION \"P_2024_01\"  VALUES LESS THAN (TO_DATE(' 2024-02-01 00:00:00', 'SYYYY-MM-DD HH24:MI:SS', 'NLS_CALENDAR=GREGORIAN')) ) ;"
+        "COUNTRY": {
+          "data_type": "VARCHAR2",
+          "nullable": true,
+          "num_distinct": 10,
+          "num_nulls": 0,
+          "low_value": "COUNTRY_0",
+          "high_value": "COUNTRY_9",
+          "density": 0.1,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
         },
-        "PLANVIZ.PK_DIM_STORES": {
-            "type": "INDEX",
-            "stats": {
-                "uniqueness": "UNIQUE",
-                "index_type": "NORMAL",
-                "status": "VALID",
-                "visibility": "VISIBLE",
-                "partitioned": false,
-                "clustering_factor": 1,
-                "blevel": 0,
-                "leaf_blocks": 1,
-                "distinct_keys": 200
-            },
-            "columns": [
-                "STORE_ID"
-            ],
-            "table": "PLANVIZ.DIM_STORES",
-            "ddl": "\n  CREATE UNIQUE INDEX \"PLANVIZ\".\"PK_DIM_STORES\" ON \"PLANVIZ\".\"DIM_STORES\" (\"STORE_ID\") \n  ;"
-        },
-        "PLANVIZ.PK_DIM_PRODUCTS": {
-            "type": "INDEX",
-            "stats": {
-                "uniqueness": "UNIQUE",
-                "index_type": "NORMAL",
-                "status": "VALID",
-                "visibility": "VISIBLE",
-                "partitioned": false,
-                "clustering_factor": 5,
-                "blevel": 1,
-                "leaf_blocks": 2,
-                "distinct_keys": 1000
-            },
-            "columns": [
-                "PRODUCT_ID"
-            ],
-            "table": "PLANVIZ.DIM_PRODUCTS",
-            "ddl": "\n  CREATE UNIQUE INDEX \"PLANVIZ\".\"PK_DIM_PRODUCTS\" ON \"PLANVIZ\".\"DIM_PRODUCTS\" (\"PRODUCT_ID\") \n  ;"
+        "REGION": {
+          "data_type": "VARCHAR2",
+          "nullable": true,
+          "num_distinct": 5,
+          "num_nulls": 0,
+          "low_value": "Central",
+          "high_value": "West",
+          "density": 0.2,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
         }
+      },
+      "constraints": {
+        "primary_key": {
+          "name": "PK_DIM_STORES",
+          "columns": [
+            "STORE_ID"
+          ],
+          "status": "ENABLED",
+          "validated": "VALIDATED"
+        },
+        "unique": [],
+        "foreign_keys": [],
+        "checks": []
+      },
+      "extended_stats": [],
+      "indexes": [
+        "PLANVIZ.PK_DIM_STORES"
+      ],
+      "ddl": "\n  CREATE TABLE \"PLANVIZ\".\"DIM_STORES\" \n   (\t\"STORE_ID\" NUMBER, \n\t\"STORE_NAME\" VARCHAR2(46), \n\t\"COUNTRY\" VARCHAR2(48), \n\t\"REGION\" VARCHAR2(7), \n\t CONSTRAINT \"PK_DIM_STORES\" PRIMARY KEY (\"STORE_ID\")\n  USING INDEX  ENABLE\n   ) ;"
     },
-    "coverage_warnings": [],
-    "system_params": {
-        "db_block_size": 8192,
-        "optimizer_features_enable": "19.1.0",
-        "optimizer_index_cost_adj": 100,
-        "optimizer_index_caching": 0
+    "PLANVIZ.DIM_PRODUCTS": {
+      "type": "TABLE",
+      "stats": {
+        "num_rows": 1000,
+        "blocks": 8,
+        "avg_row_len": 29,
+        "last_analyzed": "2026-07-04T21:03:06Z",
+        "stale_stats": "NO",
+        "partitioned": false
+      },
+      "physical": {
+        "compression": "DISABLED",
+        "compress_for": null,
+        "degree": "1",
+        "temporary": false,
+        "cluster_name": null,
+        "iot_type": null,
+        "cache": false
+      },
+      "segment": {
+        "bytes": 65536,
+        "extents": 1
+      },
+      "columns": {
+        "PRODUCT_ID": {
+          "data_type": "NUMBER",
+          "nullable": false,
+          "num_distinct": 1000,
+          "num_nulls": 0,
+          "low_value": "1",
+          "high_value": "1000",
+          "density": 0.001,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "PRODUCT_NAME": {
+          "data_type": "VARCHAR2",
+          "nullable": true,
+          "num_distinct": 1000,
+          "num_nulls": 0,
+          "low_value": "Product 1",
+          "high_value": "Product 999",
+          "density": 0.001,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "CATEGORY": {
+          "data_type": "VARCHAR2",
+          "nullable": true,
+          "num_distinct": 8,
+          "num_nulls": 0,
+          "low_value": "Apparel",
+          "high_value": "Toys",
+          "density": 0.0005,
+          "histogram": {
+            "type": "FREQUENCY",
+            "buckets": 8
+          }
+        },
+        "LIST_PRICE": {
+          "data_type": "NUMBER",
+          "nullable": true,
+          "num_distinct": 986,
+          "num_nulls": 0,
+          "low_value": "5.43",
+          "high_value": "499.99",
+          "density": 0.00101419878296146,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        }
+      },
+      "constraints": {
+        "primary_key": {
+          "name": "PK_DIM_PRODUCTS",
+          "columns": [
+            "PRODUCT_ID"
+          ],
+          "status": "ENABLED",
+          "validated": "VALIDATED"
+        },
+        "unique": [],
+        "foreign_keys": [],
+        "checks": []
+      },
+      "extended_stats": [],
+      "indexes": [
+        "PLANVIZ.PK_DIM_PRODUCTS"
+      ],
+      "ddl": "\n  CREATE TABLE \"PLANVIZ\".\"DIM_PRODUCTS\" \n   (\t\"PRODUCT_ID\" NUMBER, \n\t\"PRODUCT_NAME\" VARCHAR2(48), \n\t\"CATEGORY\" VARCHAR2(11), \n\t\"LIST_PRICE\" NUMBER, \n\t CONSTRAINT \"PK_DIM_PRODUCTS\" PRIMARY KEY (\"PRODUCT_ID\")\n  USING INDEX  ENABLE\n   ) ;"
+    },
+    "PLANVIZ.SALES_PART": {
+      "type": "TABLE",
+      "stats": {
+        "num_rows": 2000000,
+        "blocks": 11144,
+        "avg_row_len": 33,
+        "last_analyzed": "2026-07-05T13:18:52Z",
+        "stale_stats": "NO",
+        "partitioned": true,
+        "partition_count": 24,
+        "partition_type": "RANGE",
+        "subpartition_type": "NONE",
+        "interval": "NUMTOYMINTERVAL(1, 'MONTH')",
+        "partition_key": [
+          "SALE_DATE"
+        ]
+      },
+      "physical": {
+        "compression": null,
+        "compress_for": null,
+        "degree": "1",
+        "temporary": false,
+        "cluster_name": null,
+        "iot_type": null,
+        "cache": false
+      },
+      "segment": {
+        "bytes": 201326592,
+        "extents": 24
+      },
+      "columns": {
+        "SALE_ID": {
+          "data_type": "NUMBER",
+          "nullable": true,
+          "num_distinct": 1996800,
+          "num_nulls": 0,
+          "low_value": "1",
+          "high_value": "2000000",
+          "density": 5.00801282051282e-7,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "CUSTOMER_ID": {
+          "data_type": "NUMBER",
+          "nullable": true,
+          "num_distinct": 50536,
+          "num_nulls": 0,
+          "low_value": "1",
+          "high_value": "50000",
+          "density": 0.0000197878739908184,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "PRODUCT_ID": {
+          "data_type": "NUMBER",
+          "nullable": true,
+          "num_distinct": 1000,
+          "num_nulls": 0,
+          "low_value": "1",
+          "high_value": "1000",
+          "density": 0.001,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "STORE_ID": {
+          "data_type": "NUMBER",
+          "nullable": true,
+          "num_distinct": 200,
+          "num_nulls": 0,
+          "low_value": "1",
+          "high_value": "200",
+          "density": 2.5e-7,
+          "histogram": {
+            "type": "FREQUENCY",
+            "buckets": 200
+          }
+        },
+        "SALE_DATE": {
+          "data_type": "DATE",
+          "nullable": false,
+          "num_distinct": 730,
+          "num_nulls": 0,
+          "low_value": "2024-01-01T00:00:00",
+          "high_value": "2025-12-30T00:00:00",
+          "density": 0.00136986301369863,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "QUANTITY": {
+          "data_type": "NUMBER",
+          "nullable": true,
+          "num_distinct": 10,
+          "num_nulls": 0,
+          "low_value": "1",
+          "high_value": "10",
+          "density": 0.1,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "AMOUNT": {
+          "data_type": "NUMBER",
+          "nullable": true,
+          "num_distinct": 199120,
+          "num_nulls": 0,
+          "low_value": "5",
+          "high_value": "2000",
+          "density": 0.00000502209722780233,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "SYS_STUMNATNX71WF#YLD42_RV_UUR": {
+          "data_type": "NUMBER",
+          "nullable": true,
+          "num_distinct": null,
+          "num_nulls": null,
+          "low_value": null,
+          "high_value": null,
+          "density": null,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 0
+          },
+          "virtual": true,
+          "hidden": true
+        }
+      },
+      "constraints": {
+        "primary_key": null,
+        "unique": [],
+        "foreign_keys": [
+          {
+            "name": "FK_SALES_PART_PRODUCT",
+            "columns": [
+              "PRODUCT_ID"
+            ],
+            "ref_owner": "PLANVIZ",
+            "ref_table": "DIM_PRODUCTS",
+            "ref_columns": [
+              "PRODUCT_ID"
+            ],
+            "delete_rule": "NO ACTION",
+            "status": "ENABLED",
+            "validated": "VALIDATED"
+          },
+          {
+            "name": "FK_SALES_PART_STORE",
+            "columns": [
+              "STORE_ID"
+            ],
+            "ref_owner": "PLANVIZ",
+            "ref_table": "DIM_STORES",
+            "ref_columns": [
+              "STORE_ID"
+            ],
+            "delete_rule": "NO ACTION",
+            "status": "ENABLED",
+            "validated": "VALIDATED"
+          }
+        ],
+        "checks": [
+          {
+            "name": "CHK_SALES_PART_QTY",
+            "condition": "quantity > 0",
+            "status": "ENABLED",
+            "generated": false
+          },
+          {
+            "name": "SYS_C009732",
+            "condition": "\"SALE_DATE\" IS NOT NULL",
+            "status": "ENABLED",
+            "generated": true
+          }
+        ]
+      },
+      "extended_stats": [
+        {
+          "extension_name": "SYS_STUMNATNX71WF#YLD42_RV_UUR",
+          "extension": "(\"PRODUCT_ID\",\"STORE_ID\")",
+          "has_histogram": false
+        }
+      ],
+      "indexes": [],
+      "ddl": "\n  CREATE TABLE \"PLANVIZ\".\"SALES_PART\" \n   (\t\"SALE_ID\" NUMBER, \n\t\"CUSTOMER_ID\" NUMBER, \n\t\"PRODUCT_ID\" NUMBER, \n\t\"STORE_ID\" NUMBER, \n\t\"SALE_DATE\" DATE NOT NULL ENABLE, \n\t\"QUANTITY\" NUMBER, \n\t\"AMOUNT\" NUMBER, \n\t CONSTRAINT \"CHK_SALES_PART_QTY\" CHECK (quantity > 0) ENABLE, \n\t CONSTRAINT \"FK_SALES_PART_PRODUCT\" FOREIGN KEY (\"PRODUCT_ID\")\n\t  REFERENCES \"PLANVIZ\".\"DIM_PRODUCTS\" (\"PRODUCT_ID\") ENABLE, \n\t CONSTRAINT \"FK_SALES_PART_STORE\" FOREIGN KEY (\"STORE_ID\")\n\t  REFERENCES \"PLANVIZ\".\"DIM_STORES\" (\"STORE_ID\") ENABLE\n   ) \n  PARTITION BY RANGE (\"SALE_DATE\") INTERVAL (NUMTOYMINTERVAL(1, 'MONTH')) \n (PARTITION \"P_2024_01\"  VALUES LESS THAN (TO_DATE(' 2024-02-01 00:00:00', 'SYYYY-MM-DD HH24:MI:SS', 'NLS_CALENDAR=GREGORIAN')) ) ;"
+    },
+    "PLANVIZ.PK_DIM_STORES": {
+      "type": "INDEX",
+      "stats": {
+        "uniqueness": "UNIQUE",
+        "index_type": "NORMAL",
+        "status": "VALID",
+        "visibility": "VISIBLE",
+        "partitioned": false,
+        "clustering_factor": 1,
+        "blevel": 0,
+        "leaf_blocks": 1,
+        "distinct_keys": 200,
+        "num_rows": 200,
+        "avg_leaf_blocks_per_key": 1,
+        "avg_data_blocks_per_key": 1,
+        "last_analyzed": "2026-07-04T21:03:06Z",
+        "degree": "1",
+        "compression": "DISABLED"
+      },
+      "columns": [
+        "STORE_ID"
+      ],
+      "table": "PLANVIZ.DIM_STORES",
+      "segment": {
+        "bytes": 65536,
+        "extents": 1
+      },
+      "ddl": "\n  CREATE UNIQUE INDEX \"PLANVIZ\".\"PK_DIM_STORES\" ON \"PLANVIZ\".\"DIM_STORES\" (\"STORE_ID\") \n  ;"
+    },
+    "PLANVIZ.PK_DIM_PRODUCTS": {
+      "type": "INDEX",
+      "stats": {
+        "uniqueness": "UNIQUE",
+        "index_type": "NORMAL",
+        "status": "VALID",
+        "visibility": "VISIBLE",
+        "partitioned": false,
+        "clustering_factor": 5,
+        "blevel": 1,
+        "leaf_blocks": 2,
+        "distinct_keys": 1000,
+        "num_rows": 1000,
+        "avg_leaf_blocks_per_key": 1,
+        "avg_data_blocks_per_key": 1,
+        "last_analyzed": "2026-07-04T21:03:06Z",
+        "degree": "1",
+        "compression": "DISABLED"
+      },
+      "columns": [
+        "PRODUCT_ID"
+      ],
+      "table": "PLANVIZ.DIM_PRODUCTS",
+      "segment": {
+        "bytes": 65536,
+        "extents": 1
+      },
+      "ddl": "\n  CREATE UNIQUE INDEX \"PLANVIZ\".\"PK_DIM_PRODUCTS\" ON \"PLANVIZ\".\"DIM_PRODUCTS\" (\"PRODUCT_ID\") \n  ;"
     }
+  },
+  "coverage_warnings": [],
+  "system_params": {
+    "db_block_size": 8192,
+    "optimizer_features_enable": "19.1.0",
+    "optimizer_index_cost_adj": 100,
+    "optimizer_index_caching": 0
+  },
+  "optimizer_env": [
+    {
+      "name": "parallel_hinted",
+      "value": "serial"
+    },
+    {
+      "name": "sqlstat_enabled",
+      "value": "true"
+    },
+    {
+      "name": "statistics_level",
+      "value": "all"
+    }
+  ],
+  "sql_management": {
+    "baselines": [],
+    "profiles": [],
+    "patches": [],
+    "directives": [
+      {
+        "directive_id": "11828231777511792590",
+        "type": "DYNAMIC_SAMPLING",
+        "state": "USABLE",
+        "reason": "GROUP BY CARDINALITY MISESTIMATE",
+        "last_used": null,
+        "objects": [
+          {
+            "owner": "PLANVIZ",
+            "object_name": "SALES_PART",
+            "subobject_name": "SALE_DATE",
+            "object_type": "COLUMN"
+          },
+          {
+            "owner": "PLANVIZ",
+            "object_name": "DIM_PRODUCTS",
+            "subobject_name": "CATEGORY",
+            "object_type": "COLUMN"
+          },
+          {
+            "owner": "PLANVIZ",
+            "object_name": "DIM_STORES",
+            "subobject_name": "REGION",
+            "object_type": "COLUMN"
+          },
+          {
+            "owner": "PLANVIZ",
+            "object_name": "DIM_PRODUCTS",
+            "subobject_name": null,
+            "object_type": "TABLE"
+          },
+          {
+            "owner": "PLANVIZ",
+            "object_name": "DIM_STORES",
+            "subobject_name": null,
+            "object_type": "TABLE"
+          },
+          {
+            "owner": "PLANVIZ",
+            "object_name": "SALES_PART",
+            "subobject_name": null,
+            "object_type": "TABLE"
+          }
+        ]
+      }
+    ]
+  }
 }
