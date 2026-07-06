@@ -730,6 +730,8 @@ interface PlanContextValue {
   setCommandPaletteOpen: (open: boolean) => void;
   shortcutsOverlayOpen: boolean;
   setShortcutsOverlayOpen: (open: boolean) => void;
+  metadataPopoutOpen: boolean;
+  setMetadataPopoutOpen: (open: boolean) => void;
   setInputPanelCollapsed: (collapsed: boolean) => void;
   setFilterPanelCollapsed: (collapsed: boolean) => void;
   setDetailPanelCollapsed: (collapsed: boolean) => void;
@@ -777,6 +779,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   // Session-only UI state (not persisted to settings)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
+  const [metadataPopoutOpen, setMetadataPopoutOpen] = useState(false);
+  const [prevMetadataBundle, setPrevMetadataBundle] = useState<MetadataBundle | null>(null);
 
   const createPlanSlotFromInput = useCallback((input: string, index: number): PlanSlot => {
     const slot = createEmptySlot(index);
@@ -982,6 +986,19 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const error = activeSlot.error;
   const metadataBundle = activeSlot.metadataBundle;
   const metadataBundleWarning = activeSlot.metadataBundleWarning;
+
+  // The popout only makes sense while its active slot still carries a bundle
+  // (detach, plan-slot switch to a bundle-less slot, or a fresh plan replacing
+  // this one all qualify) — close it rather than leaving a stale placeholder.
+  // Adjusted during render (not via useEffect+setState) by tracking the
+  // previous value in state, per React's guidance for state that should
+  // mirror another value ("you might not need an effect").
+  if (metadataBundle !== prevMetadataBundle) {
+    setPrevMetadataBundle(metadataBundle);
+    if (metadataPopoutOpen && !metadataBundle) {
+      setMetadataPopoutOpen(false);
+    }
+  }
 
   const hasMultiplePlans = state.plans.length > 1;
 
@@ -1513,6 +1530,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setCommandPaletteOpen,
     shortcutsOverlayOpen,
     setShortcutsOverlayOpen,
+    metadataPopoutOpen,
+    setMetadataPopoutOpen,
     setInputPanelCollapsed,
     setFilterPanelCollapsed,
     setDetailPanelCollapsed,

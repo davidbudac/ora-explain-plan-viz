@@ -56,6 +56,7 @@ const VIEW_MODE_LABELS: Record<ViewMode, string> = {
   tabular: 'Table',
   text: 'Plan Text',
   sql: 'SQL',
+  metadata: 'Metadata',
   compare: 'Compare',
   monitor: 'Monitor',
 };

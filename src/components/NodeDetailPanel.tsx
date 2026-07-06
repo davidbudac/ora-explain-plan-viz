@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, type PointerEvent as ReactPointerEvent } from 'react';
+import { useState, useMemo, type PointerEvent as ReactPointerEvent } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { getOperationCategory, getMetricColor, getOperationTooltip } from '../lib/types';
 import { formatBytes, formatNumberShort, formatTimeCompact, formatTimeDetailed } from '../lib/format';
@@ -18,6 +18,7 @@ import { GatherScriptModal } from './GatherScriptModal';
 import { assessPartitionPruning, computeParallelSignals } from '../lib/planSignals';
 import type { ParallelSignal } from '../lib/planSignals';
 import { FindingsList, NodeFindings } from './FindingsPanel';
+import { DdlBlock, CopyButton, formatHistogramLabel, formatDateShort } from './metadata/shared';
 
 const HIGHLIGHT_COLORS_MAP: Record<HighlightColor, string> = Object.fromEntries(
   HIGHLIGHT_COLORS.map((c) => [c.name, c.chip])
@@ -676,34 +677,6 @@ function Accordion({ title, subtitle, children, defaultOpen = true }: { title: s
   );
 }
 
-function CopyButton({ text, label }: { text: string; label?: string }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  }, [text]);
-
-  return (
-    <button
-      onClick={handleCopy}
-      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
-      title={label || 'Copy to clipboard'}
-    >
-      {copied ? (
-        <svg className="w-3.5 h-3.5 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-        </svg>
-      ) : (
-        <svg className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-        </svg>
-      )}
-    </button>
-  );
-}
-
 interface NodeDetailIndicator {
   ratio: number;
   title: string;
@@ -947,38 +920,6 @@ function MetadataSection({
   );
 }
 
-function DdlBlock({ ddl }: { ddl: string }) {
-  if (!ddl || !ddl.trim()) return null;
-  return (
-    <details className="group mt-4 pt-4 border-t border-slate-200 dark:border-slate-800" open={false}>
-      <summary className="flex items-center justify-between cursor-pointer list-none select-none mb-2">
-        <div className="flex items-center gap-1.5">
-          <svg className="w-3.5 h-3.5 text-slate-300 group-open:rotate-180 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-          </svg>
-          <h5 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-            DDL
-          </h5>
-        </div>
-        <span
-          role="button"
-          tabIndex={0}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          className="inline-flex"
-        >
-          <CopyButton text={ddl} label="Copy DDL" />
-        </span>
-      </summary>
-      <pre className="text-[10px] leading-relaxed font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md p-2.5 text-slate-800 dark:text-slate-200 whitespace-pre overflow-auto max-h-72">
-        {ddl.trim()}
-      </pre>
-    </details>
-  );
-}
-
 function ColumnsBlock({
   table,
   accessPredicates,
@@ -1084,17 +1025,6 @@ function ColumnRow({
   );
 }
 
-function formatHistogramLabel(type: ColumnStats['histogram']['type'], buckets: number): string {
-  if (type === 'NONE') return 'None';
-  const pretty: Record<Exclude<ColumnStats['histogram']['type'], 'NONE'>, string> = {
-    FREQUENCY: 'Frequency',
-    'HEIGHT BALANCED': 'Height balanced',
-    HYBRID: 'Hybrid',
-    'TOP-FREQUENCY': 'Top frequency',
-  };
-  return `${pretty[type]} (${buckets})`;
-}
-
 function ObjectBlock({ objectKey, stats }: { objectKey: string; stats: TableStats }) {
   const isStale = stats.stale_stats === 'YES';
   return (
@@ -1138,13 +1068,6 @@ function ObjectBlock({ objectKey, stats }: { objectKey: string; stats: TableStat
       )}
     </div>
   );
-}
-
-function formatDateShort(iso: string | null): string | undefined {
-  if (!iso) return undefined;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toISOString().slice(0, 10);
 }
 
 function IndexObjectBlock({ objectKey, index }: { objectKey: string; index: import('../lib/metadata/bundle').IndexObject }) {

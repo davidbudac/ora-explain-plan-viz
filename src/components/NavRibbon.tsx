@@ -68,6 +68,15 @@ const tabs: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
+    id: 'metadata',
+    label: 'Metadata',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7c0-1.1 3.6-2 8-2s8 .9 8 2-3.6 2-8 2-8-.9-8-2zm0 0v10c0 1.1 3.6 2 8 2s8-.9 8-2V7M4 12c0 1.1 3.6 2 8 2s8-.9 8-2" />
+      </svg>
+    ),
+  },
+  {
     id: 'monitor',
     label: 'Monitor',
     icon: (

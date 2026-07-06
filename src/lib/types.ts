@@ -173,7 +173,7 @@ export interface FilterState {
   minCardinalityMismatch: number;
 }
 
-export type ViewMode = 'hierarchical' | 'sankey' | 'flame' | 'tabular' | 'text' | 'sql' | 'compare' | 'monitor';
+export type ViewMode = 'hierarchical' | 'sankey' | 'flame' | 'tabular' | 'text' | 'sql' | 'metadata' | 'compare' | 'monitor';
 export type SankeyMetric = 'rows' | 'cost' | 'actualRows' | 'actualTime';
 export type { FlameMetric } from './flameLayout';
 export type Theme = 'light' | 'dark';
