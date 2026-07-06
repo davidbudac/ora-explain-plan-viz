@@ -8,8 +8,32 @@ import { VisualizationTabs } from './components/VisualizationTabs';
 import { NodeDetailPanel } from './components/NodeDetailPanel';
 import { CommandPalette } from './components/CommandPalette';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay';
+import { PopoutWindow } from './components/PopoutWindow';
+import { MetadataExplorer } from './components/metadata/MetadataExplorer';
 import { SAMPLE_PLANS_BY_CATEGORY } from './examples';
 import type { SamplePlan } from './examples';
+
+function MetadataPopoutContent({ onReturn }: { onReturn: () => void }) {
+  const { metadataBundle } = usePlan();
+  if (!metadataBundle) return null;
+  return (
+    <>
+      <div className="shrink-0 px-4 py-2 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Metadata Explorer</span>
+        <button
+          type="button"
+          onClick={onReturn}
+          className="h-7 px-2.5 text-[11px] font-semibold rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        >
+          Return to tab
+        </button>
+      </div>
+      <div className="flex-1 min-h-0">
+        <MetadataExplorer bundle={metadataBundle} />
+      </div>
+    </>
+  );
+}
 
 const FEATURED_EXAMPLES: Array<{ category: SamplePlan['category']; name: string }> = [
   { category: 'dbms_xplan', name: 'Simple Plan' },
@@ -103,7 +127,10 @@ function clampPanelWidths(widths: PanelWidths, viewportWidth: number): PanelWidt
 }
 
 function AppContent() {
-  const { plans, viewMode, visualizationMaximized, setVisualizationMaximized, loadAndParsePlan } = usePlan();
+  const {
+    plans, viewMode, visualizationMaximized, setVisualizationMaximized, loadAndParsePlan,
+    metadataBundle, metadataPopoutOpen, setMetadataPopoutOpen,
+  } = usePlan();
   const anyPlanParsed = plans.some(p => p.parsedPlan);
   const featuredExamples = useMemo(() => getFeaturedExamples(), []);
   const isComparisonWorkspace = viewMode === 'compare';
@@ -193,6 +220,11 @@ function AppContent() {
     <div className="flex flex-col h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden">
       <CommandPalette />
       <ShortcutsOverlay />
+      {metadataPopoutOpen && metadataBundle && (
+        <PopoutWindow title="Metadata Explorer" onClose={() => setMetadataPopoutOpen(false)}>
+          <MetadataPopoutContent onReturn={() => setMetadataPopoutOpen(false)} />
+        </PopoutWindow>
+      )}
       {!visualizationMaximized && <Header />}
       {!visualizationMaximized && <InputPanel />}
       {anyPlanParsed && <NavRibbon />}
