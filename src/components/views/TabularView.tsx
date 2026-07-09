@@ -45,6 +45,27 @@ function collectDescendantIds(node: PlanNode, out: Set<number>) {
   }
 }
 
+function ResizeHandle({
+  column,
+  onResizeStart,
+  onResizeDoubleClick,
+}: {
+  column: ColumnKey;
+  onResizeStart: (column: ColumnKey, e: React.MouseEvent) => void;
+  onResizeDoubleClick: (column: ColumnKey, e: React.MouseEvent) => void;
+}) {
+  return (
+    <span
+      onMouseDown={(e) => onResizeStart(column, e)}
+      onDoubleClick={(e) => onResizeDoubleClick(column, e)}
+      onClick={(e) => e.stopPropagation()}
+      title="Drag to resize, double-click to reset"
+      className="absolute top-0 right-0 h-full w-[6px] cursor-col-resize z-30 hover:bg-blue-400/50 active:bg-blue-500/70"
+      style={{ marginRight: '-3px' }}
+    />
+  );
+}
+
 function SortArrow({ column, sortColumn, sortDirection }: { column: SortColumn; sortColumn: SortColumn; sortDirection: SortDirection }) {
   if (column !== sortColumn) return null;
   return (
@@ -219,7 +240,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
       }
     }
     return map;
-  }, [effectiveAnnotations.groups]);
+  }, [effectiveAnnotations]);
 
   // Build a set of all IDs hidden by collapsed parents
   const hiddenByCollapse = useMemo(() => {
@@ -406,31 +427,23 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
     }
   }, [selectedNodeIds]);
 
-  // Reset collapsed state when plan changes
-  useEffect(() => {
-    setCollapsedIds(new Set());
-  }, [parsedPlan]);
-
   // Cleanup tooltip timer
   useEffect(() => {
     return () => { if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current); };
   }, []);
+
+  // Reset collapsed state when plan changes
+  const [prevPlan, setPrevPlan] = useState(parsedPlan);
+  if (prevPlan !== parsedPlan) {
+    setPrevPlan(parsedPlan);
+    setCollapsedIds(new Set());
+  }
 
   if (!parsedPlan) return null;
 
   const groupThClass = 'px-2 py-1 text-center text-[11px] font-semibold text-neutral-600 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-900 sticky top-0 z-10 border-b border-neutral-200 dark:border-neutral-700 select-none';
   const thClass = 'relative px-2 py-1.5 text-left text-[11px] font-medium text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-900 sticky top-[22px] z-10 border-b border-neutral-200 dark:border-neutral-700 select-none';
   const thSortableClass = thClass + ' cursor-pointer hover:text-neutral-700 dark:hover:text-neutral-200';
-  const ResizeHandle = ({ column }: { column: ColumnKey }) => (
-    <span
-      onMouseDown={(e) => handleResizeStart(column, e)}
-      onDoubleClick={(e) => handleResizeDoubleClick(column, e)}
-      onClick={(e) => e.stopPropagation()}
-      title="Drag to resize, double-click to reset"
-      className="absolute top-0 right-0 h-full w-[6px] cursor-col-resize z-30 hover:bg-blue-400/50 active:bg-blue-500/70"
-      style={{ marginRight: '-3px' }}
-    />
-  );
   const thRightClass = 'text-right';
   const groupBorderClass = 'border-l border-neutral-200 dark:border-neutral-700';
   const bodyGroupBorderClass = 'border-l border-neutral-100 dark:border-neutral-800';
@@ -489,22 +502,22 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
           <tr>
             <th className={`${thSortableClass} ${thRightClass}`} onClick={() => handleSort('id')}>
               Id<SortArrow column="id" sortColumn={sortColumn} sortDirection={sortDirection} />
-              <ResizeHandle column="id" />
+              <ResizeHandle column="id" onResizeStart={handleResizeStart} onResizeDoubleClick={handleResizeDoubleClick} />
             </th>
             <th className={`${thClass} sticky left-0 z-20 bg-neutral-50 dark:bg-neutral-900`}>
               Operation
-              <ResizeHandle column="operation" />
+              <ResizeHandle column="operation" onResizeStart={handleResizeStart} onResizeDoubleClick={handleResizeDoubleClick} />
             </th>
             {hasData.rows && (
               <th className={`${thSortableClass} ${thRightClass} ${groupBorderClass}`} onClick={() => handleSort('rows')}>
                 {hasActualStats ? 'E-Rows' : 'Rows'}<SortArrow column="rows" sortColumn={sortColumn} sortDirection={sortDirection} />
-                <ResizeHandle column="rows" />
+                <ResizeHandle column="rows" onResizeStart={handleResizeStart} onResizeDoubleClick={handleResizeDoubleClick} />
               </th>
             )}
             {hasData.cost && (
               <th className={`${thSortableClass} ${thRightClass} ${hasData.rows ? '' : groupBorderClass}`} onClick={() => handleSort('cost')}>
                 Cost<SortArrow column="cost" sortColumn={sortColumn} sortDirection={sortDirection} />
-                <ResizeHandle column="cost" />
+                <ResizeHandle column="cost" onResizeStart={handleResizeStart} onResizeDoubleClick={handleResizeDoubleClick} />
               </th>
             )}
             {showActualGroup && (
@@ -512,43 +525,43 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                 {hasData.actualRows && (
                   <th className={`${thSortableClass} ${thRightClass} ${groupBorderClass}`} onClick={() => handleSort('actualRows')}>
                     A-Rows<SortArrow column="actualRows" sortColumn={sortColumn} sortDirection={sortDirection} />
-                    <ResizeHandle column="actualRows" />
+                    <ResizeHandle column="actualRows" onResizeStart={handleResizeStart} onResizeDoubleClick={handleResizeDoubleClick} />
                   </th>
                 )}
                 {hasData.actualTime && (
                   <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows ? groupBorderClass : ''}`} onClick={() => handleSort('actualTime')}>
                     A-Time<SortArrow column="actualTime" sortColumn={sortColumn} sortDirection={sortDirection} />
-                    <ResizeHandle column="actualTime" />
+                    <ResizeHandle column="actualTime" onResizeStart={handleResizeStart} onResizeDoubleClick={handleResizeDoubleClick} />
                   </th>
                 )}
                 {hasData.activityPercent && (
                   <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows && !hasData.actualTime ? groupBorderClass : ''}`} onClick={() => handleSort('activityPercent')} title="Share of total execution activity">
                     Activity<SortArrow column="activityPercent" sortColumn={sortColumn} sortDirection={sortDirection} />
-                    <ResizeHandle column="activityPercent" />
+                    <ResizeHandle column="activityPercent" onResizeStart={handleResizeStart} onResizeDoubleClick={handleResizeDoubleClick} />
                   </th>
                 )}
                 {hasData.starts && (
                   <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows && !hasData.actualTime && !hasData.activityPercent ? groupBorderClass : ''}`} onClick={() => handleSort('starts')}>
                     Starts<SortArrow column="starts" sortColumn={sortColumn} sortDirection={sortDirection} />
-                    <ResizeHandle column="starts" />
+                    <ResizeHandle column="starts" onResizeStart={handleResizeStart} onResizeDoubleClick={handleResizeDoubleClick} />
                   </th>
                 )}
                 {hasData.memoryUsed && (
                   <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows && !hasData.actualTime && !hasData.activityPercent && !hasData.starts ? groupBorderClass : ''}`} onClick={() => handleSort('memoryUsed')}>
                     Memory<SortArrow column="memoryUsed" sortColumn={sortColumn} sortDirection={sortDirection} />
-                    <ResizeHandle column="memoryUsed" />
+                    <ResizeHandle column="memoryUsed" onResizeStart={handleResizeStart} onResizeDoubleClick={handleResizeDoubleClick} />
                   </th>
                 )}
                 {hasData.tempUsed && (
                   <th className={`${thSortableClass} ${thRightClass} ${!hasData.actualRows && !hasData.actualTime && !hasData.activityPercent && !hasData.starts && !hasData.memoryUsed ? groupBorderClass : ''}`} onClick={() => handleSort('tempUsed')}>
                     Temp<SortArrow column="tempUsed" sortColumn={sortColumn} sortDirection={sortDirection} />
-                    <ResizeHandle column="tempUsed" />
+                    <ResizeHandle column="tempUsed" onResizeStart={handleResizeStart} onResizeDoubleClick={handleResizeDoubleClick} />
                   </th>
                 )}
                 {showCardinalityCol && (
                   <th className={`${thClass} text-center`}>
                     Card.
-                    <ResizeHandle column="cardinality" />
+                    <ResizeHandle column="cardinality" onResizeStart={handleResizeStart} onResizeDoubleClick={handleResizeDoubleClick} />
                   </th>
                 )}
               </>

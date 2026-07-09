@@ -130,7 +130,7 @@ export function MonitorDetailsView() {
     } catch {
       return parsedPlan.sqlText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
-  }, [parsedPlan?.sqlText]);
+  }, [parsedPlan]);
 
   // Aggregate peak memory/temp from nodes
   const { peakMemory, peakTemp } = useMemo(() => {
@@ -144,7 +144,7 @@ export function MonitorDetailsView() {
       peakMemory: mem > 0 ? mem : undefined,
       peakTemp: tmp > 0 ? tmp : undefined,
     };
-  }, [parsedPlan?.allNodes]);
+  }, [parsedPlan]);
 
   if (!parsedPlan || !meta) {
     return (

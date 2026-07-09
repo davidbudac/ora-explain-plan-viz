@@ -23,13 +23,21 @@ export function ShareResultDialog() {
   const kind = shareNotice?.kind;
   const showDialog = kind === 'manual' || kind === 'warning' || kind === 'error';
 
+  // Reset the "copied" flash whenever a new notice comes in. `showDialog` is
+  // derived purely from `shareNotice`, so tracking `shareNotice` alone covers
+  // every case the previous `[showDialog, shareNotice]` effect dep did.
+  const [prevShareNotice, setPrevShareNotice] = useState(shareNotice);
+  if (shareNotice !== prevShareNotice) {
+    setPrevShareNotice(shareNotice);
+    setJustCopied(false);
+  }
+
   // Pre-select the URL so the user can copy the whole thing in one keystroke.
   useEffect(() => {
     if (showDialog && inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();
     }
-    setJustCopied(false);
   }, [showDialog, shareNotice]);
 
   // Dismiss on Escape while the dialog is open.

@@ -78,7 +78,10 @@ const HIGHLIGHT_STYLE_LABELS: Record<HighlightStyle, string> = {
   hachure: 'Hachure',
 };
 
-function useCommands(): Command[] {
+// `onExportPng` is a plain callback (already dereferenced from its ref by the
+// caller) rather than the ref itself — see the call site in `CommandPalette`
+// for why that split matters.
+function useCommands(onExportPng: () => void): Command[] {
   const {
     // State
     viewMode,
@@ -97,7 +100,6 @@ function useCommands(): Command[] {
     hotspotsEnabled,
     treeCompareEnabled,
     annotations,
-    exportPngFnRef,
     legendVisible,
     densitySelection,
     // Actions
@@ -420,7 +422,7 @@ function useCommands(): Command[] {
       label: 'Export as PNG',
       category: 'Export & Share',
       keywords: ['export', 'png', 'image', 'screenshot', 'download'],
-      execute: () => { exportPngFnRef.current?.(); },
+      execute: onExportPng,
       isAvailable: () => canExportPng,
     });
 
@@ -510,7 +512,7 @@ function useCommands(): Command[] {
     return commands;
   }, [
     viewMode, theme, colorScheme, filters, sankeyMetric, nodeIndicatorMetric,
-    highlightStyle, parsedPlan, plans, visualizationMaximized,
+    highlightStyle, parsedPlan, visualizationMaximized,
     inputPanelCollapsed, filterPanelCollapsed, detailPanelCollapsed,
     hotspotsEnabled, treeCompareEnabled, annotations, anyPlanParsed,
     hasActualStats, hasAnyInput, canExportPng, multipleParsedPlans,
@@ -520,7 +522,7 @@ function useCommands(): Command[] {
     setNodeIndicatorMetric, setHighlightStyle, setVisualizationMaximized,
     setInputPanelCollapsed, setFilterPanelCollapsed,
     setDetailPanelCollapsed, setHotspotsEnabled, setTreeCompareEnabled,
-    exportAnnotatedPlan, clearAnnotations, share, exportPngFnRef,
+    exportAnnotatedPlan, clearAnnotations, share, onExportPng,
     toggleNodeDisplayOption, enableAllDisplayOptions, disableAllDisplayOptions,
   ]);
 }
@@ -539,13 +541,21 @@ const CATEGORY_ORDER: CommandCategory[] = [
 ];
 
 export function CommandPalette() {
-  const { commandPaletteOpen: open, setCommandPaletteOpen: setOpen } = usePlan();
+  const { commandPaletteOpen: open, setCommandPaletteOpen: setOpen, exportPngFnRef } = usePlan();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
-  const commands = useCommands();
+  // Dereference the ref here, in a plain event-handler-shaped callback, and
+  // hand `useCommands` an ordinary function — reading `.current` inside a
+  // closure that itself gets stored in the commands array (built with
+  // `.push`) trips the refs-during-render check even though it only ever
+  // runs from a click/keyboard handler.
+  const triggerExportPng = useCallback(() => {
+    exportPngFnRef.current?.();
+  }, [exportPngFnRef]);
+  const commands = useCommands(triggerExportPng);
 
   // Filter to available commands
   const availableCommands = useMemo(

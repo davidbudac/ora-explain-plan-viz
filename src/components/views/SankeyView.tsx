@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useCallback, useState } from 'react';
+import { useEffect, useRef, useMemo, useCallback, useState, useReducer } from 'react';
 import { sankey, sankeyLinkHorizontal } from 'd3-sankey';
 import type { SankeyNode, SankeyLink } from 'd3-sankey';
 import { usePlan } from '../../hooks/usePlanContext';
@@ -27,7 +27,7 @@ export function SankeyView() {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useReducer((_current: string | null, next: string | null) => next, null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; title: string; lines: string[] } | null>(null);
   const tooltipStateRef = useRef<typeof tooltip>(null);
   const rafRef = useRef<number | null>(null);
@@ -128,12 +128,13 @@ export function SankeyView() {
           case 'cost':
             value = Math.max(child.cost || 1, 1);
             break;
-          case 'actualRows':
+          case 'actualRows': {
             // A-Rows multiplied by Starts for total data volume
             const actualRows = child.actualRows || child.rows || 1;
             const starts = child.starts || 1;
             value = Math.max(actualRows * starts, 1);
             break;
+          }
           case 'actualTime':
             value = Math.max(child.actualTime || 1, 1);
             break;
@@ -163,6 +164,36 @@ export function SankeyView() {
     [selectNode]
   );
 
+  // Clear the tooltip/error whenever the diagram is actually about to be
+  // redrawn below (same trigger set as that effect's dependency array, minus
+  // `svgRef` which can't be read during render). Moved out of the effect
+  // because unconditionally calling setState synchronously in an effect body
+  // trips react-hooks/set-state-in-effect; adjusting state during render in
+  // response to a changed value is the sanctioned alternative.
+  const redrawSignature = useMemo(() => {
+    if (!sankeyData || dimensions.width < 100 || dimensions.height < 100) return null;
+    // `scheduleTooltipUpdate` wraps ref reads/writes, so it's deliberately not
+    // embedded in the returned signature (that would make this value itself
+    // read as a potential render-time ref access) — just marked "used" so
+    // exhaustive-deps doesn't flag it as unnecessary.
+    void scheduleTooltipUpdate;
+    // The array itself (a fresh reference whenever any dep below changes) is
+    // the signature — its contents aren't inspected elsewhere.
+    return [
+      sankeyData, selectedNodeIdSet, filteredNodeIds, handleNodeClick, theme,
+      dimensions, colorScheme, sankeyMetric, parsedPlan?.hasActualStats,
+      verticalZoom, searchText,
+    ];
+  }, [sankeyData, selectedNodeIdSet, filteredNodeIds, handleNodeClick, theme, dimensions, colorScheme, sankeyMetric, parsedPlan?.hasActualStats, scheduleTooltipUpdate, verticalZoom, searchText]);
+  const [prevRedrawSignature, setPrevRedrawSignature] = useState(redrawSignature);
+  if (redrawSignature !== prevRedrawSignature) {
+    setPrevRedrawSignature(redrawSignature);
+    if (redrawSignature !== null) {
+      setTooltip(null);
+      setError(null);
+    }
+  }
+
   useEffect(() => {
     if (!svgRef.current || !sankeyData) return;
 
@@ -175,8 +206,6 @@ export function SankeyView() {
     );
 
     pendingTooltipRef.current = null;
-    setTooltip(null);
-    setError(null);
 
     try {
       const margin = { top: 20, right: 20, bottom: 20, left: 20 };
@@ -260,9 +289,10 @@ export function SankeyView() {
 
           path.addEventListener('mouseenter', (event) => {
             const label = getMetricLabel(sankeyMetric, parsedPlan?.hasActualStats ?? false);
+            const containerRect = containerRef.current?.getBoundingClientRect();
             scheduleTooltipUpdate({
-              x: event.clientX,
-              y: event.clientY,
+              x: event.clientX - (containerRect?.left ?? 0),
+              y: event.clientY - (containerRect?.top ?? 0),
               title: `${sourceNode.planNode.operation} → ${targetNode.planNode.operation}`,
               lines: [
                 `${label}: ${formatMetricValue(link.value || 0, sankeyMetric)}`,
@@ -273,7 +303,12 @@ export function SankeyView() {
           path.addEventListener('mousemove', (event) => {
             const current = tooltipStateRef.current;
             if (!current) return;
-            scheduleTooltipUpdate({ ...current, x: event.clientX, y: event.clientY });
+            const containerRect = containerRef.current?.getBoundingClientRect();
+            scheduleTooltipUpdate({
+              ...current,
+              x: event.clientX - (containerRect?.left ?? 0),
+              y: event.clientY - (containerRect?.top ?? 0),
+            });
           });
 
           path.addEventListener('mouseleave', () => {
@@ -337,9 +372,10 @@ export function SankeyView() {
             }
           }
 
+          const containerRect = containerRef.current?.getBoundingClientRect();
           scheduleTooltipUpdate({
-            x: event.clientX,
-            y: event.clientY,
+            x: event.clientX - (containerRect?.left ?? 0),
+            y: event.clientY - (containerRect?.top ?? 0),
             title: sNode.planNode.operation,
             lines: nodeLines,
           });
@@ -348,7 +384,12 @@ export function SankeyView() {
         rect.addEventListener('mousemove', (event) => {
           const current = tooltipStateRef.current;
           if (!current) return;
-          scheduleTooltipUpdate({ ...current, x: event.clientX, y: event.clientY });
+          const containerRect = containerRef.current?.getBoundingClientRect();
+          scheduleTooltipUpdate({
+            ...current,
+            x: event.clientX - (containerRect?.left ?? 0),
+            y: event.clientY - (containerRect?.top ?? 0),
+          });
         });
 
         rect.addEventListener('mouseleave', () => {
@@ -460,12 +501,12 @@ export function SankeyView() {
           </button>
         )}
       </div>
-      {tooltip && containerRef.current && (
+      {tooltip && (
         <div
           className="absolute z-10 pointer-events-none bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg px-3 py-2 text-xs text-gray-800 dark:text-gray-100"
           style={{
-            left: `${tooltip.x - containerRef.current.getBoundingClientRect().left + 12}px`,
-            top: `${tooltip.y - containerRef.current.getBoundingClientRect().top + 12}px`,
+            left: `${tooltip.x + 12}px`,
+            top: `${tooltip.y + 12}px`,
             maxWidth: '280px',
           }}
         >

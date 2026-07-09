@@ -312,11 +312,15 @@ export function CustomizeViewMenu({
     };
   }, [open]);
 
+  // Reset the search query when the popover closes.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (!open) setQuery('');
+  }
+
   useEffect(() => {
-    if (!open) {
-      setQuery('');
-      return;
-    }
+    if (!open) return;
     const timer = setTimeout(() => inputRef.current?.focus(), 0);
     return () => clearTimeout(timer);
   }, [open]);

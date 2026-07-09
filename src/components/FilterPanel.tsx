@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { OPERATION_CATEGORIES, getOperationCategory } from '../lib/types';
 import type { NodeDisplayOptions, PredicateType } from '../lib/types';
@@ -41,17 +41,17 @@ function SliderHistogram({ values, max, height = 40 }: { values: number[]; max: 
   );
 }
 
-function IndicatorButton({
+function IndicatorButton<T extends string>({
   metric,
   label,
   current,
   onClick,
   activeClass = 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-400/30',
 }: {
-  metric: any;
+  metric: T;
   label: string;
-  current: any;
-  onClick: (metric: any) => void;
+  current: T;
+  onClick: (metric: T) => void;
   activeClass?: string;
 }) {
   return (
@@ -182,9 +182,14 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
     return parsedPlan.allNodes.filter((node) => matchesSearch(node, query)).map((node) => node.id);
   }, [parsedPlan, filters.searchText]);
 
-  useEffect(() => {
+  // Reset the active search match whenever the search text or plan changes.
+  const [prevSearchText, setPrevSearchText] = useState(filters.searchText);
+  const [prevParsedPlan, setPrevParsedPlan] = useState(parsedPlan);
+  if (filters.searchText !== prevSearchText || parsedPlan !== prevParsedPlan) {
+    setPrevSearchText(filters.searchText);
+    setPrevParsedPlan(parsedPlan);
     setActiveMatchIndex(null);
-  }, [filters.searchText, parsedPlan]);
+  }
 
   const handleMatchNavigate = (direction: 'prev' | 'next') => {
     if (searchMatches.length === 0) return;
