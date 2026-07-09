@@ -129,16 +129,19 @@ export function FlameView() {
   }, []);
 
   // Reset zoom if the zoomed node no longer exists (e.g. new plan loaded)
-  useEffect(() => {
-    if (zoomNodeId === null) return;
-    if (!parsedPlan?.rootNode) {
-      setZoomNodeId(null);
-      return;
+  const [prevZoomCheckPlan, setPrevZoomCheckPlan] = useState(parsedPlan);
+  const [prevZoomCheckId, setPrevZoomCheckId] = useState(zoomNodeId);
+  if (parsedPlan !== prevZoomCheckPlan || zoomNodeId !== prevZoomCheckId) {
+    setPrevZoomCheckPlan(parsedPlan);
+    setPrevZoomCheckId(zoomNodeId);
+    if (zoomNodeId !== null) {
+      if (!parsedPlan?.rootNode) {
+        setZoomNodeId(null);
+      } else if (!findNodeById(parsedPlan.rootNode, zoomNodeId)) {
+        setZoomNodeId(null);
+      }
     }
-    if (!findNodeById(parsedPlan.rootNode, zoomNodeId)) {
-      setZoomNodeId(null);
-    }
-  }, [parsedPlan, zoomNodeId]);
+  }
 
   const effectiveMetric = useMemo(
     () => getEffectiveFlameMetric(flameMetric, parsedPlan?.hasActualStats ?? false),
@@ -311,12 +314,23 @@ export function FlameView() {
                   onDoubleClick={() => handleRectDoubleClick(node)}
                   onMouseEnter={(event) => {
                     const { title, lines } = buildTooltipLines(rect);
-                    scheduleTooltipUpdate({ x: event.clientX, y: event.clientY, title, lines });
+                    const containerRect = containerRef.current?.getBoundingClientRect();
+                    scheduleTooltipUpdate({
+                      x: event.clientX - (containerRect?.left ?? 0),
+                      y: event.clientY - (containerRect?.top ?? 0),
+                      title,
+                      lines,
+                    });
                   }}
                   onMouseMove={(event) => {
                     const current = tooltipStateRef.current;
                     if (!current) return;
-                    scheduleTooltipUpdate({ ...current, x: event.clientX, y: event.clientY });
+                    const containerRect = containerRef.current?.getBoundingClientRect();
+                    scheduleTooltipUpdate({
+                      ...current,
+                      x: event.clientX - (containerRect?.left ?? 0),
+                      y: event.clientY - (containerRect?.top ?? 0),
+                    });
                   }}
                   onMouseLeave={() => scheduleTooltipUpdate(null)}
                 />
@@ -352,12 +366,12 @@ export function FlameView() {
         </div>
       )}
 
-      {tooltip && containerRef.current && (
+      {tooltip && (
         <div
           className="absolute z-10 pointer-events-none bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg px-3 py-2 text-xs text-gray-800 dark:text-gray-100"
           style={{
-            left: `${tooltip.x - containerRef.current.getBoundingClientRect().left + 12}px`,
-            top: `${tooltip.y - containerRef.current.getBoundingClientRect().top + 12}px`,
+            left: `${tooltip.x + 12}px`,
+            top: `${tooltip.y + 12}px`,
             maxWidth: '280px',
           }}
         >

@@ -875,7 +875,7 @@ function HierarchicalViewContent({
       nodes: [...groupNodes, ...annotationGroupNodes, ...adjustedPlanNodes],
       edges: edgesWithThickness,
     };
-  }, [effectiveAnnotations.groups, effectiveAnnotations.nodeAnnotations, effectiveDisplayOptions, parsedPlan, colorScheme, filters.scaleEdgeWidth, slot?.metadataBundle]);
+  }, [effectiveAnnotations.groups, effectiveAnnotations.nodeAnnotations, effectiveDisplayOptions, parsedPlan, colorScheme, filters.scaleEdgeWidth, slot?.metadataBundle, advisorReport?.findingsByNodeId, advisorReport?.maxSeverityByNodeId]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutData.edges);

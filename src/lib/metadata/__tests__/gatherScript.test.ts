@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   buildGatherScript,
-  downloadFilename,
   SCREEN_BEGIN_MARKER,
   SCREEN_END_MARKER,
 } from '../gatherScript';

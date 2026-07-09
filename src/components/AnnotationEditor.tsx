@@ -28,10 +28,16 @@ export function AnnotationEditor({
   const [localText, setLocalText] = useState(annotationText);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync local text when the nodeId changes (switching selected node)
-  useEffect(() => {
+  // Sync local text when the nodeId changes (switching selected node) or the
+  // annotation text changes from outside (e.g. import), without resetting on
+  // every render.
+  const [prevNodeId, setPrevNodeId] = useState(nodeId);
+  const [prevAnnotationText, setPrevAnnotationText] = useState(annotationText);
+  if (nodeId !== prevNodeId || annotationText !== prevAnnotationText) {
+    setPrevNodeId(nodeId);
+    setPrevAnnotationText(annotationText);
     setLocalText(annotationText);
-  }, [nodeId, annotationText]);
+  }
 
   const handleTextChange = useCallback(
     (value: string) => {
