@@ -1,0 +1,342 @@
+{
+  "format": "ora-plan-metadata",
+  "version": 2,
+  "captured_at": "2026-07-09T07:58:50.694Z",
+  "source": {
+    "db_name": "CDB1",
+    "oracle_version": "19.27.0.0.0",
+    "container_name": "PDB1"
+  },
+  "plan_ref": {
+    "sql_id": "96d05a34rtfqx",
+    "plan_hash_value": 2058068615
+  },
+  "objects": {
+    "PLANVIZ.ORDER_ITEMS": {
+      "type": "TABLE",
+      "stats": {
+        "num_rows": 2000000,
+        "blocks": 6799,
+        "avg_row_len": 19,
+        "last_analyzed": "2026-07-04T21:03:07Z",
+        "stale_stats": "NO",
+        "partitioned": false
+      },
+      "physical": {
+        "compression": "DISABLED",
+        "compress_for": null,
+        "degree": "1",
+        "temporary": false,
+        "cluster_name": null,
+        "iot_type": null,
+        "cache": false
+      },
+      "segment": {
+        "bytes": 56623104,
+        "extents": 69
+      },
+      "columns": {
+        "ITEM_ID": {
+          "data_type": "NUMBER",
+          "nullable": true,
+          "num_distinct": 1996800,
+          "num_nulls": 0,
+          "low_value": "1",
+          "high_value": "2000000",
+          "density": 5.00801282051282e-7,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "ORDER_ID": {
+          "data_type": "NUMBER",
+          "nullable": true,
+          "num_distinct": 506528,
+          "num_nulls": 0,
+          "low_value": "1",
+          "high_value": "500000",
+          "density": 0.00000197422452460673,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "LINE_AMOUNT": {
+          "data_type": "NUMBER",
+          "nullable": true,
+          "num_distinct": 49840,
+          "num_nulls": 0,
+          "low_value": "1",
+          "high_value": "500",
+          "density": 0.0000200642054574639,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "PRODUCT_ID": {
+          "data_type": "NUMBER",
+          "nullable": true,
+          "num_distinct": 1000,
+          "num_nulls": 0,
+          "low_value": "1",
+          "high_value": "1000",
+          "density": 0.001,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        }
+      },
+      "constraints": {
+        "primary_key": null,
+        "unique": [],
+        "foreign_keys": [],
+        "checks": []
+      },
+      "extended_stats": [],
+      "indexes": [
+        "PLANVIZ.ORDER_ITEMS_IX"
+      ],
+      "ddl": "\n  CREATE TABLE \"PLANVIZ\".\"ORDER_ITEMS\" \n   (\t\"ITEM_ID\" NUMBER, \n\t\"ORDER_ID\" NUMBER, \n\t\"LINE_AMOUNT\" NUMBER, \n\t\"PRODUCT_ID\" NUMBER\n   ) ;"
+    },
+    "PLANVIZ.ORDERS": {
+      "type": "TABLE",
+      "stats": {
+        "num_rows": 500000,
+        "blocks": 3568,
+        "avg_row_len": 47,
+        "last_analyzed": "2026-07-04T21:03:06Z",
+        "stale_stats": "NO",
+        "partitioned": false
+      },
+      "physical": {
+        "compression": "DISABLED",
+        "compress_for": null,
+        "degree": "1",
+        "temporary": false,
+        "cluster_name": null,
+        "iot_type": null,
+        "cache": false
+      },
+      "segment": {
+        "bytes": 29360128,
+        "extents": 43
+      },
+      "columns": {
+        "ORDER_ID": {
+          "data_type": "NUMBER",
+          "nullable": false,
+          "num_distinct": 500000,
+          "num_nulls": 0,
+          "low_value": "1",
+          "high_value": "500000",
+          "density": 0.000002,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "SHIP_COUNTRY": {
+          "data_type": "VARCHAR2",
+          "nullable": true,
+          "num_distinct": 25,
+          "num_nulls": 0,
+          "low_value": "COUNTRY_0",
+          "high_value": "COUNTRY_9",
+          "density": 0.000001,
+          "histogram": {
+            "type": "FREQUENCY",
+            "buckets": 25
+          }
+        },
+        "SHIP_CURRENCY": {
+          "data_type": "VARCHAR2",
+          "nullable": true,
+          "num_distinct": 25,
+          "num_nulls": 0,
+          "low_value": "CURRENCY_0",
+          "high_value": "CURRENCY_9",
+          "density": 0.000001,
+          "histogram": {
+            "type": "FREQUENCY",
+            "buckets": 25
+          }
+        },
+        "SHIP_LANGUAGE": {
+          "data_type": "VARCHAR2",
+          "nullable": true,
+          "num_distinct": 25,
+          "num_nulls": 0,
+          "low_value": "LANG_0",
+          "high_value": "LANG_9",
+          "density": 0.000001,
+          "histogram": {
+            "type": "FREQUENCY",
+            "buckets": 25
+          }
+        },
+        "ORDER_DATE": {
+          "data_type": "DATE",
+          "nullable": true,
+          "num_distinct": 730,
+          "num_nulls": 0,
+          "low_value": "2024-01-01T00:00:00",
+          "high_value": "2025-12-30T00:00:00",
+          "density": 0.00136986301369863,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        },
+        "STATUS": {
+          "data_type": "NUMBER",
+          "nullable": true,
+          "num_distinct": 5,
+          "num_nulls": 0,
+          "low_value": "0",
+          "high_value": "4",
+          "density": 0.2,
+          "histogram": {
+            "type": "NONE",
+            "buckets": 1
+          }
+        }
+      },
+      "constraints": {
+        "primary_key": {
+          "name": "PK_ORDERS",
+          "columns": [
+            "ORDER_ID"
+          ],
+          "status": "ENABLED",
+          "validated": "VALIDATED"
+        },
+        "unique": [],
+        "foreign_keys": [],
+        "checks": []
+      },
+      "extended_stats": [],
+      "indexes": [
+        "PLANVIZ.PK_ORDERS"
+      ],
+      "ddl": "\n  CREATE TABLE \"PLANVIZ\".\"ORDERS\" \n   (\t\"ORDER_ID\" NUMBER, \n\t\"SHIP_COUNTRY\" VARCHAR2(48), \n\t\"SHIP_CURRENCY\" VARCHAR2(49), \n\t\"SHIP_LANGUAGE\" VARCHAR2(45), \n\t\"ORDER_DATE\" DATE, \n\t\"STATUS\" NUMBER, \n\t CONSTRAINT \"PK_ORDERS\" PRIMARY KEY (\"ORDER_ID\")\n  USING INDEX  ENABLE\n   ) ;"
+    },
+    "PLANVIZ.ORDER_ITEMS_IX": {
+      "type": "INDEX",
+      "stats": {
+        "uniqueness": "NONUNIQUE",
+        "index_type": "NORMAL",
+        "status": "VALID",
+        "visibility": "VISIBLE",
+        "partitioned": false,
+        "clustering_factor": 2000000,
+        "blevel": 2,
+        "leaf_blocks": 4449,
+        "distinct_keys": 506528,
+        "num_rows": 2000000,
+        "avg_leaf_blocks_per_key": 1,
+        "avg_data_blocks_per_key": 3,
+        "last_analyzed": "2026-07-04T21:03:08Z",
+        "degree": "1",
+        "compression": "DISABLED"
+      },
+      "columns": [
+        "ORDER_ID"
+      ],
+      "table": "PLANVIZ.ORDER_ITEMS",
+      "segment": {
+        "bytes": 37748736,
+        "extents": 51
+      },
+      "ddl": "\n  CREATE INDEX \"PLANVIZ\".\"ORDER_ITEMS_IX\" ON \"PLANVIZ\".\"ORDER_ITEMS\" (\"ORDER_ID\") \n  ;"
+    },
+    "PLANVIZ.PK_ORDERS": {
+      "type": "INDEX",
+      "stats": {
+        "uniqueness": "UNIQUE",
+        "index_type": "NORMAL",
+        "status": "VALID",
+        "visibility": "VISIBLE",
+        "partitioned": false,
+        "clustering_factor": 3504,
+        "blevel": 2,
+        "leaf_blocks": 1043,
+        "distinct_keys": 500000,
+        "num_rows": 500000,
+        "avg_leaf_blocks_per_key": 1,
+        "avg_data_blocks_per_key": 1,
+        "last_analyzed": "2026-07-04T21:03:07Z",
+        "degree": "1",
+        "compression": "DISABLED"
+      },
+      "columns": [
+        "ORDER_ID"
+      ],
+      "table": "PLANVIZ.ORDERS",
+      "segment": {
+        "bytes": 9437184,
+        "extents": 24
+      },
+      "ddl": "\n  CREATE UNIQUE INDEX \"PLANVIZ\".\"PK_ORDERS\" ON \"PLANVIZ\".\"ORDERS\" (\"ORDER_ID\") \n  ;"
+    }
+  },
+  "coverage_warnings": [],
+  "system_params": {
+    "db_block_size": 8192,
+    "optimizer_features_enable": "19.1.0",
+    "optimizer_index_cost_adj": 100,
+    "optimizer_index_caching": 0
+  },
+  "optimizer_env": [
+    {
+      "name": "sqlstat_enabled",
+      "value": "true"
+    },
+    {
+      "name": "statistics_level",
+      "value": "all"
+    }
+  ],
+  "sql_management": {
+    "baselines": [],
+    "profiles": [],
+    "patches": [],
+    "directives": [
+      {
+        "directive_id": "10698988065982278667",
+        "type": "DYNAMIC_SAMPLING",
+        "state": "USABLE",
+        "reason": "SINGLE TABLE CARDINALITY MISESTIMATE",
+        "last_used": null,
+        "objects": [
+          {
+            "owner": "PLANVIZ",
+            "object_name": "ORDERS",
+            "subobject_name": "SHIP_COUNTRY",
+            "object_type": "COLUMN"
+          },
+          {
+            "owner": "PLANVIZ",
+            "object_name": "ORDERS",
+            "subobject_name": "SHIP_CURRENCY",
+            "object_type": "COLUMN"
+          },
+          {
+            "owner": "PLANVIZ",
+            "object_name": "ORDERS",
+            "subobject_name": "SHIP_LANGUAGE",
+            "object_type": "COLUMN"
+          },
+          {
+            "owner": "PLANVIZ",
+            "object_name": "ORDERS",
+            "subobject_name": null,
+            "object_type": "TABLE"
+          }
+        ]
+      }
+    ]
+  }
+}
