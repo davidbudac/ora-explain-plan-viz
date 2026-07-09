@@ -259,9 +259,15 @@ later phase needs to know.
 - 2026-07-09 — Phase 1 (lint) implemented (branch `chore/lint-zero`). True error
   count after ignoring `.claude/worktrees/` was 40 (not 131). Gate: **lint 0
   errors ✓, build clean ✓, 887/887 tests ✓**, full manual diff review ✓ (all 14
-  files correct; SankeyView correct-but-inelegant). **STILL PENDING before
-  merge:** interactive dev-server smoke test of touched views + independent AI
-  review — both blocked by a sustained opus-4.8 classifier outage (preview MCP,
-  agent spawns, and mutating Bash all unavailable). User chose **direct-to-main**
-  (no PR); push auto-deploys, so smoke test must pass first. Paused mid-Phase-1;
-  see [`rollout-v1-handoff.md`](rollout-v1-handoff.md).
+  files correct; SankeyView correct-but-inelegant).
+- 2026-07-09 — Phase 1 verification COMPLETE (after the earlier classifier
+  outage cleared). **Independent AI review (opus): SAFE TO LAND, no defects.**
+  **Dev-server smoke test PASSED:** Flame + Sankey tooltips land pixel-perfect at
+  cursor+12 (refs-during-render fix); Sankey metric-switch redraws with tooltip
+  cleared and no stuck error (redrawSignature path); TabularView collapse + hoisted
+  ResizeHandle render; CommandPalette "Export PNG" produces a real PNG end-to-end;
+  MonitorDetailsView SQL still highlights; FindingsPanel severity colors render;
+  plan-change transition fires the collapsed/zoom/activeMatch resets with **zero
+  render loops** (only pre-existing benign html-to-image cross-origin font warnings
+  in the console). **Phase 1 is ready to merge — awaiting the user's explicit OK
+  (direct-to-main, which auto-deploys). Not merged/pushed.**
