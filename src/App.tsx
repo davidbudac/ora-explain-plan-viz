@@ -36,11 +36,14 @@ function MetadataPopoutContent({ onReturn }: { onReturn: () => void }) {
   );
 }
 
+// Two of these ship a schema-metadata bundle (Cardinality Trap, Partition Range
+// Iterator) so the front page showcases the metadata feature; the other two keep
+// format variety (DBMS_XPLAN + XBI). Cards with metadata get a badge (below).
 const FEATURED_EXAMPLES: Array<{ category: SamplePlan['category']; name: string }> = [
-  { category: 'dbms_xplan', name: 'Simple Plan' },
-  { category: 'dbms_xplan', name: 'Parallel Query' },
-  { category: 'sql_monitor', name: 'Partitioned Star Query' },
   { category: 'sql_monitor', name: 'Cardinality Trap (NL)' },
+  { category: 'dbms_xplan', name: 'Simple Plan' },
+  { category: 'sql_monitor', name: 'Partition Range Iterator' },
+  { category: 'xbi', name: 'XBI TPC-DS Query' },
 ];
 
 function getFeaturedExamples(): SamplePlan[] {
@@ -297,14 +300,24 @@ function AppContent() {
                   <button
                     key={`${sample.category}-${sample.name}`}
                     type="button"
-                    onClick={() => loadAndParsePlan(sample.data)}
+                    onClick={() => loadAndParsePlan(sample.data, sample.metadata)}
                     className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors text-left"
                   >
                     <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
                       {sample.name}
                     </span>
-                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded">
-                      {categoryLabel(sample.category)}
+                    <span className="shrink-0 flex items-center gap-1">
+                      {sample.metadata && (
+                        <span
+                          title="Includes a schema-metadata bundle — tables, indexes, columns & stats on the Metadata tab"
+                          className="text-[10px] font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-300 bg-violet-100 dark:bg-violet-900/40 px-1.5 py-0.5 rounded"
+                        >
+                          metadata
+                        </span>
+                      )}
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded">
+                        {categoryLabel(sample.category)}
+                      </span>
                     </span>
                   </button>
                 ))}
