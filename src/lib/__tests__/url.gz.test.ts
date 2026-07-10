@@ -83,6 +83,25 @@ describe('cross-check with node:zlib (RFC-1952 gzip compatibility)', () => {
   });
 });
 
+describe('Oracle UTL_COMPRESS compatibility (pinned real-DB fixture)', () => {
+  // Produced by scripts/plan_to_url.sql on Oracle 19.27 (dbmint, 2026-07-10):
+  // DBMS_XPLAN.DISPLAY_CURSOR text -> CONVERTTOBLOB(AL32UTF8) ->
+  // UTL_COMPRESS.LZ_COMPRESS(quality=>9) -> chunked base64url.
+  // Pins UTL_COMPRESS <-> DecompressionStream('gzip') compatibility forever.
+  it('decodes a payload produced by UTL_COMPRESS in the database', async () => {
+    const payload = readFileSync(
+      join(__dirname, 'fixtures', 'oracle-utl-compress-gz-payload.txt'),
+      'utf-8',
+    ).trim();
+    const decoded = await decodeGzipPlanParam(payload);
+    expect(decoded).toContain('SQL_ID  1fd4ja94c2kvs, child number 0');
+    expect(decoded).toContain('PLANVIZ_T1');
+    expect(decoded).toContain('Plan hash value');
+    // Raw plan text (not a JSON SharePayload) must route through the legacy path.
+    expect(classifyDecodedPlanText(decoded).type).toBe('legacy');
+  });
+});
+
 describe('decodeGzipPlanParam rejects corrupt input', () => {
   it('rejects invalid characters', async () => {
     await expect(decodeGzipPlanParam('not valid base64url!!!')).rejects.toThrow();

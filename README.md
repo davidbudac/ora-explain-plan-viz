@@ -22,6 +22,22 @@ Paste any of the formats below directly into the input panel and press **Cmd+Ent
 
 Don't have a plan handy? Pick one from the **Examples** dropdown to try the tool immediately.
 
+### Generate a link from the database
+
+Skip copy/paste entirely: [`scripts/plan_to_url.sql`](scripts/plan_to_url.sql)
+fetches a plan for a `sql_id`, compresses and encodes it inside the database,
+and prints a ready-to-click URL that opens straight into the visualizer with
+the plan pre-loaded.
+
+```sql
+SQL> @plan_to_url.sql an05rsj1up1k5
+```
+
+It's fully read-only (SQL*Plus/SQLcl, Oracle 19c+) and supports both the
+cursor cache (default) and SQL Monitor reports (`@plan_to_url.sql <sql_id> "" MONITOR`,
+requires the Tuning Pack license). See [`scripts/README.md`](scripts/README.md#plan_to_urlsql)
+for arguments, privileges, and limitations.
+
 ---
 
 ### DBMS_XPLAN
