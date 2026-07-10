@@ -393,4 +393,96 @@ Plan hash value: 123456
       expect(scan.pstop).toBe('7');
     });
   });
+
+  describe('Activity timeline (23-sql_monitor-Window Sort Spill.txt)', () => {
+    let result: ReturnType<typeof sqlMonitorXmlParser.parse>;
+
+    it('parses without errors', () => {
+      const xml = readExample('23-sql_monitor-Window Sort Spill.txt');
+      result = sqlMonitorXmlParser.parse(xml);
+      expect(result.rootNode).not.toBeNull();
+    });
+
+    it('parses report-level activity_detail into activityTimeline', () => {
+      expect(result.activityTimeline).toBeDefined();
+      expect(result.activityTimeline!.bucketCount).toBe(11);
+      expect(result.activityTimeline!.bucketIntervalSecs).toBe(1);
+      expect(result.activityTimeline!.durationSecs).toBe(9);
+      expect(result.activityTimeline!.samples).toHaveLength(9);
+    });
+
+    it('includes a User I/O sample with event and line', () => {
+      const sample = result.activityTimeline!.samples.find(
+        (s) => s.waitClass === 'User I/O' && s.event === 'direct path write temp' && s.line === 4
+      );
+      expect(sample).toBeDefined();
+      expect(sample!.bucket).toBe(4);
+      expect(sample!.count).toBe(1);
+    });
+
+    it('includes Cpu samples', () => {
+      const cpuSamples = result.activityTimeline!.samples.filter((s) => s.waitClass === 'Cpu');
+      expect(cpuSamples.length).toBe(7); // buckets 2,3,5,6,7,8,10
+    });
+
+    it('sets first/last-active offsets (seconds from sql_exec_start=07/04/2026 18:51:54)', () => {
+      const byId = (id: number) => result.allNodes.find((n) => n.id === id)!;
+      expect(byId(0).firstActiveOffset).toBe(1);
+      expect(byId(0).lastActiveOffset).toBe(9);
+      expect(byId(0).firstRowOffset).toBe(9);
+      expect(byId(1).firstActiveOffset).toBe(9);
+      expect(byId(1).lastActiveOffset).toBe(9);
+      expect(byId(2).firstActiveOffset).toBe(9);
+      expect(byId(2).lastActiveOffset).toBe(9);
+      expect(byId(3).firstActiveOffset).toBe(6);
+      expect(byId(3).lastActiveOffset).toBe(9);
+      expect(byId(4).firstActiveOffset).toBe(2);
+      expect(byId(4).lastActiveOffset).toBe(9);
+      expect(byId(5).firstActiveOffset).toBe(2);
+      expect(byId(5).lastActiveOffset).toBe(4);
+    });
+
+    it('populates activityPercent from the timeline, dominant on line 4', () => {
+      const byId = (id: number) => result.allNodes.find((n) => n.id === id)!;
+      // line 4 (WINDOW SORT, id=4): 6 of 9 samples = 66.67%
+      expect(byId(4).activityPercent).toBeCloseTo((6 / 9) * 100, 5);
+      // line 3 (WINDOW SORT PUSHED RANK, id=3): 2 of 9 = 22.22%
+      expect(byId(3).activityPercent).toBeCloseTo((2 / 9) * 100, 5);
+      // line 0 (SELECT STATEMENT, id=0): 1 of 9 = 11.11%
+      expect(byId(0).activityPercent).toBeCloseTo((1 / 9) * 100, 5);
+      expect(byId(1).activityPercent).toBeUndefined();
+      expect(byId(2).activityPercent).toBeUndefined();
+      expect(byId(5).activityPercent).toBeUndefined();
+
+      const sum = [4, 3, 0].reduce((s, id) => s + (byId(id).activityPercent ?? 0), 0);
+      expect(sum).toBeCloseTo(100, 5);
+    });
+  });
+
+  describe('No activity_detail (21-sql_monitor-Star Schema Rollup.txt)', () => {
+    let result: ReturnType<typeof sqlMonitorXmlParser.parse>;
+
+    it('parses without errors', () => {
+      const xml = readExample('21-sql_monitor-Star Schema Rollup.txt');
+      result = sqlMonitorXmlParser.parse(xml);
+      expect(result.rootNode).not.toBeNull();
+    });
+
+    it('activityTimeline is undefined', () => {
+      expect(result.activityTimeline).toBeUndefined();
+    });
+
+    it('firstActiveOffset/lastActiveOffset are still populated from timestamps (all 0s here)', () => {
+      expect(result.allNodes).toHaveLength(9);
+      for (const node of result.allNodes) {
+        expect(node.firstActiveOffset).toBe(0);
+        expect(node.lastActiveOffset).toBe(0);
+        expect(node.firstRowOffset).toBeUndefined();
+      }
+    });
+
+    it('does not regress activityPercent (no samples, stays undefined)', () => {
+      expect(result.allNodes.every((n) => n.activityPercent === undefined)).toBe(true);
+    });
+  });
 });

@@ -59,6 +59,7 @@ const VIEW_MODE_LABELS: Record<ViewMode, string> = {
   metadata: 'Metadata',
   compare: 'Compare',
   monitor: 'Monitor',
+  experimental: 'Experimental',
 };
 
 const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {

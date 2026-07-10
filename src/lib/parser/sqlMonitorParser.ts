@@ -1,4 +1,4 @@
-import type { PlanNode, ParsedPlan, SqlMonitorMetadata } from '../types';
+import type { PlanNode, ParsedPlan, SqlMonitorMetadata, ActivityTimeline, ActivitySample } from '../types';
 import type { PlanParser, BindVariable } from './types';
 import { parseNoteSection } from './noteSection';
 
@@ -659,6 +659,12 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
   const reportParams = doc.querySelector('report_parameters');
   const target = doc.querySelector('target');
 
+  const sqlExecStartStr =
+    reportParams?.querySelector('sql_exec_start')?.textContent?.trim() ||
+    target?.getAttribute('sql_exec_start') ||
+    undefined;
+  const sqlExecStartMs = sqlExecStartStr ? parseOracleTimestamp(sqlExecStartStr) : undefined;
+
   const sqlId =
     reportParams?.querySelector('sql_id')?.textContent?.trim() ||
     target?.getAttribute('sql_id') ||
@@ -676,6 +682,9 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
   const globalStats = doc.querySelector('stats[type="monitor"]');
   const globalElapsedTimeUs = getStatByName(globalStats, 'elapsed_time');
 
+  // Parse the report-level ASH timeline, if present
+  const activityTimeline = parseActivityDetail(doc);
+
   // Parse the <plan> section for estimated stats and predicates
   const planEstimatesMap = parsePlanSection(doc);
 
@@ -688,7 +697,7 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
     // Parse operations from <plan_monitor>
     const operations = planMonitor.querySelectorAll(':scope > operation');
     operations.forEach((op) => {
-      const node = parseMonitorOperation(op, planEstimatesMap);
+      const node = parseMonitorOperation(op, planEstimatesMap, sqlExecStartMs);
       if (node) {
         nodeMap.set(node.id, node);
         allNodes.push(node);
@@ -736,7 +745,7 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
   }
 
   // Parse activity samples (ASH) and assign per-operation activityPercent
-  applyActivitySamples(doc, nodeMap);
+  applyActivitySamples(doc, nodeMap, activityTimeline);
 
   // Find root node (id 0, or node without parent_id)
   const rootNode = nodeMap.get(0) || allNodes.find(n => n.parentId === undefined) || null;
@@ -832,6 +841,7 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
     totalElapsedTime,
     bindVariables: bindVariables.length > 0 ? bindVariables : undefined,
     monitorMetadata: Object.keys(monitorMetadata).length > 0 ? monitorMetadata : undefined,
+    activityTimeline,
   };
 }
 
@@ -928,7 +938,11 @@ function parsePlanSection(doc: Document): Map<number, PlanEstimates> {
  * Parse an operation element from the <plan_monitor> section.
  * Merges with estimated data from <plan> section.
  */
-function parseMonitorOperation(op: Element, planEstimates: Map<number, PlanEstimates>): PlanNode | null {
+function parseMonitorOperation(
+  op: Element,
+  planEstimates: Map<number, PlanEstimates>,
+  sqlExecStartMs: number | undefined
+): PlanNode | null {
   const idAttr = op.getAttribute('id');
   if (!idAttr) return null;
   const id = parseInt(idAttr, 10);
@@ -1001,6 +1015,37 @@ function parseMonitorOperation(op: Element, planEstimates: Map<number, PlanEstim
     actualTimeMs = duration * 1000;
   }
 
+  // Execution timeline offsets: first_active/last_active/first_row are absolute
+  // Oracle timestamps ("MM/DD/YYYY HH24:MI:SS"); convert to seconds relative to
+  // sql_exec_start. Note: getStatByName can't be reused here since parseFloat on
+  // a timestamp string like "07/04/2026 18:51:54" returns 7 instead of NaN.
+  const firstActiveStr = getStatText(statsEl, 'first_active');
+  const lastActiveStr = getStatText(statsEl, 'last_active');
+  const firstRowStr = getStatText(statsEl, 'first_row');
+  const fromSqlExecStart = getStatByName(statsEl, 'from_sql_exec_start');
+
+  let firstActiveOffset: number | undefined;
+  let lastActiveOffset: number | undefined;
+  let firstRowOffset: number | undefined;
+
+  if (sqlExecStartMs !== undefined && (firstActiveStr || lastActiveStr || firstRowStr)) {
+    const toOffset = (s: string | undefined): number | undefined => {
+      if (!s) return undefined;
+      const ms = parseOracleTimestamp(s);
+      if (ms === undefined) return undefined;
+      return Math.max(0, (ms - sqlExecStartMs) / 1000);
+    };
+    firstActiveOffset = toOffset(firstActiveStr);
+    lastActiveOffset = toOffset(lastActiveStr);
+    firstRowOffset = toOffset(firstRowStr);
+  }
+
+  // Fallback when timestamps are absent but from_sql_exec_start is present.
+  if (firstActiveOffset === undefined && fromSqlExecStart !== undefined) {
+    firstActiveOffset = Math.max(0, fromSqlExecStart);
+    lastActiveOffset = Math.max(0, fromSqlExecStart + (duration ?? 0));
+  }
+
   const node: PlanNode = {
     id,
     depth,
@@ -1026,6 +1071,9 @@ function parseMonitorOperation(op: Element, planEstimates: Map<number, PlanEstim
     filterPredicates: estimates?.filterPredicates,
     pstart,
     pstop,
+    firstActiveOffset,
+    lastActiveOffset,
+    firstRowOffset,
     children: [],
   };
 
@@ -1119,12 +1167,37 @@ function parseOptimizerEnv(doc: Document): Record<string, string> | undefined {
 }
 
 /**
- * Parse ASH samples from <activity_sampled> and set activityPercent on nodes.
- * Oracle formats: counts may appear as <activity line="N" count="M"/> attributes,
- * or as repeated <activity line="N"/> entries (one per sample). Also handles a
- * bucketed form where <bucket><activity .../></bucket> appears multiple times.
+ * Assign per-operation activityPercent from ASH samples.
+ * Prefers the pre-parsed report-level <activity_detail> timeline (real Oracle
+ * XML format). Falls back to the legacy flat <activity_sampled><activity
+ * line=.. count=../></activity_sampled> format (simplified test format; real
+ * Oracle XML's report-level activity_sampled has no line attribute and is
+ * superseded by the activity_detail path above) when no timeline is available
+ * or it has no line-tagged samples.
  */
-function applyActivitySamples(doc: Document, nodeMap: Map<number, PlanNode>): void {
+function applyActivitySamples(
+  doc: Document,
+  nodeMap: Map<number, PlanNode>,
+  timeline: ActivityTimeline | undefined
+): void {
+  if (timeline && timeline.samples.length > 0) {
+    const perLine = new Map<number, number>();
+    let grandTotal = 0;
+    for (const sample of timeline.samples) {
+      grandTotal += sample.count;
+      if (sample.line === undefined) continue;
+      perLine.set(sample.line, (perLine.get(sample.line) ?? 0) + sample.count);
+    }
+    if (grandTotal > 0) {
+      for (const [line, count] of perLine) {
+        const node = nodeMap.get(line);
+        if (node) node.activityPercent = (count / grandTotal) * 100;
+      }
+      return;
+    }
+  }
+
+  // Legacy fallback: flat <activity_sampled><activity line=.. count=../></activity_sampled>
   const samples = doc.querySelector('activity_sampled');
   if (!samples) return;
 
@@ -1157,6 +1230,54 @@ function applyActivitySamples(doc: Document, nodeMap: Map<number, PlanNode>): vo
 }
 
 /**
+ * Parse the report-level <activity_detail> element (real Oracle SQL Monitor
+ * XML ASH timeline) into an ActivityTimeline. Operations carry their own
+ * nested <activity_sampled>/<activity_histogram>/<activity_detail>-like
+ * elements too, so we must only pick up the one that is NOT inside an
+ * <operation>.
+ */
+function parseActivityDetail(doc: Document): ActivityTimeline | undefined {
+  const candidates = doc.querySelectorAll('activity_detail');
+  let el: Element | undefined;
+  for (const c of candidates) {
+    if (!c.closest('operation')) {
+      el = c;
+      break;
+    }
+  }
+  if (!el) return undefined;
+
+  const samples: ActivitySample[] = [];
+  el.querySelectorAll('bucket').forEach((bucketEl) => {
+    const bucketNum = parseInt(bucketEl.getAttribute('number') || '', 10);
+    if (isNaN(bucketNum)) return;
+    bucketEl.querySelectorAll('activity').forEach((activityEl) => {
+      const waitClass = activityEl.getAttribute('class') || 'Other';
+      const event = activityEl.getAttribute('event') || undefined;
+      const lineAttr = activityEl.getAttribute('line');
+      const line = lineAttr !== null ? parseInt(lineAttr, 10) : undefined;
+      const countText = activityEl.textContent?.trim();
+      const count = countText && !isNaN(parseInt(countText, 10)) ? parseInt(countText, 10) : 1;
+      samples.push({
+        bucket: bucketNum,
+        line: line !== undefined && !isNaN(line) ? line : undefined,
+        waitClass,
+        event,
+        count,
+      });
+    });
+  });
+
+  return {
+    startTime: el.getAttribute('start_time') || undefined,
+    durationSecs: parseFloat(el.getAttribute('duration') || '0') || 0,
+    bucketIntervalSecs: parseFloat(el.getAttribute('bucket_interval') || '1') || 1,
+    bucketCount: parseInt(el.getAttribute('bucket_count') || '0', 10) || 0,
+    samples,
+  };
+}
+
+/**
  * Get a named stat value from a <stats> element.
  * Stats are structured as <stat name="...">value</stat>.
  */
@@ -1173,6 +1294,44 @@ function getStatByName(statsEl: Element | null, name: string): number | undefine
     }
   }
   return undefined;
+}
+
+/** Get a named stat's raw text content (for non-numeric stats like timestamps). */
+function getStatText(statsEl: Element | null, name: string): string | undefined {
+  if (!statsEl) return undefined;
+  const stats = statsEl.querySelectorAll('stat');
+  for (const stat of stats) {
+    if (stat.getAttribute('name') === name) {
+      const val = stat.textContent?.trim();
+      if (val) return val;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Parse an Oracle SQL Monitor timestamp of the form "MM/DD/YYYY HH24:MI:SS"
+ * (e.g. "07/04/2026 18:51:54") into epoch milliseconds. Returns undefined if
+ * the string doesn't match — do NOT use Date.parse(), which does not reliably
+ * handle this format across environments.
+ *
+ * Uses the *local* Date constructor (not UTC). Since this is only ever used
+ * to diff two timestamps parsed the same way from the same report, timezone
+ * offset cancels out — but the returned epoch ms is not a true UTC timestamp.
+ */
+export function parseOracleTimestamp(s: string): number | undefined {
+  const m = s.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
+  if (!m) return undefined;
+  const [, mm, dd, yyyy, hh, mi, ss] = m;
+  const ms = new Date(
+    parseInt(yyyy, 10),
+    parseInt(mm, 10) - 1,
+    parseInt(dd, 10),
+    parseInt(hh, 10),
+    parseInt(mi, 10),
+    parseInt(ss, 10)
+  ).getTime();
+  return isNaN(ms) ? undefined : ms;
 }
 
 /** Get an integer value from a direct child element. */
