@@ -40,6 +40,12 @@ export interface PlanNode {
   ioWriteBytes?: number;     // I/O write bytes
   activityPercent?: number;  // percentage of total execution time (ASH samples)
 
+  // Execution timeline offsets (seconds relative to sql_exec_start), from SQL
+  // Monitor <stats type="plan_monitor"> first_active/last_active/first_row.
+  firstActiveOffset?: number;
+  lastActiveOffset?: number;
+  firstRowOffset?: number;
+
   // Predicates and metadata
   accessPredicates?: string;
   filterPredicates?: string;
@@ -79,6 +85,27 @@ export interface ParsedPlan {
 
   // Parsed "Note" section (dynamic sampling, adaptive plan, SQL profile, etc.)
   notes?: PlanNotes;
+
+  // Report-level ASH timeline (Active Session History), from <activity_detail>
+  activityTimeline?: ActivityTimeline;
+}
+
+/** One ASH sample from a SQL Monitor report-level <activity_detail> bucket. */
+export interface ActivitySample {
+  bucket: number;
+  line?: number;
+  waitClass: string;
+  event?: string;
+  count: number;
+}
+
+/** Report-level ASH timeline parsed from <activity_detail>. */
+export interface ActivityTimeline {
+  startTime?: string;
+  durationSecs: number;
+  bucketIntervalSecs: number;
+  bucketCount: number;
+  samples: ActivitySample[];
 }
 
 export interface SqlMonitorMetadata {
@@ -173,8 +200,9 @@ export interface FilterState {
   minCardinalityMismatch: number;
 }
 
-export type ViewMode = 'hierarchical' | 'sankey' | 'flame' | 'tabular' | 'text' | 'sql' | 'metadata' | 'compare' | 'monitor';
+export type ViewMode = 'hierarchical' | 'sankey' | 'flame' | 'tabular' | 'text' | 'sql' | 'metadata' | 'compare' | 'monitor' | 'experimental';
 export type SankeyMetric = 'rows' | 'cost' | 'actualRows' | 'actualTime';
+export type ExperimentalSubView = 'scatter' | 'timeline' | 'waterfall' | 'morph' | 'waits';
 export type { FlameMetric } from './flameLayout';
 export type Theme = 'light' | 'dark';
 

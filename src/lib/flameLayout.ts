@@ -1,6 +1,6 @@
 import type { PlanNode } from './types';
 
-export type FlameMetric = 'actualTime' | 'cost' | 'actualRows';
+export type FlameMetric = 'actualTime' | 'cost' | 'actualRows' | 'rows';
 
 export interface FlameRect {
   node: PlanNode;
@@ -29,6 +29,8 @@ function rawValue(node: PlanNode, metric: FlameMetric): number {
       const starts = node.starts ?? 1;
       return actualRows * starts;
     }
+    case 'rows':
+      return node.rows ?? 0;
     default:
       return 0;
   }

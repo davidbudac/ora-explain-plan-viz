@@ -1,4 +1,4 @@
-import type { FilterState, ViewMode, SankeyMetric, FlameMetric, NodeIndicatorMetric, NodeDisplayOptions, ColorScheme } from './types';
+import type { FilterState, ViewMode, SankeyMetric, FlameMetric, ExperimentalSubView, NodeIndicatorMetric, NodeDisplayOptions, ColorScheme } from './types';
 import type { CompareMetric } from './compare';
 import type { HighlightStyle } from './annotations';
 
@@ -17,6 +17,7 @@ export interface UserSettings {
   viewMode: ViewMode;
   sankeyMetric: SankeyMetric;
   flameMetric: FlameMetric;
+  experimentalSubView: ExperimentalSubView;
   nodeIndicatorMetric: NodeIndicatorMetric;
   colorScheme: ColorScheme;
 
@@ -68,12 +69,14 @@ export const defaultNodeDisplayOptions: NodeDisplayOptions = {
 };
 
 const VALID_COLOR_SCHEMES: ColorScheme[] = ['contrast', 'semantic', 'estact', 'rail', 'ticker'];
+const VALID_EXPERIMENTAL_SUB_VIEWS: ExperimentalSubView[] = ['scatter', 'timeline', 'waterfall', 'morph', 'waits'];
 
 const defaultSettings: UserSettings = {
   version: SETTINGS_VERSION,
   viewMode: 'hierarchical',
   sankeyMetric: 'rows',
   flameMetric: 'actualTime',
+  experimentalSubView: 'scatter',
   nodeIndicatorMetric: 'cost',
   colorScheme: 'semantic',
   hotspotsEnabled: true,
@@ -108,6 +111,11 @@ export function loadSettings(): UserSettings {
     // Drop color schemes that no longer exist (removed themes fall back to the default)
     if (parsed.colorScheme && !VALID_COLOR_SCHEMES.includes(parsed.colorScheme)) {
       delete parsed.colorScheme;
+    }
+
+    // Drop experimental sub-views that no longer exist (removed views fall back to the default)
+    if (parsed.experimentalSubView && !VALID_EXPERIMENTAL_SUB_VIEWS.includes(parsed.experimentalSubView)) {
+      delete parsed.experimentalSubView;
     }
 
     // Handle version migrations in the future
