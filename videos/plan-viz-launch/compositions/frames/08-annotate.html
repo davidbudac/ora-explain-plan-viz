@@ -1,0 +1,274 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        @font-face{font-family:'Inter';font-style:normal;font-weight:400;src:url('assets/fonts/Inter-400.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:normal;font-weight:500;src:url('assets/fonts/Inter-500.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:normal;font-weight:600;src:url('assets/fonts/Inter-600.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:normal;font-weight:700;src:url('assets/fonts/Inter-700.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:normal;font-weight:800;src:url('assets/fonts/Inter-800.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:normal;font-weight:900;src:url('assets/fonts/Inter-900.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:italic;font-weight:500;src:url('assets/fonts/Inter-500-italic.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:italic;font-weight:600;src:url('assets/fonts/Inter-600-italic.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400;src:url('assets/fonts/JetBrainsMono-400.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:500;src:url('assets/fonts/JetBrainsMono-500.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:700;src:url('assets/fonts/JetBrainsMono-700.woff2') format('woff2');font-display:block}
+
+        #root {
+          position: absolute;
+          inset: 0;
+          width: 1920px;
+          height: 1080px;
+          overflow: hidden;
+          font-family: "Inter", sans-serif;
+        }
+
+        .ground {
+          position: absolute;
+          inset: 0;
+          background-color: #0b1220;
+          background-image:
+            linear-gradient(rgba(80, 140, 240, 0.12) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(80, 140, 240, 0.12) 1px, transparent 1px);
+          background-size: 38px 38px, 38px 38px;
+        }
+
+        .content {
+          position: absolute;
+          inset: 0;
+        }
+
+        .window {
+          position: absolute;
+          left: 269px;
+          top: 108px;
+          width: 1382px;
+          height: 777px;
+          border-radius: 18px;
+          border: 1.5px solid rgba(91, 157, 255, 0.35);
+          box-shadow:
+            0 30px 90px rgba(0, 0, 0, 0.55),
+            0 0 0 1px rgba(91, 157, 255, 0.1);
+          overflow: hidden;
+          background: #0b1220;
+          opacity: 0;
+        }
+
+        .window img {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+
+        .markers {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+        }
+
+        .marker-circle {
+          fill: none;
+          stroke-linecap: round;
+        }
+
+        .note-pill {
+          position: absolute;
+          left: 400px;
+          top: 428px;
+          width: 600px;
+          background: rgba(15, 23, 42, 0.92);
+          border: 1.5px solid rgba(91, 157, 255, 0.4);
+          border-radius: 16px;
+          padding: 22px 30px;
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+          opacity: 0;
+        }
+
+        .note-text {
+          font-family: "Inter", sans-serif;
+          font-size: 26px;
+          font-weight: 500;
+          line-height: 1.45;
+          color: #e6edf7;
+          margin: 0;
+        }
+
+        .note-word {
+          display: inline-block;
+        }
+
+        .scrim {
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          height: 260px;
+          background: linear-gradient(
+            180deg,
+            rgba(11, 18, 32, 0) 0%,
+            rgba(11, 18, 32, 0.82) 62%,
+            rgba(11, 18, 32, 0.94) 100%
+          );
+          opacity: 0;
+        }
+
+        .beat-row {
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 46px;
+          display: flex;
+          justify-content: center;
+          align-items: baseline;
+          gap: 28px;
+        }
+
+        .beat-word {
+          font-family: "Inter", sans-serif;
+          font-weight: 800;
+          font-size: 74px;
+          line-height: 1;
+          letter-spacing: -0.01em;
+          color: #e6edf7;
+          opacity: 0;
+        }
+
+        .beat-word .period {
+          color: #5b9dff;
+        }
+      </style>
+
+      <div
+        id="root"
+        data-composition-id="08-annotate"
+        data-width="1920"
+        data-height="1080"
+        data-duration="3.5"
+      >
+        <div class="ground clip" data-start="0" data-duration="3" data-track-index="0"></div>
+
+        <div class="content clip" data-start="0" data-duration="3" data-track-index="1">
+          <div class="window" id="window">
+            <img src="assets/annotations.png" alt="" />
+
+            <svg class="markers" viewBox="0 0 1382 777" id="markersSvg">
+              <circle id="m1" class="marker-circle" cx="449" cy="597" r="80" stroke="#f59e0b" stroke-width="6" />
+              <circle id="m2" class="marker-circle" cx="676" cy="226" r="70" stroke="#5b9dff" stroke-width="6" />
+            </svg>
+
+            <div class="note-pill" id="notePill">
+              <p class="note-text" id="noteText"></p>
+            </div>
+
+            <div class="scrim" id="scrim"></div>
+
+            <div class="beat-row" id="beatRow">
+              <span class="beat-word" id="bw1">Annotate<span class="period">.</span></span>
+              <span class="beat-word" id="bw2">Export<span class="period">.</span></span>
+              <span class="beat-word" id="bw3">Share<span class="period">.</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+      <script>
+        window.__timelines = window.__timelines || {};
+
+        // Build the note-pill words as separate spans for a per-word reveal.
+        var NOTE_WORDS = ["Full", "scan", "—", "candidate", "for", "index", "on", "ORDER_DATE."];
+        var noteTextEl = document.getElementById("noteText");
+        NOTE_WORDS.forEach(function (word, i) {
+          var span = document.createElement("span");
+          span.className = "note-word";
+          span.id = "nw" + i;
+          span.textContent = word;
+          noteTextEl.appendChild(span);
+          if (i < NOTE_WORDS.length - 1) {
+            noteTextEl.appendChild(document.createTextNode(" "));
+          }
+        });
+
+        // Precompute circle circumferences for a deterministic hand-drawn stroke draw-on.
+        function circumference(r) {
+          return 2 * Math.PI * r;
+        }
+        var m1 = document.getElementById("m1");
+        var m2 = document.getElementById("m2");
+        var c1 = circumference(80);
+        var c2 = circumference(70);
+        gsap.set(m1, { strokeDasharray: c1, strokeDashoffset: c1, opacity: 1 });
+        gsap.set(m2, { strokeDasharray: c2, strokeDashoffset: c2, opacity: 1 });
+
+        var tl = gsap.timeline({ paused: true });
+
+        // ---- Scene 1 (0.0-1.0s): window present, markers cascade -------------------
+        tl.fromTo(
+          "#window",
+          { opacity: 0, scale: 0.97 },
+          { opacity: 1, scale: 1, duration: 0.14, ease: "power3.out" },
+          0
+        );
+
+        // Orange ring draws on first (hand-drawn circle stroke).
+        tl.fromTo(m1, { strokeDashoffset: c1 }, { strokeDashoffset: 0, duration: 0.4, ease: "power3.out" }, 0.15);
+
+        // Blue ring follows in a staggered cascade.
+        tl.fromTo(m2, { strokeDashoffset: c2 }, { strokeDashoffset: 0, duration: 0.4, ease: "power3.out" }, 0.55);
+
+        // ---- Scene 2 (1.0-2.2s): note callout reveals per-word ----------------------
+        tl.fromTo(
+          "#notePill",
+          { opacity: 0, y: 14, scale: 0.96 },
+          { opacity: 1, y: 0, scale: 1, duration: 0.32, ease: "power3.out" },
+          1.0
+        );
+
+        NOTE_WORDS.forEach(function (word, i) {
+          var start = 1.14 + i * 0.09;
+          tl.fromTo(
+            "#nw" + i,
+            { opacity: 0, y: 8 },
+            { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" },
+            start
+          );
+        });
+
+        // ---- Scene 3 (2.2-3.0s): three words slam center-bottom, staccato beats -----
+        var BEATS = [2.15, 2.4, 2.65];
+
+        tl.fromTo("#scrim", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power3.out" }, BEATS[0] - 0.05);
+
+        // Distinct entrance per word (same energy, different form).
+        tl.fromTo(
+          "#bw1",
+          { scale: 1.4, filter: "blur(14px)", opacity: 0 },
+          { scale: 1, filter: "blur(0px)", opacity: 1, duration: 0.3, ease: "power4.out" },
+          BEATS[0]
+        );
+        tl.fromTo(
+          "#bw2",
+          { x: -160, opacity: 0 },
+          { x: 0, opacity: 1, duration: 0.28, ease: "expo.out" },
+          BEATS[1]
+        );
+        tl.fromTo(
+          "#bw3",
+          { y: 60, rotation: 5, opacity: 0 },
+          { y: 0, rotation: 0, opacity: 1, duration: 0.3, ease: "circ.out" },
+          BEATS[2]
+        );
+
+        window.__timelines["08-annotate"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

@@ -1,0 +1,247 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        @font-face{font-family:'Inter';font-style:normal;font-weight:400;src:url('assets/fonts/Inter-400.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:normal;font-weight:500;src:url('assets/fonts/Inter-500.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:normal;font-weight:600;src:url('assets/fonts/Inter-600.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:normal;font-weight:700;src:url('assets/fonts/Inter-700.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:normal;font-weight:800;src:url('assets/fonts/Inter-800.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:normal;font-weight:900;src:url('assets/fonts/Inter-900.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:italic;font-weight:500;src:url('assets/fonts/Inter-500-italic.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:italic;font-weight:600;src:url('assets/fonts/Inter-600-italic.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400;src:url('assets/fonts/JetBrainsMono-400.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:500;src:url('assets/fonts/JetBrainsMono-500.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:700;src:url('assets/fonts/JetBrainsMono-700.woff2') format('woff2');font-display:block}
+
+        #root {
+          position: relative;
+          width: 1920px;
+          height: 1080px;
+          overflow: hidden;
+          font-family: "Inter", sans-serif;
+          background: transparent;
+        }
+
+        /* Full-bleed navy ground + faint blue grid -- own dedicated clip, lowest track */
+        .bg-grid {
+          position: absolute;
+          inset: 0;
+          background-color: #0b1220;
+          background-image:
+            linear-gradient(to right, rgba(80, 140, 240, 0.12) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(80, 140, 240, 0.12) 1px, transparent 1px);
+          background-size: 40px 40px;
+        }
+
+        .content {
+          position: absolute;
+          inset: 0;
+        }
+
+        .center-col {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding-top: 400px;
+        }
+
+        /* Ambient glow bloom behind the lockup -- opacity-only, static centering transform is safe */
+        .glow {
+          position: absolute;
+          left: 50%;
+          top: 433px;
+          width: 760px;
+          height: 760px;
+          margin-left: -380px;
+          margin-top: -380px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(91, 157, 255, 0.38) 0%, rgba(91, 157, 255, 0) 70%);
+          pointer-events: none;
+          will-change: opacity;
+        }
+
+        /* Jitter wrapper -- GSAP-only translate, no CSS transform set here */
+        #stack {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          will-change: transform;
+        }
+
+        .wordmark-row {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          gap: 20px;
+          transform-origin: 50% 50%;
+          will-change: transform, opacity;
+        }
+
+        .wordmark-row svg {
+          display: block;
+          margin-top: 2px;
+        }
+
+        .wordmark-text {
+          font-family: "Inter", sans-serif;
+          font-weight: 700;
+          font-size: 58px;
+          letter-spacing: -0.01em;
+          color: #e6edf7;
+          white-space: nowrap;
+        }
+
+        .badge {
+          margin-top: 56px;
+          display: flex;
+          flex-direction: row;
+          align-items: baseline;
+          gap: 14px;
+          font-family: "JetBrains Mono", monospace;
+          font-weight: 500;
+          font-size: 27px;
+          letter-spacing: 0.06em;
+          color: #5b9dff;
+        }
+
+        .badge .w {
+          display: inline-block;
+          will-change: transform, opacity;
+        }
+
+        .badge .dot {
+          opacity: 0.55;
+        }
+
+        .cta {
+          margin-top: 64px;
+          font-family: "Inter", sans-serif;
+          font-style: italic;
+          font-weight: 500;
+          font-size: 72px;
+          letter-spacing: -0.005em;
+          line-height: 1.1;
+          color: #5b9dff;
+          white-space: nowrap;
+          transform-origin: 50% 50%;
+          will-change: transform, opacity;
+        }
+      </style>
+
+      <div
+        id="root"
+        data-composition-id="09-close"
+        data-width="1920"
+        data-height="1080"
+        data-duration="4"
+      >
+        <div class="bg-grid clip" data-start="0" data-duration="4" data-track-index="0"></div>
+
+        <div class="content clip" data-start="0" data-duration="4" data-track-index="1">
+          <div class="center-col">
+            <div class="glow" id="glow"></div>
+
+            <div id="stack">
+              <div class="wordmark-row" id="wordmark-row">
+                <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="6" y="4" width="36" height="40" rx="4" stroke="#5b9dff" stroke-width="3" />
+                  <rect x="13.5" y="27" width="5" height="11" rx="1" fill="#5b9dff" />
+                  <rect x="21.5" y="21" width="5" height="17" rx="1" fill="#5b9dff" />
+                  <rect x="29.5" y="14" width="5" height="24" rx="1" fill="#5b9dff" />
+                </svg>
+                <div class="wordmark-text">Oracle Plan Visualizer</div>
+              </div>
+
+              <div class="badge" id="badge">
+                <span class="w" id="w0">100%</span>
+                <span class="w" id="w1">in</span>
+                <span class="w" id="w2">your</span>
+                <span class="w" id="w3">browser</span>
+                <span class="w dot" id="w4">&middot;</span>
+                <span class="w" id="w5">no</span>
+                <span class="w" id="w6">upload</span>
+                <span class="w dot" id="w7">&middot;</span>
+                <span class="w" id="w8">open</span>
+                <span class="w" id="w9">source</span>
+              </div>
+
+              <div class="cta" id="cta">Open it. Paste a plan.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        window.__timelines = window.__timelines || {};
+        const tl = gsap.timeline({ paused: true });
+
+        // --- Scene 1 (0.0-1.2s): wordmark converges to center + settles ---
+        // scale-swap-transition handoff, but smooth (power3.out) not bouncy --
+        // starts scaled down like an incoming swap state, settles clean.
+        tl.fromTo(
+          "#glow",
+          { opacity: 0 },
+          { opacity: 1, duration: 0.9, ease: "power2.out" },
+          0.1
+        );
+        tl.fromTo(
+          "#wordmark-row",
+          { scale: 0.78, opacity: 0, y: 10 },
+          { scale: 1, opacity: 1, y: 0, duration: 0.65, ease: "power3.out" },
+          0.1
+        );
+
+        // --- Scene 2 (1.2-2.4s): mono badge reveals per-word ---
+        const words = ["#w0", "#w1", "#w2", "#w3", "#w4", "#w5", "#w6", "#w7", "#w8", "#w9"];
+        const WORD_START = 1.2;
+        const WORD_STAGGER = 0.09;
+        words.forEach((sel, i) => {
+          tl.fromTo(
+            sel,
+            { opacity: 0, y: 8 },
+            { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" },
+            WORD_START + i * WORD_STAGGER
+          );
+        });
+
+        // --- Scene 3 (2.4-4.0s): CTA spring-pops once, then everything holds ---
+        tl.fromTo(
+          "#cta",
+          { scale: 0, opacity: 0 },
+          { scale: 1, opacity: 1, duration: 0.5, ease: "power3.out" },
+          2.45
+        );
+
+        // Deliberate final hold: subtle jitter only, applied to the whole stack
+        // AFTER the CTA settles (~2.95s) -- deterministic sine driver, not a
+        // repeat/yoyo loop, matches the multi-phase-camera drift pattern used
+        // elsewhere in this project.
+        const stackEl = document.getElementById("stack");
+        const jitter = { p: 0 };
+        tl.to(
+          jitter,
+          {
+            p: Math.PI * 2 * 3,
+            duration: 1.0,
+            ease: "none",
+            onUpdate: () => {
+              const dx = Math.sin(jitter.p) * 1.4;
+              const dy = Math.cos(jitter.p * 1.3) * 0.9;
+              stackEl.style.transform = `translate(${dx}px, ${dy}px)`;
+            },
+          },
+          3.0
+        );
+
+        window.__timelines["09-close"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

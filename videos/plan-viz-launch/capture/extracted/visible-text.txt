@@ -1,0 +1,28 @@
+Oracle Plan Visualizer
+
+Paste an Oracle execution plan → get an interactive map of it. Fully client-side, nothing is uploaded.
+
+Supported input formats:
+- DBMS_XPLAN output
+- SQL Monitor text report
+- SQL Monitor XML report
+- V$SQL_PLAN JSON
+
+Core features:
+- Hierarchical tree view (React Flow) — the plan as a node graph
+- Sankey diagram — see where the rows actually flow, by E-Rows / Cost / A-Rows / A-Time
+- Flame graph and tabular views
+- Hot node detection — automatically rings the node burning the most A-Time ("Hotspot" badge)
+- Hotspots summary — top ops by self time, highest cost
+- Cardinality mismatch analysis — flags E-Rows vs A-Rows divergence (warn ≥3x, bad ≥10x), with a plain-English callout and a fix recommendation
+- Spill-to-disk warnings
+- Plan comparison — load two plans side by side, node matching + delta across 8 metrics (cost, rows, bytes, A-Rows, A-Time, starts, temp, memory)
+- Annotations — notes + 7-color highlights (circle / tint / glow / dot / underline), annotation groups, export/import as JSON
+- Operation tooltips for ~50 Oracle operations
+
+Positioning: Reading raw Oracle plans is painful. This makes the bottleneck obvious in seconds.
+
+Tagline options:
+- Paste. See. Fix.
+- Read Oracle plans at a glance.
+- 100% in your browser. No upload.

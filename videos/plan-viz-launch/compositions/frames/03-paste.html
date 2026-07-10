@@ -1,0 +1,247 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        @font-face{font-family:'Inter';font-style:normal;font-weight:400;src:url('assets/fonts/Inter-400.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:normal;font-weight:500;src:url('assets/fonts/Inter-500.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:normal;font-weight:600;src:url('assets/fonts/Inter-600.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:normal;font-weight:700;src:url('assets/fonts/Inter-700.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:normal;font-weight:800;src:url('assets/fonts/Inter-800.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:normal;font-weight:900;src:url('assets/fonts/Inter-900.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:italic;font-weight:500;src:url('assets/fonts/Inter-500-italic.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'Inter';font-style:italic;font-weight:600;src:url('assets/fonts/Inter-600-italic.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400;src:url('assets/fonts/JetBrainsMono-400.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:500;src:url('assets/fonts/JetBrainsMono-500.woff2') format('woff2');font-display:block}
+        @font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:700;src:url('assets/fonts/JetBrainsMono-700.woff2') format('woff2');font-display:block}
+
+        #root {
+          position: relative;
+          width: 1920px;
+          height: 1080px;
+          overflow: hidden;
+          font-family: "Inter", sans-serif;
+          background: transparent;
+        }
+
+        /* Full-bleed navy ground + faint blue grid -- own dedicated clip, lowest track */
+        .bg-grid {
+          position: absolute;
+          inset: 0;
+          background-color: #0b1220;
+          background-image:
+            linear-gradient(to right, rgba(80, 140, 240, 0.12) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(80, 140, 240, 0.12) 1px, transparent 1px);
+          background-size: 40px 40px;
+        }
+
+        /* Camera stage: static full-bleed hit box the camera transform lives inside */
+        .camera-stage {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+        }
+
+        .camera {
+          position: absolute;
+          inset: 0;
+          transform-origin: 50% 50%;
+          will-change: transform;
+        }
+
+        .content {
+          position: absolute;
+          inset: 0;
+        }
+
+        /* Shared floating-window recipe (frames 3,4,6,7,8) */
+        .window {
+          position: absolute;
+          left: 307px;
+          top: 129px;
+          width: 1306px;
+          height: 735px;
+          border-radius: 18px;
+          border: 1.5px solid rgba(91, 157, 255, 0.35);
+          box-shadow:
+            0 30px 90px rgba(0, 0, 0, 0.55),
+            0 0 0 1px rgba(91, 157, 255, 0.1);
+          overflow: hidden;
+          will-change: transform;
+        }
+
+        .window img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          object-position: center top;
+          display: block;
+        }
+
+        .kicker {
+          position: absolute;
+          left: 307px;
+          top: 68px;
+          font-family: "Inter", sans-serif;
+          font-weight: 600;
+          font-size: 21px;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          color: #5b9dff;
+          will-change: transform, opacity;
+        }
+
+        .chips-row {
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: 872px;
+          height: 48px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 20px;
+        }
+
+        .chip {
+          display: inline-flex;
+          align-items: center;
+          padding: 11px 24px;
+          border-radius: 999px;
+          border: 1px solid rgba(91, 157, 255, 0.4);
+          background: rgba(15, 23, 42, 0.72);
+          font-family: "Inter", sans-serif;
+          font-weight: 600;
+          font-size: 21px;
+          letter-spacing: 0.02em;
+          color: #5b9dff;
+          white-space: nowrap;
+          will-change: transform, opacity;
+        }
+      </style>
+
+      <div
+        id="root"
+        data-composition-id="03-paste"
+        data-width="1920"
+        data-height="1080"
+        data-duration="3.5"
+      >
+        <div
+          class="bg-grid clip"
+          data-start="0"
+          data-duration="3.5"
+          data-track-index="0"
+        ></div>
+
+        <div
+          class="camera-stage clip"
+          data-start="0"
+          data-duration="3.5"
+          data-track-index="1"
+        >
+          <div class="camera" id="camera">
+            <div class="content">
+              <div class="window" id="window">
+                <img src="assets/hero.png" alt="" />
+              </div>
+
+              <div class="kicker" id="kicker">Paste any plan.</div>
+
+              <div class="chips-row">
+                <div class="chip" id="chip-0">DBMS_XPLAN</div>
+                <div class="chip" id="chip-1">SQL Monitor</div>
+                <div class="chip" id="chip-2">XML</div>
+                <div class="chip" id="chip-3">JSON</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        window.__timelines = window.__timelines || {};
+        const tl = gsap.timeline({ paused: true });
+
+        const TOTAL_DURATION = 3.5;
+
+        // --- Multi-phase camera: back (0.95) -> neutral (1.0) -> slow push (1.05) ---
+        const camera = document.getElementById("camera");
+        const phase = { scale: 0.95 };
+
+        tl.to(
+          phase,
+          { scale: 1.0, duration: 0.9, ease: "power2.out" },
+          0
+        );
+        tl.to(
+          phase,
+          { scale: 1.05, duration: 2.3, ease: "power2.inOut" },
+          1.0
+        );
+
+        const drift = { p: 0 };
+        tl.to(
+          drift,
+          {
+            p: Math.PI * 2 * 1.2,
+            duration: TOTAL_DURATION,
+            ease: "none",
+            onUpdate: () => {
+              const dx = Math.sin(drift.p) * 4;
+              const dy = Math.sin(drift.p * 1.3) * 2;
+              camera.style.transform = `scale(${phase.scale}) translate(${dx}px, ${dy}px)`;
+            },
+          },
+          0
+        );
+
+        // --- Scene 1 (0.0-1.0s): window rises + spring-pop settles ---
+        tl.fromTo(
+          "#window",
+          { y: 70, scale: 0.85, opacity: 0 },
+          { y: 0, scale: 1, opacity: 1, duration: 0.85, ease: "power3.out" },
+          0.05
+        );
+
+        // Micro-kicker fades in top-left
+        tl.fromTo(
+          "#kicker",
+          { y: 14, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" },
+          0.3
+        );
+
+        // --- Scene 2 (1.0-2.4s): four format chips cascade in, one per beat ---
+        // center-outward-expansion: each chip starts pulled toward the row's
+        // center, then expands out to its natural flex-laid position (x:0).
+        const CONVERGE_PX = 200;
+        const chips = ["#chip-0", "#chip-1", "#chip-2", "#chip-3"];
+        chips.forEach((sel, i) => {
+          const delta = i - 1.5; // -1.5, -0.5, 0.5, 1.5
+          const fromX = -delta * CONVERGE_PX;
+          tl.fromTo(
+            sel,
+            { x: fromX, y: 16, scale: 0.65, opacity: 0 },
+            {
+              x: 0,
+              y: 0,
+              scale: 1,
+              opacity: 1,
+              duration: 0.55,
+              ease: "power3.out",
+            },
+            1.0 + i * 0.3
+          );
+        });
+
+        // --- Scene 3 (2.4-3.5s): push eases to rest; hold (drift only) ---
+
+        window.__timelines["03-paste"] = tl;
+      </script>
+    </template>
+  </body>
+</html>
