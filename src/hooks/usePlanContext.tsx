@@ -383,6 +383,11 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
         selectedNodeId: null,
         selectedNodeIds: [],
         annotations: createEmptyAnnotationState(),
+        // A new plan belongs to a different SQL_ID/plan; drop any metadata
+        // bundle attached to the previous plan so it can't bleed across queries.
+        // Callers that want to keep a bundle re-attach it right after this.
+        metadataBundle: null,
+        metadataBundleWarning: null,
       }));
       const comparePlanIndices = normalizeComparePlanIndices(nextState.plans, state.comparePlanIndices);
       const parsedPlanCount = nextState.plans.filter((slot) => slot.parsedPlan).length;
