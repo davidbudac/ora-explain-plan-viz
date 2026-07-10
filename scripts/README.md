@@ -1,5 +1,66 @@
 # Scripts
 
+## plan_to_url.sql
+
+Given a `sql_id`, fetches the execution plan, gzip-compresses and
+base64url-encodes it **inside the database**, and prints a ready-to-click URL
+that opens the Oracle Execution Plan Visualizer with the plan pre-loaded. No
+copying plan text into the app required.
+
+```sql
+-- From the shared-cursor cache (default source, no extra license)
+SQL> @plan_to_url.sql an05rsj1up1k5
+
+-- Pick a specific child cursor
+SQL> @plan_to_url.sql an05rsj1up1k5 1
+
+-- From a SQL Monitor report instead (skip the child-number argument with "")
+SQL> @plan_to_url.sql an05rsj1up1k5 "" MONITOR
+```
+
+**Arguments:**
+
+| # | Name | Required | Default | Notes |
+|---|------|----------|---------|-------|
+| 1 | `sql_id` | Yes | - | The `V$SQL.SQL_ID` of the statement. |
+| 2 | `child_number` | No | `0` | Only used with `CURSOR` source; ignored for `MONITOR`. Pass `""` to skip it. |
+| 3 | `source` | No | `CURSOR` | `CURSOR` reads `DBMS_XPLAN.DISPLAY_CURSOR('ALLSTATS LAST')`. `MONITOR` reads a `DBMS_SQLTUNE.REPORT_SQL_MONITOR` TEXT report. |
+
+**Privileges:**
+
+- `CURSOR` (default): read access to `V$SQL_PLAN` / `V$SQL_PLAN_STATISTICS_ALL`
+  for the target cursor (e.g. via `SELECT_CATALOG_ROLE` for cursors opened by
+  other sessions - your own session's cursors need no extra grant).
+  `DBMS_XPLAN.DISPLAY_CURSOR` itself is granted to `PUBLIC`.
+- `MONITOR`: `EXECUTE` on `DBMS_SQLTUNE`, **and an active Oracle Diagnostics
+  and Tuning Pack license** - `DBMS_SQLTUNE.REPORT_SQL_MONITOR` is a licensed
+  feature. The script prints a one-line reminder whenever you use this
+  source. Check your licensing before running it against a production system.
+
+The script is entirely read-only: it only calls `DBMS_XPLAN.DISPLAY_CURSOR` /
+`DBMS_SQLTUNE.REPORT_SQL_MONITOR`, works in session-private temporary LOBs it
+frees itself, and writes to the screen via `DBMS_OUTPUT`. No spool file, no
+DML, no DDL.
+
+**Base URL:** the script points at the public GitHub Pages deployment by
+default. Self-hosting the visualizer? Edit the `DEFINE base_url = ...` line
+near the top of the script to point at your own deployment instead.
+
+**Known limitations:**
+
+- The plan must still be in the cursor cache (`CURSOR` source) or have been
+  captured by SQL Monitor (`MONITOR` source, needs the Tuning Pack). There's
+  no AWR source yet.
+- URLs longer than roughly 2,000 characters may get truncated by some chat or
+  email clients when pasted as plain text - clicking the link, or copying the
+  whole line, works fine. Measured across the bundled example plans, real
+  URLs run about 0.6-6K characters.
+- Opening the link requires a browser new enough for `DecompressionStream`
+  (Chrome 80+, Firefox 113+, Safari 16.4+).
+- The plan's SQL text ends up encoded in the URL. The hash fragment
+  (`#gz=...`) is never sent to a server by the browser, but the URL is still
+  shareable data - treat it the same way you'd treat the plan text itself.
+
 ## gather_plan_metadata.sql
 
 Generates a `format: "ora-plan-metadata"` JSON bundle for use with the Oracle
