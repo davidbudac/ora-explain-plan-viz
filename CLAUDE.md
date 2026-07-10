@@ -22,6 +22,8 @@ src/
 │   ├── format.ts        # Number/time/bytes formatting + cardinality ratio utilities
 │   ├── annotations.ts   # Annotation system (notes, highlights, groups, export/import)
 │   ├── compare.ts       # Plan comparison engine (node matching, delta calculations)
+│   ├── ash.ts           # ASH wait-class colors + per-line/per-bucket activity aggregation
+│   ├── rowFlow.ts       # Wasted-work row-flow computation (rows read vs returned per node)
 │   ├── parser.ts        # Legacy parser (kept for compatibility)
 │   └── parser/          # Modular parser system
 │       ├── index.ts           # Parser orchestration, format detection
@@ -54,7 +56,14 @@ src/
 │   └── views/
 │       ├── HierarchicalView.tsx   # Tree layout (React Flow + custom algorithm + keyboard nav)
 │       ├── SankeyView.tsx         # Sankey diagram (D3)
-│       └── CompareView.tsx        # Side-by-side plan comparison dashboard
+│       ├── CompareView.tsx        # Side-by-side plan comparison dashboard
+│       └── experimental/          # Experimental tab: 5 sub-views behind a segmented switcher
+│           ├── ExperimentalView.tsx  # Shell (sub-view switcher, persisted via settings)
+│           ├── ScatterView.tsx       # E-Rows vs A-Rows log-log calibration scatter
+│           ├── TimelineView.tsx      # Execution Gantt (first/last active + ASH wait-class cells)
+│           ├── WaterfallView.tsx     # Wasted-work row flow (rows read vs returned)
+│           ├── MorphView.tsx         # Estimate→actual animated icicle morph
+│           └── WaitsView.tsx         # Per-line wait-class composition (ASH samples)
 ├── App.tsx
 ├── main.tsx
 └── index.css            # Tailwind imports + dark mode styles
@@ -108,6 +117,7 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 
 ### Visualization
 - **Four Visualization Modes**: Hierarchical tree, Sankey diagram, raw Plan Text, and Compare view
+- **Experimental Tab**: five research views behind one tab — optimizer calibration scatter (E-Rows vs A-Rows, log-log), execution timeline Gantt (per-op first/last active + ASH wait-class cells), wasted-work waterfall (rows read vs returned), estimate→actual icicle morph, and per-line wait-class composition. SQL Monitor XML parser extracts `<activity_detail>` bucketed ASH samples and per-op `first_active`/`last_active` offsets to power them
 - **Multiple Input Formats**: DBMS_XPLAN, SQL Monitor text, SQL Monitor XML
 - **Runtime Statistics**: Display A-Rows, E-Rows, A-Time, and Starts from SQL Monitor
 - **Node Indicator Metrics**: Configurable node badges showing cost, A-Rows, A-Time, starts, or activity %

@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useReducer, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, FlameMetric, NodeIndicatorMetric, Theme, ColorScheme } from '../lib/types';
+import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, FlameMetric, ExperimentalSubView, NodeIndicatorMetric, Theme, ColorScheme } from '../lib/types';
 import type { PlanSlot, CompareMetric } from '../lib/compare';
 import { createEmptySlot, DEFAULT_COMPARE_METRICS, getPlanSlotLabel } from '../lib/compare';
 import { parseExplainPlan, splitDbmsXplanPlanBatches } from '../lib/parser';
@@ -42,6 +42,7 @@ interface PlanState {
   treeCompareEnabled: boolean;
   sankeyMetric: SankeyMetric;
   flameMetric: FlameMetric;
+  experimentalSubView: ExperimentalSubView;
   nodeIndicatorMetric: NodeIndicatorMetric;
   colorScheme: ColorScheme;
   theme: Theme;
@@ -69,6 +70,7 @@ type PlanAction =
   | { type: 'SET_TREE_COMPARE_ENABLED'; payload: boolean }
   | { type: 'SET_SANKEY_METRIC'; payload: SankeyMetric }
   | { type: 'SET_FLAME_METRIC'; payload: FlameMetric }
+  | { type: 'SET_EXPERIMENTAL_SUB_VIEW'; payload: ExperimentalSubView }
   | { type: 'SET_NODE_INDICATOR_METRIC'; payload: NodeIndicatorMetric }
   | { type: 'SET_COLOR_SCHEME'; payload: ColorScheme }
   | { type: 'SET_THEME'; payload: Theme }
@@ -182,6 +184,9 @@ function parseViewModeFromUrlParam(rawValue: string): ViewMode | null {
       return 'sql';
     case 'monitor':
       return 'monitor';
+    case 'experimental':
+    case 'lab':
+      return 'experimental';
     default:
       return null;
   }
@@ -285,6 +290,7 @@ const getInitialState = (): PlanState => {
     treeCompareEnabled: false,
     sankeyMetric: settings.sankeyMetric,
     flameMetric: settings.flameMetric ?? 'actualTime',
+    experimentalSubView: settings.experimentalSubView ?? 'scatter',
     nodeIndicatorMetric: settings.nodeIndicatorMetric,
     colorScheme: settings.colorScheme ?? 'semantic',
     theme: getInitialTheme(),
@@ -409,6 +415,9 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
 
     case 'SET_SANKEY_METRIC':
       return { ...state, sankeyMetric: action.payload };
+
+    case 'SET_EXPERIMENTAL_SUB_VIEW':
+      return { ...state, experimentalSubView: action.payload };
 
     case 'SET_FLAME_METRIC':
       return { ...state, flameMetric: action.payload };
@@ -691,6 +700,7 @@ interface PlanContextValue {
   viewMode: ViewMode;
   sankeyMetric: SankeyMetric;
   flameMetric: FlameMetric;
+  experimentalSubView: ExperimentalSubView;
   nodeIndicatorMetric: NodeIndicatorMetric;
   colorScheme: ColorScheme;
   theme: Theme;
@@ -724,6 +734,7 @@ interface PlanContextValue {
   setTreeCompareEnabled: (enabled: boolean) => void;
   setSankeyMetric: (metric: SankeyMetric) => void;
   setFlameMetric: (metric: FlameMetric) => void;
+  setExperimentalSubView: (view: ExperimentalSubView) => void;
   setNodeIndicatorMetric: (metric: NodeIndicatorMetric) => void;
   setColorScheme: (scheme: ColorScheme) => void;
   setTheme: (theme: Theme) => void;
@@ -1180,6 +1191,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         viewMode: state.viewMode === 'compare' ? 'hierarchical' : state.viewMode,
         sankeyMetric: state.sankeyMetric,
         flameMetric: state.flameMetric,
+        experimentalSubView: state.experimentalSubView,
         nodeIndicatorMetric: state.nodeIndicatorMetric,
         colorScheme: state.colorScheme,
         highlightStyle: state.highlightStyle,
@@ -1202,6 +1214,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     state.viewMode,
     state.sankeyMetric,
     state.flameMetric,
+    state.experimentalSubView,
     state.nodeIndicatorMetric,
     state.colorScheme,
     state.highlightStyle,
@@ -1248,6 +1261,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   const setFlameMetric = useCallback((metric: FlameMetric) => {
     dispatch({ type: 'SET_FLAME_METRIC', payload: metric });
+  }, []);
+
+  const setExperimentalSubView = useCallback((view: ExperimentalSubView) => {
+    dispatch({ type: 'SET_EXPERIMENTAL_SUB_VIEW', payload: view });
   }, []);
 
   const setNodeIndicatorMetric = useCallback((metric: NodeIndicatorMetric) => {
@@ -1534,6 +1551,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     viewMode: state.viewMode,
     sankeyMetric: state.sankeyMetric,
     flameMetric: state.flameMetric,
+    experimentalSubView: state.experimentalSubView,
     nodeIndicatorMetric: state.nodeIndicatorMetric,
     colorScheme: state.colorScheme,
     theme: state.theme,
@@ -1566,6 +1584,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setTreeCompareEnabled,
     setSankeyMetric,
     setFlameMetric,
+    setExperimentalSubView,
     setNodeIndicatorMetric,
     setColorScheme,
     setTheme,
