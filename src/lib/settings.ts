@@ -34,6 +34,9 @@ export interface UserSettings {
   // Hotspots
   hotspotsEnabled: boolean;
 
+  // Advisor suggestion hints (the "consider…" recommendation lines on findings)
+  showAdvisorSuggestions: boolean;
+
   // Comparison metrics
   compareMetrics: CompareMetric[];
 
@@ -74,6 +77,7 @@ const defaultSettings: UserSettings = {
   nodeIndicatorMetric: 'cost',
   colorScheme: 'semantic',
   hotspotsEnabled: true,
+  showAdvisorSuggestions: false,
   legendVisible: false,
   inputPanelCollapsed: false,
   filterPanelCollapsed: false,

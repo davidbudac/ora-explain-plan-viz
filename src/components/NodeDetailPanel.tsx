@@ -36,6 +36,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
     setNodeAnnotation, removeNodeAnnotation, setNodeHighlight, removeNodeHighlight,
     addAnnotationGroup, updateAnnotationGroup, removeAnnotationGroup,
     hotspotsEnabled, setHotspotsEnabled,
+    showAdvisorSuggestions, setShowAdvisorSuggestions,
     detailPanelCollapsed: isCollapsed, setDetailPanelCollapsed: setIsCollapsed,
     highlightStyle, setHighlightStyle,
     metadataBundle, metadataBundleWarning,
@@ -124,20 +125,37 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           </div>
         </div>
 
-        <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-           <h3 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Quick Analysis</h3>
-           <div className="flex items-center gap-2">
-              <span className="text-[10px] text-slate-400 dark:text-slate-500">Hotspots</span>
+        <div className="p-3 border-b border-slate-200 dark:border-slate-800 space-y-2">
+           <div className="flex items-center justify-between">
+              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Quick Analysis</h3>
+              <div className="flex items-center gap-2">
+                 <span className="text-[10px] text-slate-400 dark:text-slate-500">Hotspots</span>
+                 <button
+                   role="switch"
+                   aria-checked={hotspotsEnabled}
+                   onClick={() => setHotspotsEnabled(!hotspotsEnabled)}
+                   className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
+                     hotspotsEnabled ? 'bg-red-500' : 'bg-slate-300 dark:bg-slate-700'
+                   }`}
+                 >
+                   <span className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${
+                     hotspotsEnabled ? 'translate-x-3.5' : 'translate-x-0.5'
+                   }`} />
+                 </button>
+              </div>
+           </div>
+           <div className="flex items-center justify-between">
+              <span className="text-[10px] text-slate-400 dark:text-slate-500" title="Show the tuning recommendation line on advisor findings">Suggestions</span>
               <button
                 role="switch"
-                aria-checked={hotspotsEnabled}
-                onClick={() => setHotspotsEnabled(!hotspotsEnabled)}
+                aria-checked={showAdvisorSuggestions}
+                onClick={() => setShowAdvisorSuggestions(!showAdvisorSuggestions)}
                 className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
-                  hotspotsEnabled ? 'bg-red-500' : 'bg-slate-300 dark:bg-slate-700'
+                  showAdvisorSuggestions ? 'bg-sky-500' : 'bg-slate-300 dark:bg-slate-700'
                 }`}
               >
                 <span className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${
-                  hotspotsEnabled ? 'translate-x-3.5' : 'translate-x-0.5'
+                  showAdvisorSuggestions ? 'translate-x-3.5' : 'translate-x-0.5'
                 }`} />
               </button>
            </div>
