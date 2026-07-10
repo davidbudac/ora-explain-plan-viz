@@ -27,6 +27,7 @@ function SeverityDot({ severity }: { severity: FindingSeverity }) {
 }
 
 function FindingRow({ finding, onNavigate }: { finding: Finding; onNavigate: (nodeId: number) => void }) {
+  const { showAdvisorSuggestions } = usePlan();
   const [expanded, setExpanded] = useState(false);
   const styles = SEVERITY_STYLES[finding.severity];
   const nodeId = finding.nodeIds[0];
@@ -64,7 +65,9 @@ function FindingRow({ finding, onNavigate }: { finding: Finding; onNavigate: (no
       {expanded && (
         <div className="px-2 pb-2 pl-9 space-y-1">
           <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug">{finding.explanation}</p>
-          <p className={`text-[11px] italic leading-snug ${styles.text}`}>{finding.suggestion}</p>
+          {showAdvisorSuggestions && (
+            <p className={`text-[11px] italic leading-snug ${styles.text}`}>{finding.suggestion}</p>
+          )}
         </div>
       )}
     </div>
@@ -94,7 +97,7 @@ export function FindingsList() {
 }
 
 export function NodeFindings({ nodeId }: { nodeId: number }) {
-  const { advisorReport } = usePlan();
+  const { advisorReport, showAdvisorSuggestions } = usePlan();
   const findings = advisorReport?.findingsByNodeId.get(nodeId);
   if (!findings || findings.length === 0) return null;
 
@@ -109,7 +112,9 @@ export function NodeFindings({ nodeId }: { nodeId: number }) {
           >
             <div className={`text-xs font-semibold tracking-wide ${styles.text}`}>{finding.title}</div>
             <div className="mt-1 text-xs text-neutral-600 dark:text-neutral-400 leading-snug">{finding.explanation}</div>
-            <div className={`mt-1 text-xs italic leading-snug ${styles.text}`}>{finding.suggestion}</div>
+            {showAdvisorSuggestions && (
+              <div className={`mt-1 text-xs italic leading-snug ${styles.text}`}>{finding.suggestion}</div>
+            )}
           </div>
         );
       })}
