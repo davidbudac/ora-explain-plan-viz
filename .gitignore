@@ -26,11 +26,3 @@ dist-ssr
 # Claude Code local state
 .claude/worktrees/
 .claude/settings.local.json
-
-# HyperFrames video projects: keep sources, ignore build byproducts
-videos/**/renders/
-videos/**/snapshots/
-videos/**/.waveform-cache/
-videos/**/.hyperframes/
-videos/**/.claude/
-videos/**/capture/assets/
