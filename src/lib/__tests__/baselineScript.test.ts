@@ -39,6 +39,18 @@ describe('buildBaselineScript', () => {
     expect(script).toContain('11.2');
   });
 
+  it('awr filters the snapshot pre-check to PDB-local (CON_DBID) snapshots', () => {
+    const script = buildBaselineScript({ ...base, source: 'awr' });
+    expect(script).toContain("AND    s.dbid = SYS_CONTEXT('USERENV', 'CON_DBID')");
+    expect(script).toContain('PDB-local (AWR_PDB) snapshots');
+  });
+
+  it('awr_sts filters the snapshot pre-check to CDB-root (DBID) snapshots', () => {
+    const script = buildBaselineScript({ ...base, source: 'awr_sts' });
+    expect(script).toContain("AND    s.dbid = SYS_CONTEXT('USERENV', 'DBID')");
+    expect(script).toContain('reads the CDB-root AWR');
+  });
+
   it('fixed/enabled flags flip the YES/NO literals', () => {
     const defaultScript = buildBaselineScript(base);
     expect(defaultScript).toContain("fixed           => 'NO'");
