@@ -20,12 +20,14 @@ const SOURCE_OPTIONS: { value: BaselineSource; label: string; description: strin
   {
     value: 'awr',
     label: 'AWR (19c+)',
-    description: 'Plan aged out — loads from AWR snapshots via DBMS_SPM.LOAD_PLANS_FROM_AWR.',
+    description:
+      'Plan aged out — loads from AWR snapshots via DBMS_SPM.LOAD_PLANS_FROM_AWR. In a multitenant PDB this needs PDB-local snapshots.',
   },
   {
     value: 'awr_sts',
     label: 'AWR via SQL Tuning Set',
-    description: 'Pre-19c compatible — stages the plan through a temporary STS.',
+    description:
+      'Pre-19c compatible — stages the plan through a temporary STS. In a multitenant PDB this reads the CDB-root AWR.',
   },
 ];
 

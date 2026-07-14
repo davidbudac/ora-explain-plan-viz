@@ -75,8 +75,29 @@ function preCheckLines(opts: BaselineScriptOptions): string[] {
       '',
     );
   } else {
+    // The two AWR routes read *different* AWR stores when connected to a
+    // multitenant PDB (verified on 19.27): LOAD_PLANS_FROM_AWR accepts only
+    // PDB-local (AWR_PDB) snapshots, while the STS route's
+    // SELECT_WORKLOAD_REPOSITORY reads the CDB-root (AWR_ROOT) snapshots.
+    // DBA_HIST_* shows both, so filter by dbid to list only usable ones.
+    // In a non-CDB (and in CDB$ROOT) both contexts return the same dbid.
+    const dbidContext = opts.source === 'awr' ? 'CON_DBID' : 'DBID';
     lines.push(
       'PROMPT === Pre-check: AWR snapshots containing this SQL_ID / plan ===',
+      ...(opts.source === 'awr'
+        ? [
+            'PROMPT In a multitenant PDB only PDB-local (AWR_PDB) snapshots can be',
+            'PROMPT loaded by DBMS_SPM.LOAD_PLANS_FROM_AWR - CDB-root snapshots are',
+            'PROMPT excluded below. If the list is empty, create PDB snapshots with',
+            'PROMPT DBMS_WORKLOAD_REPOSITORY.CREATE_SNAPSHOT while the statement runs,',
+            'PROMPT or use the "AWR via SQL Tuning Set" variant, which reads the',
+            'PROMPT CDB-root AWR instead.',
+          ]
+        : [
+            'PROMPT In a multitenant PDB this variant reads the CDB-root AWR',
+            'PROMPT (SELECT_WORKLOAD_REPOSITORY) - PDB-local snapshots are excluded',
+            'PROMPT below.',
+          ]),
       'SELECT s.snap_id,',
       "       TO_CHAR(sn.begin_interval_time, 'YYYY-MM-DD HH24:MI') AS begin_time,",
       "       TO_CHAR(sn.end_interval_time,   'YYYY-MM-DD HH24:MI') AS end_time,",
@@ -87,6 +108,7 @@ function preCheckLines(opts: BaselineScriptOptions): string[] {
       '       ON sn.snap_id = s.snap_id AND sn.dbid = s.dbid AND sn.instance_number = s.instance_number',
       "WHERE  s.sql_id = '&sql_id'",
       'AND    s.plan_hash_value = &plan_hash',
+      `AND    s.dbid = SYS_CONTEXT('USERENV', '${dbidContext}')`,
       'ORDER  BY s.snap_id;',
       '',
       "ACCEPT begin_snap NUMBER PROMPT 'Begin snapshot id (from the list above): '",
