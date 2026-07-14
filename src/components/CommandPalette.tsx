@@ -123,6 +123,7 @@ function useCommands(onExportPng: () => void): Command[] {
     exportAnnotatedPlan,
     clearAnnotations,
     share,
+    setBaselineDialogOpen,
   } = usePlan();
 
   const anyPlanParsed = plans.some(p => p.parsedPlan);
@@ -428,6 +429,15 @@ function useCommands(onExportPng: () => void): Command[] {
     });
 
     commands.push({
+      id: 'create-baseline-script',
+      label: 'Create SQL Plan Baseline script…',
+      category: 'Export & Share',
+      keywords: ['baseline', 'sql plan baseline', 'spm', 'dbms_spm', 'script', 'fix plan'],
+      execute: () => setBaselineDialogOpen(true),
+      isAvailable: () => parsedPlan !== null,
+    });
+
+    commands.push({
       id: 'save-annotations',
       label: 'Save annotated plan',
       category: 'Export & Share',
@@ -523,7 +533,7 @@ function useCommands(onExportPng: () => void): Command[] {
     setNodeIndicatorMetric, setHighlightStyle, setVisualizationMaximized,
     setInputPanelCollapsed, setFilterPanelCollapsed,
     setDetailPanelCollapsed, setHotspotsEnabled, setTreeCompareEnabled,
-    exportAnnotatedPlan, clearAnnotations, share, onExportPng,
+    exportAnnotatedPlan, clearAnnotations, share, onExportPng, setBaselineDialogOpen,
     toggleNodeDisplayOption, enableAllDisplayOptions, disableAllDisplayOptions,
   ]);
 }

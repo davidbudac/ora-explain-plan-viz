@@ -10,6 +10,7 @@ import { CommandPalette } from './components/CommandPalette';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay';
 import { ShareResultDialog } from './components/ShareResultDialog';
 import { PopoutWindow } from './components/PopoutWindow';
+import { BaselineScriptModal } from './components/BaselineScriptModal';
 import { MetadataExplorer } from './components/metadata/MetadataExplorer';
 import { SAMPLE_PLANS_BY_CATEGORY } from './examples';
 import type { SamplePlan } from './examples';
@@ -132,9 +133,11 @@ function clampPanelWidths(widths: PanelWidths, viewportWidth: number): PanelWidt
 
 function AppContent() {
   const {
-    plans, viewMode, visualizationMaximized, setVisualizationMaximized, loadAndParsePlan,
+    plans, activePlanIndex, viewMode, visualizationMaximized, setVisualizationMaximized, loadAndParsePlan,
     metadataBundle, metadataPopoutOpen, setMetadataPopoutOpen,
+    baselineDialogOpen, setBaselineDialogOpen,
   } = usePlan();
+  const activeParsedPlan = plans[activePlanIndex]?.parsedPlan ?? null;
   const anyPlanParsed = plans.some(p => p.parsedPlan);
   const featuredExamples = useMemo(() => getFeaturedExamples(), []);
   const isComparisonWorkspace = viewMode === 'compare';
@@ -225,6 +228,13 @@ function AppContent() {
       <CommandPalette />
       <ShortcutsOverlay />
       <ShareResultDialog />
+      {baselineDialogOpen && (
+        <BaselineScriptModal
+          initialSqlId={activeParsedPlan?.sqlId ?? ''}
+          initialPlanHash={activeParsedPlan?.planHashValue ?? ''}
+          onClose={() => setBaselineDialogOpen(false)}
+        />
+      )}
       {metadataPopoutOpen && metadataBundle && (
         <PopoutWindow title="Metadata Explorer" onClose={() => setMetadataPopoutOpen(false)}>
           <MetadataPopoutContent onReturn={() => setMetadataPopoutOpen(false)} />
