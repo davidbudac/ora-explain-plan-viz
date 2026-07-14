@@ -338,6 +338,42 @@ function AppContent() {
             </div>
           )}
 
+          <div className="w-full max-w-2xl mb-4">
+            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 px-4 py-3 text-left">
+              <div className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                Or generate a link straight from the database
+              </div>
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                Skip copy/paste: <code className="font-mono">plan_to_url.sql</code> fetches the
+                plan for a <code className="font-mono">sql_id</code>, gzip-compresses and encodes it
+                inside the database, and prints a ready-to-click link that opens the plan here.
+              </p>
+              <div className="mt-2 flex items-center justify-between gap-3 flex-wrap">
+                <code className="font-mono text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800">
+                  SQL&gt; @plan_to_url.sql an05rsj1up1k5
+                </code>
+                <div className="flex items-center gap-3 whitespace-nowrap">
+                  <a
+                    href="https://github.com/davidbudac/ora-explain-plan-viz/blob/main/scripts/plan_to_url.sql"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    Get the script
+                  </a>
+                  <a
+                    href="https://github.com/davidbudac/ora-explain-plan-viz/blob/main/scripts/README.md#plan_to_urlsql"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    Read the docs &rarr;
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="text-sm text-neutral-400 dark:text-neutral-500">
             Repeated DBMS_XPLAN sections with different plan hash values are imported as separate plan tabs.
           </div>
