@@ -608,19 +608,6 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         </Accordion>
       )}
 
-      {/* Annotation Editor */}
-      <AnnotationEditor
-        nodeId={node.id}
-        annotationText={annotations.nodeAnnotations.get(node.id)?.text || ''}
-        highlightColor={annotations.nodeHighlights.get(node.id)?.color}
-        highlightStyle={highlightStyle}
-        onHighlightStyleChange={setHighlightStyle}
-        onTextChange={setNodeAnnotation}
-        onTextRemove={removeNodeAnnotation}
-        onHighlightChange={setNodeHighlight}
-        onHighlightRemove={removeNodeHighlight}
-      />
-
       {/* Metadata (schema bundle) */}
       <MetadataSection
         bundle={metadataBundle}
@@ -654,6 +641,19 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           </div>
         </Accordion>
       )}
+
+      {/* Annotation Editor */}
+      <AnnotationEditor
+        nodeId={node.id}
+        annotationText={annotations.nodeAnnotations.get(node.id)?.text || ''}
+        highlightColor={annotations.nodeHighlights.get(node.id)?.color}
+        highlightStyle={highlightStyle}
+        onHighlightStyleChange={setHighlightStyle}
+        onTextChange={setNodeAnnotation}
+        onTextRemove={removeNodeAnnotation}
+        onHighlightChange={setNodeHighlight}
+        onHighlightRemove={removeNodeHighlight}
+      />
 
     </div>
   );
