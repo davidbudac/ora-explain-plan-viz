@@ -25,6 +25,7 @@ src/
 │   ├── planSignals.ts   # Plan-level signal detection (partition pruning, parallelism, spills)
 │   ├── density.ts       # Layout density presets (bundle node-display toggles into levels)
 │   ├── clipboard.ts     # Clipboard copy helper (async API + fallback)
+│   ├── baselineScript.ts # SQL Plan Baseline script builder (DBMS_SPM; cursor cache / AWR / STS)
 │   ├── severityStyles.ts # Shared severity color/badge styles (advisor findings)
 │   ├── flameLayout.ts   # Flame graph layout (metric rollup, self-value, zoom)
 │   ├── url.ts           # Shareable-URL encode/decode (gzip) for plan state
@@ -64,6 +65,7 @@ src/
 │   ├── ShareResultDialog.tsx # Share-via-URL dialog (encoded plan link)
 │   ├── PopoutWindow.tsx     # Detachable pop-out window (e.g. Metadata Explorer)
 │   ├── GatherScriptModal.tsx # Generates a schema-metadata gather SQL script
+│   ├── BaselineScriptModal.tsx # Generates a SQL Plan Baseline creation script (DBMS_SPM)
 │   ├── MetadataChip.tsx     # Inline schema-metadata badge/chip
 │   ├── FormattedPredicate.tsx # Predicate rendering with column formatting
 │   ├── Legend.tsx           # Hideable color legend
@@ -171,6 +173,9 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Metadata Explorer**: Dedicated tab (and detachable pop-out window) that browses schema objects referenced by the plan — tables, indexes, and columns — with per-object detail panels and a bundle overview
 - **Metadata Bundles**: Attach schema-metadata bundles to a plan; objects with metadata show inline badges/chips in the plan
 - **Gather Script**: Generates a SQL script to collect the schema metadata needed for a bundle from the database
+
+### Plan Baselines
+- **Baseline Script Generator**: Generates a ready-to-run SQL*Plus script that creates a SQL Plan Baseline (via `DBMS_SPM`) for the loaded plan's SQL ID + plan hash value — from the cursor cache, AWR directly (19c+), or AWR via a temporary SQL Tuning Set (11.2+), with FIXED/ENABLED options, pre-check and verification queries, and a management crib sheet. Opened from the input-panel header or command palette; fully offline — the user runs the script themselves
 
 ### Annotations
 - **Node Annotations**: Add text notes to individual nodes with timestamps
