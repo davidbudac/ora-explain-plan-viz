@@ -1,19 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { getSourceDisplayName } from '../lib/parser';
-import { formatNumberShort, formatTimeShort } from '../lib/format';
+import { formatNumberShort } from '../lib/format';
 import { SAMPLE_PLANS_BY_CATEGORY, type SamplePlan } from '../examples';
 import { looksLikeMetadataBundle, type MetadataBundle } from '../lib/metadata/bundle';
 import { classifyDroppedFile } from '../lib/metadata/dropClassify';
 import { MetadataChip } from './MetadataChip';
-import { BaselineScriptModal } from './BaselineScriptModal';
 import { getDopDowngrade } from '../lib/planSignals';
 import type { ParsedPlan } from '../lib/types';
 
 export function InputPanel() {
   const { rawInput, setInput, parsePlan, loadAndParsePlan, loadMetadataBundle, attachMetadataBundleToSlot, clearPlan, removePlanSlot, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex, metadataBundle, metadataBundleWarning, detachMetadataBundle } = usePlan();
   const [showSampleMenu, setShowSampleMenu] = useState(false);
-  const [showBaselineModal, setShowBaselineModal] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [bundleMessage, setBundleMessage] = useState<{ tone: 'ok' | 'warn' | 'error'; text: string } | null>(null);
   const [pendingBundleChoice, setPendingBundleChoice] = useState<
@@ -154,12 +152,8 @@ export function InputPanel() {
               {hasMultiplePlans && (
                 <span className="text-blue-600 dark:text-blue-400 mr-1.5">{plans[activePlanIndex].customLabel || plans[activePlanIndex].label}:</span>
               )}
-              {parsedPlan && (parsedPlan.sqlId || parsedPlan.planHashValue)
-                ? [
-                    parsedPlan.sqlId && <span key="sql">SQL ID: <span className="font-mono">{parsedPlan.sqlId}</span></span>,
-                    parsedPlan.sqlId && parsedPlan.planHashValue && <span key="sep" className="text-neutral-400 dark:text-neutral-500 mx-1">|</span>,
-                    parsedPlan.planHashValue && <span key="hash">PHV: <span className="font-mono">{parsedPlan.planHashValue}</span></span>,
-                  ]
+              {parsedPlan?.sqlId
+                ? <span>SQL ID: <span className="font-mono">{parsedPlan.sqlId}</span></span>
                 : 'Oracle Execution Plan Input'}
             </h2>
           </button>
@@ -170,16 +164,6 @@ export function InputPanel() {
               planSqlId={parsedPlan.sqlId}
               onDetach={() => detachMetadataBundle(activePlanIndex)}
             />
-          )}
-          {parsedPlan && (
-            <button
-              type="button"
-              onClick={() => setShowBaselineModal(true)}
-              className="shrink-0 h-6 px-2 text-[11px] font-medium border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 rounded hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
-              title="Generate a SQL Plan Baseline script for this plan"
-            >
-              Baseline…
-            </button>
           )}
           {isCollapsed && parsedPlan && (
             <div className="hidden lg:flex items-center gap-1.5">
@@ -197,9 +181,6 @@ export function InputPanel() {
                 </span>
               )}
               <PlanNoteChips parsedPlan={parsedPlan} />
-              <span className="text-xs text-neutral-500 dark:text-neutral-400">
-                ({parsedPlan.allNodes.length} operations{parsedPlan.rootNode?.cost != null ? `, Cost: ${formatNumberShort(parsedPlan.rootNode.cost)}` : ''}{parsedPlan.hasActualStats && parsedPlan.rootNode?.actualRows != null ? `, A-Rows: ${formatNumberShort(parsedPlan.rootNode.actualRows)}` : ''}{parsedPlan.hasActualStats && parsedPlan.rootNode?.actualTime != null ? `, A-Time: ${formatTimeShort(parsedPlan.rootNode.actualTime)}` : ''})
-              </span>
             </div>
           )}
         </div>
@@ -406,13 +387,6 @@ export function InputPanel() {
               setBundleMessage({ tone: 'error', text: result.error });
             }
           }}
-        />
-      )}
-      {showBaselineModal && parsedPlan && (
-        <BaselineScriptModal
-          initialSqlId={parsedPlan.sqlId ?? ''}
-          initialPlanHash={parsedPlan.planHashValue ?? ''}
-          onClose={() => setShowBaselineModal(false)}
         />
       )}
     </div>
