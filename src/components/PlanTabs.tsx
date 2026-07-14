@@ -90,7 +90,7 @@ function InlineRenameLabel({
 }
 
 export function PlanTabs() {
-  const { plans, activePlanIndex, setActivePlan, addPlanSlot, removePlanSlot, renamePlanSlot, viewMode, setViewMode, treeCompareEnabled, setTreeCompareEnabled } = usePlan();
+  const { plans, activePlanIndex, setActivePlan, addPlanSlot, removePlanSlot, renamePlanSlot, viewMode, setViewMode, treeCompareEnabled, setTreeCompareEnabled, setBaselineDialogOpen } = usePlan();
 
   const parsedPlanCount = plans.filter((slot) => slot.parsedPlan).length;
   const hasEmptySlot = plans.some((slot) => !slot.parsedPlan);
@@ -142,6 +142,25 @@ export function PlanTabs() {
                 <span className={`font-mono text-[10px] ${isActive ? 'text-blue-200' : 'text-neutral-400 dark:text-neutral-500'}`}>
                   PHV: {phv}
                 </span>
+              )}
+              {phv && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActivePlan(index);
+                    setBaselineDialogOpen(true);
+                  }}
+                  className={`
+                    px-1 py-px text-[9px] font-semibold rounded border transition-colors
+                    ${isActive
+                      ? 'border-blue-400 text-blue-200 hover:bg-blue-500 hover:text-white'
+                      : 'border-neutral-300 dark:border-neutral-600 text-neutral-400 dark:text-neutral-500 hover:bg-neutral-200 dark:hover:bg-neutral-700 hover:text-neutral-600 dark:hover:text-neutral-300'
+                    }
+                  `}
+                  title="Generate SQL Plan Baseline script (DBMS_SPM)"
+                >
+                  SPM
+                </button>
               )}
               {!slot.parsedPlan && (
                 <span className={`text-[10px] italic ${isActive ? 'text-blue-200' : 'text-neutral-400 dark:text-neutral-500'}`}>
