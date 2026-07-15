@@ -16,6 +16,9 @@ SQL> @plan_to_url.sql an05rsj1up1k5 1
 
 -- From a SQL Monitor report instead (skip the child-number argument with "")
 SQL> @plan_to_url.sql an05rsj1up1k5 "" MONITOR
+
+-- Pick one specific monitored execution by its V$SQL_MONITOR.SQL_EXEC_ID
+SQL> @plan_to_url.sql an05rsj1up1k5 "" MONITOR 16777216
 ```
 
 **Arguments:**
@@ -25,6 +28,7 @@ SQL> @plan_to_url.sql an05rsj1up1k5 "" MONITOR
 | 1 | `sql_id` | Yes | - | The `V$SQL.SQL_ID` of the statement. |
 | 2 | `child_number` | No | `0` | Only used with `CURSOR` source; ignored for `MONITOR`. Pass `""` to skip it. |
 | 3 | `source` | No | `CURSOR` | `CURSOR` reads `DBMS_XPLAN.DISPLAY_CURSOR('ALLSTATS LAST')`. `MONITOR` reads a `DBMS_SQLTUNE.REPORT_SQL_MONITOR` TEXT report. |
+| 4 | `sql_exec_id` | No | latest | `MONITOR` only. Picks one specific monitored execution (`V$SQL_MONITOR.SQL_EXEC_ID`). When omitted, Oracle reports the *last* monitored execution; if several are still in `GV$SQL_MONITOR`, the script lists them (newest first) so you can re-run with the one you want. |
 
 **Privileges:**
 
@@ -36,6 +40,9 @@ SQL> @plan_to_url.sql an05rsj1up1k5 "" MONITOR
   and Tuning Pack license** - `DBMS_SQLTUNE.REPORT_SQL_MONITOR` is a licensed
   feature. The script prints a one-line reminder whenever you use this
   source. Check your licensing before running it against a production system.
+  Listing the available executions additionally needs `SELECT` on
+  `GV$SQL_MONITOR` (e.g. via `SELECT_CATALOG_ROLE`); without it the listing
+  is silently skipped and the report itself still works.
 
 The script is entirely read-only: it only calls `DBMS_XPLAN.DISPLAY_CURSOR` /
 `DBMS_SQLTUNE.REPORT_SQL_MONITOR`, works in session-private temporary LOBs it

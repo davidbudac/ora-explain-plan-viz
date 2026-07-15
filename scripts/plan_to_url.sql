@@ -15,6 +15,7 @@
 --   SQL> @plan_to_url.sql <sql_id>
 --   SQL> @plan_to_url.sql <sql_id> <child_number>
 --   SQL> @plan_to_url.sql <sql_id> "" MONITOR
+--   SQL> @plan_to_url.sql <sql_id> "" MONITOR <sql_exec_id>
 --
 --   Arguments:
 --     1. sql_id        Required. The V$SQL.SQL_ID of the statement.
@@ -25,6 +26,13 @@
 --                        (no extra license). MONITOR reads a SQL Monitor TEXT
 --                        report via DBMS_SQLTUNE.REPORT_SQL_MONITOR (requires
 --                        the Oracle Tuning Pack license).
+--     4. sql_exec_id    Optional, MONITOR only. Picks one specific monitored
+--                        execution (V$SQL_MONITOR.SQL_EXEC_ID). When omitted,
+--                        Oracle reports the LAST monitored execution of the
+--                        sql_id - possibly one that is still running. If more
+--                        than one execution is still in GV$SQL_MONITOR, the
+--                        script lists them (newest first) so you can re-run
+--                        with the sql_exec_id you actually want.
 --
 -- Privileges needed:
 --   CURSOR (default): read access to V$SQL_PLAN / V$SQL_PLAN_STATISTICS_ALL,
@@ -32,7 +40,10 @@
 --     granted to PUBLIC, but it queries those V$ views internally.
 --   MONITOR: EXECUTE on DBMS_SQLTUNE, and an active Oracle Diagnostics and
 --     Tuning Pack license (DBMS_SQLTUNE.REPORT_SQL_MONITOR is a licensed
---     feature - see Oracle's licensing guide before using it).
+--     feature - see Oracle's licensing guide before using it). Listing the
+--     available executions additionally needs SELECT on GV$SQL_MONITOR
+--     (e.g. via SELECT_CATALOG_ROLE); if that is missing the listing is
+--     silently skipped and the report itself still works.
 --
 -- Self-hosting the visualizer? Point base_url below at your own deployment
 -- instead of the public GitHub Pages instance.
@@ -59,27 +70,31 @@ SET TAB OFF
 SET TERMOUT ON
 SET VERIFY OFF
 
--- Positional arguments: sql_id (required), child_number and source
--- (both optional). Default args 2 and 3 via the zero-row NEW_VALUE idiom so
--- SQL*Plus never prompts for them when omitted.
+-- Positional arguments: sql_id (required), child_number, source and
+-- sql_exec_id (all optional). Default args 2-4 via the zero-row NEW_VALUE
+-- idiom so SQL*Plus never prompts for them when omitted.
 SET TERMOUT OFF
 COLUMN 2 NEW_VALUE 2 NOPRINT
 COLUMN 3 NEW_VALUE 3 NOPRINT
-SELECT NULL "2", NULL "3" FROM dual WHERE 1 = 2;
+COLUMN 4 NEW_VALUE 4 NOPRINT
+SELECT NULL "2", NULL "3", NULL "4" FROM dual WHERE 1 = 2;
 SET TERMOUT ON
 
 DEFINE arg1 = "&1"
 DEFINE arg2 = "&2"
 DEFINE arg3 = "&3"
+DEFINE arg4 = "&4"
 
 PROMPT Building a share URL for sql_id &arg1 ...
 
 DECLARE
   -- Parsed/defaulted arguments
-  g_sql_id   VARCHAR2(32);
-  g_child    NUMBER;
-  g_source   VARCHAR2(16);
-  g_base_url VARCHAR2(4000) := '&base_url';
+  g_sql_id    VARCHAR2(32);
+  g_child     NUMBER;
+  g_source    VARCHAR2(16);
+  g_exec_id   NUMBER;               -- MONITOR only: specific SQL_EXEC_ID
+  g_exec_note VARCHAR2(64);         -- what the summary line reports for it
+  g_base_url  VARCHAR2(4000) := '&base_url';
 
   -- Friendly-abort plumbing: raised whenever we want to stop and print a
   -- one-line, non-technical explanation instead of an unhandled error.
@@ -225,7 +240,7 @@ BEGIN
   ----------------------------------------------------------------------
   g_sql_id := TRIM('&arg1');
   IF g_sql_id IS NULL THEN
-    l_abort_msg := 'Missing required sql_id argument. Usage: @plan_to_url.sql <sql_id> [<child_no>] [CURSOR|MONITOR]';
+    l_abort_msg := 'Missing required sql_id argument. Usage: @plan_to_url.sql <sql_id> [<child_no>] [CURSOR|MONITOR] [<sql_exec_id>]';
     RAISE e_friendly_abort;
   END IF;
 
@@ -240,6 +255,19 @@ BEGIN
   g_source := UPPER(NVL(TRIM('&arg3'), 'CURSOR'));
   IF g_source NOT IN ('CURSOR', 'MONITOR') THEN
     l_abort_msg := 'Unknown source "' || g_source || '" - expected CURSOR (default) or MONITOR.';
+    RAISE e_friendly_abort;
+  END IF;
+
+  BEGIN
+    g_exec_id := TO_NUMBER(TRIM('&arg4'));
+  EXCEPTION
+    WHEN OTHERS THEN
+      l_abort_msg := 'Invalid sql_exec_id "&arg4" - expected an integer (or leave it blank).';
+      RAISE e_friendly_abort;
+  END;
+  IF g_exec_id IS NOT NULL AND g_source <> 'MONITOR' THEN
+    l_abort_msg := 'sql_exec_id only makes sense with the MONITOR source. '
+      || 'Usage: @plan_to_url.sql <sql_id> "" MONITOR <sql_exec_id>';
     RAISE e_friendly_abort;
   END IF;
 
@@ -275,10 +303,95 @@ BEGIN
     DECLARE
       l_report CLOB;
     BEGIN
+      -- No sql_exec_id given: REPORT_SQL_MONITOR will silently pick the LAST
+      -- monitored execution of this sql_id (possibly one still running). If
+      -- several executions are still in GV$SQL_MONITOR, list them so the
+      -- choice is visible and repeatable. Dynamic SQL for the same reason as
+      -- the report call below: a static reference to GV$SQL_MONITOR would
+      -- fail the whole block at compile time for users without access, so
+      -- missing SELECT privilege just skips the listing instead.
+      IF g_exec_id IS NULL THEN
+        DECLARE
+          l_cur        SYS_REFCURSOR;
+          l_exec_id    NUMBER;
+          l_exec_start DATE;
+          l_status     VARCHAR2(30);
+          l_phv        NUMBER;
+          l_elapsed_s  NUMBER;
+          l_user       VARCHAR2(128);
+          l_rows       PLS_INTEGER := 0;
+          l_first_row  VARCHAR2(400);
+          l_row        VARCHAR2(400);
+        BEGIN
+          -- process_name = 'ora' keeps one row per execution (parallel
+          -- executions add one row per PX slave process).
+          OPEN l_cur FOR
+            'SELECT sql_exec_id, sql_exec_start, status, sql_plan_hash_value, '
+            || 'ROUND(elapsed_time / 1e6, 1), username '
+            || 'FROM gv$sql_monitor '
+            -- last_refresh_time DESC (not sql_exec_start) so the top row
+            -- matches what REPORT_SQL_MONITOR's default "last monitored
+            -- execution" actually picks - e.g. a long runner that started
+            -- earlier but is still executing.
+            || 'WHERE sql_id = :sid AND process_name = ''ora'' '
+            || 'ORDER BY last_refresh_time DESC, sql_exec_start DESC, sql_exec_id DESC'
+            USING g_sql_id;
+          LOOP
+            FETCH l_cur INTO l_exec_id, l_exec_start, l_status, l_phv, l_elapsed_s, l_user;
+            EXIT WHEN l_cur%NOTFOUND;
+            l_rows := l_rows + 1;
+            l_row := RPAD(TO_CHAR(l_exec_id), 13)
+              || RPAD(TO_CHAR(l_exec_start, 'YYYY-MM-DD HH24:MI:SS'), 21)
+              || RPAD(NVL(l_status, '?'), 18)
+              || RPAD(NVL(TO_CHAR(l_phv), '?'), 12)
+              || RPAD(NVL(TO_CHAR(l_elapsed_s), '?'), 11)
+              || NVL(l_user, '?');
+            IF l_rows = 1 THEN
+              -- The newest execution is the one Oracle's default reports on.
+              -- Hold its line back until we know whether a listing is needed.
+              g_exec_note := TO_CHAR(l_exec_id) || ' (latest)';
+              l_first_row := l_row;
+            ELSE
+              IF l_rows = 2 THEN
+                DBMS_OUTPUT.PUT_LINE(' ');
+                DBMS_OUTPUT.PUT_LINE('Multiple monitored executions found for sql_id=' || g_sql_id
+                  || ' (most recently active first, * = the one this report uses):');
+                DBMS_OUTPUT.PUT_LINE('  ' || RPAD('sql_exec_id', 13) || RPAD('started', 21)
+                  || RPAD('status', 18) || RPAD('plan_hash', 12) || RPAD('elapsed_s', 11) || 'user');
+                DBMS_OUTPUT.PUT_LINE('* ' || l_first_row);
+              END IF;
+              DBMS_OUTPUT.PUT_LINE('  ' || l_row);
+            END IF;
+          END LOOP;
+          CLOSE l_cur;
+          IF l_rows > 1 THEN
+            DBMS_OUTPUT.PUT_LINE('To share a different execution, re-run with its sql_exec_id:');
+            DBMS_OUTPUT.PUT_LINE('  @plan_to_url.sql ' || g_sql_id || ' "" MONITOR <sql_exec_id>');
+            DBMS_OUTPUT.PUT_LINE(' ');
+          END IF;
+        EXCEPTION
+          WHEN OTHERS THEN
+            -- No SELECT on GV$SQL_MONITOR (or similar): skip the listing,
+            -- the report call below still works on its own.
+            BEGIN
+              IF l_cur%ISOPEN THEN CLOSE l_cur; END IF;
+            EXCEPTION WHEN OTHERS THEN NULL;
+            END;
+        END;
+      ELSE
+        g_exec_note := TO_CHAR(g_exec_id);
+      END IF;
+
       BEGIN
-        EXECUTE IMMEDIATE
-          'BEGIN :rpt := DBMS_SQLTUNE.REPORT_SQL_MONITOR(sql_id => :sid, type => ''TEXT'', report_level => ''ALL''); END;'
-          USING OUT l_report, IN g_sql_id;
+        IF g_exec_id IS NOT NULL THEN
+          EXECUTE IMMEDIATE
+            'BEGIN :rpt := DBMS_SQLTUNE.REPORT_SQL_MONITOR(sql_id => :sid, sql_exec_id => :xid, type => ''TEXT'', report_level => ''ALL''); END;'
+            USING OUT l_report, IN g_sql_id, IN g_exec_id;
+        ELSE
+          EXECUTE IMMEDIATE
+            'BEGIN :rpt := DBMS_SQLTUNE.REPORT_SQL_MONITOR(sql_id => :sid, type => ''TEXT'', report_level => ''ALL''); END;'
+            USING OUT l_report, IN g_sql_id;
+        END IF;
       EXCEPTION
         WHEN OTHERS THEN
           l_abort_msg := 'Could not generate a SQL Monitor report - this usually means you lack '
@@ -288,9 +401,16 @@ BEGIN
       END;
 
       IF l_report IS NULL OR DBMS_LOB.GETLENGTH(l_report) < 50 THEN
-        l_abort_msg := 'No usable SQL Monitor report for sql_id=' || g_sql_id
-          || ' - the statement does not appear to have been monitored (it must run at least '
-          || '5 seconds, run parallel, or use the /*+ MONITOR */ hint).';
+        IF g_exec_id IS NOT NULL THEN
+          l_abort_msg := 'No usable SQL Monitor report for sql_id=' || g_sql_id
+            || ', sql_exec_id=' || g_exec_id || ' - that execution may have aged out of '
+            || 'V$SQL_MONITOR, or the sql_exec_id is wrong. Re-run without the sql_exec_id '
+            || 'argument to list the executions that are still available.';
+        ELSE
+          l_abort_msg := 'No usable SQL Monitor report for sql_id=' || g_sql_id
+            || ' - the statement does not appear to have been monitored (it must run at least '
+            || '5 seconds, run parallel, or use the /*+ MONITOR */ hint).';
+        END IF;
         RAISE e_friendly_abort;
       END IF;
 
@@ -301,8 +421,14 @@ BEGIN
            OR l_head LIKE '%not found%'
            OR l_head LIKE '%no sql statement%'
            OR l_head LIKE '%no monitoring information%' THEN
-          l_abort_msg := 'No SQL Monitor report is available for sql_id=' || g_sql_id
-            || ' - the statement does not appear to have been monitored.';
+          IF g_exec_id IS NOT NULL THEN
+            l_abort_msg := 'No SQL Monitor report is available for sql_id=' || g_sql_id
+              || ', sql_exec_id=' || g_exec_id || ' - that execution may have aged out, or the '
+              || 'sql_exec_id is wrong. Re-run without it to list the available executions.';
+          ELSE
+            l_abort_msg := 'No SQL Monitor report is available for sql_id=' || g_sql_id
+              || ' - the statement does not appear to have been monitored.';
+          END IF;
           RAISE e_friendly_abort;
         END IF;
       END;
@@ -385,7 +511,10 @@ BEGIN
   print_url(l_url);
 
   DBMS_OUTPUT.PUT_LINE('sql_id: ' || g_sql_id
-    || '   child: ' || g_child
+    || CASE
+         WHEN g_source = 'MONITOR' THEN '   sql_exec_id: ' || NVL(g_exec_note, '(latest)')
+         ELSE '   child: ' || g_child
+       END
     || '   source: ' || g_source);
   DBMS_OUTPUT.PUT_LINE('plan lines: ' || l_line_count);
   DBMS_OUTPUT.PUT_LINE('raw bytes: ' || l_raw_bytes
@@ -433,6 +562,8 @@ UNDEFINE base_url
 UNDEFINE arg1
 UNDEFINE arg2
 UNDEFINE arg3
+UNDEFINE arg4
 UNDEFINE 1
 UNDEFINE 2
 UNDEFINE 3
+UNDEFINE 4
