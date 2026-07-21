@@ -8,10 +8,15 @@ import { classifyDroppedFile } from '../lib/metadata/dropClassify';
 import { MetadataChip } from './MetadataChip';
 import { getDopDowngrade } from '../lib/planSignals';
 import type { ParsedPlan } from '../lib/types';
+import { isDbAgentEnabled } from '../lib/agent/client';
+import { ConnectPanel } from './ConnectPanel';
+
+const dbAgentEnabled = isDbAgentEnabled();
 
 export function InputPanel() {
   const { rawInput, setInput, parsePlan, loadAndParsePlan, loadMetadataBundle, attachMetadataBundleToSlot, clearPlan, removePlanSlot, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex, metadataBundle, metadataBundleWarning, detachMetadataBundle } = usePlan();
   const [showSampleMenu, setShowSampleMenu] = useState(false);
+  const [showConnectPanel, setShowConnectPanel] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [bundleMessage, setBundleMessage] = useState<{ tone: 'ok' | 'warn' | 'error'; text: string } | null>(null);
   const [pendingBundleChoice, setPendingBundleChoice] = useState<
@@ -184,7 +189,22 @@ export function InputPanel() {
             </div>
           )}
         </div>
-        <div className="relative" ref={menuRef}>
+        <div className="flex items-center gap-2">
+          {dbAgentEnabled && (
+            <button
+              type="button"
+              onClick={() => setShowConnectPanel(!showConnectPanel)}
+              aria-pressed={showConnectPanel}
+              className={`h-8 px-3 text-xs border rounded-md transition-colors flex items-center gap-1 font-semibold ${
+                showConnectPanel
+                  ? 'border-blue-500 bg-blue-600 text-white'
+                  : 'border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700'
+              }`}
+            >
+              DB Connect
+            </button>
+          )}
+          <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowSampleMenu(!showSampleMenu)}
             className="h-8 px-3 text-xs border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors flex items-center gap-1 font-semibold"
@@ -259,8 +279,15 @@ export function InputPanel() {
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
+
+      {dbAgentEnabled && showConnectPanel && (
+        <div className="px-3 pt-2">
+          <ConnectPanel />
+        </div>
+      )}
 
       {/* Collapsible content */}
       {!isCollapsed && (

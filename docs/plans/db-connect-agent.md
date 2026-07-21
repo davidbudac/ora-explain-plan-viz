@@ -1,12 +1,15 @@
 # Local DB-Connect Agent for the Oracle Execution Plan Visualizer
 
+> **Status (2026-07-21, branch `feat/db-connect-agent`):** Phases 1–3 implemented. The Python agent has been extracted to its own adjacent repo `oraplanviz-agent` (`~/claude_projects/oraplanviz-agent`); this repo now keeps only the frontend integration (Connect panel behind `VITE_ENABLE_DB_AGENT`, `src/lib/agent/client.ts`). Remaining (in the agent repo): dbmint e2e, metadata endpoint (Phase 4), docs polish, PyPI publish.
+
 ## Context
 
 Users today copy/paste plan text (DBMS_XPLAN, SQL Monitor, JSON, xbi) into the app. The question: add a backend that connects directly to the database so they don't have to.
 
 **Assessment (agreed with user):**
 - A *hosted* backend is rejected: it breaks the "your plan never leaves your machine" promise, can't reach firewalled corporate DBs, and creates credential-custody liability.
-- The viable design is a **local companion agent**: a small **Python** process (single dependency: `oracledb` in thin mode — no Instant Client) the user runs on their own machine. It connects to their Oracle DB, exposes a localhost HTTP API, and the web app — **including the GitHub Pages-hosted app** — gets an optional "Connect to database" panel that talks to `http://127.0.0.1:<port>`.
+- The viable design is a **local companion agent**: a small **Python** process (single dependency: `oracledb` in thin mode — no Instant Client) the user runs on their own machine. It connects to their Oracle DB, exposes a localhost HTTP API, and the web app gets an optional "Connect to database" panel that talks to `http://127.0.0.1:<port>`.
+- **Scope decision (2026-07-17):** the frontend integration is **build-time gated** behind `VITE_ENABLE_DB_AGENT=1`. It appears only in self-hosted/dev builds; the GitHub Pages build never sets the flag, so nothing renders there. This removes the fragile https-Pages→localhost concern from the critical path (the agent still ships CORS + PNA preflight handling since a self-hosted origin can differ from localhost).
 - Credentials and plan data never leave the user's machine; the feature is fully optional and invisible when no agent is running.
 - Key enabler found in exploration: ingestion is trivially injectable — `loadAndParsePlan(text, metadataText?)` in `src/hooks/usePlanContext.tsx` (~line 1246) accepts raw plan text in any supported format with auto-detection. The agent just returns raw `DBMS_XPLAN`/SQL Monitor XML text; **no parser changes needed**.
 - The app currently has **zero** fetch/HTTP code — the agent client will be its first, kept isolated in one module.
@@ -14,7 +17,7 @@ Users today copy/paste plan text (DBMS_XPLAN, SQL Monitor, JSON, xbi) into the a
 ## Architecture
 
 ```
-Browser (GitHub Pages https:// or localhost dev)
+Browser (self-hosted / dev build with VITE_ENABLE_DB_AGENT=1)
    │  fetch + Bearer token  (CORS + Chrome PNA preflight)
    ▼
 Python agent  ── 127.0.0.1 only, token-gated ──►  Oracle DB (python-oracledb thin)
