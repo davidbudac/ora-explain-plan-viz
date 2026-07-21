@@ -1,6 +1,6 @@
 # Local DB-Connect Agent for the Oracle Execution Plan Visualizer
 
-> **Status (2026-07-17, branch `feat/db-connect-agent`):** Phases 1–3 implemented (Python agent in `agent/`, security model, Connect panel behind `VITE_ENABLE_DB_AGENT`). Remaining: dbmint e2e, metadata endpoint (Phase 4), docs polish, PyPI publish.
+> **Status (2026-07-21, branch `feat/db-connect-agent`):** Phases 1–3 implemented. The Python agent has been extracted to its own adjacent repo `oraplanviz-agent` (`~/claude_projects/oraplanviz-agent`); this repo now keeps only the frontend integration (Connect panel behind `VITE_ENABLE_DB_AGENT`, `src/lib/agent/client.ts`). Remaining (in the agent repo): dbmint e2e, metadata endpoint (Phase 4), docs polish, PyPI publish.
 
 ## Context
 

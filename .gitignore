@@ -26,8 +26,3 @@ dist-ssr
 # Claude Code local state
 .claude/worktrees/
 .claude/settings.local.json
-
-# Python (agent/)
-__pycache__/
-*.pyc
-*.egg-info/
