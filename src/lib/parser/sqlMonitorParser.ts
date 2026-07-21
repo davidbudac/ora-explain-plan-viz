@@ -150,7 +150,10 @@ interface RawSqlMonitorRow {
 
 function extractSqlId(lines: string[]): string | undefined {
   for (const line of lines) {
-    const match = line.match(/SQL\s*ID[:\s]+(\w+)/i);
+    // Matches both the SQL Monitor header ("SQL ID : 7ch0an9vx5ysp") and the
+    // DBMS_XPLAN.DISPLAY_CURSOR header ("SQL_ID  7ch0an9vx5ysp, child number 0"),
+    // which this parser also handles via its A-Rows detection.
+    const match = line.match(/SQL[\s_]*ID[:\s]+(\w+)/i);
     if (match) {
       return match[1];
     }
