@@ -297,6 +297,36 @@ npm run dev
 
 Open http://localhost:5173/
 
+## Connect to a Database (optional, self-hosted builds)
+
+Instead of copy/pasting plan text, self-hosted and dev builds can fetch plans
+(and object metadata) straight from your Oracle database through
+[`oraplanviz-agent`](https://github.com/davidbudac/oraplanviz-agent) — a small
+Python companion you run on **your own machine**:
+
+```bash
+pipx install oraplanviz-agent   # single dependency: python-oracledb (thin mode)
+oraplanviz-agent                # prints a URL + bearer token
+```
+
+Build or run the app with the feature flag, then use the **DB Connect** panel
+(or the "Connect to database…" command in the palette):
+
+```bash
+VITE_ENABLE_DB_AGENT=1 npm run dev
+```
+
+**Privacy:** the agent binds to `127.0.0.1` only. Your credentials and your
+plan data flow between your browser and your own local agent process —
+they never touch any server, including the GitHub Pages deployment (which is
+built without the flag and contains none of this UI).
+
+**Licensing:** the cursor-cache source (`DBMS_XPLAN.DISPLAY_CURSOR`) is free;
+the SQL Monitor source requires the Oracle Tuning Pack and AWR requires the
+Diagnostics Pack — the panel labels these. "Attach DB metadata" enriches
+loaded plans with table/column/index statistics via the same bundle format as
+`scripts/gather_plan_metadata.sql`.
+
 ## Deploy with Docker
 
 Build and run the production image locally:

@@ -5,6 +5,7 @@ import type { ViewMode, SankeyMetric, NodeIndicatorMetric, ColorScheme, NodeDisp
 import type { HighlightStyle } from '../lib/annotations';
 import { hasAnnotations } from '../lib/annotations';
 import { DENSITY_PRESET_LABELS } from '../lib/density';
+import { isDbAgentEnabled } from '../lib/agent/client';
 
 type CommandCategory =
   | 'View'
@@ -124,6 +125,7 @@ function useCommands(onExportPng: () => void): Command[] {
     clearAnnotations,
     share,
     setBaselineDialogOpen,
+    setConnectPanelOpen,
   } = usePlan();
 
   const anyPlanParsed = plans.some(p => p.parsedPlan);
@@ -465,6 +467,18 @@ function useCommands(onExportPng: () => void): Command[] {
     });
 
     commands.push({
+      id: 'connect-database',
+      label: 'Connect to database…',
+      category: 'Panels',
+      keywords: ['connect', 'database', 'db', 'oracle', 'agent', 'sql'],
+      execute: () => {
+        setInputPanelCollapsed(false);
+        setConnectPanelOpen(true);
+      },
+      isAvailable: () => isDbAgentEnabled(),
+    });
+
+    commands.push({
       id: 'toggle-filter-panel',
       label: filterPanelCollapsed ? 'Show filter panel' : 'Hide filter panel',
       category: 'Panels',
@@ -533,7 +547,7 @@ function useCommands(onExportPng: () => void): Command[] {
     setNodeIndicatorMetric, setHighlightStyle, setVisualizationMaximized,
     setInputPanelCollapsed, setFilterPanelCollapsed,
     setDetailPanelCollapsed, setHotspotsEnabled, setTreeCompareEnabled,
-    exportAnnotatedPlan, clearAnnotations, share, onExportPng, setBaselineDialogOpen,
+    exportAnnotatedPlan, clearAnnotations, share, onExportPng, setBaselineDialogOpen, setConnectPanelOpen,
     toggleNodeDisplayOption, enableAllDisplayOptions, disableAllDisplayOptions,
   ]);
 }

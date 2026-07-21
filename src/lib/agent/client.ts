@@ -74,6 +74,33 @@ export interface FetchPlanResult {
   text: string;
 }
 
+export interface FetchMetadataParams {
+  sqlId: string;
+  planHash?: number | null;
+}
+
+/** The agent returns the bundle pre-parsed; the app re-serializes it for `loadAndParsePlan(text, metadataText)`. */
+export interface FetchMetadataResult {
+  bundle: unknown;
+}
+
+/**
+ * Oldest agent version whose API this client fully supports (`/api/metadata`
+ * was added in 0.1.0, the first published version). Used to warn on skew.
+ */
+export const MIN_AGENT_VERSION = '0.1.0';
+
+/** Compares dotted numeric versions; returns negative/zero/positive like a comparator. Non-numeric parts compare as 0. */
+export function compareAgentVersions(a: string, b: string): number {
+  const pa = a.split('.').map((p) => Number.parseInt(p, 10) || 0);
+  const pb = b.split('.').map((p) => Number.parseInt(p, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
 export interface AgentConfig {
   baseUrl: string;
   token: string;
@@ -99,6 +126,9 @@ export function normalizeBaseUrl(baseUrl: string): string {
 const HEALTH_TIMEOUT_MS = 10_000;
 const DEFAULT_TIMEOUT_MS = 10_000;
 const PLAN_TIMEOUT_MS = 30_000;
+// The metadata gather runs DBMS_METADATA DDL extraction per referenced
+// object — by far the slowest agent call.
+const METADATA_TIMEOUT_MS = 60_000;
 
 async function request<T>(
   baseUrl: string,
@@ -209,6 +239,51 @@ export async function fetchPlan(config: AgentConfig, params: FetchPlanParams): P
   });
 }
 
+export async function fetchMetadata(
+  config: AgentConfig,
+  params: FetchMetadataParams
+): Promise<FetchMetadataResult> {
+  return request<FetchMetadataResult>(config.baseUrl, '/api/metadata', {
+    token: config.token,
+    timeoutMs: METADATA_TIMEOUT_MS,
+    query: {
+      sqlId: params.sqlId,
+      planHash: params.planHash ?? undefined,
+    },
+  });
+}
+
+export interface PlanWithMetadata {
+  source: PlanSource;
+  text: string;
+  /** Bundle serialized for `loadAndParsePlan(text, metadataText)`; absent when not requested or failed. */
+  metadataText?: string;
+  /** Set when the plan loaded but the metadata gather failed — degrade, don't block. */
+  metadataError?: string;
+}
+
+/**
+ * Fetches a plan and, when requested, its metadata bundle. A metadata
+ * failure never rejects: the plan is the payload, metadata is best-effort.
+ */
+export async function fetchPlanWithMetadata(
+  config: AgentConfig,
+  params: FetchPlanParams,
+  options: { attachMetadata: boolean; planHash?: number | null }
+): Promise<PlanWithMetadata> {
+  const plan = await fetchPlan(config, params);
+  if (!options.attachMetadata) {
+    return { source: plan.source, text: plan.text };
+  }
+  try {
+    const meta = await fetchMetadata(config, { sqlId: params.sqlId, planHash: options.planHash });
+    return { source: plan.source, text: plan.text, metadataText: JSON.stringify(meta.bundle) };
+  } catch (err) {
+    const message = err instanceof AgentError ? err.message : 'metadata request failed';
+    return { source: plan.source, text: plan.text, metadataError: message };
+  }
+}
+
 /** Thin object wrapper bundling a fixed AgentConfig with the free functions above, for convenience call sites. */
 export class AgentClient {
   private config: AgentConfig;
@@ -235,5 +310,9 @@ export class AgentClient {
 
   fetchPlan(params: FetchPlanParams): Promise<FetchPlanResult> {
     return fetchPlan(this.config, params);
+  }
+
+  fetchMetadata(params: FetchMetadataParams): Promise<FetchMetadataResult> {
+    return fetchMetadata(this.config, params);
   }
 }

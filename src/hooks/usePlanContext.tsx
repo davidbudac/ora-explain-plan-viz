@@ -773,6 +773,8 @@ interface PlanContextValue {
   setMetadataPopoutOpen: (open: boolean) => void;
   baselineDialogOpen: boolean;
   setBaselineDialogOpen: (open: boolean) => void;
+  connectPanelOpen: boolean;
+  setConnectPanelOpen: (open: boolean) => void;
   setInputPanelCollapsed: (collapsed: boolean) => void;
   setFilterPanelCollapsed: (collapsed: boolean) => void;
   setDetailPanelCollapsed: (collapsed: boolean) => void;
@@ -826,6 +828,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
   const [metadataPopoutOpen, setMetadataPopoutOpen] = useState(false);
   const [baselineDialogOpen, setBaselineDialogOpen] = useState(false);
+  const [connectPanelOpen, setConnectPanelOpen] = useState(false);
   const [prevMetadataBundle, setPrevMetadataBundle] = useState<MetadataBundle | null>(null);
   const [shareNotice, setShareNotice] = useState<ShareNotice | null>(null);
 
@@ -1624,6 +1627,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setMetadataPopoutOpen,
     baselineDialogOpen,
     setBaselineDialogOpen,
+    connectPanelOpen,
+    setConnectPanelOpen,
     setInputPanelCollapsed,
     setFilterPanelCollapsed,
     setDetailPanelCollapsed,

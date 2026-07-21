@@ -1,9 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AgentError,
+  MIN_AGENT_VERSION,
+  compareAgentVersions,
   connect,
   disconnect,
+  fetchMetadata,
   fetchPlan,
+  fetchPlanWithMetadata,
   health,
   isDbAgentEnabled,
   normalizeBaseUrl,
@@ -152,5 +156,104 @@ describe('agent client', () => {
 
     await expect(health('http://127.0.0.1:8521')).rejects.toBeInstanceOf(AgentError);
     await expect(health('http://127.0.0.1:8521')).rejects.toThrow(/not reachable/i);
+  });
+
+  it('fetchMetadata() builds the query string and sends the token', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ bundle: { format: 'ora-plan-metadata' } }));
+
+    const result = await fetchMetadata(
+      { baseUrl: 'http://127.0.0.1:8521', token: 'tok' },
+      { sqlId: 'abc123', planHash: 987654321 }
+    );
+
+    const [url, init] = fetchMock.mock.calls[0];
+    const parsed = new URL(url as string);
+    expect(parsed.pathname).toBe('/api/metadata');
+    expect(parsed.searchParams.get('sqlId')).toBe('abc123');
+    expect(parsed.searchParams.get('planHash')).toBe('987654321');
+    expect((init?.headers as Record<string, string>).Authorization).toBe('Bearer tok');
+    expect(result.bundle).toEqual({ format: 'ora-plan-metadata' });
+  });
+
+  it('fetchMetadata() omits planHash when not given', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ bundle: {} }));
+
+    await fetchMetadata({ baseUrl: 'http://127.0.0.1:8521', token: 'tok' }, { sqlId: 'abc123' });
+
+    const parsed = new URL(fetchMock.mock.calls[0][0] as string);
+    expect(parsed.searchParams.has('planHash')).toBe(false);
+  });
+});
+
+describe('fetchPlanWithMetadata', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  const config = { baseUrl: 'http://127.0.0.1:8521', token: 'tok' };
+  const params = { sqlId: 'abc123', source: 'cursor' as const };
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('returns plan text and the stringified bundle', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ source: 'cursor', text: 'PLAN' }))
+      .mockResolvedValueOnce(jsonResponse({ bundle: { format: 'ora-plan-metadata', version: 2 } }));
+
+    const result = await fetchPlanWithMetadata(config, params, { attachMetadata: true, planHash: 42 });
+
+    expect(result.text).toBe('PLAN');
+    expect(result.metadataError).toBeUndefined();
+    expect(JSON.parse(result.metadataText!)).toEqual({ format: 'ora-plan-metadata', version: 2 });
+    const metadataUrl = new URL(fetchMock.mock.calls[1][0] as string);
+    expect(metadataUrl.searchParams.get('planHash')).toBe('42');
+  });
+
+  it('skips the metadata request when attachMetadata is false', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ source: 'cursor', text: 'PLAN' }));
+
+    const result = await fetchPlanWithMetadata(config, params, { attachMetadata: false });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.metadataText).toBeUndefined();
+    expect(result.metadataError).toBeUndefined();
+  });
+
+  it('degrades to a plain plan with metadataError when the gather fails', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ source: 'cursor', text: 'PLAN' }))
+      .mockResolvedValueOnce(jsonResponse({ error: 'Not connected to a database' }, 409));
+
+    const result = await fetchPlanWithMetadata(config, params, { attachMetadata: true });
+
+    expect(result.text).toBe('PLAN');
+    expect(result.metadataText).toBeUndefined();
+    expect(result.metadataError).toBe('Not connected to a database');
+  });
+
+  it('still rejects when the plan fetch itself fails', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'No plan found for the given sql_id' }, 404));
+
+    await expect(
+      fetchPlanWithMetadata(config, params, { attachMetadata: true })
+    ).rejects.toMatchObject({ name: 'AgentError', status: 404 });
+  });
+});
+
+describe('compareAgentVersions', () => {
+  it('orders dotted versions numerically', () => {
+    expect(compareAgentVersions('0.1.0', '0.1.0')).toBe(0);
+    expect(compareAgentVersions('0.0.9', '0.1.0')).toBeLessThan(0);
+    expect(compareAgentVersions('0.2.0', '0.1.9')).toBeGreaterThan(0);
+    expect(compareAgentVersions('0.10.0', '0.9.0')).toBeGreaterThan(0);
+    expect(compareAgentVersions('1.0', '1.0.1')).toBeLessThan(0);
+  });
+
+  it('current MIN_AGENT_VERSION is a valid dotted version', () => {
+    expect(MIN_AGENT_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
   });
 });

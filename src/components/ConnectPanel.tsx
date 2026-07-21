@@ -3,13 +3,16 @@ import { usePlan } from '../hooks/usePlanContext';
 import {
   AgentError,
   DEFAULT_AGENT_BASE_URL,
+  MIN_AGENT_VERSION,
+  compareAgentVersions,
   connect as agentConnect,
   disconnect as agentDisconnect,
-  fetchPlan as agentFetchPlan,
+  fetchPlanWithMetadata,
   health as agentHealth,
   normalizeBaseUrl,
   recentSql as agentRecentSql,
   type AgentHealth,
+  type FetchPlanParams,
   type PlanSource,
   type RecentSqlItem,
 } from '../lib/agent/client';
@@ -73,6 +76,13 @@ export function ConnectPanel() {
   const [manualLoading, setManualLoading] = useState(false);
   const [manualError, setManualError] = useState<string | null>(null);
 
+  const [attachMetadata, setAttachMetadata] = useState(true);
+  // Non-blocking: set when a plan loaded fine but its metadata gather failed.
+  const [metadataNotice, setMetadataNotice] = useState<string | null>(null);
+
+  const agentOutdated =
+    healthState !== null && compareAgentVersions(healthState.version, MIN_AGENT_VERSION) < 0;
+
   useEffect(() => {
     try {
       localStorage.setItem(AGENT_URL_STORAGE_KEY, baseUrl);
@@ -120,6 +130,7 @@ export function ConnectPanel() {
       setConnected(true);
       setOracleVersion(result.oracleVersion);
       setDbPassword('');
+      checkHealth();
     } catch (err) {
       setConnectError(err instanceof AgentError ? err.message : 'Failed to connect.');
     } finally {
@@ -134,6 +145,7 @@ export function ConnectPanel() {
       await agentDisconnect({ baseUrl: normalizeBaseUrl(baseUrl), token });
       setConnected(false);
       setOracleVersion(null);
+      checkHealth();
     } catch (err) {
       setConnectError(err instanceof AgentError ? err.message : 'Failed to disconnect.');
     } finally {
@@ -158,6 +170,19 @@ export function ConnectPanel() {
   const rowKey = (item: RecentSqlItem): string =>
     isCursorItem(item) ? `${item.sqlId}-${item.childNumber}` : `${item.sqlId}-${item.sqlExecId}`;
 
+  const loadPlan = async (params: FetchPlanParams, planHash?: number | null) => {
+    setMetadataNotice(null);
+    const result = await fetchPlanWithMetadata(
+      { baseUrl: normalizeBaseUrl(baseUrl), token },
+      params,
+      { attachMetadata: attachMetadata && !agentOutdated, planHash }
+    );
+    if (result.metadataError) {
+      setMetadataNotice(`Plan loaded without DB metadata: ${result.metadataError}`);
+    }
+    loadAndParsePlan(result.text, result.metadataText);
+  };
+
   const handleLoadRow = async (item: RecentSqlItem) => {
     const key = rowKey(item);
     setLoadingRowKey(key);
@@ -166,8 +191,7 @@ export function ConnectPanel() {
       const params = isCursorItem(item)
         ? { sqlId: item.sqlId, source: 'cursor' as PlanSource, childNumber: item.childNumber }
         : { sqlId: item.sqlId, source: 'monitor' as PlanSource, sqlExecId: item.sqlExecId };
-      const result = await agentFetchPlan({ baseUrl: normalizeBaseUrl(baseUrl), token }, params);
-      loadAndParsePlan(result.text);
+      await loadPlan(params, item.planHashValue);
     } catch (err) {
       setRecentError(err instanceof AgentError ? err.message : 'Failed to fetch plan.');
     } finally {
@@ -181,16 +205,12 @@ export function ConnectPanel() {
     setManualError(null);
     try {
       const childNum = manualChildNumber.trim() ? Number(manualChildNumber.trim()) : undefined;
-      const result = await agentFetchPlan(
-        { baseUrl: normalizeBaseUrl(baseUrl), token },
-        {
-          sqlId: manualSqlId.trim(),
-          source: manualSource,
-          childNumber: manualSource === 'cursor' ? childNum : undefined,
-          sqlExecId: manualSource === 'monitor' ? manualChildNumber.trim() || undefined : undefined,
-        }
-      );
-      loadAndParsePlan(result.text);
+      await loadPlan({
+        sqlId: manualSqlId.trim(),
+        source: manualSource,
+        childNumber: manualSource === 'cursor' ? childNum : undefined,
+        sqlExecId: manualSource === 'monitor' ? manualChildNumber.trim() || undefined : undefined,
+      });
     } catch (err) {
       setManualError(err instanceof AgentError ? err.message : 'Failed to fetch plan.');
     } finally {
@@ -330,8 +350,42 @@ export function ConnectPanel() {
           <button type="button" onClick={handleRefreshRecent} disabled={recentLoading} className={buttonClass}>
             {recentLoading ? 'Loading…' : 'Refresh'}
           </button>
+          <label
+            className="flex items-center gap-1.5 text-[11px] font-semibold text-neutral-600 dark:text-neutral-400 ml-1 cursor-pointer"
+            title={
+              agentOutdated
+                ? `Agent v${healthState?.version} predates the metadata API (needs ≥ ${MIN_AGENT_VERSION})`
+                : 'Also fetch object/column/index statistics for the plan (adds one round trip)'
+            }
+          >
+            <input
+              type="checkbox"
+              checked={attachMetadata && !agentOutdated}
+              disabled={agentOutdated}
+              onChange={(e) => setAttachMetadata(e.target.checked)}
+              className="accent-blue-600"
+            />
+            Attach DB metadata
+          </label>
         </div>
+        {agentOutdated && (
+          <div className="text-xs text-amber-600 dark:text-amber-400">
+            Agent v{healthState?.version} is older than this app expects (≥ {MIN_AGENT_VERSION}) — metadata is unavailable; consider upgrading the agent.
+          </div>
+        )}
         {recentError && <div className="text-xs text-red-600 dark:text-red-400">{recentError}</div>}
+        {metadataNotice && (
+          <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+            <span>{metadataNotice}</span>
+            <button
+              type="button"
+              onClick={() => setMetadataNotice(null)}
+              className="underline hover:no-underline"
+            >
+              dismiss
+            </button>
+          </div>
+        )}
         {items.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">

@@ -14,9 +14,8 @@ import { ConnectPanel } from './ConnectPanel';
 const dbAgentEnabled = isDbAgentEnabled();
 
 export function InputPanel() {
-  const { rawInput, setInput, parsePlan, loadAndParsePlan, loadMetadataBundle, attachMetadataBundleToSlot, clearPlan, removePlanSlot, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex, metadataBundle, metadataBundleWarning, detachMetadataBundle } = usePlan();
+  const { rawInput, setInput, parsePlan, loadAndParsePlan, loadMetadataBundle, attachMetadataBundleToSlot, clearPlan, removePlanSlot, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex, metadataBundle, metadataBundleWarning, detachMetadataBundle, connectPanelOpen: showConnectPanel, setConnectPanelOpen: setShowConnectPanel } = usePlan();
   const [showSampleMenu, setShowSampleMenu] = useState(false);
-  const [showConnectPanel, setShowConnectPanel] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [bundleMessage, setBundleMessage] = useState<{ tone: 'ok' | 'warn' | 'error'; text: string } | null>(null);
   const [pendingBundleChoice, setPendingBundleChoice] = useState<

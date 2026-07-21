@@ -267,6 +267,20 @@ The comparison system (`compare.ts`) uses a 3-pass node matching algorithm:
 ### Annotation System
 Annotations (`annotations.ts`) are an in-memory overlay, not persisted to localStorage. They include per-node notes/highlights and named groups. Export produces a versioned JSON (v1) with plan metadata for validation on re-import.
 
+### DB-Connect Agent (optional feature)
+`src/lib/agent/client.ts` is the app's **only** HTTP module — a typed fetch
+wrapper for the local [`oraplanviz-agent`](https://github.com/davidbudac/oraplanviz-agent)
+companion (adjacent repo `../oraplanviz-agent`). The whole feature is
+build-time gated on `VITE_ENABLE_DB_AGENT=1` (`isDbAgentEnabled()`); the
+GitHub Pages build never sets it. `ConnectPanel.tsx` renders inside
+`InputPanel` (open state lives in the plan context as `connectPanelOpen`, so
+the command palette can open it). Plans load via
+`fetchPlanWithMetadata()` → `loadAndParsePlan(text, metadataText)`; the
+metadata bundle is the same `ora-plan-metadata` contract as
+`scripts/gather_plan_metadata.sql`, and a failed gather degrades to a plain
+plan load with a notice — never a blocked load. Privacy invariant to
+preserve: credentials/plan text only ever flow browser ↔ local agent.
+
 ## Code Conventions
 
 - Use TypeScript strict mode
