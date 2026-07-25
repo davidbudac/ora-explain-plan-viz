@@ -352,9 +352,14 @@ export function FlameView() {
         </svg>
       </div>
 
-      {/* Reset zoom control */}
-      {zoomNodeId !== null && (
-        <div className="absolute bottom-3 right-3 z-20">
+      {/* Estimate-only notice + reset zoom control (bottom-right stack) */}
+      <div className="absolute bottom-3 right-3 z-20 flex flex-col items-end gap-2">
+        {!parsedPlan.hasActualStats && (
+          <div className="px-2.5 py-1.5 rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/70 text-amber-800 dark:text-amber-200 text-xs shadow-sm pointer-events-none">
+            Showing optimizer cost estimates — widths reflect predicted, not actual, work
+          </div>
+        )}
+        {zoomNodeId !== null && (
           <button
             type="button"
             onClick={() => setZoomNodeId(null)}
@@ -363,8 +368,8 @@ export function FlameView() {
           >
             Reset zoom
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {tooltip && (
         <div
