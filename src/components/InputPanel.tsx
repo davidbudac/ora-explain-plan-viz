@@ -13,6 +13,15 @@ import { ConnectPanel } from './ConnectPanel';
 
 const dbAgentEnabled = isDbAgentEnabled();
 
+const FOCUS_RING =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
+// Full-bleed rows (dropdown items) sit flush against their container's border,
+// so their ring goes inside rather than spilling over it.
+const FOCUS_RING_INSET =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
+const SAMPLE_ITEM_CLASS =
+  `w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 ${FOCUS_RING_INSET}`;
+
 export function InputPanel() {
   const { rawInput, setInput, parsePlan, loadAndParsePlan, loadMetadataBundle, attachMetadataBundleToSlot, clearPlan, removePlanSlot, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex, metadataBundle, metadataBundleWarning, detachMetadataBundle, connectPanelOpen: showConnectPanel, setConnectPanelOpen: setShowConnectPanel } = usePlan();
   const [showSampleMenu, setShowSampleMenu] = useState(false);
@@ -142,7 +151,7 @@ export function InputPanel() {
             onClick={() => setIsCollapsed(!isCollapsed)}
             aria-expanded={!isCollapsed}
             aria-controls="input-panel-content"
-            className="flex items-center gap-2 text-left min-w-0"
+            className={`flex items-center gap-2 text-left min-w-0 rounded-md ${FOCUS_RING}`}
           >
             <svg
               className={`w-4 h-4 text-slate-500 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
@@ -194,7 +203,7 @@ export function InputPanel() {
               type="button"
               onClick={() => setShowConnectPanel(!showConnectPanel)}
               aria-pressed={showConnectPanel}
-              className={`h-8 px-3 text-xs border rounded-md transition-colors flex items-center gap-1 font-semibold ${
+              className={`h-8 px-3 text-xs border rounded-md transition-colors flex items-center gap-1 font-semibold ${FOCUS_RING} ${
                 showConnectPanel
                   ? 'border-blue-500 bg-blue-600 text-white'
                   : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
@@ -206,7 +215,7 @@ export function InputPanel() {
           <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowSampleMenu(!showSampleMenu)}
-            className="h-8 px-3 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1 font-semibold"
+            className={`h-8 px-3 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1 font-semibold ${FOCUS_RING}`}
           >
             Load Example
             <svg className={`w-4 h-4 transition-transform ${showSampleMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -223,7 +232,7 @@ export function InputPanel() {
                   <button
                     key={sample.name}
                     onClick={() => handleLoadSample(sample)}
-                    className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    className={SAMPLE_ITEM_CLASS}
                   >
                     {sample.name}
                   </button>
@@ -236,7 +245,7 @@ export function InputPanel() {
                   <button
                     key={sample.name}
                     onClick={() => handleLoadSample(sample)}
-                    className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    className={SAMPLE_ITEM_CLASS}
                   >
                     {sample.name}
                   </button>
@@ -251,7 +260,7 @@ export function InputPanel() {
                       <button
                         key={sample.name}
                         onClick={() => handleLoadSample(sample)}
-                        className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        className={SAMPLE_ITEM_CLASS}
                       >
                         {sample.name}
                       </button>
@@ -268,7 +277,7 @@ export function InputPanel() {
                       <button
                         key={sample.name}
                         onClick={() => handleLoadSample(sample)}
-                        className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        className={SAMPLE_ITEM_CLASS}
                       >
                         {sample.name}
                       </button>
@@ -314,14 +323,14 @@ export function InputPanel() {
             <button
               onClick={handleParse}
               disabled={!rawInput.trim()}
-              className="h-8 px-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold text-xs"
+              className={`h-8 px-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold text-xs ${FOCUS_RING}`}
             >
               Parse <kbd className="ml-1 text-[10px] opacity-70 font-normal">{navigator.platform?.includes('Mac') ? '\u2318' : 'Ctrl'}{'\u23CE'}</kbd>
             </button>
             {parsedPlan && (
               <button
                 onClick={handleClear}
-                className="h-8 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-semibold text-xs"
+                className={`h-8 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-semibold text-xs ${FOCUS_RING}`}
               >
                 Clear
               </button>
@@ -329,7 +338,7 @@ export function InputPanel() {
             {!parsedPlan && plans.length > 1 && (
               <button
                 onClick={() => removePlanSlot(activePlanIndex)}
-                className="h-8 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-semibold text-xs"
+                className={`h-8 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-semibold text-xs ${FOCUS_RING}`}
                 title="Discard this empty plan"
               >
                 Cancel
@@ -382,7 +391,7 @@ export function InputPanel() {
               type="button"
               onClick={() => setBundleMessage(null)}
               aria-label="Dismiss"
-              className="shrink-0 font-bold opacity-60 hover:opacity-100 leading-none"
+              className={`shrink-0 font-bold opacity-60 hover:opacity-100 leading-none rounded ${FOCUS_RING}`}
             >
               ×
             </button>
@@ -507,7 +516,7 @@ function BundleAttachChooser({
               <button
                 key={idx}
                 onClick={() => onChoose(idx)}
-                className="text-left p-2 border border-slate-200 dark:border-slate-700 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800"
+                className={`text-left p-2 border border-slate-200 dark:border-slate-700 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 ${FOCUS_RING}`}
               >
                 <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Attach to {label}</div>
                 {sqlId && (
@@ -520,7 +529,7 @@ function BundleAttachChooser({
         <div className="flex justify-end">
           <button
             onClick={onCancel}
-            className="h-8 px-3 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            className={`h-8 px-3 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ${FOCUS_RING}`}
           >
             Cancel
           </button>

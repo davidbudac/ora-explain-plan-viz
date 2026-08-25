@@ -84,7 +84,7 @@ export function ShortcutsOverlay() {
         <div className="max-h-[min(60vh,480px)] overflow-y-auto p-4 space-y-4">
           {SHORTCUT_GROUPS.map((group) => (
             <div key={group.title}>
-              <h4 className="text-[11px] font-semibold tracking-wide text-slate-400 dark:text-slate-500 uppercase mb-2">
+              <h4 className="text-[11px] font-semibold tracking-wide text-slate-500 dark:text-slate-400 uppercase mb-2">
                 {group.title}
               </h4>
               <div className="space-y-1.5">

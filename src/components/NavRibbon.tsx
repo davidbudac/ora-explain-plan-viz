@@ -17,6 +17,13 @@ const tabs: { id: ViewMode; label: string }[] = [
   { id: 'experimental', label: 'Experimental' },
 ];
 
+// Keyboard focus ring. Inset inside the tab strip, whose `overflow-x-auto`
+// would otherwise clip an outset ring on the first/last tab.
+const FOCUS_RING_INSET =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
+const FOCUS_RING =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
+
 // Slack for the ribbon's own padding + the gap between the plan tabs and the
 // view-tab strip, so the collapse decision leaves a little breathing room.
 const RIBBON_CHROME_PX = 56;
@@ -122,6 +129,7 @@ export function NavRibbon() {
                 title={isDisabled ? 'Load a second plan (+ Add Plan) to enable comparison' : tab.label}
                 className={`
                   shrink-0 flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all
+                  ${FOCUS_RING_INSET}
                   ${isActive
                     ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-400/30'
                     : isDisabled
@@ -143,7 +151,7 @@ export function NavRibbon() {
         <button
           type="button"
           onClick={() => setVisualizationMaximized(!visualizationMaximized)}
-          className="shrink-0 h-8 w-8 flex items-center justify-center rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors"
+          className={`shrink-0 h-8 w-8 flex items-center justify-center rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`}
           title={visualizationMaximized ? 'Exit fullscreen visualization (F)' : 'Maximize visualization (F)'}
         >
           {visualizationMaximized ? (

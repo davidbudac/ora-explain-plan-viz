@@ -60,7 +60,7 @@ function Field({ label, value }: { label: string; value?: string | number | null
   if (value === undefined || value === null) return null;
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-medium">{label}</span>
+      <span className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-medium">{label}</span>
       <span className="text-sm text-slate-800 dark:text-slate-200 font-mono">{value}</span>
     </div>
   );
@@ -166,7 +166,7 @@ export function MonitorDetailsView() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-3">
             {meta.status && (
               <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-medium">Status</span>
+                <span className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-medium">Status</span>
                 <StatusBadge status={meta.status} />
               </div>
             )}
@@ -226,7 +226,7 @@ export function MonitorDetailsView() {
           <div className="overflow-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-left text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 border-b border-slate-200 dark:border-slate-700">
+                <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                   <th className="pb-1.5 pr-4 font-medium">#</th>
                   <th className="pb-1.5 pr-4 font-medium">Name</th>
                   <th className="pb-1.5 pr-4 font-medium">Type</th>
@@ -270,7 +270,7 @@ export function MonitorDetailsView() {
           <div className="overflow-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-left text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 border-b border-slate-200 dark:border-slate-700">
+                <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                   <th className="pb-1.5 pr-4 font-medium">Parameter</th>
                   <th className="pb-1.5 font-medium">Value</th>
                 </tr>

@@ -140,7 +140,7 @@ function FindingRow({
           title={finding.title}
         >
           {canNavigate && (
-            <span className="w-4 h-4 rounded bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 text-[9px] font-bold flex items-center justify-center shrink-0">
+            <span className="w-4 h-4 rounded bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 text-[10px] font-bold flex items-center justify-center shrink-0">
               {nodeId}
             </span>
           )}

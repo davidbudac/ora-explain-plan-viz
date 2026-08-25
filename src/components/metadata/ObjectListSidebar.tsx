@@ -105,7 +105,7 @@ function indexBadges(stats: { uniqueness: string; visibility: string }): Badge[]
 function SidebarGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="mt-2">
-      <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+      <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
         {title}
       </div>
       {children}
@@ -145,7 +145,7 @@ function ObjectRow({
         <span
           key={b.label}
           title={b.title}
-          className="shrink-0 px-1 py-px text-[8px] font-bold rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase"
+          className="shrink-0 px-1 py-px text-[10px] font-bold rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase"
         >
           {b.label}
         </span>

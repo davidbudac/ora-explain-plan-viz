@@ -119,7 +119,7 @@ export function BaselineScriptModal({ initialSqlId, initialPlanHash, onClose }: 
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1 uppercase tracking-wide">
+              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
                 SQL_ID
               </label>
               <input
@@ -142,7 +142,7 @@ export function BaselineScriptModal({ initialSqlId, initialPlanHash, onClose }: 
               )}
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1 uppercase tracking-wide">
+              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
                 Plan hash
               </label>
               <input
@@ -166,7 +166,7 @@ export function BaselineScriptModal({ initialSqlId, initialPlanHash, onClose }: 
           </div>
 
           <div>
-            <span className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+            <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
               Source
             </span>
             <div className="flex flex-col gap-1.5">
@@ -231,7 +231,7 @@ export function BaselineScriptModal({ initialSqlId, initialPlanHash, onClose }: 
           </div>
 
           <div>
-            <span className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+            <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
               Get the script
             </span>
             {!options && (
