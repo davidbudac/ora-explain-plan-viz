@@ -7,7 +7,7 @@ status: open
 
 ## Destination
 
-A **locked rewrite of [`docs/plans/ai-plan-analysis.md`](../../plans/ai-plan-analysis.md) (v2)** — a spec ready to hand to implementation sessions, with nothing left to decide before building. The spec describes a **hosted-first** AI feature set: a free AI-analysis teaser plus a **paid test-case builder** (the standout), with graceful fidelity degradation, credit-pack + subscription pricing via a merchant of record, tiered models, and a full 4-layer evals harness gating the paid claims.
+A **locked rewrite of [`docs/plans/ai-plan-analysis.md`](../../plans/ai-plan-analysis.md) (v2)** — a spec ready to hand to implementation sessions, with nothing left to decide before building. The spec describes a **hosted-first** AI feature set: a free AI-analysis teaser plus a **paid test-case builder** (the standout), with graceful fidelity degradation, credit-pack + subscription pricing via a merchant of record, tiered models, and a full 4-layer evals harness gating the paid claims. Two user-added features ride along: **guided anonymization** (offline, before anything is uploaded) and a **step-by-step optimization walkthrough** for non-experts.
 
 ## Notes
 
@@ -16,6 +16,7 @@ A **locked rewrite of [`docs/plans/ai-plan-analysis.md`](../../plans/ai-plan-ana
 - **Skills to consult** when working tickets: `mattpocock-skills:grilling` + `mattpocock-skills:domain-modeling` (default), `mattpocock-skills:prototype` for the two prototype tickets, `mattpocock-skills:research` for research tickets, `dbmint-oracle-test` for anything needing live-Oracle verification.
 - **Glossary**: [`CONTEXT.md`](../../../CONTEXT.md) holds the canonical terms (Teaser, Credit, Repro Fidelity Level, …). Challenge drift against it.
 - Wayfinder is planning-only here: tickets resolve decisions; implementation happens after the spec rewrite closes.
+- **2026-08-26**: user added two feature tickets — [Guided anonymization](tickets/12-guided-anonymization.md) (offline pre-upload renaming/scrubbing with guided review + round-trip de-anonymization) and [Guided optimization walkthrough](tickets/13-guided-optimization-walkthrough.md) (generated step sequence for non-experts; explicitly *not* the out-of-scope Phase-8 chat). Both now block the spec rewrite.
 
 ## Charter (settled at kickoff, before any ticket)
 
@@ -36,13 +37,15 @@ A **locked rewrite of [`docs/plans/ai-plan-analysis.md`](../../plans/ai-plan-ana
 
 <!-- one line per closed ticket: gist + link. Appended as tickets close. -->
 
+- [Repro fidelity ladder](tickets/05-repro-fidelity-ladder.md) — four input-set-derived rungs **F0 Sketch / F1 Skeleton / F2 Faithful / F3 Skew-Faithful** (+optimizer_env as a modifier, not a rung); privilege = per-item provenance (*absent* ≠ *invisible*), never a second axis; AI authors guessed sections at F0/F1, deterministic generator owns F2+; whole Builder paid in v1; Repro Rate = shape match at every rung; prompts get a capped ~24-endpoint histogram encoding while scripts keep all buckets.
 - [Non-DBA metadata gathering fallback](tickets/06-non-dba-metadata-gathering-fallback.md) — histograms (v3) need **no DBA at all** (`ALL_TAB_HISTOGRAMS` is column-identical), and nearly the whole bundle degrades cleanly to `ALL_*`; real gaps: SQL_ID→object resolution (V$), segment bytes, cross-schema DDL, optimizer_env. Recommendation: **one capability-probed script** (not a fork) emitting a `capabilities` block + `unavailable_reason`s; the fidelity ladder needs a privilege axis distinguishing *absent* from *invisible*. dbmint verification queued for implementation.
 - [Merchant-of-record provider choice](tickets/03-merchant-of-record-provider-choice.md) — **Polar**: only MoR with license-key issuance + server-side validation, one model for packs *and* subs, German individuals allowed, Kleinunternehmer-friendly (US contracting entity; Steuerberater check pending); ≈12.9% net fees on a €9 pack; own hashed `opv_` tokens keep Polar confined to one backend adapter, with Stripe Managed Payments as the exit path. Lemon Squeezy and Paddle rejected.
+- [Credit and subscription packaging](tickets/02-credit-and-subscription-packaging.md) — **1 Credit = 1 Builder run** (≤2 repairs + experiments incl.), deep analysis ¼ credit internally; EUR tax-inclusive packs €19/4 · €39/10 · €89/25, no expiry; one sub tier €39/mo → 12 credits + rollover + unlimited Sonnet quick analyses; teaser = 3 lifetime per account (1 anonymous + 2 post-sign-in), $10/mo circuit-breaker; debit on delivery (infra errors auto-refund, unverified repro doesn't); teaser report carries a locked Builder preview.
 - [Unit economics of hosted analysis and builder runs](tickets/01-unit-economics.md) — Sonnet 5 (low effort) for the teaser (~$0.02/run), Opus 5 (high) for paid analysis/Builder (~$0.24 / ~$1.01 full Builder turn); Builder credit priced $4–5 (70%+ margin, packs $19/4 · $39/10 · $89/25); teaser affordable unenforced to ~2k runs/mo (~$42); **spec must mandate compact histogram encoding in prompts** — naive v3 serialization can 3× Builder cost.
 
 ## Not yet specified
 
-- **Teaser enforcement mechanics** — anonymous vs account-required free analyses, per-IP/device limits, abuse cost cap. Sharpens after [Credit and subscription packaging](tickets/02-credit-and-subscription-packaging.md) and [oraplanviz-cloud backend shape](tickets/04-oraplanviz-cloud-backend-shape.md).
+- **Teaser enforcement mechanics** — the *policy* is settled ([Credit and subscription packaging](tickets/02-credit-and-subscription-packaging.md): 1 anonymous + 2 post-sign-in lifetime, $10/mo breaker); what remains is *mechanics* — how the anonymous run is identified (device/IP), abuse detection, breaker implementation. Sharpens after [oraplanviz-cloud backend shape](tickets/04-oraplanviz-cloud-backend-shape.md), which likely absorbs it.
 - **Scenario corpus contents & gating thresholds** — the concrete ~15 eval scenarios and the pass bars. Sharpens after [Evals harness v1 scope](tickets/07-evals-harness-v1-scope.md).
 - **Billing lifecycle detail** — refunds, credit expiry edge cases, invoice surface, webhook handling. Sharpens after [Merchant-of-record provider choice](tickets/03-merchant-of-record-provider-choice.md).
 - **README / site reframing & launch** — how the public story changes at ship time. Sharpens after [Privacy fence and product framing](tickets/10-privacy-fence-and-product-framing.md) and the spec rewrite.

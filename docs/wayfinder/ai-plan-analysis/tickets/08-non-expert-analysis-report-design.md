@@ -12,6 +12,7 @@ What does the AI analysis report look like for a **non-expert** — the free tea
 
 Prototype (skill `mattpocock-skills:prototype`): a static mock of the `AiReportView` rendered with realistic content from one of the bundled example plans. Questions the prototype must force answers to:
 
+- settled input from [Credit and subscription packaging](02-credit-and-subscription-packaging.md): the teaser report **must include a locked preview of the Builder output** (grayed fidelity meter, "your repro would be Level N") — not a bare CTA; funnel is teaser → ¼-credit deep analysis → 1-credit test case;
 - structure for someone who can't read a plan: verdict-first ("your query is slow because…"), plain-language findings, severity, "what to do next" actions;
 - how findings link to plan nodes (the existing `NodeRefV1` navigation) without assuming plan-reading skill;
 - where the deterministic advisor findings appear vs the AI's additions (they must not contradict; who wins?);
