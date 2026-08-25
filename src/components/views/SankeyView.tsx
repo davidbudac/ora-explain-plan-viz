@@ -9,6 +9,8 @@ import { matchesSearch } from '../../lib/filtering';
 
 /** Minimum vertical pixels per operation before the diagram grows past the container and scrolls. */
 const MIN_PX_PER_NODE = 22;
+/** Vertical breathing room reserved for the top/bottom nodes' labels. */
+const LABEL_GUTTER = 20;
 
 interface SankeyNodeExtra {
   name: string;
@@ -251,8 +253,10 @@ export function SankeyView() {
         .nodeWidth(20)
         .nodePadding(15)
         .extent([
-          [margin.left, margin.top],
-          [width - margin.right, height - margin.bottom],
+          // Extra vertical inset so the first/last node's label has room to sit
+          // inside the viewport instead of clipping at the pane edge.
+          [margin.left, margin.top + LABEL_GUTTER],
+          [width - margin.right, height - margin.bottom - LABEL_GUTTER],
         ]);
 
       const { nodes, links } = sankeyGenerator({
@@ -410,9 +414,17 @@ export function SankeyView() {
           text.setAttribute('font-family', 'system-ui, sans-serif');
           text.setAttribute('fill', isDark ? '#e5e7eb' : '#374151');
           text.setAttribute('opacity', isFiltered ? '1' : '0.5');
+          // Halo in the pane's own background colour so labels stay legible
+          // wherever they cross a flow.
+          text.setAttribute('stroke', isDark ? '#0f172a' : '#f8fafc');
+          text.setAttribute('stroke-width', '3');
+          text.setAttribute('stroke-linejoin', 'round');
+          text.style.paintOrder = 'stroke';
           text.textContent = truncateText(sNode.name, 35);
           text.style.pointerEvents = 'none';
           text.dataset.sankeyLabel = 'true';
+          text.dataset.nodeX0 = String(node.x0 || 0);
+          text.dataset.nodeX1 = String(node.x1 || 0);
 
           nodeGroup.appendChild(text);
         }
@@ -422,6 +434,33 @@ export function SankeyView() {
       // already-kept one (greedy top-to-bottom). Hidden labels stay available
       // via the hover tooltip, which always leads with the operation name.
       const labels = Array.from(nodeGroup.querySelectorAll<SVGTextElement>('text[data-sankey-label]'));
+
+      // Keep labels inside the viewport: flip the anchor inward when a label
+      // would run off the left/right edge, and nudge it back in vertically.
+      const EDGE_PAD = 4;
+      for (const label of labels) {
+        const x0 = Number(label.dataset.nodeX0 ?? 0);
+        const x1 = Number(label.dataset.nodeX1 ?? 0);
+        let box = label.getBBox();
+
+        if (box.x + box.width > width - EDGE_PAD) {
+          label.setAttribute('text-anchor', 'end');
+          label.setAttribute('x', (x0 - 6).toString());
+          box = label.getBBox();
+        } else if (box.x < EDGE_PAD) {
+          label.setAttribute('text-anchor', 'start');
+          label.setAttribute('x', (x1 + 6).toString());
+          box = label.getBBox();
+        }
+
+        const y = Number(label.getAttribute('y') ?? 0);
+        if (box.y < EDGE_PAD) {
+          label.setAttribute('y', (y + (EDGE_PAD - box.y)).toString());
+        } else if (box.y + box.height > height - EDGE_PAD) {
+          label.setAttribute('y', (y - (box.y + box.height - (height - EDGE_PAD))).toString());
+        }
+      }
+
       labels.sort((a, b) => {
         const ba = a.getBBox();
         const bb = b.getBBox();
