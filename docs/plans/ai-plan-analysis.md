@@ -1,107 +1,339 @@
-# AI Plan Analysis & Test-Case Builder — LLM analysis, hosted SaaS, guided test cases
+# AI Plan Analysis & Test-Case Builder — local companion engines, hosted SaaS, guided test cases
 
-> Phase 1 (analysis) is specified in full below. Phases 1.5–3 (hosted SaaS provider,
-> test-case builder, guided chat + agent auto-run) follow at the end of this document.
+> Phases 0–4 (Analyze Plan through the mandatory local companion) are specified in full
+> below. Phases 5–8 (hosted SaaS provider, test-case builder, evaluation harness,
+> guided chat + agent auto-run) follow at the end of this document.
 
-## Context
+## Goal and release boundary
 
-The visualizer's advisor is a fixed set of 11 heuristic rules. The user wants an optional "connect an agent" feature: send the loaded plan (or two plans) to an LLM and get an expert analysis back. The app is fully client-side (GitHub Pages), so no backend can hold credentials.
+The visualizer already has a deterministic advisor made of heuristic rules. The AI feature adds an optional expert report over the currently loaded plan.
 
-**Confirmed requirements:**
-- **Auth — all three**: (1) BYO Anthropic API key, browser → api.anthropic.com directly (SDK `dangerouslyAllowBrowser: true`; the API supports CORS via the `anthropic-dangerous-direct-browser-access` header); (2) OpenAI-compatible endpoint (custom base URL + key + model — Ollama/OpenRouter/gateways); (3) proxy via the local `oraplanviz-agent` companion which holds credentials — the only path that can use a Claude subscription (`ant auth login` profile agent-side). A claude.ai subscription cannot be used directly from a third-party web app.
-- **UX**: one-shot streamed analysis report (not a chat). "Analyze plan" + "Compare plans" (when 2 plans loaded).
-- **Data scope**: everything by default, but with a **review step** — a pre-send dialog previewing exactly what will be sent, per-section toggles, ~token estimate (chars/4).
-- **Gating**: BYO-key + OpenAI-compat in the public GitHub Pages build; the local-agent proxy option only shown when `isDbAgentEnabled()`.
+Phase 1 is deliberately narrow:
 
-## Architecture
+- One-shot, streamed **Analyze Plan** report; it is not a chat.
+- The AI feature is available only when the local `oraplanviz-agent` companion is installed, running, paired, and compatible.
+- The browser never calls a model provider and never receives provider credentials.
+- The companion initially supports one proven engine end to end. The preferred first engine is Codex through the official Codex SDK/App Server; an OpenAI API-key engine or loopback OpenAI-compatible local model is an acceptable fallback if Codex proves unsuitable for Oracle plan analysis.
+- Claude Code is the next named engine after its authentication, non-interactive output, and cancellation behavior pass the same contract tests.
+- The user reviews the exact outbound context before every run.
+- Compare Plans and generic hosted compatibility gateways are deferred.
 
-New pure library `src/lib/ai/` + a small dedicated React context `src/hooks/useAiAnalysis.tsx` (keeps the 1682-line `usePlanContext.tsx` from growing a streaming state machine) + a review dialog modeled on `BaselineScriptModal` + a new `'ai'` view tab as result surface.
+This is a complete vertical slice: choose the service, review/minimize data, run, stream a sanitized report, validate structured findings, and navigate from a finding to the referenced plan node.
 
-Uniform provider abstraction — async generator of stream events, cancellable via `AbortSignal`:
+## Architectural decision: the companion is mandatory
 
-```ts
-type AiStreamEvent =
-  | { type: 'text'; text: string }
-  | { type: 'done'; stopReason: 'end_turn'|'max_tokens'|'refusal'|'other'; refusalExplanation?: string };
-interface AiRequest { system: string; user: string; model: string; maxTokens: number }
-// each provider: stream(req, signal): AsyncGenerator<AiStreamEvent>
-class AiError extends Error { kind: 'auth'|'rate-limit'|'overloaded'|'network'|'refusal'|'bad-request'|'aborted'|'unknown'; status: number | null }
+The visualizer remains deployable as a static GitHub Pages application, but AI analysis is a local two-process feature:
+
+```text
+Browser UI
+  -> paired HTTPS/loopback request
+Local oraplanviz-agent companion
+  -> Codex SDK/App Server, Claude Code SDK, provider API, or local model
+Selected inference engine
 ```
 
-## New files — `src/lib/ai/`
+This is the security seam. The browser owns plan selection, context minimization, exact outbound preview, report rendering, and node navigation. The companion owns credentials, installed-agent discovery, process lifecycle, provider protocols, timeouts, and normalized streaming. An engine adapter owns only the differences for one inference route.
 
-- **`types.ts`** — `AiProviderId = 'anthropic'|'openai-compat'|'agent'`; `AiSectionId = 'sql'|'predicates'|'notes'|'binds'|'monitorMeta'|'ash'|'signals'|'advisor'|'metadata'` (plan table always included); `ContextSection {id,label,text,charCount,included}`; `BuiltContext {sections,userMessage,tokenEstimate}`; `AiFinding {severity,title,explanation,suggestion?,nodeIds}` (mirrors advisor `Finding`); `AiReport {kind:'analyze'|'compare', markdown, findings|null, provider, model, createdAt, slotIds, truncated}`; `AiError`.
-- **`planText.ts`** — `renderPlanTable(plan)`: regenerate a DBMS_XPLAN-style fixed-width table (models know this format cold): Id | Operation (depth-indented) | Name | Starts | E-Rows | A-Rows | A-Time | A-Self | Cost | Mem | Temp | Reads — actuals columns only when `hasActualStats` (run `computeSelfTimes` from `analysis.ts` first). Plus `renderPredicates(plan)` (per-id access/filter listing) and `renderNotes(plan)`.
-- **`context.ts`** — review-step engine: `buildAnalyzeSections(slot, advisorReport)`, `buildCompareSections(a, b)`, `assembleContext(sections)` (filters `.included`, joins with `=== HEADER ===` delimiters), `estimateTokens(text) = ceil(len/4)`. Section builders reuse `aggregateActivityByLine` (`ash.ts`), `computeParallelSignals`/`getDopDowngrade`/`assessPartitionPruning` (`planSignals.ts`), advisor findings rendered as `[warning] title (lines 3,7): explanation` labeled "heuristic pre-analysis — verify, don't parrot", `monitorMetadata` key fields + non-default `optimizerEnv`, bind variables.
-- **`metadataProjection.ts`** — `projectMetadata(bundle, plan)`: only objects referenced by the plan (`findObjectInBundle`, plus indexes of referenced tables); drop `ddl`; column stats only for predicate columns (`metadata/predicateColumns.ts`); cap ~20k chars with a truncation notice.
-- **`prompts.ts`** — `buildSystemPrompt(kind)`, task lines, `MODEL_PRESETS` (default `claude-opus-5`; also `claude-sonnet-4-6`, `claude-haiku-4-5`; free-text override; OpenAI-compat is free-text only). System prompt: expert Oracle performance engineer; markdown report with `## Summary`, `## Where the time goes`, `## Cardinality & statistics issues`, `## Recommendations`; refer to operations by plan Id ("line 7"); base claims only on provided data; end with exactly one fenced ```json block: `{"findings":[{severity,title,explanation,suggestion,nodeIds}]}` as the last thing in the response.
-  - Compare variant: both plans' compact tables + digest from `matchNodes` → `buildComparisonRows` (one line per matched node: `A#3 -> B#5 HASH JOIN: cost 1200->300, aTime 40s->3s`), unmatched-node lists, `computeComparisonSummary` totals; digest replaces per-plan predicates/metadata/ASH by default (toggles re-add).
-- **`findings.ts`** — `splitReport(markdown)` (fence-aware on partial stream buffers, hides half-received JSON block) + `parseAiFindings(markdown, validNodeIds)`: last json fence, lenient parse, severity clamped to `FindingSeverity`, nodeIds filtered to valid ids; any failure → `null` (narrative-only degrade).
-- **`providers/anthropic.ts`** — `@anthropic-ai/sdk`: `new Anthropic({apiKey, dangerouslyAllowBrowser: true})`; `client.beta.messages.stream({model, max_tokens: 32000, system, messages, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default'}, {signal})`. **No `thinking` param** (claude-opus-5 runs adaptive by default). Yield text deltas; `finalMessage()` → map stop_reason (refusal → `stop_details.explanation`). Map SDK typed errors (`AuthenticationError`→auth, `RateLimitError`→rate-limit, 529→overloaded, `APIConnectionError`→network) to `AiError`. (Refusal fallback param is trivially removable if unwanted.)
-- **`providers/openaiCompat.ts`** — raw fetch to `{baseUrl}/chat/completions` (append `/v1` when URL has no path — covers bare Ollama), `stream: true`, `Authorization: Bearer` only when key non-empty. Hand-rolled ~40-line SSE parser exported as `parseSseStream(reader)` for testability; `[DONE]` terminator; `finish_reason: 'length'` → max_tokens.
-- **`providers/agent.ts`** — companion proxy, gated by `isDbAgentEnabled()`, reuses `AgentConfig`/token conventions and the same SSE parser. **HTTP contract** (companion repo implementation out of scope, contract documented in `docs/plans/`):
-  ```
-  POST {baseUrl}/api/ai/analyze   Authorization: Bearer <token>
-  Body: { system, prompt, model|null, maxTokens|null }
-  → 200 text/event-stream: event delta {"text"} · event done {"stopReason","explanation"?} · event error {"message","status"?}
-  → 401/500 JSON {"error"} before streaming
-  ```
-- **`provider.ts`** — `streamAnalysis(runConfig, req, signal)` dispatch; `AiRunConfig {provider, apiKey?, baseUrl?, agent?}`.
-- **`secrets.ts`** — ConnectPanel convention: sessionStorage keys `oraplanviz.aiAnthropicKey` / `oraplanviz.aiOpenAiKey`; opt-in "remember on this device" mirrors to localStorage; try/catch-wrapped; **never** in settings blob or share URLs (`url.ts` untouched).
+No companion means no AI controls beyond an installation/connect explanation. There is no browser-key fallback.
 
-## Modified files
+Official OpenAI documentation explicitly supports embedding Codex through the Codex App Server and controlling local Codex agents through server-side SDKs. Codex clients can authenticate either with ChatGPT for subscription access or with an API key for usage-based access. The companion must use those documented interfaces and the Codex-managed login state; it must never read, copy, decrypt, export, or transmit Codex credential files. See [Codex App Server](https://learn.chatgpt.com/docs/app-server), [Codex SDK](https://learn.chatgpt.com/docs/codex-sdk), and [Codex authentication](https://learn.chatgpt.com/docs/auth).
 
-- **`src/lib/settings.ts`** — non-secret prefs in `UserSettings` + `defaultSettings`: `aiProvider` ('anthropic'), `aiAnthropicModel` ('claude-opus-5'), `aiOpenAiBaseUrl` (''), `aiOpenAiModel` (''), `aiSections: Record<AiSectionId, boolean>` (all true; merged like `nodeDisplayOptions`).
-- **`src/lib/types.ts`** — extend `ViewMode` union with `'ai'` (union at `src/lib/types.ts:203`).
-- **New `src/hooks/useAiAnalysis.tsx`** — `AiProvider`/`useAi()`, nested inside `PlanProvider` in App.tsx. State: `aiDialogOpen`, `aiDialogMode`, `report: AiReport|null`, `status: 'idle'|'streaming'|'done'|'error'|'cancelled'`, `streamText` (internal buffer flushed on ~100 ms interval to avoid per-token renders), `error`. Actions: `openAiDialog(mode)`, `runAnalysis(runConfig, builtContext)` (drives the generator, `AbortController` in a ref, parses findings on done, switches `viewMode` to `'ai'` on start), `cancel()`, `clearReport()`. Effect clears the report when its source slot re-parses (same lifecycle as metadata bundles). One report at a time.
-- **New `src/components/AiAnalysisDialog.tsx`** — clone `BaselineScriptModal` pattern (Escape listener, onClose, mounted in `AppContent`). Contents: provider radio (agent option only when `isDbAgentEnabled()`), model select + free-text, key input (`type="password"`, remember checkbox), base-URL field for openai-compat, section checklist with per-section char counts, live `~N tokens` total (warn above ~150k), collapsible raw-context `<pre>` preview of the exact `userMessage`, privacy notice naming the provider host, Run button.
-- **New `src/components/views/AiReportView.tsx`** — streamed narrative (from `splitReport`), findings list styled via `severityStyles.ts` with nodeId chips calling `selectNode` (mirrors `FindingsList`), header (provider/model badge, Cancel while streaming, Regenerate, Copy via `clipboard.ts`), inline `AiError` + Retry, empty state with "Analyze plan" button. Markdown: `marked` → `DOMPurify.sanitize` → `dangerouslySetInnerHTML`.
-- **`VisualizationTabs.tsx` + `NavRibbon.tsx`** — `'ai'` tab (visible when a plan is loaded or a report exists); ribbon "AI analysis" button (+ compare variant enabled when both compare slots parse) opening the dialog.
-- **`CommandPalette.tsx`** — commands `ai-analyze-plan`, `ai-compare-plans`, `ai-open-report` with `isAvailable` guards; add to `CommandCategory` union + `CATEGORY_ORDER` if no existing category fits.
-- **`App.tsx`** — mount `<AiProvider>` inside `PlanProvider`; `{aiDialogOpen && <AiAnalysisDialog/>}` alongside `BaselineScriptModal`.
-- **README/CLAUDE.md** — short privacy note: data leaves the browser to the chosen provider only when Run is clicked.
+Anthropic documents Claude Code subscription login and non-interactive/SDK operation. Treat that as a separate adapter with its own feasibility gate rather than assuming it behaves like Codex. Do not automate the Claude desktop GUI or reuse browser cookies.
 
-## Dependencies (3)
+## Delivery phases
 
-| Package | Why |
+| Phase | Deliverable |
 |---|---|
-| `@anthropic-ai/sdk` | Official client; browser support via `dangerouslyAllowBrowser`, typed errors, robust stream/abort. |
-| `marked` | Small md→HTML; hand-rolling tables/nested lists is worse. |
-| `dompurify` | Report is model output derived from untrusted pasted data (prompt-injection → XSS) rendered via innerHTML; sanitization non-negotiable. |
+| **0** | Versioned browser/companion contract, local pairing, capability discovery, and deterministic fake engine |
+| **1** | Analyze Plan through one real companion engine, preferably Codex SDK/App Server |
+| **2** | Add provider-key and loopback OpenAI-compatible engines behind the same companion seam |
+| **3** | Add Claude Code after its separate feasibility and security gate |
+| **4** | Compare Plans using the same contracts and slot-qualified references |
 
-No SSE library — the ~40-line parser is unit-tested.
+Hosted compatibility services other than named provider adapters are not part of Phase 1. They can be evaluated later as named, tested profiles rather than being covered by a generic claim.
 
-## Error handling & edge cases
+## Module shape
 
-- 401 → "Invalid API key" + shortcut back to dialog; 429 → surface retry-after; 529 → suggest retry; network/CORS on custom base URL → actionable message naming the URL.
-- `refusal` → keep partial text + explanation banner; `max_tokens` → `report.truncated` banner.
-- Cancel keeps partial text, status `'cancelled'`; `AbortError` never surfaces as failure.
-- JSON fence split across chunks handled by fence-aware `splitReport`; garbled JSON → narrative-only; invented nodeIds filtered.
-- Sections without data (no actuals/ASH/metadata) absent from checklist entirely; giant bundles capped by projection; storage unavailable → in-memory key for the session; view persisted as `'ai'` with no report → empty state.
+Add a pure `src/lib/ai/` module, a small `src/hooks/useAiAnalysis.tsx` state module, a mandatory review dialog, and an AI report view.
 
-## Testing (`src/lib/ai/__tests__/`, vitest + jsdom)
+The AI module exposes one small interface:
 
-- `planText.test.ts` — fixture ParsedPlan → exact table; actuals columns absent when `hasActualStats` false.
-- `context.test.ts` — deterministic sections; toggles change `userMessage` + `tokenEstimate`; compare digest from two fixtures.
-- `findings.test.ts` — valid block / malformed → null / partial fence hidden / invalid nodeIds filtered.
-- `openaiCompat.test.ts`, `agent.test.ts` — mock fetch with `ReadableStream` SSE chunks (incl. mid-line split): URL/headers/body shape, deltas, `[DONE]`, abort, 401→auth.
-- `anthropic.test.ts` — `vi.mock('@anthropic-ai/sdk')`: `dangerouslyAllowBrowser: true`, no `thinking` param, refusal mapping.
-- `secrets.test.ts` — session vs remember-to-local.
+```ts
+interface AnalysisTransport {
+  stream(
+    request: AnalysisRequestV1,
+    signal: AbortSignal
+  ): AsyncGenerator<AnalysisStreamEventV1>;
+}
+```
 
-## Sequencing
+Phase 1 has one concrete adapter, `OpenAiStyleTransport`. Official OpenAI and local-compatible are two configurations of this adapter. Do not build a multi-provider dispatcher until another wire protocol is actually implemented.
 
-1. `lib/ai` core (types, planText, context, metadataProjection, prompts, findings) + tests — pure, no UI risk.
-2. Providers + dispatch + secrets + tests; add the 3 deps.
-3. `settings.ts` fields; `ViewMode` `'ai'`.
-4. `useAiAnalysis.tsx`; App wiring.
-5. Dialog, report view, tabs/ribbon/palette entries.
-6. Docs (privacy note; agent endpoint contract in `docs/plans/`).
+The adapter owns URL normalization, request-field mapping, SSE parsing, capability checks, and provider error normalization. Callers only know the versioned request, normalized events, cancellation rules, and normalized errors.
+
+## Versioned contracts and identity
+
+All data crossing the context/transport/report seams is versioned and runtime-validated. Keep canonical JSON Schemas in the repository and validate them with Ajv.
+
+```ts
+interface PlanRefV1 {
+  slotId: string;
+  sourceFingerprint: string;
+}
+
+interface NodeRefV1 {
+  slotId: string;
+  nodeId: number;
+}
+
+interface AnalysisRequestV1 {
+  schemaVersion: 1;
+  runId: string;
+  promptVersion: string;
+  kind: 'analyze';
+  planRef: PlanRefV1;
+  contextFingerprint: string;
+  systemMessage: string;
+  userMessage: string;
+  maxOutputTokens: number;
+}
+
+interface FindingV1 {
+  severity: 'info' | 'warning' | 'critical';
+  title: string;
+  explanation: string;
+  suggestion?: string;
+  nodeRefs: NodeRefV1[];
+}
+
+interface AnalysisOutputV1 {
+  schemaVersion: 1;
+  runId: string;
+  contextFingerprint: string;
+  findings: FindingV1[];
+}
+
+type AnalysisStreamEventV1 =
+  | { schemaVersion: 1; runId: string; sequence: number; type: 'text'; text: string }
+  | { schemaVersion: 1; runId: string; sequence: number; type: 'done'; stopReason: 'stop' | 'length' | 'refusal' | 'other'; usage?: TokenUsageV1 }
+  | { schemaVersion: 1; runId: string; sequence: number; type: 'error'; error: AnalysisErrorV1 };
+```
+
+Rules:
+
+- Use `NodeRefV1` in Phase 1 even though only one plan is submitted. Bare numeric IDs would become ambiguous as soon as comparison is introduced.
+- Validate node references against the exact submitted plan snapshot, not the plan active when the response finishes.
+- `sourceFingerprint` identifies normalized source plan content. `contextFingerprint` identifies the exact reviewed prompt, included sections, redactions, and prompt version.
+- Store `schemaVersion`, `promptVersion`, run/fingerprint values, service profile, model, endpoint origin, timestamps, stop reason, and validation warnings in `AiReport`. Never store credentials.
+- Unknown contract versions, mismatched run IDs, or mismatched fingerprints fail closed.
+- Malformed structured findings degrade to a narrative-only report. Do not partially trust invalid output.
+
+The Phase 4 compare contract will carry two `PlanRefV1` values and findings will continue to use slot-qualified `NodeRefV1` values. This design work happens now; comparison UI and prompts do not.
+
+## Phase 1 OpenAI-style compatibility profile
+
+OpenAI's Chat Completions interface is the common protocol for Phase 1. The official reference documents `POST /chat/completions` and streamed completion chunks.
+
+### Endpoint boundary
+
+- Official profile uses the fixed OpenAI API root and requires a Bearer API key.
+- Local profile accepts a configurable scheme, port, and optional path, but the host must be loopback: `localhost`, `127.0.0.1`, or `[::1]`.
+- Phase 1 rejects non-loopback custom hosts with a clear message. LAN servers and hosted gateways require a later explicit profile/security decision.
+- Normalize a bare origin to an API root ending in `/v1`; preserve an explicitly supplied `/v1` path. Show the final request destination in the review dialog.
+
+### Required request support
+
+A qualifying local server must support:
+
+- `POST {baseUrl}/chat/completions`
+- JSON `model`, `messages`, and `stream: true`
+- `system` and `user` text messages
+- A configured output-token limit field: `max_tokens` or `max_completion_tokens`
+- Optional `Authorization: Bearer <token>`; the client omits the header when no local token is supplied
+- Browser CORS from the visualizer origin
+
+Tools, function calling, embeddings, images, the Responses API, and server-side conversation state are not required.
+
+### Required stream support
+
+- HTTP 200 with `Content-Type: text/event-stream`
+- UTF-8 SSE chunks that may split at arbitrary byte or line boundaries
+- Text deltas in `choices[0].delta.content`
+- A terminal `data: [DONE]`, or clean EOF after a chunk containing a non-null `finish_reason`
+- OpenAI-style JSON HTTP errors or plain-text HTTP errors
+
+The client reports an unsupported server when a 200 response is not SSE, no valid text delta arrives, the stream is persistently malformed, or no valid terminal condition exists. It names the missing behavior instead of reporting a vague network failure.
+
+### Capability detection
+
+- `GET {baseUrl}/models` is an optional reachability/model-discovery check. A 404 does not disqualify a server if the user enters a model manually.
+- There is no assumed universal capability-discovery interface. Observed request behavior is authoritative.
+- Cache detected capabilities for the current session by endpoint origin plus model.
+- Display separate status for reachability, authentication, model visibility, SSE support, and JSON-schema output support.
+- Never silently claim that an untested server is compatible. Documentation lists only exact server/version combinations that passed the profile.
+
+### Structured findings and fallback
+
+The portable request asks for Markdown followed by one final fenced `analysis-output-v1` JSON object. The JSON contains `schemaVersion`, `runId`, `contextFingerprint`, and findings with slot-qualified node references.
+
+- Hide an incomplete JSON fence while streaming.
+- Parse the final fence only after completion and validate it against `AnalysisOutputV1`.
+- Filter unknown node references and record validation warnings.
+- JSON Schema response formatting is an optional enhanced capability, not part of the local minimum profile.
+- When the fenced output is invalid and JSON Schema support is known or explicitly enabled, allow one non-streaming repair request containing only the invalid structured block, allowed node references, and schema. Do not resend the full plan automatically.
+- If the server rejects JSON Schema before producing output, cache the capability as unsupported and retain the narrative with a “structured findings unavailable” warning.
+- A repair response with a different run ID or context fingerprint is discarded.
+
+## Context construction and minimization
+
+### Core renderers
+
+- `renderPlanTable(plan)`: compact DBMS_XPLAN-style table with Id, depth-indented Operation, Name, Starts, E-Rows, A-Rows, A-Time, A-Self, Cost, memory, temp, and reads. Actual-stat columns appear only when present.
+- `renderPredicates(plan)` and `renderNotes(plan)`.
+- Reuse `computeSelfTimes`, ASH aggregation, parallel/pruning signals, advisor findings, monitor metadata, bind parsing, and metadata lookup helpers.
+- `projectMetadata(bundle, plan)`: referenced objects only, no DDL, predicate columns only, deterministic size cap, explicit truncation marker.
+
+### Review sections
+
+Each `ContextSectionV1` has a stable ID, label, text, character count, inclusion state, and sensitivity category.
+
+- Always included and visibly labelled: compact plan table.
+- Default on: derived plan signals and heuristic advisor summary when available.
+- Default off and explicit opt-in: SQL text, predicates, bind values, annotations, Oracle notes, monitor/optimizer metadata, ASH detail, and projected object/column metadata.
+- Bind names and types without values may be a separate lower-sensitivity section.
+- Offer deterministic literal/bind redaction before preview.
+- New sensitive section types introduced by future versions default to off, even when merging older saved preferences.
+
+The mandatory review dialog shows the service profile, exact endpoint origin, model, every available section, sensitivity and character counts, rough `ceil(chars / 4)` token estimate, and the exact final `userMessage`. The outbound message must be constructed from the same immutable object shown in the preview.
+
+## Secrets and privacy boundary
+
+- Official API key is required; a local Bearer token is optional.
+- Keep secrets only in React memory in Phase 1. Do not add a long-term “remember” option.
+- Never place a key/token in settings, local/session storage, share URLs, reports, clipboard exports, errors, diagnostics, or logs.
+- Clear secrets on profile change and provide an explicit Clear action.
+- Name the actual destination before Run. A loopback URL means the browser sends to that local process; it does not prove the process will not log or forward the prompt.
+- Model output and all prompt-derived content are untrusted. Render through `marked`, then `DOMPurify.sanitize`, before `dangerouslySetInnerHTML`.
+- The application makes no GDPR or other compliance claim. German/EU organizational users must evaluate their chosen provider/server's retention, processing location, contractual terms, and internal approval before including personal or confidential data.
+
+## Streaming lifecycle
+
+`useAiAnalysis.tsx` owns one active run:
+
+- State: `idle | reviewing | streaming | done | error | cancelled`.
+- Generate a unique `runId` for every Run and Regenerate action.
+- Snapshot the reviewed `AnalysisRequestV1`; retry and regeneration never rebuild silently from changed UI state.
+- Only events matching the active run ID may mutate state. Ignore late deltas, timers, completion handlers, and repair results from stale runs.
+- Starting a new run aborts the old controller before installing the new run.
+- Cancellation aborts fetch, calls `reader.cancel()` when available, releases the reader lock, flushes the buffered text once, and retains the partial report as cancelled.
+- Use separate connection and stream-idle timeouts. Timeout is not reported as user cancellation.
+- Flush text to React on a short interval (about 100 ms) and synchronously flush the final buffer on every terminal path.
+- Replacing/reparsing the source plan cancels the run, invalidates the report by fingerprint, and disables stale node links.
+
+### Retry boundary
+
+- Never automatically retry authentication, invalid-model, bad-request, CORS, protocol, refusal, or schema-version failures.
+- Surface `Retry-After` for rate limits/overload and require the user to initiate the retry.
+- The only automatic retry is a capability downgrade attempted before any replacement output has been displayed.
+- After the first visible text delta, Retry creates a new report from the immutable reviewed snapshot; it never appends to partial output.
+
+`AnalysisErrorV1` includes kind, safe message, HTTP status, retryable flag, optional `retryAfterMs`, provider error code, request ID, and endpoint origin. Error kinds include `auth`, `rate-limit`, `overloaded`, `network`, `cors`, `timeout`, `refusal`, `bad-request`, `invalid-model`, `protocol`, `aborted`, and `unknown`.
+
+## Files
+
+### New `src/lib/ai/`
+
+- `contracts.ts` — versioned types, JSON Schemas, Ajv validators, errors, service profiles, and normalized events.
+- `fingerprint.ts` — deterministic source/context SHA-256 helpers.
+- `planText.ts` — compact plan, predicate, and note renderers.
+- `context.ts` — privacy-classified section building, redaction, assembly, and token estimate.
+- `metadataProjection.ts` — minimal referenced-object/column projection.
+- `prompts.ts` — versioned Analyze Plan system/task prompt.
+- `findings.ts` — streamed fence handling, output validation, and node-reference validation.
+- `openAiStyleTransport.ts` — official/local configuration, models probe, raw fetch, SSE parser, capability cache, error normalization, cancellation, and optional structured repair.
+- `secrets.ts` — in-memory secret holder and explicit clearing.
+
+### New UI/state
+
+- `src/hooks/useAiAnalysis.tsx`
+- `src/components/AiAnalysisDialog.tsx`
+- `src/components/views/AiReportView.tsx`
+
+### Modified
+
+- `settings.ts` — non-secret profile, local base URL, model, token-limit mapping, and section preferences; increment/migrate the settings version.
+- `types.ts` — add `'ai'` to `ViewMode`.
+- `VisualizationTabs.tsx` / `NavRibbon.tsx` — AI view and Analyze Plan action only.
+- `CommandPalette.tsx` — `ai-analyze-plan` and `ai-open-report`; no compare command.
+- `App.tsx` — mount AI state and dialog.
+- README/CLAUDE.md — scope, security warning, privacy flow, compatibility profile, and troubleshooting.
+
+## Dependencies
+
+| Package | Purpose |
+|---|---|
+| `ajv` | Runtime validation of the versioned JSON contracts |
+| `marked` | Markdown-to-HTML conversion |
+| `dompurify` | Sanitization of untrusted generated HTML |
+
+Use raw fetch rather than a provider SDK so the deliberately small OpenAI-style subset is explicit and testable. No SSE dependency is needed.
+
+## Tests and diagnostics
+
+### Pure/contract tests
+
+- Exact optimizer-only and actual-stat plan tables.
+- Deterministic sections, conservative defaults, redaction, projection caps, toggles, token estimate, and fingerprints.
+- Valid/wrong-version/malformed/mismatched-run/mismatched-fingerprint outputs.
+- Unknown node references and duplicate numeric node IDs in different slots.
+- Partial/valid/invalid JSON fences and narrative-only degradation.
+- Hostile Markdown/HTML and prompt-derived injection content after sanitization.
+
+### Transport tests
+
+- URL normalization and loopback-host enforcement.
+- Official required Bearer header; optional local Bearer header; no secret in safe errors.
+- `ReadableStream` fixtures split at arbitrary bytes/lines.
+- Text deltas, `[DONE]`, finish-reason EOF, length/refusal, usage when present, malformed SSE, non-SSE 200, JSON/plain-text HTTP errors, CORS, timeouts, abort, and reader cleanup.
+- Optional `/models` behavior and capability-cache isolation.
+- Both output-token field mappings.
+- JSON-schema repair success, unsupported downgrade, and proof that a repair does not resend full plan context.
+
+### State/UI/privacy tests
+
+- Full fake-transport Analyze Plan flow before any real endpoint work.
+- Sensitive sections off by default and requiring explicit opt-in.
+- Preview message byte-for-byte equal to the outbound `userMessage`.
+- Run-ID races: cancel/restart, stale stream finishing late, final-buffer flush, source reparse mid-stream.
+- Key/token absent from settings, browser storage, share URLs, report, clipboard, diagnostics, and logs.
+- Actionable unsupported-state messages for missing CORS, model, SSE, terminal marker, or structured findings.
+
+### Privacy-preserving diagnostics
+
+Keep only a bounded in-memory run record: run ID, contract/prompt versions, service profile, model, endpoint origin, input/output character counts, request/first-token/end times, stop reason, retry count, HTTP/error kind, and provider request ID when available. Never record prompts, reports, SQL, binds, metadata, credentials, Authorization headers, or credential-bearing URLs. Phase 1 sends no telemetry.
+
+## Revised implementation order
+
+1. **Feasibility gate:** test official OpenAI CORS/streaming with a disposable restricted key and record the browser-key security decision. Build a deterministic loopback fixture server for the compatibility profile.
+2. **Freeze contracts:** add JSON Schemas/validators, `PlanRefV1`, slot-qualified `NodeRefV1`, fingerprints, normalized events/errors, profile rules, and fixtures.
+3. **Build pure context:** plan rendering, privacy-labelled sections, opt-in defaults, redaction, metadata projection, prompt v1, exact preview object, and findings validation.
+4. **Complete the vertical slice with a fake transport:** review dialog → immutable request → race-safe stream lifecycle → sanitized report → validated node navigation.
+5. **Implement the OpenAI-style adapter:** pass protocol tests and one named local-server smoke test. Enable official OpenAI only if step 1 passed.
+6. **Harden Phase 1:** structured repair/fallback, error/capability UX, storage-leak tests, privacy copy, diagnostics, lint, builds, full tests, and manual smoke.
+7. **Defer expansion:** add comparison only after the single-plan evidence is solid; add Anthropic and the companion proxy as separate later adapters.
+
+This order proves one usable result end to end before multiplying modes and protocols.
 
 ## Verification
 
-- `npx vitest run --environment jsdom`, `npm run lint`, `npm run build`, `npm run build:pages` (confirm agent provider absent from Pages UI — flag unset).
-- Manual smoke via `npm run dev`: openai-compat path against local Ollama; Anthropic path with a real key (streamed report, cancel, findings→node navigation, compare mode).
-- Confirm no key appears in localStorage without the remember opt-in, in the settings blob, or in share URLs.
+- `npx vitest run --environment jsdom`
+- `npm run lint`
+- `npm run build`
+- `npm run build:pages`
+- Confirm production exposes Analyze Plan only: no Compare Plan, Anthropic, hosted generic-compatible, or agent-proxy controls.
+- Confirm sensitive content remains off after fresh load and settings migration.
+- Confirm cancellation/race behavior, sanitized rendering, node navigation, capability messages, and credential non-persistence.
+- Record the exact local server/version used for compatibility smoke testing; make no claims about untested servers.
 
 ---
 
@@ -114,15 +346,24 @@ from just plan + SQL ID) and **test whether an alternative plan is an improvemen
 via an interactive guided chat, with automated execution through the local
 `oraplanviz-agent` against a designated *test* database.
 
-The provider abstraction above (`AiStreamEvent`, `parseSseStream`, `AiError`) is the
-stable seam all later phases build on. `AiProviderId` gains `'hosted'` in Phase 1.5.
+The versioned contracts above (`AnalysisRequestV1`, `AnalysisStreamEventV1`,
+`AnalysisErrorV1`) and the `AnalysisTransport` seam are what all later phases build
+on; Phase 5 adds a hosted transport beside the companion.
 
-## Phase 1.5 — Hosted provider (SaaS)
+## Phase 5 — Hosted provider (SaaS)
 
-- **`src/lib/ai/providers/hosted.ts`** — same SSE wire contract as the agent provider
-  (`event delta {"text"}` · `done {"stopReason"}` · `error {"message","status"}`),
-  reusing `parseSseStream`. Config `{ baseUrl, accountToken }`; token stored via the
-  `secrets.ts` conventions (`oraplanviz.aiHostedToken`, sessionStorage; opt-in remember).
+Phase 5 is the one deliberate exception to the companion-mandatory rule: for hosted
+users the cloud backend replaces the local companion as the credential/security seam
+(browser → oraplanviz cloud directly). The mandatory review dialog, versioned
+contracts, and fail-closed validation apply unchanged; self-hosted users keep the
+companion engines.
+
+- **`src/lib/ai/hostedTransport.ts`** — a second `AnalysisTransport` implementation
+  streaming the same normalized `AnalysisStreamEventV1` events
+  (`delta {"text"}` · `done {"stopReason"}` · `error {"message","status"}` on the
+  wire). Config `{ baseUrl, accountToken }`; the account token lives in the
+  `secrets.ts` in-memory holder — whether a lower-sensitivity remember option is
+  acceptable for account tokens (unlike provider keys) is decided in this phase.
 - **Backend HTTP contract** (service in a new repo, e.g. `oraplanviz-cloud`; only the
   contract lives here):
   ```
@@ -136,11 +377,12 @@ stable seam all later phases build on. `AiProviderId` gains `'hosted'` in Phase 
   of plan payloads** (log metadata only: token counts, timings). Model pinned
   server-side (`claude-opus-5` default; per-tier overrides). Billing/signup out of
   scope for v1 — start with manually issued tokens.
-- **UI**: hosted becomes the first provider radio in `AiAnalysisDialog`; BYO-key and
-  OpenAI-compat remain for self-hosters; the agent proxy stays gated on
-  `isDbAgentEnabled()`. No new dependencies (raw fetch + existing SSE parser).
+- **UI**: hosted becomes the first service choice in `AiAnalysisDialog`; the
+  companion engines (Codex, provider API key, loopback OpenAI-compatible, Claude
+  Code) remain for self-hosters. No new dependencies (raw fetch + existing SSE
+  parsing).
 
-## Phase 2 — Test Case Builder (scripts; user runs them)
+## Phase 6 — Test Case Builder (scripts; user runs them)
 
 Goal: from plan + metadata bundle (or plan + SQL ID → gather script first), produce a
 runnable synthetic repro so the optimizer reproduces the plan in a scratch schema —
@@ -184,32 +426,7 @@ no production data required — plus scripts to try alternative plans.
 - **Tests**: `testCase.test.ts`, `experiments.test.ts` — fixture bundle → exact script
   text, same style as `baselineScript.test.ts`.
 
-## Phase 3 — Guided chat + agent auto-run
-
-- **Chat mode**: `useAiAnalysis.tsx` grows `messages: AiChatMessage[]` alongside the
-  one-shot report; the hosted backend's `kind: 'chat'` runs a server-side tool-use
-  loop. Tools exposed to the model:
-  - `get_plan_context(sections)` — resolved client-side from the Phase-1 context
-    builders;
-  - `run_script(sql, purpose)` / `explain(sql)` — available only when the local agent
-    is connected; **every call renders an approval card in the UI** (AI proposes →
-    user clicks Run → agent executes → result returned to the model).
-- **Agent extension** (contract only; implementation in `../oraplanviz-agent`):
-  ```
-  POST /api/test/connect     { dsn, user, password }      # separate TEST connection
-  POST /api/test/exec        { script }  → { ok, output, errors[] }
-  POST /api/test/explain     { sql }     → { dbmsXplanText }
-  POST /api/test/disconnect
-  ```
-  Invariants: the test connection is distinct from the read-only source connection;
-  the source connection never executes AI/user SQL; every exec requires explicit
-  per-call user approval; the agent keeps a statement log; bump `MIN_AGENT_VERSION`.
-- **Iteration loop**: AI generates repro → user approves, agent runs → resulting plan
-  is parsed back → AI compares plan hash/shape against the target → adjusts stats,
-  binds, or hints → repeat until reproduced; then run experiments and compare A/B in
-  the app's compare view.
-
-## Phase 2.5 — Evaluation & backtesting harness
+## Phase 7 — Evaluation & backtesting harness
 
 The product's core claims are objectively checkable against a real Oracle instance:
 "the synthetic test case reproduces the plan" (plan shape match), "the analysis found
@@ -219,7 +436,7 @@ run before every prompt/model/generator change. Four layers, cheapest first.
 
 ### Layer 1 — deterministic unit tests (free, already planned)
 
-The vitest suites above (`planText`, `context`, `findings`, providers, `testCase`,
+The vitest suites above (`planText`, `context`, `findings`, transports, `testCase`,
 `experiments`): fixture in → exact text out. No DB, no LLM, run on every commit.
 
 ### Layer 2 — repro-fidelity backtest (no LLM needed for the skeleton path)
@@ -274,11 +491,11 @@ Instant Client needed):
 **Question**: does the analysis report identify the injected root cause?
 
 - Reuses the same scenarios: each `expect.json` names the fault the report must find.
-- `evals/analyze.ts` builds the context exactly as the app does (`buildAnalyzeSections`
-  → `assembleContext`) from the captured plan + bundle, calls the provider layer
-  directly (BYO key from env), and scores each report twice:
-  - **Hard checks, no judge** (in `evals/scoring.ts`): findings JSON parses via
-    `parseAiFindings`; every `nodeIds` entry exists in the plan; every object name
+- `evals/analyze.ts` builds the context exactly as the app does (the `context.ts`
+  section builders) from the captured plan + bundle, calls the transport layer
+  directly (API key from env), and scores each report twice:
+  - **Hard checks, no judge** (in `evals/scoring.ts`): findings JSON validates
+    against `AnalysisOutputV1`; every `nodeRefs` entry exists in the plan; every object name
     mentioned in findings exists in the bundle (hallucination check); the report
     references the plan lines from `expect.json.planFeatures`.
   - **LLM judge**: rubric prompt ("Did the report identify <rootCause>? Did it point
@@ -307,22 +524,49 @@ Instant Client needed):
 - Backend addition: `POST /v1/feedback { runId, verdict: 'up'|'down', kind }` and a
   per-run event log (kind, model, prompt version, token counts, latency — never plan
   payloads). Thumbs up/down buttons in `AiReportView`.
-- Phase-3 agent loop generates its own labels: every iteration records
+- The Phase-8 agent loop generates its own labels: every iteration records
   `reproMatched: boolean` and, for experiments, the measured before/after plan pair —
   a live repro-rate / improvement-rate dashboard segmented by model + prompt version,
   the online counterpart of layers 2 and 4.
-- Prompt versions are tagged (`promptVersion` constant in `prompts.ts`, sent to the
+- Prompt versions are tagged (the `promptVersion` value in `prompts.ts`, sent to the
   backend) so offline eval results and online feedback join on the same key.
+
+## Phase 8 — Guided chat + agent auto-run
+
+- **Chat mode**: `useAiAnalysis.tsx` grows `messages: AiChatMessage[]` alongside the
+  one-shot report; the hosted backend's `kind: 'chat'` runs a server-side tool-use
+  loop. Tools exposed to the model:
+  - `get_plan_context(sections)` — resolved client-side from the analysis context
+    builders (`context.ts`);
+  - `run_script(sql, purpose)` / `explain(sql)` — available only when the local agent
+    is connected; **every call renders an approval card in the UI** (AI proposes →
+    user clicks Run → agent executes → result returned to the model).
+- **Agent extension** (contract only; implementation in `../oraplanviz-agent`):
+  ```
+  POST /api/test/connect     { dsn, user, password }      # separate TEST connection
+  POST /api/test/exec        { script }  → { ok, output, errors[] }
+  POST /api/test/explain     { sql }     → { dbmsXplanText }
+  POST /api/test/disconnect
+  ```
+  Invariants: the test connection is distinct from the read-only source connection;
+  the source connection never executes AI/user SQL; every exec requires explicit
+  per-call user approval; the agent keeps a statement log; bump `MIN_AGENT_VERSION`.
+- **Iteration loop**: AI generates repro → user approves, agent runs → resulting plan
+  is parsed back → AI compares plan hash/shape against the target → adjusts stats,
+  binds, or hints → repeat until reproduced; then run experiments and compare A/B in
+  the app's compare view.
 
 ## Sequencing (phases)
 
-1. **Phase 1** — client-side analysis (this document above).
-2. **Phase 1.5** — hosted provider + `oraplanviz-cloud` contract.
-3. **Phase 2** — bundle v3 histograms; test-case + experiment script generators.
-4. **Phase 2.5** — `evals/` harness: Docker Oracle, scenario corpus, repro-rate
-   runner first (validates Phase 2 deterministically), then analysis evals and
-   experiment payoff. Built alongside Phase 2, gating from then on.
-5. **Phase 3** — chat mode; agent test-execution endpoints; approval-gated auto-run;
+1. **Phases 0–4** — companion-based analysis: contract + pairing, first engine
+   (Codex), provider-key/loopback engines, Claude Code, Compare Plans (this document
+   above).
+2. **Phase 5** — hosted provider + `oraplanviz-cloud` contract.
+3. **Phase 6** — bundle v3 histograms; test-case + experiment script generators.
+4. **Phase 7** — `evals/` harness: Docker Oracle, scenario corpus, repro-rate
+   runner first (validates Phase 6 deterministically), then analysis evals and
+   experiment payoff. Built alongside Phase 6, gating from then on.
+5. **Phase 8** — chat mode; agent test-execution endpoints; approval-gated auto-run;
    feedback loop wired into the hosted backend.
 
 ## Privacy (later phases)
