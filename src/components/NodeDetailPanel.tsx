@@ -1,4 +1,4 @@
-import { useState, useMemo, type PointerEvent as ReactPointerEvent } from 'react';
+import { useState, useMemo, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { getOperationCategory, getMetricColor, getOperationTooltip } from '../lib/types';
 import { formatBytes, formatNumberShort, formatTimeCompact, formatTimeDetailed } from '../lib/format';
@@ -27,6 +27,56 @@ const HIGHLIGHT_COLORS_MAP: Record<HighlightColor, string> = Object.fromEntries(
 interface NodeDetailPanelProps {
   panelWidth: number;
   onResizeStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+}
+
+/**
+ * One row of a "worst nodes" list. Only the leader is coloured red — the rest
+ * carry their weight in a proportional micro-bar, so severity stays readable.
+ */
+function WorstNodeRow({
+  node,
+  rank,
+  ratio,
+  value,
+  suffix,
+  onSelect,
+}: {
+  node: PlanNodeType;
+  rank: number;
+  ratio: number;
+  value: string;
+  suffix?: ReactNode;
+  onSelect: (id: number) => void;
+}) {
+  const isLeader = rank === 0;
+  const barWidth = Math.max(2, Math.min(100, ratio * 100));
+
+  return (
+    <button
+      onClick={() => onSelect(node.id)}
+      className="relative overflow-hidden w-full text-left px-2 py-1.5 pb-2 text-[11px] rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between gap-2 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 font-mono"
+    >
+      <span className="flex items-center gap-1.5 truncate">
+        <span className="font-mono text-[11px] px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500 shrink-0">#{node.id}</span>
+        <span className="truncate font-semibold">{node.operation}</span>
+      </span>
+      <span className="whitespace-nowrap shrink-0">
+        <span
+          className={`font-semibold ${isLeader ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-300'}`}
+        >
+          {value}
+        </span>
+        {suffix}
+      </span>
+      <span
+        aria-hidden="true"
+        className={`absolute left-2 bottom-1 h-0.5 rounded-full ${
+          isLeader ? 'bg-red-500/70' : 'bg-slate-300 dark:bg-slate-600'
+        }`}
+        style={{ width: `calc((100% - 1rem) * ${barWidth / 100})` }}
+      />
+    </button>
+  );
 }
 
 export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelProps) {
@@ -176,30 +226,31 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
             {worstNodes.byTime.length > 0 && (
               <Accordion title="Slowest Ops" subtitle="by self time">
                 <div className="space-y-1">
-                  {worstNodes.byTime.map(n => {
-                    const self = n.selfTime ?? n.actualTime;
-                    const showTotal = n.selfTime !== undefined
-                      && n.actualTime !== undefined
-                      && n.actualTime > n.selfTime;
-                    return (
-                      <button
-                        key={n.id}
-                        onClick={() => selectNode(n.id)}
-                        className="w-full text-left px-2 py-1.5 text-[11px] rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between gap-2 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 font-mono"
-                      >
-                        <span className="flex items-center gap-1.5 truncate">
-                          <span className="font-mono text-[11px] px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500 shrink-0">#{n.id}</span>
-                          <span className="truncate font-semibold">{n.operation}</span>
-                        </span>
-                        <span className="whitespace-nowrap shrink-0">
-                          <span className="text-red-600 dark:text-red-400 font-semibold">{formatTimeCompact(self)}</span>
-                          {showTotal && (
-                            <span className="text-slate-400 dark:text-slate-500"> · {formatTimeCompact(n.actualTime)} total</span>
-                          )}
-                        </span>
-                      </button>
+                  {(() => {
+                    const maxSelf = worstNodes.byTime.reduce(
+                      (max, n) => Math.max(max, n.selfTime ?? n.actualTime ?? 0),
+                      0
                     );
-                  })}
+                    return worstNodes.byTime.map((n, rank) => {
+                      const self = n.selfTime ?? n.actualTime;
+                      const showTotal = n.selfTime !== undefined
+                        && n.actualTime !== undefined
+                        && n.actualTime > n.selfTime;
+                      return (
+                        <WorstNodeRow
+                          key={n.id}
+                          node={n}
+                          rank={rank}
+                          ratio={maxSelf > 0 ? (self ?? 0) / maxSelf : 0}
+                          value={formatTimeCompact(self) ?? '—'}
+                          suffix={showTotal ? (
+                            <span className="text-slate-400 dark:text-slate-500"> · {formatTimeCompact(n.actualTime)} total</span>
+                          ) : undefined}
+                          onSelect={selectNode}
+                        />
+                      );
+                    });
+                  })()}
                 </div>
               </Accordion>
             )}
@@ -208,19 +259,19 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
             {worstNodes.byCost.length > 0 && (
               <Accordion title="Highest Cost" defaultOpen={false}>
                 <div className="space-y-1">
-                  {worstNodes.byCost.map(n => (
-                    <button
-                      key={n.id}
-                      onClick={() => selectNode(n.id)}
-                      className="w-full text-left px-2 py-1.5 text-[11px] rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between gap-2 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 font-mono"
-                    >
-                      <span className="flex items-center gap-1.5 truncate">
-                        <span className="font-mono text-[11px] px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500 shrink-0">#{n.id}</span>
-                        <span className="truncate font-semibold">{n.operation}</span>
-                      </span>
-                      <span className="text-slate-600 dark:text-slate-400 font-semibold">{n.cost}</span>
-                    </button>
-                  ))}
+                  {(() => {
+                    const maxCost = worstNodes.byCost.reduce((max, n) => Math.max(max, n.cost ?? 0), 0);
+                    return worstNodes.byCost.map((n, rank) => (
+                      <WorstNodeRow
+                        key={n.id}
+                        node={n}
+                        rank={rank}
+                        ratio={maxCost > 0 ? (n.cost ?? 0) / maxCost : 0}
+                        value={n.cost !== undefined ? String(n.cost) : '—'}
+                        onSelect={selectNode}
+                      />
+                    ));
+                  })()}
                 </div>
               </Accordion>
             )}
