@@ -117,29 +117,71 @@ function SummaryCard({ label, plan, cost, time, nodeCount, phv }: {
   );
 }
 
-function DeltaArrow({ delta, deltaPercent, label, lowerIsBetter = true }: {
+/** A delta smaller than this rounds to 0.0% and reads as "no change". */
+const NO_CHANGE_EPSILON = 0.05;
+
+function DeltaPill({ delta, deltaPercent, label, lowerIsBetter = true }: {
   delta: number;
   deltaPercent: number;
   label: string;
   lowerIsBetter?: boolean;
 }) {
   const isImprovement = lowerIsBetter ? delta < 0 : delta > 0;
-  const color = delta === 0
-    ? 'text-slate-500'
-    : isImprovement
-      ? 'text-green-600 dark:text-green-400'
-      : 'text-red-600 dark:text-red-400';
+  const styles = isImprovement
+    ? 'border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-950/50 text-green-700 dark:text-green-400'
+    : 'border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-400';
 
   return (
-    <div className={`flex flex-col items-center text-xs ${color}`}>
-      <span className="text-[10px] text-slate-500 dark:text-slate-400">{label}</span>
-      <span className="font-bold">
-        {delta === 0 ? '=' : delta > 0 ? '+' : ''}{deltaPercent.toFixed(1)}%
-      </span>
-      {delta !== 0 && (
-        <svg className={`w-4 h-4 ${delta > 0 ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-        </svg>
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold whitespace-nowrap ${styles}`}
+      title={`${label}: ${delta > 0 ? '+' : ''}${deltaPercent.toFixed(1)}% in Plan B`}
+    >
+      <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{label}</span>
+      <svg
+        className={`w-3 h-3 shrink-0 ${delta > 0 ? '' : 'rotate-180'}`}
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        aria-hidden="true"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
+      </svg>
+      <span className="tabular-nums">{Math.abs(deltaPercent).toFixed(1)}%</span>
+    </span>
+  );
+}
+
+/** The Cost/Time verdict shown between the two plan summary cards. */
+function SummaryDeltas({ costDelta, costDeltaPercent, timeDelta, timeDeltaPercent }: {
+  costDelta: number;
+  costDeltaPercent: number;
+  timeDelta?: number;
+  timeDeltaPercent?: number;
+}) {
+  const hasTime = timeDelta !== undefined && timeDeltaPercent !== undefined;
+  const costFlat = Math.abs(costDeltaPercent) < NO_CHANGE_EPSILON;
+  const timeFlat = !hasTime || Math.abs(timeDeltaPercent) < NO_CHANGE_EPSILON;
+
+  if (costFlat && timeFlat) {
+    return (
+      <div className="flex items-center px-2 shrink-0">
+        <span
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap"
+          title="Cost and time are effectively identical between the two plans"
+        >
+          <span aria-hidden="true">≈</span> no change
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-1.5 px-2 shrink-0">
+      {!costFlat && (
+        <DeltaPill delta={costDelta} deltaPercent={costDeltaPercent} label="Cost" />
+      )}
+      {hasTime && !timeFlat && (
+        <DeltaPill delta={timeDelta} deltaPercent={timeDeltaPercent} label="Time" />
       )}
     </div>
   );
@@ -401,12 +443,12 @@ export function CompareView() {
           nodeCount={planA.allNodes.length}
           phv={planA.planHashValue}
         />
-        <div className="flex flex-col items-center gap-1 px-2">
-          <DeltaArrow delta={summary.costDelta} deltaPercent={summary.costDeltaPercent} label="Cost" />
-          {summary.timeDelta !== undefined && summary.timeDeltaPercent !== undefined && (
-            <DeltaArrow delta={summary.timeDelta} deltaPercent={summary.timeDeltaPercent} label="Time" />
-          )}
-        </div>
+        <SummaryDeltas
+          costDelta={summary.costDelta}
+          costDeltaPercent={summary.costDeltaPercent}
+          timeDelta={summary.timeDelta}
+          timeDeltaPercent={summary.timeDeltaPercent}
+        />
         <SummaryCard
           label={labelB}
           plan="B"
