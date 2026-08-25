@@ -249,7 +249,7 @@ export function TimelineView() {
             const isSelected = selectedNodeIdSet.has(node.id);
             const isSearchMatch = searchText.trim() !== '' && matchesSearch(node, searchText);
             const category = getOperationCategory(node.operation);
-            const catColor = palette[category] || '#6b7280';
+            const catColor = palette[category] || '#64748b';
             const labelColor = isFiltered
               ? isDark
                 ? '#e2e8f0'

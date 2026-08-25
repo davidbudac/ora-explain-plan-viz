@@ -2,7 +2,7 @@ import { useEffect, useRef, useMemo, useCallback, useState, useReducer } from 'r
 import { sankey, sankeyLinkHorizontal } from 'd3-sankey';
 import type { SankeyNode, SankeyLink } from 'd3-sankey';
 import { usePlan } from '../../hooks/usePlanContext';
-import { COLOR_SCHEME_PALETTES, getOperationCategory } from '../../lib/types';
+import { COLOR_SCHEME_PALETTES, getCategoryPaint, getOperationCategory } from '../../lib/types';
 import type { PlanNode } from '../../lib/types';
 import { formatNumberShort, formatTimeCompact } from '../../lib/format';
 import { matchesSearch } from '../../lib/filtering';
@@ -214,6 +214,7 @@ export function SankeyView() {
 
       const svg = svgRef.current;
       const palette = COLOR_SCHEME_PALETTES[colorScheme];
+      const isDark = theme === 'dark';
       svg.innerHTML = '';
       svg.setAttribute('width', width.toString());
       svg.setAttribute('height', height.toString());
@@ -232,7 +233,12 @@ export function SankeyView() {
           rect.setAttribute('y', y.toString());
           rect.setAttribute('width', '20');
           rect.setAttribute('height', nodeHeight.toString());
-          rect.setAttribute('fill', palette[node.category] || '#6b7280');
+          const paint = getCategoryPaint(node.category, colorScheme, isDark);
+          rect.setAttribute('fill', paint.fill);
+          if (isDark) {
+            rect.setAttribute('stroke', paint.stroke);
+            rect.setAttribute('stroke-width', '1');
+          }
           rect.setAttribute('rx', '3');
           g.appendChild(rect);
 
@@ -241,7 +247,7 @@ export function SankeyView() {
           text.setAttribute('y', (y + nodeHeight / 2).toString());
           text.setAttribute('dy', '0.35em');
           text.setAttribute('font-size', '12');
-          text.setAttribute('fill', theme === 'dark' ? '#e5e7eb' : '#374151');
+          text.setAttribute('fill', isDark ? '#e2e8f0' : '#334155');
           text.textContent = node.name;
           g.appendChild(text);
         });
@@ -264,8 +270,6 @@ export function SankeyView() {
         links: sankeyData.links.map((d) => ({ ...d })),
       });
 
-      const isDark = theme === 'dark';
-
       const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       svg.appendChild(g);
 
@@ -280,14 +284,20 @@ export function SankeyView() {
         const sourceNode = link.source as SNode;
         const targetNode = link.target as SNode;
         const isFiltered = filteredNodeIds.has(sourceNode.planNode.id) && filteredNodeIds.has(targetNode.planNode.id);
-        const linkColor = palette[sourceNode.category] || '#6b7280';
+        const linkColor = palette[sourceNode.category] || '#64748b';
 
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         const d = linkPath(link as SLink);
         if (d) {
           path.setAttribute('d', d);
-          path.setAttribute('stroke', isFiltered ? linkColor : (isDark ? '#4b5563' : '#d1d5db'));
-          path.setAttribute('stroke-opacity', isFiltered ? '0.5' : '0.2');
+          path.setAttribute('stroke', isFiltered ? linkColor : (isDark ? '#475569' : '#cbd5e1'));
+          // Dark mode: the flows are the largest painted area on the canvas, so
+          // they sit back further than in light mode — otherwise they drown out
+          // the tinted node surfaces and the chrome around them.
+          path.setAttribute(
+            'stroke-opacity',
+            isFiltered ? (isDark ? '0.35' : '0.5') : (isDark ? '0.15' : '0.2')
+          );
           path.setAttribute('stroke-width', Math.max(1, link.width || 1).toString());
           linkGroup.appendChild(path);
 
@@ -340,10 +350,18 @@ export function SankeyView() {
         rect.setAttribute('y', (node.y0 || 0).toString());
         rect.setAttribute('width', nodeWidth.toString());
         rect.setAttribute('height', Math.max(1, nodeHeight).toString());
-        rect.setAttribute('fill', isFiltered ? (palette[sNode.category] || '#6b7280') : (isDark ? '#4b5563' : '#9ca3af'));
+        const paint = getCategoryPaint(sNode.category, colorScheme, isDark);
+        rect.setAttribute('fill', isFiltered ? paint.fill : (isDark ? '#475569' : '#94a3b8'));
         rect.setAttribute('opacity', isFiltered ? '1' : '0.4');
         rect.setAttribute('rx', '3');
         rect.style.cursor = 'pointer';
+
+        // Dark mode: hue hairline around the tinted surface. Selection and
+        // search strokes below take precedence.
+        if (isDark && isFiltered) {
+          rect.setAttribute('stroke', paint.stroke);
+          rect.setAttribute('stroke-width', '1');
+        }
 
         if (isSelected) {
           rect.setAttribute('stroke', '#3b82f6');
@@ -412,7 +430,7 @@ export function SankeyView() {
           text.setAttribute('text-anchor', isLeft ? 'start' : 'end');
           text.setAttribute('font-size', '11');
           text.setAttribute('font-family', 'system-ui, sans-serif');
-          text.setAttribute('fill', isDark ? '#e5e7eb' : '#374151');
+          text.setAttribute('fill', isDark ? '#e2e8f0' : '#334155');
           text.setAttribute('opacity', isFiltered ? '1' : '0.5');
           // Halo in the pane's own background colour so labels stay legible
           // wherever they cross a flow.
@@ -533,7 +551,7 @@ export function SankeyView() {
           <button
             type="button"
             onClick={() => setVerticalZoom(1)}
-            className="h-7 w-7 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm text-[9px] font-bold"
+            className="h-7 w-7 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm text-[10px] font-bold"
             title="Reset vertical zoom"
           >
             1:1

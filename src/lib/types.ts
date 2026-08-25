@@ -362,6 +362,30 @@ export const COLOR_SCHEME_PALETTES: Record<ColorScheme, Record<string, string>> 
   },
 };
 
+/** Fallback hue for categories missing from a palette (slate-500). */
+const CATEGORY_FALLBACK_HEX = '#64748b';
+
+/**
+ * Theme-aware paint for a category swatch in the data-viz views
+ * (flame bars, sankey nodes, waterfall bars).
+ *
+ * Light mode keeps the saturated palette hex as a solid fill. Dark mode
+ * follows the tree view's grammar instead — a tinted surface (hue at ~15%)
+ * with a colored hairline (hue at ~60%) — so the canvas stays quiet and the
+ * chrome, not the data, reads as the loudest thing on screen.
+ */
+export function getCategoryPaint(
+  category: string,
+  scheme: ColorScheme,
+  isDark: boolean
+): { fill: string; stroke: string } {
+  const hex = COLOR_SCHEME_PALETTES[scheme]?.[category] || CATEGORY_FALLBACK_HEX;
+  if (!isDark) return { fill: hex, stroke: hex };
+  // Only 6-digit hexes can take an alpha suffix; anything else stays opaque.
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return { fill: hex, stroke: hex };
+  return { fill: `${hex}26`, stroke: `${hex}99` };
+}
+
 export const EDGE_SCHEME_COLORS: Record<ColorScheme, {
   light: { active: string; default: string; focus: string; dimmed: string };
   dark: { active: string; default: string; focus: string; dimmed: string };

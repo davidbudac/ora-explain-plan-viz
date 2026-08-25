@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useCallback, useState } from 'react';
 import { usePlan } from '../../hooks/usePlanContext';
-import { COLOR_SCHEME_PALETTES, getOperationCategory } from '../../lib/types';
+import { getCategoryPaint, getOperationCategory } from '../../lib/types';
 import type { PlanNode } from '../../lib/types';
 import { computeFlameLayout, getEffectiveFlameMetric } from '../../lib/flameLayout';
 import type { FlameRect } from '../../lib/flameLayout';
@@ -290,14 +290,18 @@ export function FlameView() {
             const isSelected = selectedNodeIdSet.has(node.id);
             const isSearchMatch = searchText.trim() !== '' && matchesSearch(node, searchText);
 
-            const palette = COLOR_SCHEME_PALETTES[colorScheme];
             const category = getOperationCategory(node.operation);
+            const paint = getCategoryPaint(category, colorScheme, isDark);
             const baseFill = isFiltered
-              ? palette[category] || '#6b7280'
-              : (isDark ? '#4b5563' : '#9ca3af');
+              ? paint.fill
+              : (isDark ? '#475569' : '#94a3b8');
             const opacity = isFiltered ? 1 : 0.4;
 
-            let stroke = isDark ? '#0f172a' : '#ffffff';
+            // Dark mode: the bar is a tinted surface, so its own hue carries the
+            // outline. Light mode keeps the paper-coloured separator.
+            let stroke = isDark
+              ? (isFiltered ? paint.stroke : '#0f172a')
+              : '#ffffff';
             let strokeWidth = 1;
             let strokeDasharray: string | undefined;
 
@@ -361,7 +365,7 @@ export function FlameView() {
                     y={y + rowHeight / 2}
                     dy="0.35em"
                     fontSize={fontSize}
-                    fill={isDark ? '#f1f5f9' : '#1e293b'}
+                    fill={isDark ? '#e2e8f0' : '#1e293b'}
                     style={{ pointerEvents: 'none' }}
                   >
                     {label}
