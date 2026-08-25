@@ -87,6 +87,16 @@
   animation: highlight-breathe 3s ease-in-out infinite;
 }
 
+/* Horizontal scroll without a visible scrollbar (nav ribbon strips) */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* Vertical text for collapsed panels */
 .writing-mode-vertical {
   writing-mode: vertical-rl;
