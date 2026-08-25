@@ -18,6 +18,13 @@
 
   html {
     font-family: Inter, "Segoe UI", sans-serif;
+    /* Declaring color-scheme opts out of Chrome's Auto Dark Mode, which
+       otherwise force-darkens the light theme into a dark/light patchwork. */
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
   }
 
   body {
