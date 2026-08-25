@@ -3,7 +3,7 @@ title: "Spec rewrite: ai-plan-analysis v2"
 labels: [wayfinder:task]
 status: open
 assignee:
-blocked-by: [02-credit-and-subscription-packaging.md, 04-oraplanviz-cloud-backend-shape.md, 05-repro-fidelity-ladder.md, 06-non-dba-metadata-gathering-fallback.md, 07-evals-harness-v1-scope.md, 08-non-expert-analysis-report-design.md, 09-test-case-builder-flow-design.md, 10-privacy-fence-and-product-framing.md]
+blocked-by: [02-credit-and-subscription-packaging.md, 04-oraplanviz-cloud-backend-shape.md, 05-repro-fidelity-ladder.md, 06-non-dba-metadata-gathering-fallback.md, 07-evals-harness-v1-scope.md, 08-non-expert-analysis-report-design.md, 09-test-case-builder-flow-design.md, 10-privacy-fence-and-product-framing.md, 12-guided-anonymization.md, 13-guided-optimization-walkthrough.md]
 ---
 
 ## Question
