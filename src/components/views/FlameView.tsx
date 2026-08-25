@@ -7,7 +7,10 @@ import type { FlameRect } from '../../lib/flameLayout';
 import { formatNumberShort, formatTimeCompact } from '../../lib/format';
 import { matchesSearch } from '../../lib/filtering';
 
-const ROW_HEIGHT = 24;
+/** Rows never get thinner than this — deep plans stay compact and scroll. */
+const MIN_ROW_HEIGHT = 28;
+/** …and never taller than this, so a 3-op plan doesn't become slab art. */
+const MAX_ROW_HEIGHT = 56;
 
 /** Finds a node by id anywhere in the plan tree. */
 function findNodeById(root: PlanNode, id: number): PlanNode | null {
@@ -53,6 +56,7 @@ interface Tooltip {
 export function FlameView() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
+  const [height, setHeight] = useState(0);
   const [zoomNodeId, setZoomNodeId] = useState<number | null>(null);
   const [tooltip, setTooltip] = useState<Tooltip | null>(null);
   const tooltipStateRef = useRef<Tooltip | null>(null);
@@ -110,21 +114,26 @@ export function FlameView() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [selectedNodeIds.length, selectNode]);
 
-  // Update width on mount and resize
+  // Update width/height on mount and resize
   useEffect(() => {
-    const updateWidth = () => {
+    const updateSize = () => {
       if (containerRef.current) {
         setWidth(containerRef.current.clientWidth);
+        setHeight(containerRef.current.clientHeight);
       }
     };
 
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    const timer = setTimeout(updateWidth, 100);
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    const timer = setTimeout(updateSize, 100);
+    const observer =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateSize);
+    if (observer && containerRef.current) observer.observe(containerRef.current);
 
     return () => {
-      window.removeEventListener('resize', updateWidth);
+      window.removeEventListener('resize', updateSize);
       clearTimeout(timer);
+      observer?.disconnect();
     };
   }, []);
 
@@ -171,7 +180,19 @@ export function FlameView() {
   }, [rects]);
 
   const ancestorRowCount = ancestorChain.length;
-  const svgHeight = (ancestorRowCount + maxDepth + 1) * ROW_HEIGHT;
+  const totalRows = ancestorRowCount + maxDepth + 1;
+
+  // Shallow plans stretch their rows to fill the pane instead of leaving a
+  // thin strip over a void; deep plans fall back to MIN_ROW_HEIGHT and scroll.
+  const rowHeight = useMemo(() => {
+    if (height <= 0 || totalRows <= 0) return MIN_ROW_HEIGHT;
+    const fitted = Math.floor(height / totalRows);
+    return Math.max(MIN_ROW_HEIGHT, Math.min(MAX_ROW_HEIGHT, fitted));
+  }, [height, totalRows]);
+
+  const svgHeight = totalRows * rowHeight;
+  const fontSize = rowHeight >= 40 ? 12 : 11;
+  const charWidth = fontSize * 0.6;
 
   const handleRectClick = useCallback(
     (node: PlanNode, event: React.MouseEvent) => {
@@ -223,7 +244,7 @@ export function FlameView() {
         <svg width={width} height={svgHeight} className="block">
           {/* Ancestor chain (when zoomed in) — full-width muted bars above row 0 */}
           {ancestorChain.map((ancestor, i) => {
-            const y = i * ROW_HEIGHT;
+            const y = i * rowHeight;
             const isTopmost = i === 0;
             return (
               <g
@@ -235,7 +256,7 @@ export function FlameView() {
                   x={0}
                   y={y}
                   width={width}
-                  height={ROW_HEIGHT}
+                  height={rowHeight}
                   fill={isDark ? '#334155' : '#cbd5e1'}
                   stroke={isDark ? '#0f172a' : '#ffffff'}
                   strokeWidth={1}
@@ -244,15 +265,15 @@ export function FlameView() {
                 {width > 40 && (
                   <text
                     x={6}
-                    y={y + ROW_HEIGHT / 2}
+                    y={y + rowHeight / 2}
                     dy="0.35em"
-                    fontSize={11}
+                    fontSize={fontSize}
                     fill={isDark ? '#e2e8f0' : '#334155'}
                     style={{ pointerEvents: 'none' }}
                   >
                     {truncateText(
                       `${ancestor.operation}${ancestor.objectName ? ` ${ancestor.objectName}` : ''}`,
-                      Math.floor((width - 12) / 6.5)
+                      Math.floor((width - 12) / charWidth)
                     )}
                   </text>
                 )}
@@ -263,7 +284,7 @@ export function FlameView() {
           {/* Flame/icicle rects */}
           {rects.map((rect) => {
             const node = rect.node;
-            const y = (ancestorRowCount + rect.depth) * ROW_HEIGHT;
+            const y = (ancestorRowCount + rect.depth) * rowHeight;
             const rectWidth = Math.max(0.5, rect.x1 - rect.x0);
             const isFiltered = filteredNodeIds.has(node.id);
             const isSelected = selectedNodeIdSet.has(node.id);
@@ -293,7 +314,7 @@ export function FlameView() {
             const label = canLabel
               ? truncateText(
                   `${node.operation}${node.objectName ? ` ${node.objectName}` : ''}`,
-                  Math.floor((rectWidth - 8) / 6.5)
+                  Math.floor((rectWidth - 8) / charWidth)
                 )
               : null;
 
@@ -303,7 +324,7 @@ export function FlameView() {
                   x={rect.x0}
                   y={y}
                   width={rectWidth}
-                  height={ROW_HEIGHT}
+                  height={rowHeight}
                   fill={baseFill}
                   opacity={opacity}
                   stroke={stroke}
@@ -337,9 +358,9 @@ export function FlameView() {
                 {label && (
                   <text
                     x={rect.x0 + 4}
-                    y={y + ROW_HEIGHT / 2}
+                    y={y + rowHeight / 2}
                     dy="0.35em"
-                    fontSize={11}
+                    fontSize={fontSize}
                     fill={isDark ? '#f1f5f9' : '#1e293b'}
                     style={{ pointerEvents: 'none' }}
                   >
