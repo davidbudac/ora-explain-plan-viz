@@ -108,10 +108,10 @@ export function NodeFindings({ nodeId }: { nodeId: number }) {
         return (
           <div
             key={`${finding.ruleId}-${index}`}
-            className={`p-3 border-b border-neutral-200 dark:border-neutral-800 ${styles.banner}`}
+            className={`p-3 border-b border-slate-200 dark:border-slate-800 ${styles.banner}`}
           >
             <div className={`text-xs font-semibold tracking-wide ${styles.text}`}>{finding.title}</div>
-            <div className="mt-1 text-xs text-neutral-600 dark:text-neutral-400 leading-snug">{finding.explanation}</div>
+            <div className="mt-1 text-xs text-slate-600 dark:text-slate-400 leading-snug">{finding.explanation}</div>
             {showAdvisorSuggestions && (
               <div className={`mt-1 text-xs italic leading-snug ${styles.text}`}>{finding.suggestion}</div>
             )}

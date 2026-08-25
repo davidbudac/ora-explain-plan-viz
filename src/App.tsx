@@ -265,9 +265,9 @@ function AppContent() {
       )}
 
       {!anyPlanParsed && (
-        <div className="flex-1 flex flex-col items-center justify-center text-neutral-500 dark:text-neutral-400 p-8">
+        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 p-8">
           <svg
-            className="w-16 h-16 mb-4 text-neutral-300 dark:text-neutral-700"
+            className="w-16 h-16 mb-4 text-slate-300 dark:text-slate-700"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -279,7 +279,7 @@ function AppContent() {
               d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
             />
           </svg>
-          <h2 className="text-xl font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
+          <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-2">
             No Execution Plan Loaded
           </h2>
 
@@ -288,12 +288,12 @@ function AppContent() {
               <span className="flex items-center justify-center w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300">1</span>
               <span>Paste DBMS_XPLAN / SQL Monitor output above, or drop a file</span>
             </div>
-            <span className="hidden sm:inline text-neutral-300 dark:text-neutral-700">&rarr;</span>
+            <span className="hidden sm:inline text-slate-300 dark:text-slate-700">&rarr;</span>
             <div className="flex items-center gap-2">
               <span className="flex items-center justify-center w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300">2</span>
               <span>Explore the interactive plan tree</span>
             </div>
-            <span className="hidden sm:inline text-neutral-300 dark:text-neutral-700">&rarr;</span>
+            <span className="hidden sm:inline text-slate-300 dark:text-slate-700">&rarr;</span>
             <div className="flex items-center gap-2">
               <span className="flex items-center justify-center w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300">3</span>
               <span>Click nodes for details &amp; findings</span>
@@ -302,7 +302,7 @@ function AppContent() {
 
           {featuredExamples.length > 0 && (
             <div className="w-full max-w-2xl mb-4">
-              <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400 dark:text-neutral-500 mb-2 text-center">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-2 text-center">
                 Try an example
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -332,7 +332,7 @@ function AppContent() {
                   </button>
                 ))}
               </div>
-              <div className="text-xs text-neutral-400 dark:text-neutral-500 text-center mt-2">
+              <div className="text-xs text-slate-400 dark:text-slate-500 text-center mt-2">
                 All examples are available under &quot;Load Example&quot; in the input panel above.
               </div>
             </div>
@@ -343,7 +343,7 @@ function AppContent() {
               <div className="text-sm font-medium text-slate-700 dark:text-slate-200">
                 Or generate a link straight from the database
               </div>
-              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 Skip copy/paste: <code className="font-mono">plan_to_url.sql</code> fetches the
                 plan for a <code className="font-mono">sql_id</code>, gzip-compresses and encodes it
                 inside the database, and prints a ready-to-click link that opens the plan here.
@@ -374,7 +374,7 @@ function AppContent() {
             </div>
           </div>
 
-          <div className="text-sm text-neutral-400 dark:text-neutral-500">
+          <div className="text-sm text-slate-400 dark:text-slate-500">
             Repeated DBMS_XPLAN sections with different plan hash values are imported as separate plan tabs.
           </div>
         </div>

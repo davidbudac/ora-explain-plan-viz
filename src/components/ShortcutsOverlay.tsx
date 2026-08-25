@@ -66,14 +66,14 @@ export function ShortcutsOverlay() {
       <div
         role="dialog"
         aria-label="Keyboard shortcuts"
-        className="fixed z-[91] top-[min(20%,120px)] left-1/2 -translate-x-1/2 w-[440px] max-w-[calc(100vw-2rem)] rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-2xl flex flex-col overflow-hidden"
+        className="fixed z-[91] top-[min(20%,120px)] left-1/2 -translate-x-1/2 w-[440px] max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl flex flex-col overflow-hidden"
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-700">
-          <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100">Keyboard shortcuts</h3>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Keyboard shortcuts</h3>
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400"
+            className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
             aria-label="Close"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -84,18 +84,18 @@ export function ShortcutsOverlay() {
         <div className="max-h-[min(60vh,480px)] overflow-y-auto p-4 space-y-4">
           {SHORTCUT_GROUPS.map((group) => (
             <div key={group.title}>
-              <h4 className="text-[11px] font-semibold tracking-wide text-neutral-400 dark:text-neutral-500 uppercase mb-2">
+              <h4 className="text-[11px] font-semibold tracking-wide text-slate-400 dark:text-slate-500 uppercase mb-2">
                 {group.title}
               </h4>
               <div className="space-y-1.5">
                 {group.items.map((item) => (
                   <div key={item.description} className="flex items-center justify-between gap-3 text-sm">
-                    <span className="text-neutral-700 dark:text-neutral-300">{item.description}</span>
+                    <span className="text-slate-700 dark:text-slate-300">{item.description}</span>
                     <span className="flex items-center gap-1 shrink-0">
                       {item.keys.map((key) => (
                         <kbd
                           key={key}
-                          className="px-1.5 py-0.5 text-[11px] font-medium text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded"
+                          className="px-1.5 py-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded"
                         >
                           {key}
                         </kbd>

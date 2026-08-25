@@ -22,8 +22,8 @@ export function SqlTextView() {
 
   if (!sqlText) {
     return (
-      <div className="h-full flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">
+      <div className="h-full flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           No SQL text available for this plan.
         </p>
       </div>
@@ -49,13 +49,13 @@ export function SqlTextView() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-neutral-50 dark:bg-neutral-950">
+    <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-950">
       <div className="flex justify-end px-4 pt-3 pb-1">
         <button
           onClick={handleCopy}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border transition-colors
-            text-neutral-600 dark:text-neutral-400 border-neutral-300 dark:border-neutral-600
-            hover:bg-neutral-100 dark:hover:bg-neutral-800"
+            text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-600
+            hover:bg-slate-100 dark:hover:bg-slate-800"
         >
           {copied ? (
             <>

@@ -694,12 +694,12 @@ export function CommandPalette() {
       />
       {/* Palette */}
       <div
-        className="fixed z-[91] top-[min(20%,120px)] left-1/2 -translate-x-1/2 w-[540px] max-w-[calc(100vw-2rem)] rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-2xl flex flex-col overflow-hidden"
+        className="fixed z-[91] top-[min(20%,120px)] left-1/2 -translate-x-1/2 w-[540px] max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl flex flex-col overflow-hidden"
         onKeyDown={onKeyDown}
       >
         {/* Search input */}
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-neutral-200 dark:border-neutral-700">
-          <svg className="w-4 h-4 text-neutral-400 dark:text-neutral-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+          <svg className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -707,9 +707,9 @@ export function CommandPalette() {
             value={query}
             onChange={e => { setQuery(e.target.value); setSelectedIndex(0); }}
             placeholder="Type a command..."
-            className="flex-1 bg-transparent text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none"
+            className="flex-1 bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none"
           />
-          <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-neutral-400 dark:text-neutral-500 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded">
+          <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded">
             ESC
           </kbd>
         </div>
@@ -717,7 +717,7 @@ export function CommandPalette() {
         {/* Results */}
         <div ref={listRef} className="max-h-[min(60vh,400px)] overflow-y-auto py-1">
           {flatItems.length === 0 && (
-            <div className="px-4 py-6 text-center text-sm text-neutral-500 dark:text-neutral-400">
+            <div className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
               No matching commands
             </div>
           )}
@@ -739,7 +739,7 @@ export function CommandPalette() {
                   className={`w-full flex items-center gap-3 px-4 py-2 text-left text-sm transition-colors ${
                     isSelected
                       ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                      : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800'
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                   }`}
                 >
                   {/* Toggle indicator */}
@@ -747,7 +747,7 @@ export function CommandPalette() {
                     <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
                       active
                         ? 'bg-blue-500 border-blue-500 dark:bg-blue-600 dark:border-blue-600'
-                        : 'border-neutral-300 dark:border-neutral-600'
+                        : 'border-slate-300 dark:border-slate-600'
                     }`}>
                       {active && (
                         <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -758,12 +758,12 @@ export function CommandPalette() {
                   )}
                   <span className="flex-1 truncate">{cmd.label}</span>
                   {cmd.shortcut && (
-                    <kbd className="px-1.5 py-0.5 text-[10px] font-medium text-neutral-400 dark:text-neutral-500 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded">
+                    <kbd className="px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded">
                       {cmd.shortcut}
                     </kbd>
                   )}
                   {cmd.hint && (
-                    <span className="text-xs text-neutral-400 dark:text-neutral-500">{cmd.hint()}</span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500">{cmd.hint()}</span>
                   )}
                 </button>
               );
@@ -771,7 +771,7 @@ export function CommandPalette() {
 
             return (
               <div key={group.category}>
-                <div className="px-4 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-neutral-400 dark:text-neutral-500 uppercase">
+                <div className="px-4 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-400 dark:text-slate-500 uppercase">
                   {group.category}
                 </div>
                 {categoryItems}
@@ -781,18 +781,18 @@ export function CommandPalette() {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center gap-3 px-4 py-2 border-t border-neutral-100 dark:border-neutral-800 text-[11px] text-neutral-400 dark:text-neutral-500">
+        <div className="flex items-center gap-3 px-4 py-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 dark:text-slate-500">
           <span className="flex items-center gap-1">
-            <kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded text-[10px]">&uarr;</kbd>
-            <kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded text-[10px]">&darr;</kbd>
+            <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px]">&uarr;</kbd>
+            <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px]">&darr;</kbd>
             navigate
           </span>
           <span className="flex items-center gap-1">
-            <kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded text-[10px]">&crarr;</kbd>
+            <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px]">&crarr;</kbd>
             select
           </span>
           <span className="flex items-center gap-1">
-            <kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded text-[10px]">esc</kbd>
+            <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px]">esc</kbd>
             close
           </span>
         </div>

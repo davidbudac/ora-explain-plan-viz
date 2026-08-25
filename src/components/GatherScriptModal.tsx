@@ -134,17 +134,17 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl border border-neutral-200 dark:border-neutral-700 w-[640px] max-w-[95vw] my-6"
+        className="bg-white dark:bg-slate-900 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 w-[640px] max-w-[95vw] my-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-800">
-          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
             Gather Schema Metadata
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-200 text-lg leading-none px-1"
+            className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 text-lg leading-none px-1"
             aria-label="Close"
           >
             ×
@@ -152,7 +152,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
         </div>
 
         <div className="p-4 space-y-4">
-          <p className="text-[11px] text-neutral-600 dark:text-neutral-400 leading-snug">
+          <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-snug">
             This generates a ready-to-run script that collects the schema details relevant
             to this plan (tables, indexes, column stats, histograms) from the database that
             ran it. Coverage depends on your privileges — the script prefers{' '}
@@ -161,14 +161,14 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
             data dictionary.
           </p>
 
-          <div className="inline-flex rounded-md border border-neutral-200 dark:border-neutral-700 overflow-hidden text-[11px]">
+          <div className="inline-flex rounded-md border border-slate-200 dark:border-slate-700 overflow-hidden text-[11px]">
             <button
               type="button"
               onClick={() => setMode('sqlid')}
               className={`px-3 py-1 ${
                 mode === 'sqlid'
                   ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200'
-                  : 'bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             >
               SQL_ID
@@ -176,10 +176,10 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
             <button
               type="button"
               onClick={() => setMode('manual')}
-              className={`px-3 py-1 border-l border-neutral-200 dark:border-neutral-700 ${
+              className={`px-3 py-1 border-l border-slate-200 dark:border-slate-700 ${
                 mode === 'manual'
                   ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200'
-                  : 'bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             >
               Object list
@@ -189,7 +189,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
           {mode === 'sqlid' ? (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-medium text-neutral-600 dark:text-neutral-400 mb-1 uppercase tracking-wide">
+                <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1 uppercase tracking-wide">
                   SQL_ID
                 </label>
                 <input
@@ -199,9 +199,9 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
                   onChange={(e) => setSqlId(e.target.value.trim())}
                   placeholder="e.g. an05rsj1up1k5"
                   spellCheck={false}
-                  className={`w-full px-2.5 py-1.5 text-xs font-mono rounded-md bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:outline-none focus:ring-2 ${
+                  className={`w-full px-2.5 py-1.5 text-xs font-mono rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 ${
                     sqlIdValid
-                      ? 'border border-neutral-200 dark:border-neutral-700 focus:ring-blue-500/60'
+                      ? 'border border-slate-200 dark:border-slate-700 focus:ring-blue-500/60'
                       : 'border border-red-400 dark:border-red-500 focus:ring-red-500/60'
                   }`}
                 />
@@ -212,8 +212,8 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
                 )}
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-neutral-600 dark:text-neutral-400 mb-1 uppercase tracking-wide">
-                  Plan hash <span className="font-normal normal-case text-neutral-400">(optional)</span>
+                <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1 uppercase tracking-wide">
+                  Plan hash <span className="font-normal normal-case text-slate-400">(optional)</span>
                 </label>
                 <input
                   type="text"
@@ -221,9 +221,9 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
                   onChange={(e) => setPlanHash(e.target.value.trim())}
                   placeholder="e.g. 3001234567"
                   spellCheck={false}
-                  className={`w-full px-2.5 py-1.5 text-xs font-mono rounded-md bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:outline-none focus:ring-2 ${
+                  className={`w-full px-2.5 py-1.5 text-xs font-mono rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 ${
                     planHashValid
-                      ? 'border border-neutral-200 dark:border-neutral-700 focus:ring-blue-500/60'
+                      ? 'border border-slate-200 dark:border-slate-700 focus:ring-blue-500/60'
                       : 'border border-red-400 dark:border-red-500 focus:ring-red-500/60'
                   }`}
                 />
@@ -236,7 +236,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
             </div>
           ) : (
             <div>
-              <label className="block text-[11px] font-medium text-neutral-600 dark:text-neutral-400 mb-1 uppercase tracking-wide">
+              <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1 uppercase tracking-wide">
                 Objects ({manualParsed.items.length})
               </label>
               <textarea
@@ -246,7 +246,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
                 placeholder={'One OWNER.OBJECT per line, e.g.:\nHR.EMPLOYEES\nHR.DEPARTMENTS\nHR.EMP_EMP_ID_PK'}
                 spellCheck={false}
                 rows={6}
-                className="w-full px-2.5 py-1.5 text-xs font-mono rounded-md bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 border border-neutral-200 dark:border-neutral-700"
+                className="w-full px-2.5 py-1.5 text-xs font-mono rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 border border-slate-200 dark:border-slate-700"
               />
               {manualParsed.errors.length > 0 && (
                 <ul className="mt-1 text-[10px] text-red-600 dark:text-red-400 list-disc list-inside space-y-0.5">
@@ -255,7 +255,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
                   ))}
                 </ul>
               )}
-              <p className="mt-1 text-[10px] text-neutral-500 dark:text-neutral-400">
+              <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
                 Identifiers are upper-cased unless wrapped in double quotes. Indexes will be
                 pulled in automatically for any table you list.
               </p>
@@ -263,18 +263,18 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
           )}
 
           <div>
-            <span className="block text-[11px] font-medium text-neutral-600 dark:text-neutral-400 uppercase tracking-wide mb-1.5">
+            <span className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">
               Run against the database
             </span>
             {!target && (
-              <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mb-1.5">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-1.5">
                 {mode === 'sqlid'
                   ? 'Enter a valid SQL_ID above to generate the script.'
                   : 'List at least one OWNER.OBJECT above to generate the script.'}
               </p>
             )}
             <div className="grid grid-cols-2 gap-2">
-              <div className="p-2.5 rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-950 flex flex-col gap-1.5">
+              <div className="p-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 flex flex-col gap-1.5">
                 <button
                   type="button"
                   onClick={copyScript}
@@ -283,21 +283,21 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
                 >
                   {copiedKey === 'script' ? 'Copied!' : 'Copy paste-ready script'}
                 </button>
-                <p className="text-[10px] text-neutral-500 dark:text-neutral-400 leading-snug">
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-snug">
                   Paste the whole script into a SQL*Plus / SQLcl session. It prints the JSON
                   bundle between BEGIN/END markers — copy that back into the box below.
                 </p>
               </div>
-              <div className="p-2.5 rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-950 flex flex-col gap-1.5">
+              <div className="p-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 flex flex-col gap-1.5">
                 <button
                   type="button"
                   onClick={download}
                   disabled={!target}
-                  className="h-7 px-3 text-xs font-semibold rounded border border-neutral-300 dark:border-neutral-600 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="h-7 px-3 text-xs font-semibold rounded border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Download .sql
                 </button>
-                <p className="text-[10px] text-neutral-500 dark:text-neutral-400 leading-snug">
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-snug">
                   Run it with <code>@{target ? downloadFilename(target) : 'gather_plan_metadata.sql'}</code>{' '}
                   — no arguments needed. It writes <code>{BUNDLE_SPOOL_FILE}</code>, which you
                   can drop below or onto the input panel.
@@ -306,10 +306,10 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
             </div>
             {pasteScript && (
               <details className="mt-2">
-                <summary className="text-[10px] text-neutral-500 dark:text-neutral-400 cursor-pointer select-none hover:text-neutral-700 dark:hover:text-neutral-300">
+                <summary className="text-[10px] text-slate-500 dark:text-slate-400 cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-300">
                   Preview script ({pasteScript.split('\n').length} lines)
                 </summary>
-                <pre className="mt-1 text-[10px] font-mono p-2 rounded border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-950 text-neutral-800 dark:text-neutral-200 whitespace-pre overflow-auto max-h-72">
+                <pre className="mt-1 text-[10px] font-mono p-2 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 whitespace-pre overflow-auto max-h-72">
                   {pasteScript}
                 </pre>
               </details>
@@ -318,13 +318,13 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px] font-medium text-neutral-600 dark:text-neutral-400 uppercase tracking-wide">
+              <span className="text-[11px] font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wide">
                 Attach the output
               </span>
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="text-[10px] px-1.5 py-0.5 rounded border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                className="text-[10px] px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
               >
                 Load file…
               </button>
@@ -344,7 +344,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
               placeholder="Paste the script's terminal output or the contents of bundle.json here… (SQL*Plus noise lines are fine — they are stripped automatically)"
               spellCheck={false}
               rows={3}
-              className="w-full px-2.5 py-1.5 text-xs font-mono rounded-md bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 border border-neutral-200 dark:border-neutral-700"
+              className="w-full px-2.5 py-1.5 text-xs font-mono rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 border border-slate-200 dark:border-slate-700"
             />
             {attachMessage && (
               <div
@@ -372,11 +372,11 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
           </div>
         </div>
 
-        <div className="flex justify-end px-4 py-3 border-t border-neutral-200 dark:border-neutral-800">
+        <div className="flex justify-end px-4 py-3 border-t border-slate-200 dark:border-slate-800">
           <button
             type="button"
             onClick={onClose}
-            className="text-xs px-3 py-1.5 rounded border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+            className="text-xs px-3 py-1.5 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
           >
             Close
           </button>
