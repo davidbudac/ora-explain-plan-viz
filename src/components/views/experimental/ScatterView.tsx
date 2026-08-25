@@ -311,7 +311,7 @@ export function ScatterView() {
                 const isSearchMatch = searchText.trim() !== '' && matchesSearch(node, searchText);
                 const severity = cardinalityRatioSeverity(computeCardinalityRatio(node.rows, node.actualRows));
 
-                const fill = inScope ? SEVERITY_FILL[severity] : isDark ? '#4b5563' : '#9ca3af';
+                const fill = inScope ? SEVERITY_FILL[severity] : isDark ? '#475569' : '#94a3b8';
                 const fillOpacity = inScope ? 0.8 : 0.28;
 
                 let stroke = isDark ? '#0f172a' : '#ffffff';

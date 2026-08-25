@@ -133,7 +133,7 @@ export const HIGHLIGHT_COLORS: HighlightColorDef[] = [
   {
     name: 'white',
     label: 'White',
-    hex: '#e5e7eb',
+    hex: '#e2e8f0',
     hexDark: '#f9fafb',
     ring: 'ring-2 ring-slate-300 dark:ring-slate-100 ring-offset-1 dark:ring-offset-slate-900',
     chip: 'bg-white dark:bg-slate-100 border border-slate-300 dark:border-slate-400',
@@ -145,8 +145,8 @@ export const HIGHLIGHT_COLORS: HighlightColorDef[] = [
   {
     name: 'black',
     label: 'Black',
-    hex: '#374151',
-    hexDark: '#9ca3af',
+    hex: '#334155',
+    hexDark: '#94a3b8',
     ring: 'ring-2 ring-slate-700 dark:ring-slate-400 ring-offset-1 dark:ring-offset-slate-900',
     chip: 'bg-slate-700 dark:bg-slate-500',
     chipActive: 'bg-slate-800 dark:bg-slate-400 ring-2 ring-slate-500 dark:ring-slate-600',

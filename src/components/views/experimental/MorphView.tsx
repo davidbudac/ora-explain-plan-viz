@@ -272,7 +272,7 @@ export function MorphView() {
             const isSearchMatch = searchText.trim() !== '' && matchesSearch(node, searchText);
             const severity = cardinalityRatioSeverity(computeCardinalityRatio(node.rows, node.actualRows));
 
-            const fill = inScope ? SEVERITY_FILL[severity] : isDark ? '#4b5563' : '#9ca3af';
+            const fill = inScope ? SEVERITY_FILL[severity] : isDark ? '#475569' : '#94a3b8';
             const opacity = inScope ? 0.9 : 0.4;
 
             let stroke = isDark ? '#0f172a' : '#ffffff';

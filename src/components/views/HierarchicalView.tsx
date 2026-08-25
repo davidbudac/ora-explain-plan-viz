@@ -1234,7 +1234,7 @@ function HierarchicalViewContent({
           variant={BackgroundVariant.Dots}
           gap={20}
           size={1}
-          color={theme === 'dark' ? '#374151' : '#e5e7eb'}
+          color={theme === 'dark' ? '#334155' : '#e2e8f0'}
         />
         <Controls className="!bg-white dark:!bg-slate-800 !border-slate-200 dark:!border-slate-700" />
         <Panel position="top-right">

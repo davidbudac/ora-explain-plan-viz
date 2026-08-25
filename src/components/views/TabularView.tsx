@@ -472,9 +472,9 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
               top: tooltip.y + 2,
               isolation: 'isolate',
               borderLeft: `3px solid ${tooltipColorDef ? tooltipColorDef.hex : '#a3a3a3'}`,
-              borderTop: '1px solid var(--border-color, #e5e7eb)',
-              borderRight: '1px solid var(--border-color, #e5e7eb)',
-              borderBottom: '1px solid var(--border-color, #e5e7eb)',
+              borderTop: '1px solid var(--border-color, #e2e8f0)',
+              borderRight: '1px solid var(--border-color, #e2e8f0)',
+              borderBottom: '1px solid var(--border-color, #e2e8f0)',
             }}
           >
             <span className="text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{tooltipAnnotation.text}</span>
@@ -697,14 +697,14 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                           const desc = new Set<number>();
                           collectDescendantIds(node, desc);
                           return (
-                            <span className="px-1 py-0 text-[9px] font-medium bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded">
+                            <span className="px-1 py-0 text-[10px] font-medium bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded">
                               +{desc.size}
                             </span>
                           );
                         })()}
                         {/* Hot badge */}
                         {isHot && (
-                          <span className="px-1 py-0 text-[9px] font-bold bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded">
+                          <span className="px-1 py-0 text-[10px] font-bold bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded">
                             HOT
                           </span>
                         )}
@@ -725,7 +725,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                           return (
                             <span
                               key={group.id}
-                              className={`px-1 py-0 text-[9px] font-medium rounded border ${groupColorDef.groupBorder} ${groupColorDef.text}`}
+                              className={`px-1 py-0 text-[10px] font-medium rounded border ${groupColorDef.groupBorder} ${groupColorDef.text}`}
                               title={group.note ? `${group.name}: ${group.note}` : group.name}
                             >
                               {group.name}
@@ -797,7 +797,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                           <div className="flex items-baseline gap-1.5">
                             <span>{formatTimeCompact(node.actualTime)}</span>
                             {timeRatio >= 0.01 && (
-                              <span className={`text-[9px] ${timeRatio >= 0.5 ? 'text-red-500' : timeRatio >= 0.25 ? 'text-orange-500' : timeRatio >= 0.1 ? 'text-yellow-600 dark:text-yellow-500' : 'text-slate-400 dark:text-slate-500'}`}>
+                              <span className={`text-[10px] ${timeRatio >= 0.5 ? 'text-red-500' : timeRatio >= 0.25 ? 'text-orange-500' : timeRatio >= 0.1 ? 'text-yellow-600 dark:text-yellow-500' : 'text-slate-400 dark:text-slate-500'}`}>
                                 {(timeRatio * 100).toFixed(0)}%
                               </span>
                             )}

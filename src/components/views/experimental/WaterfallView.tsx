@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePlan } from '../../../hooks/usePlanContext';
-import { COLOR_SCHEME_PALETTES, getOperationCategory } from '../../../lib/types';
+import { getCategoryPaint, getOperationCategory } from '../../../lib/types';
 import { computeRowFlow } from '../../../lib/rowFlow';
 import type { RowFlowEntry } from '../../../lib/rowFlow';
 import { formatNumberShort } from '../../../lib/format';
@@ -25,8 +25,9 @@ function factorLabel(entry: RowFlowEntry): { text: string; tone: 'amber' | 'red'
 }
 
 export function WaterfallView() {
-  const { parsedPlan, selectedNodeIds, selectNode, filteredNodeIds, colorScheme, filters } =
+  const { parsedPlan, selectedNodeIds, selectNode, filteredNodeIds, colorScheme, filters, theme } =
     usePlan();
+  const isDark = theme === 'dark';
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<Tooltip | null>(null);
@@ -106,7 +107,6 @@ export function WaterfallView() {
 
   const wasted = flow.leafRowsRead - flow.rootRowsReturned;
   const wastedPct = flow.leafRowsRead > 0 ? (wasted / flow.leafRowsRead) * 100 : 0;
-  const palette = COLOR_SCHEME_PALETTES[colorScheme];
   const logMax = Math.log10(maxOutput + 1) || 1;
 
   return (
@@ -143,7 +143,7 @@ export function WaterfallView() {
           const isSelected = selectedNodeIdSet.has(node.id);
           const isSearchMatch = searchText.trim() !== '' && matchesSearch(node, searchText);
           const category = getOperationCategory(node.operation);
-          const catColor = palette[category] || '#6b7280';
+          const paint = getCategoryPaint(category, colorScheme, isDark);
           const barShare = (Math.log10(entry.output + 1) / logMax) * 100;
           const chip = factorLabel(entry);
           const showEst = entry.outputIsEstimate && flow.hasActuals;
@@ -192,7 +192,9 @@ export function WaterfallView() {
                   className="h-4 rounded-sm"
                   style={{
                     width: `${Math.max(barShare, entry.output > 0 ? 1.5 : 0)}%`,
-                    backgroundColor: catColor,
+                    backgroundColor: paint.fill,
+                    // Dark mode: tinted surface + hue hairline, matching the tree.
+                    boxShadow: isDark ? `inset 0 0 0 1px ${paint.stroke}` : undefined,
                     outline: isSearchMatch && !isSelected ? '1.5px dashed #3b82f6' : undefined,
                   }}
                 />
@@ -213,7 +215,7 @@ export function WaterfallView() {
               <div className="w-[90px] shrink-0 text-right text-[11px] tabular-nums text-slate-600 dark:text-slate-300">
                 {formatNumberShort(entry.output, { empty: '0' })}
                 {showEst && (
-                  <span className="ml-1 text-[9px] uppercase text-slate-400 dark:text-slate-500">
+                  <span className="ml-1 text-[10px] uppercase text-slate-500 dark:text-slate-400">
                     est
                   </span>
                 )}
