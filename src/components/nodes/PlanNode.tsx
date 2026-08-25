@@ -404,11 +404,11 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         {/* Query block badge (rail scheme moves it to the footer rail) */}
         {!isRail && options.showQueryBlockBadge && node.queryBlock && (
           <div className="flex flex-wrap gap-1 mb-2">
-            <span className="px-1.5 py-0.5 text-xs rounded font-mono bg-violet-200 dark:bg-violet-800 text-violet-800 dark:text-violet-200">
+            <span className="px-1.5 py-0.5 text-xs rounded font-mono bg-violet-500/10 border border-violet-400/40 dark:border-violet-500/40 text-violet-700 dark:text-violet-300">
               {node.queryBlock}
             </span>
             {node.objectAlias && (
-              <span className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs rounded font-mono">
+              <span className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 border border-transparent text-slate-700 dark:text-slate-200 text-xs rounded font-mono">
                 {node.objectAlias}
               </span>
             )}
@@ -436,7 +436,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
               >
                 {showRowsLine && (
                   <div>
-                    <span className="text-[9px] text-slate-400 dark:text-slate-500">rows </span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">rows </span>
                     {showEstRows && (
                       <span className={showActRows ? 'text-slate-400 dark:text-slate-500' : 'font-semibold'}>
                         {formatNumberShort(node.rows)}
@@ -459,7 +459,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                   <div>
                     {showActualTimePart && (
                       <>
-                        <span className="text-[9px] text-slate-400 dark:text-slate-500">t </span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500">t </span>
                         <span className="font-semibold">{formatTimeCompact(node.actualTime)}</span>
                       </>
                     )}
@@ -468,7 +468,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                     )}
                     {showStartsPart && (
                       <>
-                        <span className="text-[9px] text-slate-400 dark:text-slate-500">starts </span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500">starts </span>
                         <span className="font-semibold">{formatNumberShort(node.starts)}</span>
                       </>
                     )}
@@ -478,7 +478,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                   <div>
                     {showCostPart && (
                       <>
-                        <span className="text-[9px] text-slate-400 dark:text-slate-500">cost </span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500">cost </span>
                         <span className="font-semibold">{formatNumberShort(node.cost)}</span>
                       </>
                     )}
@@ -501,8 +501,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                 {hasActualStats && (
                   <>
                     <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80" />
-                    <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80 text-right text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Est</span>
-                    <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80 text-right text-[9px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400">Act</span>
+                    <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Est</span>
+                    <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80 text-right text-[10px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400">Act</span>
                     <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80" />
                   </>
                 )}
@@ -529,7 +529,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                         <span className={`pl-0.5 pr-1.5 py-0.5 flex items-center justify-end ${rowBorder}`}>
                           {'isRowsRow' in r && r.isRowsRow && cardLabel && cardSeverity !== 'good' ? (
                             <em
-                              className={`not-italic px-1 rounded text-[9px] font-bold whitespace-nowrap ${
+                              className={`not-italic px-1 rounded text-[10px] font-bold whitespace-nowrap ${
                                 cardSeverity === 'bad'
                                   ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
                                   : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
@@ -539,7 +539,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                               {cardLabel}
                             </em>
                           ) : 'isRowsRow' in r && r.isRowsRow && r.est !== undefined && r.act !== undefined ? (
-                            <em className="not-italic px-1 rounded text-[9px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" title="Estimate matches actual rows">
+                            <em className="not-italic px-1 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" title="Estimate matches actual rows">
                               ≈
                             </em>
                           ) : null}
