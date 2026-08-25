@@ -886,10 +886,21 @@ function HierarchicalViewContent({
     setEdges(layoutData.edges);
   }, [layoutData, setNodes, setEdges]);
 
+  // React Flow paints edges a frame or two before the nodes have positions, so
+  // the first mount flashes a ghost frame of stray edges. Stay invisible until
+  // the initial layout has been fitted, then fade in. Only the first fit gates
+  // opacity — later re-layouts never hide the canvas again.
+  const [layoutReady, setLayoutReady] = useState(false);
+  const layoutReadyRef = useRef(false);
+
   // Re-fit viewport when layout changes (e.g. enabling predicate details expands nodes).
   useEffect(() => {
     const timer = setTimeout(() => {
       fitView({ padding: 0.2 });
+      if (!layoutReadyRef.current) {
+        layoutReadyRef.current = true;
+        requestAnimationFrame(() => setLayoutReady(true));
+      }
     }, 50);
     return () => clearTimeout(timer);
   }, [layoutData, fitView]);
@@ -1199,7 +1210,12 @@ function HierarchicalViewContent({
   }
 
   return (
-    <div ref={containerRef} className="w-full h-full min-h-[320px] min-w-0">
+    <div
+      ref={containerRef}
+      className={`w-full h-full min-h-[320px] min-w-0 transition-opacity duration-150 ${
+        layoutReady ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
