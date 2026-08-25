@@ -266,25 +266,29 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
   if (isCollapsed) {
     const filtersActive = hasActiveFilters(filters) || filteredCount !== totalCount;
     return (
-      <div className="bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col items-center py-4 px-1.5 shadow-sm">
+      <div className="bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col items-center py-3 px-1.5">
         <button
           onClick={() => setIsCollapsed(false)}
-          className="relative h-9 w-9 flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 rounded-xl transition-all shadow-lg ring-2 ring-blue-500/20 active:scale-95"
+          className={`relative h-9 w-9 flex items-center justify-center rounded-md transition-colors ${
+            filtersActive
+              ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
           title={filtersActive ? `Show filters (active: ${filteredCount} / ${totalCount} ops visible)` : 'Show filters'}
+          aria-label="Show filters"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
           </svg>
           {filtersActive && (
-            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-400 border-2 border-white dark:border-slate-900" aria-hidden="true" />
+            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-white dark:border-slate-900" aria-hidden="true" />
           )}
         </button>
         {filtersActive && (
-          <span className="mt-2 text-[9px] font-bold text-amber-600 dark:text-amber-400 font-mono whitespace-nowrap">
+          <span className="mt-2 text-[9px] font-semibold text-amber-600 dark:text-amber-400 font-mono whitespace-nowrap">
             {filteredCount}/{totalCount}
           </span>
         )}
-        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-4 uppercase tracking-[0.2em] writing-mode-vertical whitespace-nowrap">Filter Workspace</span>
       </div>
     );
   }
@@ -301,36 +305,32 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
         aria-label="Resize filters panel"
       />
       <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-             <div className="p-1.5 bg-blue-600 rounded-lg shadow-sm">
-                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                </svg>
-             </div>
-             <div>
-                <h3 className="font-bold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-widest">Filters</h3>
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-                   {filteredCount} / {totalCount} ops
-                </div>
-             </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-baseline gap-2 min-w-0">
+            <h3 className="font-semibold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-widest">Filters</h3>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate">
+              {filteredCount} / {totalCount} ops
+            </span>
           </div>
           <div className="flex items-center gap-1">
-             <button
+            {(hasActiveFilters(filters) || filteredCount !== totalCount) && (
+              <button
                 onClick={clearFilters}
-                className="px-2 py-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded uppercase tracking-wider transition-colors"
+                className="px-2 py-1 text-[10px] font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded uppercase tracking-wider transition-colors"
               >
                 Reset
               </button>
-              <button
-                  onClick={() => setIsCollapsed(true)}
-                  className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md transition-colors text-slate-400 dark:text-slate-500"
-                  title="Collapse panel"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                  </svg>
-                </button>
+            )}
+            <button
+              onClick={() => setIsCollapsed(true)}
+              className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md transition-colors text-slate-400 dark:text-slate-500"
+              title="Collapse panel"
+              aria-label="Collapse filters panel"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -519,8 +519,8 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       </div>
 
       {/* Thresholds */}
-      <div className="p-3">
-        <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-3">
+      <div className="p-4">
+        <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">
           Hide below threshold
         </label>
         <div className="space-y-4">

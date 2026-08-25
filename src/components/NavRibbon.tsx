@@ -150,7 +150,7 @@ export function NavRibbon() {
                 `}
               >
                 {tab.icon}
-                <span className="hidden xl:inline">{tab.label}</span>
+                <span className="hidden lg:inline">{tab.label}</span>
               </button>
             );
           })}
@@ -161,7 +161,7 @@ export function NavRibbon() {
         <button
           type="button"
           onClick={() => setVisualizationMaximized(!visualizationMaximized)}
-          className="h-8 w-8 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-sm"
+          className="h-8 w-8 flex items-center justify-center rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors"
           title={visualizationMaximized ? 'Exit fullscreen visualization (F)' : 'Maximize visualization (F)'}
         >
           {visualizationMaximized ? (
