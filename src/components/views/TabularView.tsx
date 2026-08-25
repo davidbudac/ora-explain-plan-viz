@@ -448,10 +448,12 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
   const groupBorderClass = 'border-l border-slate-200 dark:border-slate-700';
   const bodyGroupBorderClass = 'border-l border-slate-100 dark:border-slate-800';
 
+  // pr-4 keeps the rightmost column (and its inline mismatch bars) off the
+  // details rail; it stays part of the scrollable area when columns overflow.
   return (
     <div
       ref={tableRef}
-      className="h-full overflow-auto bg-white dark:bg-slate-950 focus:outline-none relative"
+      className="h-full overflow-auto pr-4 bg-white dark:bg-slate-950 focus:outline-none relative"
       tabIndex={0}
       onKeyDown={handleKeyDown}
       onMouseLeave={() => { setHoveredNodeId(null); setTooltip(null); }}
