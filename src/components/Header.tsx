@@ -3,6 +3,9 @@ import { usePlan } from '../hooks/usePlanContext';
 import type { ColorScheme } from '../lib/types';
 import { hasAnnotations } from '../lib/annotations';
 
+const ICON_BTN =
+  'h-8 w-8 flex items-center justify-center rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors';
+
 const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
   contrast: 'High Contrast',
   semantic: 'Semantic',
@@ -102,10 +105,11 @@ export function Header() {
         {/* Load annotated plan */}
         <button
           onClick={handleLoad}
-          className="h-8 w-8 flex items-center justify-center rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+          className={ICON_BTN}
           title="Load annotated plan (.json)"
+          aria-label="Load annotated plan"
         >
-          <svg className="w-4 h-4 text-neutral-700 dark:text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
           </svg>
         </button>
@@ -121,14 +125,15 @@ export function Header() {
         {showSave && (
           <button
             onClick={exportAnnotatedPlan}
-            className={`h-8 w-8 flex items-center justify-center rounded-md border transition-colors ${
+            className={
               hasSomethingToSave
-                ? 'border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50'
-                : 'border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700'
-            }`}
+                ? 'h-8 w-8 flex items-center justify-center rounded-md text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors'
+                : ICON_BTN
+            }
             title="Save annotated plan (.json)"
+            aria-label="Save annotated plan"
           >
-            <svg className={`w-4 h-4 ${hasSomethingToSave ? 'text-blue-600 dark:text-blue-400' : 'text-neutral-700 dark:text-neutral-300'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
           </button>
@@ -138,10 +143,11 @@ export function Header() {
         <button
           onClick={handleExportPng}
           disabled={!canExportPng || exporting}
-          className="h-8 w-8 flex items-center justify-center rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className={`${ICON_BTN} disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500 dark:disabled:hover:text-slate-400`}
           title="Export plan as PNG"
+          aria-label="Export plan as PNG"
         >
-          <svg className="w-4 h-4 text-neutral-700 dark:text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
@@ -151,15 +157,16 @@ export function Header() {
         <button
           onClick={handleShare}
           disabled={!hasAnyInput}
-          className={`h-8 w-8 flex items-center justify-center rounded-md border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+          className={
             shareCopied
-              ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30'
+              ? 'h-8 w-8 flex items-center justify-center rounded-md bg-green-50 dark:bg-green-900/30 transition-colors'
               : shareKind === 'error'
-                ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30'
+                ? 'h-8 w-8 flex items-center justify-center rounded-md text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 transition-colors'
                 : shareKind === 'manual'
-                  ? 'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30'
-                  : 'border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700'
-          }`}
+                  ? 'h-8 w-8 flex items-center justify-center rounded-md text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 transition-colors'
+                  : `${ICON_BTN} disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500 dark:disabled:hover:text-slate-400`
+          }
+          aria-label="Share plan via URL"
           title={
             shareKind === 'copied' ? 'URL copied to clipboard!'
               : shareKind === 'warning' ? 'URL copied — verify the full link pasted'
@@ -173,16 +180,18 @@ export function Header() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           ) : (
-            <svg className="w-4 h-4 text-neutral-700 dark:text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
             </svg>
           )}
         </button>
 
+        <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" aria-hidden="true" />
+
         {/* Command palette */}
         <button
           onClick={() => setCommandPaletteOpen(true)}
-          className="h-8 px-2.5 flex items-center gap-1.5 rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors text-neutral-700 dark:text-neutral-300"
+          className="h-8 px-2.5 flex items-center gap-1.5 rounded-md border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           title="Command palette — search every action and setting"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -194,8 +203,9 @@ export function Header() {
         <select
           value={colorScheme}
           onChange={(e) => setColorScheme(e.target.value as ColorScheme)}
-          className="h-8 px-2.5 rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/60"
+          className="h-8 px-2 rounded-md border border-transparent bg-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/60 cursor-pointer transition-colors"
           title="Graph color palette"
+          aria-label="Graph color palette"
         >
           {Object.entries(COLOR_SCHEME_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
@@ -206,11 +216,12 @@ export function Header() {
 
         <button
           onClick={toggleTheme}
-          className="h-8 w-8 flex items-center justify-center rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+          className={ICON_BTN}
           title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
         >
           {theme === 'light' ? (
-            <svg className="w-4 h-4 text-neutral-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -234,10 +245,11 @@ export function Header() {
           href="https://github.com/davidbudac/ora-explain-plan-viz"
           target="_blank"
           rel="noopener noreferrer"
-          className="h-8 w-8 flex items-center justify-center rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+          className={ICON_BTN}
           title="View on GitHub"
+          aria-label="View on GitHub"
         >
-          <svg className="w-4 h-4 text-neutral-700 dark:text-neutral-300" fill="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
             <path
               fillRule="evenodd"
               clipRule="evenodd"
