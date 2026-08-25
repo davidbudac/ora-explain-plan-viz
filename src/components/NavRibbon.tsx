@@ -27,9 +27,6 @@ export function NavRibbon() {
   const rootRef = useRef<HTMLDivElement>(null);
   const planTabsRef = useRef<HTMLDivElement>(null);
   const tabStripRef = useRef<HTMLDivElement>(null);
-  // Width the view-tab strip needs while it still shows labels. Cached because
-  // once collapsed we can no longer measure the expanded width directly.
-  const expandedStripWidth = useRef<number | null>(null);
   const [iconOnly, setIconOnly] = useState(false);
 
   const comparablePlanCount = plans.filter((slot) => slot.parsedPlan).length;
@@ -50,53 +47,65 @@ export function NavRibbon() {
     }
   }, [parsedPlan, viewModeAvailable, setViewMode]);
 
-  // The tab set changes with the plan (SQL / Monitor tabs), which invalidates
-  // the cached expanded width — start over from the labelled layout.
-  const visibleTabCount = visibleTabs.length;
-  useLayoutEffect(() => {
-    expandedStripWidth.current = null;
-    setIconOnly(false);
-  }, [visibleTabCount]);
-
   // Collapse the view tabs to icon-only based on the space actually left over
-  // by the plan tabs, rather than a fixed breakpoint.
+  // by the plan tabs, rather than a fixed breakpoint. The labelled width is
+  // re-measured every time (by briefly un-hiding the sr-only labels in place)
+  // so the decision never rides on a stale first-paint measurement.
+  const visibleTabCount = visibleTabs.length;
   useLayoutEffect(() => {
     const root = rootRef.current;
     const strip = tabStripRef.current;
     if (!root || !strip) return;
 
+    const measureLabelledWidth = () => {
+      const labels = strip.querySelectorAll<HTMLElement>('[data-tab-label]');
+      if (labels.length === 0) return strip.scrollWidth;
+      const hidden = [...labels].filter((el) => el.classList.contains('sr-only'));
+      hidden.forEach((el) => el.classList.remove('sr-only'));
+      const width = strip.scrollWidth;
+      hidden.forEach((el) => el.classList.add('sr-only'));
+      return width;
+    };
+
     const measure = () => {
-      if (!iconOnly) expandedStripWidth.current = strip.scrollWidth;
-      const stripNeeds = expandedStripWidth.current ?? strip.scrollWidth;
       const planTabsNeeds = planTabsRef.current?.scrollWidth ?? 0;
       const available = root.clientWidth - RIBBON_CHROME_PX;
-      setIconOnly(planTabsNeeds + stripNeeds > available);
+      setIconOnly(planTabsNeeds + measureLabelledWidth() > available);
     };
 
     measure();
     if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(measure);
     observer.observe(root);
-    observer.observe(strip);
     if (planTabsRef.current) observer.observe(planTabsRef.current);
     return () => observer.disconnect();
-  }, [iconOnly, visibleTabCount, comparablePlanCount, plans.length]);
+  }, [visibleTabCount, comparablePlanCount, plans.length]);
 
-  if (!parsedPlan && viewMode !== 'compare') return null;
+  // Keep the ribbon (and with it the plan tabs) while any slot holds a plan —
+  // an empty active slot still needs a way back to the other plan. Its view
+  // tabs would have nothing to switch, so they're hidden instead.
+  const activeSlotEmpty = !parsedPlan && viewMode !== 'compare';
+  if (comparablePlanCount === 0 && viewMode !== 'compare') return null;
 
   return (
     <div
       ref={rootRef}
       className="flex items-center justify-between gap-3 px-3 py-1 bg-slate-50 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 shadow-sm z-20"
     >
-      <div ref={planTabsRef} className="flex flex-1 items-center gap-4 min-w-0 overflow-x-auto scrollbar-none">
-        <PlanTabs />
+      <div className="flex-1 min-w-0 overflow-x-auto scrollbar-none">
+        {/* Inner w-max wrapper: its scrollWidth is the plan tabs' natural width,
+            which is what the collapse measurement below needs. */}
+        <div ref={planTabsRef} className="flex items-center gap-4 w-max">
+          <PlanTabs />
+        </div>
       </div>
 
       <div className="flex items-center gap-3 min-w-0">
         <div
           ref={tabStripRef}
-          className="flex min-w-0 overflow-x-auto scrollbar-none bg-slate-200/50 dark:bg-slate-800/80 rounded-lg p-1 border border-slate-300/40 dark:border-slate-700/50"
+          className={`flex min-w-0 overflow-x-auto scrollbar-none bg-slate-200/50 dark:bg-slate-800/80 rounded-lg p-1 border border-slate-300/40 dark:border-slate-700/50 ${
+            activeSlotEmpty ? 'hidden' : ''
+          }`}
         >
           {visibleTabs.map((tab) => {
             const isDisabled = tab.id === 'compare' && !compareEnabled;
@@ -112,7 +121,7 @@ export function NavRibbon() {
                 disabled={isDisabled}
                 title={isDisabled ? 'Load a second plan (+ Add Plan) to enable comparison' : tab.label}
                 className={`
-                  shrink-0 flex items-center gap-1.5 ${iconOnly ? 'px-2' : 'px-3'} py-1 text-xs font-semibold rounded-md transition-all
+                  shrink-0 flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all
                   ${isActive
                     ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-400/30'
                     : isDisabled
@@ -121,13 +130,15 @@ export function NavRibbon() {
                 `}
               >
                 <ViewIcon mode={tab.id} />
-                <span className={iconOnly ? 'sr-only' : ''}>{tab.label}</span>
+                <span data-tab-label className={iconOnly ? 'sr-only' : ''}>{tab.label}</span>
               </button>
             );
           })}
         </div>
 
-        <div className="w-px h-6 bg-slate-300/50 dark:bg-slate-700/50 mx-1 shrink-0" />
+        {!activeSlotEmpty && (
+          <div className="w-px h-6 bg-slate-300/50 dark:bg-slate-700/50 mx-1 shrink-0" />
+        )}
 
         <button
           type="button"
