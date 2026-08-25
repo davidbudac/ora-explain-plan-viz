@@ -275,7 +275,7 @@ function ExpandedRowDetail({ row, labelA, labelB, onViewInTree }: {
                     {kind === 'accessPredicates' ? 'Access predicates' : 'Filter predicates'}
                   </span>
                   {changed && (
-                    <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 uppercase">
+                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 uppercase">
                       changed
                     </span>
                   )}

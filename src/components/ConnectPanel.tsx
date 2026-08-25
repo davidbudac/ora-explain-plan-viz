@@ -220,7 +220,7 @@ export function ConnectPanel() {
 
   const inputClass =
     'h-8 px-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500';
-  const labelClass = 'text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide';
+  const labelClass = 'text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide';
   const buttonClass =
     'h-8 px-3 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed';
 

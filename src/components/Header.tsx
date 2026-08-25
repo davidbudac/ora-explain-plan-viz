@@ -3,8 +3,13 @@ import { usePlan } from '../hooks/usePlanContext';
 import type { ColorScheme } from '../lib/types';
 import { hasAnnotations } from '../lib/annotations';
 
+// Shared focus token for the header chrome. `focus-visible` only, so mouse
+// clicks stay quiet and keyboard tabbing gets a clear ring.
+const FOCUS_RING =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
+
 const ICON_BTN =
-  'h-8 w-8 flex items-center justify-center rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors';
+  `h-8 w-8 flex items-center justify-center rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`;
 
 const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
   contrast: 'High Contrast',
@@ -127,7 +132,7 @@ export function Header() {
             onClick={exportAnnotatedPlan}
             className={
               hasSomethingToSave
-                ? 'h-8 w-8 flex items-center justify-center rounded-md text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors'
+                ? `h-8 w-8 flex items-center justify-center rounded-md text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors ${FOCUS_RING}`
                 : ICON_BTN
             }
             title="Save annotated plan (.json)"
@@ -159,11 +164,11 @@ export function Header() {
           disabled={!hasAnyInput}
           className={
             shareCopied
-              ? 'h-8 w-8 flex items-center justify-center rounded-md bg-green-50 dark:bg-green-900/30 transition-colors'
+              ? `h-8 w-8 flex items-center justify-center rounded-md bg-green-50 dark:bg-green-900/30 transition-colors ${FOCUS_RING}`
               : shareKind === 'error'
-                ? 'h-8 w-8 flex items-center justify-center rounded-md text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 transition-colors'
+                ? `h-8 w-8 flex items-center justify-center rounded-md text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 transition-colors ${FOCUS_RING}`
                 : shareKind === 'manual'
-                  ? 'h-8 w-8 flex items-center justify-center rounded-md text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 transition-colors'
+                  ? `h-8 w-8 flex items-center justify-center rounded-md text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 transition-colors ${FOCUS_RING}`
                   : `${ICON_BTN} disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500 dark:disabled:hover:text-slate-400`
           }
           aria-label="Share plan via URL"
@@ -191,7 +196,7 @@ export function Header() {
         {/* Command palette */}
         <button
           onClick={() => setCommandPaletteOpen(true)}
-          className="h-8 px-2.5 flex items-center gap-1.5 rounded-md border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className={`h-8 px-2.5 flex items-center gap-1.5 rounded-md border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`}
           title="Command palette — search every action and setting"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -203,7 +208,7 @@ export function Header() {
         <select
           value={colorScheme}
           onChange={(e) => setColorScheme(e.target.value as ColorScheme)}
-          className="h-8 px-2 rounded-md border border-transparent bg-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/60 cursor-pointer transition-colors"
+          className={`h-8 px-2 rounded-md border border-transparent bg-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium cursor-pointer transition-colors ${FOCUS_RING}`}
           title="Graph color palette"
           aria-label="Graph color palette"
         >

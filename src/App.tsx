@@ -112,7 +112,7 @@ function ExampleChip({
             metadata
           </span>
         )}
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded">
           {categoryLabel(sample.category)}
         </span>
       </span>
@@ -176,7 +176,7 @@ function EmptySlotState({
 
       {samples.length > 0 && (
         <div className="w-full max-w-2xl">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-2 text-center">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2 text-center">
             Try an example
           </div>
           <ExampleChipGrid samples={samples} onLoad={onLoad} />
@@ -422,7 +422,7 @@ function AppContent() {
 
           {featuredExamples.length > 0 && (
             <div className="w-full max-w-2xl mb-4">
-              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-2 text-center">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2 text-center">
                 Try an example
               </div>
               <ExampleChipGrid samples={featuredExamples} onLoad={loadSample} />

@@ -189,7 +189,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
           {mode === 'sqlid' ? (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1 uppercase tracking-wide">
+                <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
                   SQL_ID
                 </label>
                 <input
@@ -212,7 +212,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
                 )}
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1 uppercase tracking-wide">
+                <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
                   Plan hash <span className="font-normal normal-case text-slate-400">(optional)</span>
                 </label>
                 <input
@@ -236,7 +236,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
             </div>
           ) : (
             <div>
-              <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1 uppercase tracking-wide">
+              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
                 Objects ({manualParsed.items.length})
               </label>
               <textarea
@@ -263,7 +263,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
           )}
 
           <div>
-            <span className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+            <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
               Run against the database
             </span>
             {!target && (
@@ -318,7 +318,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px] font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                 Attach the output
               </span>
               <button

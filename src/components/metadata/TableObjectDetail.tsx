@@ -34,7 +34,7 @@ export function TableObjectDetail({ objectKey, table, bundle, onSelectObject }: 
       <div className="flex items-center justify-between gap-2">
         <code className="text-sm font-mono font-bold text-blue-600 dark:text-blue-400 break-all">{objectKey}</code>
         {table.stats.stale_stats === 'YES' && (
-          <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-amber-500 text-white shrink-0 uppercase">Stale</span>
+          <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-500 text-white shrink-0 uppercase">Stale</span>
         )}
       </div>
 
