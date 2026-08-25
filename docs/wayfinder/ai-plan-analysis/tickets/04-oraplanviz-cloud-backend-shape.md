@@ -18,5 +18,6 @@ Decide with the user:
 - teaser enforcement mechanics (identity, limits, abuse cap) — graduate this from the map's fog;
 - the no-retention logging policy (what metadata is kept, where);
 - repo boundary: new `oraplanviz-cloud` repo; only the HTTP contract lands in this repo's spec.
+- **inherited requirement** from the closed [Evals harness v1 scope](07-evals-harness-v1-scope.md): the v1 contract must include `POST /v1/feedback` (thumbs up/down + run-event log — kind, model, promptVersion, token counts, latency; never plan payloads).
 
 Resolution = the chosen stack + the full v1 HTTP contract, ready to paste into the spec rewrite.
