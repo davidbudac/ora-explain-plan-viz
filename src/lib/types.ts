@@ -391,46 +391,46 @@ export const EDGE_SCHEME_COLORS: Record<ColorScheme, {
 // Option E: High Contrast — clean white cards, bold category borders, dark accessible text.
 // For projectors, screen sharing, and low-vision use: category is readable from both border and text.
 const COLORS_CONTRAST: Record<string, { bg: string; border: string; text: string }> = {
-  'Table Access': { bg: 'bg-white dark:bg-neutral-900', border: 'border-2 border-amber-600 dark:border-amber-500', text: 'text-amber-800 dark:text-amber-300' },
-  'Index Operations': { bg: 'bg-white dark:bg-neutral-900', border: 'border-2 border-emerald-600 dark:border-emerald-500', text: 'text-emerald-800 dark:text-emerald-300' },
-  'Join Operations': { bg: 'bg-white dark:bg-neutral-900', border: 'border-2 border-blue-600 dark:border-blue-500', text: 'text-blue-800 dark:text-blue-300' },
-  'Set Operations': { bg: 'bg-white dark:bg-neutral-900', border: 'border-2 border-violet-600 dark:border-violet-500', text: 'text-violet-800 dark:text-violet-300' },
-  'Aggregation': { bg: 'bg-white dark:bg-neutral-900', border: 'border-2 border-pink-600 dark:border-pink-500', text: 'text-pink-800 dark:text-pink-300' },
-  'Sort Operations': { bg: 'bg-white dark:bg-neutral-900', border: 'border-2 border-orange-600 dark:border-orange-500', text: 'text-orange-800 dark:text-orange-300' },
-  'Filter/View': { bg: 'bg-white dark:bg-neutral-900', border: 'border-2 border-cyan-600 dark:border-cyan-500', text: 'text-cyan-800 dark:text-cyan-300' },
-  'Partition': { bg: 'bg-white dark:bg-neutral-900', border: 'border-2 border-indigo-600 dark:border-indigo-500', text: 'text-indigo-800 dark:text-indigo-300' },
-  'Parallelism': { bg: 'bg-white dark:bg-neutral-900', border: 'border-2 border-rose-600 dark:border-rose-500', text: 'text-rose-800 dark:text-rose-300' },
-  'Other': { bg: 'bg-white dark:bg-neutral-900', border: 'border-2 border-neutral-400 dark:border-neutral-500', text: 'text-neutral-700 dark:text-neutral-300' },
+  'Table Access': { bg: 'bg-white dark:bg-slate-900', border: 'border-2 border-amber-600 dark:border-amber-500', text: 'text-amber-800 dark:text-amber-300' },
+  'Index Operations': { bg: 'bg-white dark:bg-slate-900', border: 'border-2 border-emerald-600 dark:border-emerald-500', text: 'text-emerald-800 dark:text-emerald-300' },
+  'Join Operations': { bg: 'bg-white dark:bg-slate-900', border: 'border-2 border-blue-600 dark:border-blue-500', text: 'text-blue-800 dark:text-blue-300' },
+  'Set Operations': { bg: 'bg-white dark:bg-slate-900', border: 'border-2 border-violet-600 dark:border-violet-500', text: 'text-violet-800 dark:text-violet-300' },
+  'Aggregation': { bg: 'bg-white dark:bg-slate-900', border: 'border-2 border-pink-600 dark:border-pink-500', text: 'text-pink-800 dark:text-pink-300' },
+  'Sort Operations': { bg: 'bg-white dark:bg-slate-900', border: 'border-2 border-orange-600 dark:border-orange-500', text: 'text-orange-800 dark:text-orange-300' },
+  'Filter/View': { bg: 'bg-white dark:bg-slate-900', border: 'border-2 border-cyan-600 dark:border-cyan-500', text: 'text-cyan-800 dark:text-cyan-300' },
+  'Partition': { bg: 'bg-white dark:bg-slate-900', border: 'border-2 border-indigo-600 dark:border-indigo-500', text: 'text-indigo-800 dark:text-indigo-300' },
+  'Parallelism': { bg: 'bg-white dark:bg-slate-900', border: 'border-2 border-rose-600 dark:border-rose-500', text: 'text-rose-800 dark:text-rose-300' },
+  'Other': { bg: 'bg-white dark:bg-slate-900', border: 'border-2 border-slate-400 dark:border-slate-500', text: 'text-slate-700 dark:text-slate-300' },
 };
 
 // Option F: Semantic — color only where it changes how you read the plan.
 // Data access (amber=table, green=index), joins (blue), sorts (orange), PX (violet); everything else stays quiet.
 const COLORS_SEMANTIC: Record<string, { bg: string; border: string; text: string }> = {
-  'Table Access': { bg: 'bg-amber-50 dark:bg-amber-950/30', border: 'border-l-4 border-l-amber-500 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-amber-900 dark:text-amber-200' },
-  'Index Operations': { bg: 'bg-emerald-50 dark:bg-emerald-950/30', border: 'border-l-4 border-l-emerald-500 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-emerald-900 dark:text-emerald-200' },
-  'Join Operations': { bg: 'bg-white dark:bg-neutral-800/90', border: 'border-l-4 border-l-blue-500 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-blue-900 dark:text-blue-200' },
-  'Set Operations': { bg: 'bg-white dark:bg-neutral-800/90', border: 'border-l-4 border-l-neutral-300 dark:border-l-neutral-600 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-700 dark:text-neutral-200' },
-  'Aggregation': { bg: 'bg-white dark:bg-neutral-800/90', border: 'border-l-4 border-l-neutral-300 dark:border-l-neutral-600 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-700 dark:text-neutral-200' },
-  'Sort Operations': { bg: 'bg-orange-50 dark:bg-orange-950/30', border: 'border-l-4 border-l-orange-500 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-orange-900 dark:text-orange-200' },
-  'Filter/View': { bg: 'bg-white dark:bg-neutral-800/90', border: 'border-l-4 border-l-neutral-300 dark:border-l-neutral-600 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-700 dark:text-neutral-200' },
-  'Partition': { bg: 'bg-white dark:bg-neutral-800/90', border: 'border-l-4 border-l-neutral-300 dark:border-l-neutral-600 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-700 dark:text-neutral-200' },
-  'Parallelism': { bg: 'bg-white dark:bg-neutral-800/90', border: 'border-l-4 border-l-violet-500 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-violet-900 dark:text-violet-200' },
-  'Other': { bg: 'bg-white dark:bg-neutral-800/90', border: 'border-l-4 border-l-neutral-300 dark:border-l-neutral-600 border-y border-r border-neutral-200 dark:border-y-neutral-700 dark:border-r-neutral-700', text: 'text-neutral-700 dark:text-neutral-200' },
+  'Table Access': { bg: 'bg-amber-50 dark:bg-amber-950/30', border: 'border-l-4 border-l-amber-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-amber-900 dark:text-amber-200' },
+  'Index Operations': { bg: 'bg-emerald-50 dark:bg-emerald-950/30', border: 'border-l-4 border-l-emerald-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-emerald-900 dark:text-emerald-200' },
+  'Join Operations': { bg: 'bg-white dark:bg-slate-800/90', border: 'border-l-4 border-l-blue-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-blue-900 dark:text-blue-200' },
+  'Set Operations': { bg: 'bg-white dark:bg-slate-800/90', border: 'border-l-4 border-l-slate-300 dark:border-l-slate-600 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
+  'Aggregation': { bg: 'bg-white dark:bg-slate-800/90', border: 'border-l-4 border-l-slate-300 dark:border-l-slate-600 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
+  'Sort Operations': { bg: 'bg-orange-50 dark:bg-orange-950/30', border: 'border-l-4 border-l-orange-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-orange-900 dark:text-orange-200' },
+  'Filter/View': { bg: 'bg-white dark:bg-slate-800/90', border: 'border-l-4 border-l-slate-300 dark:border-l-slate-600 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
+  'Partition': { bg: 'bg-white dark:bg-slate-800/90', border: 'border-l-4 border-l-slate-300 dark:border-l-slate-600 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
+  'Parallelism': { bg: 'bg-white dark:bg-slate-800/90', border: 'border-l-4 border-l-violet-500 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-violet-900 dark:text-violet-200' },
+  'Other': { bg: 'bg-white dark:bg-slate-800/90', border: 'border-l-4 border-l-slate-300 dark:border-l-slate-600 border-y border-r border-slate-200 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-200' },
 };
 
 // Shared card chrome for the layout-focused schemes ('estact', 'rail'):
 // quiet white cards with a single neutral border; category color carried by the operation name.
 const COLORS_QUIET: Record<string, { bg: string; border: string; text: string }> = {
-  'Table Access': { bg: 'bg-white dark:bg-neutral-800', border: 'border border-neutral-200 dark:border-neutral-700', text: 'text-amber-600 dark:text-amber-400' },
-  'Index Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border border-neutral-200 dark:border-neutral-700', text: 'text-emerald-600 dark:text-emerald-400' },
-  'Join Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border border-neutral-200 dark:border-neutral-700', text: 'text-blue-600 dark:text-blue-400' },
-  'Set Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border border-neutral-200 dark:border-neutral-700', text: 'text-violet-600 dark:text-violet-400' },
-  'Aggregation': { bg: 'bg-white dark:bg-neutral-800', border: 'border border-neutral-200 dark:border-neutral-700', text: 'text-pink-600 dark:text-pink-400' },
-  'Sort Operations': { bg: 'bg-white dark:bg-neutral-800', border: 'border border-neutral-200 dark:border-neutral-700', text: 'text-orange-600 dark:text-orange-400' },
-  'Filter/View': { bg: 'bg-white dark:bg-neutral-800', border: 'border border-neutral-200 dark:border-neutral-700', text: 'text-cyan-600 dark:text-cyan-400' },
-  'Partition': { bg: 'bg-white dark:bg-neutral-800', border: 'border border-neutral-200 dark:border-neutral-700', text: 'text-indigo-600 dark:text-indigo-400' },
-  'Parallelism': { bg: 'bg-white dark:bg-neutral-800', border: 'border border-neutral-200 dark:border-neutral-700', text: 'text-rose-600 dark:text-rose-400' },
-  'Other': { bg: 'bg-white dark:bg-neutral-800', border: 'border border-neutral-200 dark:border-neutral-700', text: 'text-neutral-600 dark:text-neutral-300' },
+  'Table Access': { bg: 'bg-white dark:bg-slate-800', border: 'border border-slate-200 dark:border-slate-700', text: 'text-amber-600 dark:text-amber-400' },
+  'Index Operations': { bg: 'bg-white dark:bg-slate-800', border: 'border border-slate-200 dark:border-slate-700', text: 'text-emerald-600 dark:text-emerald-400' },
+  'Join Operations': { bg: 'bg-white dark:bg-slate-800', border: 'border border-slate-200 dark:border-slate-700', text: 'text-blue-600 dark:text-blue-400' },
+  'Set Operations': { bg: 'bg-white dark:bg-slate-800', border: 'border border-slate-200 dark:border-slate-700', text: 'text-violet-600 dark:text-violet-400' },
+  'Aggregation': { bg: 'bg-white dark:bg-slate-800', border: 'border border-slate-200 dark:border-slate-700', text: 'text-pink-600 dark:text-pink-400' },
+  'Sort Operations': { bg: 'bg-white dark:bg-slate-800', border: 'border border-slate-200 dark:border-slate-700', text: 'text-orange-600 dark:text-orange-400' },
+  'Filter/View': { bg: 'bg-white dark:bg-slate-800', border: 'border border-slate-200 dark:border-slate-700', text: 'text-cyan-600 dark:text-cyan-400' },
+  'Partition': { bg: 'bg-white dark:bg-slate-800', border: 'border border-slate-200 dark:border-slate-700', text: 'text-indigo-600 dark:text-indigo-400' },
+  'Parallelism': { bg: 'bg-white dark:bg-slate-800', border: 'border border-slate-200 dark:border-slate-700', text: 'text-rose-600 dark:text-rose-400' },
+  'Other': { bg: 'bg-white dark:bg-slate-800', border: 'border border-slate-200 dark:border-slate-700', text: 'text-slate-600 dark:text-slate-300' },
 };
 
 export const COLOR_SCHEMES: Record<ColorScheme, Record<string, { bg: string; border: string; text: string }>> = {
@@ -442,7 +442,7 @@ export const COLOR_SCHEMES: Record<ColorScheme, Record<string, { bg: string; bor
 };
 
 export function getCostColor(cost: number, totalCost: number): string {
-  if (totalCost === 0) return 'bg-gray-200 dark:bg-gray-700';
+  if (totalCost === 0) return 'bg-slate-200 dark:bg-slate-700';
   const ratio = cost / totalCost;
   if (ratio >= 0.5) return 'bg-red-500';
   if (ratio >= 0.25) return 'bg-orange-500';

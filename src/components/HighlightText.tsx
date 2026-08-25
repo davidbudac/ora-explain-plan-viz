@@ -16,7 +16,7 @@ export function HighlightText({
   text,
   query,
   className,
-  highlightClassName = 'bg-yellow-200/80 dark:bg-yellow-700/40 text-gray-900 dark:text-yellow-100 rounded px-0.5',
+  highlightClassName = 'bg-yellow-200/80 dark:bg-yellow-700/40 text-slate-900 dark:text-yellow-100 rounded px-0.5',
 }: HighlightTextProps) {
   const safeText = text ?? '';
   const trimmed = query?.trim() ?? '';

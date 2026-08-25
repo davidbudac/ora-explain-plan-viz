@@ -219,13 +219,13 @@ export function ConnectPanel() {
   };
 
   const inputClass =
-    'h-8 px-2 text-xs bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/60 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500';
-  const labelClass = 'text-[11px] font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wide';
+    'h-8 px-2 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500';
+  const labelClass = 'text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide';
   const buttonClass =
-    'h-8 px-3 text-xs border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed';
+    'h-8 px-3 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed';
 
   return (
-    <div className="flex flex-col gap-3 p-3 mb-2 border border-neutral-200 dark:border-neutral-700 rounded-md bg-neutral-50 dark:bg-neutral-950/50">
+    <div className="flex flex-col gap-3 p-3 mb-2 border border-slate-200 dark:border-slate-700 rounded-md bg-slate-50 dark:bg-slate-950/50">
       {/* Agent settings */}
       <div className="flex flex-wrap items-end gap-2">
         <div className="flex flex-col gap-1">
@@ -259,11 +259,11 @@ export function ConnectPanel() {
               Agent v{healthState.version} — {healthState.connected ? `connected (${healthState.oracleVersion ?? 'Oracle'})` : 'not connected to a DB'}
             </span>
           ) : healthError ? (
-            <span className="text-neutral-500 dark:text-neutral-400">
+            <span className="text-slate-500 dark:text-slate-400">
               No agent detected — run <code className="font-mono">oraplanviz-agent</code>
             </span>
           ) : (
-            <span className="text-neutral-500 dark:text-neutral-400">Probing…</span>
+            <span className="text-slate-500 dark:text-slate-400">Probing…</span>
           )}
         </div>
       </div>
@@ -330,18 +330,18 @@ export function ConnectPanel() {
       {/* Recent SQL */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <div className="flex rounded-md border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+          <div className="flex rounded-md border border-slate-200 dark:border-slate-700 overflow-hidden">
             <button
               type="button"
               onClick={() => setSource('cursor')}
-              className={`h-7 px-2 text-[11px] font-semibold ${source === 'cursor' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300'}`}
+              className={`h-7 px-2 text-[11px] font-semibold ${source === 'cursor' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
             >
               Cursor cache
             </button>
             <button
               type="button"
               onClick={() => setSource('monitor')}
-              className={`h-7 px-2 text-[11px] font-semibold ${source === 'monitor' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300'}`}
+              className={`h-7 px-2 text-[11px] font-semibold ${source === 'monitor' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
               title="SQL Monitor requires the Diagnostics + Tuning Pack license"
             >
               SQL Monitor (Tuning Pack)
@@ -351,7 +351,7 @@ export function ConnectPanel() {
             {recentLoading ? 'Loading…' : 'Refresh'}
           </button>
           <label
-            className="flex items-center gap-1.5 text-[11px] font-semibold text-neutral-600 dark:text-neutral-400 ml-1 cursor-pointer"
+            className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-400 ml-1 cursor-pointer"
             title={
               agentOutdated
                 ? `Agent v${healthState?.version} predates the metadata API (needs ≥ ${MIN_AGENT_VERSION})`
@@ -390,7 +390,7 @@ export function ConnectPanel() {
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-left text-neutral-500 dark:text-neutral-400">
+                <tr className="text-left text-slate-500 dark:text-slate-400">
                   <th className="pr-2 py-1 font-medium">SQL ID</th>
                   <th className="pr-2 py-1 font-medium">SQL Text</th>
                   <th className="pr-2 py-1 font-medium">Elapsed</th>
@@ -402,7 +402,7 @@ export function ConnectPanel() {
                 {items.map((item) => {
                   const key = rowKey(item);
                   return (
-                    <tr key={key} className="border-t border-neutral-200 dark:border-neutral-800">
+                    <tr key={key} className="border-t border-slate-200 dark:border-slate-800">
                       <td className="pr-2 py-1 font-mono">{item.sqlId}</td>
                       <td className="pr-2 py-1 max-w-xs truncate" title={item.sqlText}>{item.sqlText}</td>
                       <td className="pr-2 py-1">{formatElapsed(item.elapsedSec)}</td>
@@ -427,7 +427,7 @@ export function ConnectPanel() {
       </div>
 
       {/* Manual fetch */}
-      <div className="flex flex-wrap items-end gap-2 pt-1 border-t border-neutral-200 dark:border-neutral-800">
+      <div className="flex flex-wrap items-end gap-2 pt-1 border-t border-slate-200 dark:border-slate-800">
         <div className="flex flex-col gap-1">
           <label className={labelClass} htmlFor="manual-sql-id">SQL ID</label>
           <input

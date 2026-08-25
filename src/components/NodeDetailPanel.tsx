@@ -759,7 +759,7 @@ function computeNodeDetailIndicator(
     formattedValue,
     referenceLabel,
     percentText: (clampedRatio * 100).toFixed(1),
-    color: clampedRatio === 0 ? 'bg-gray-200 dark:bg-gray-700' : getMetricColor(clampedRatio),
+    color: clampedRatio === 0 ? 'bg-slate-200 dark:bg-slate-700' : getMetricColor(clampedRatio),
   };
 }
 

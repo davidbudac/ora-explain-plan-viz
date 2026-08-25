@@ -27,8 +27,8 @@ function CopyButton({ text }: { text: string }) {
     <button
       onClick={handleCopy}
       className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border transition-colors
-        text-neutral-500 dark:text-neutral-400 border-neutral-300 dark:border-neutral-600
-        hover:bg-neutral-100 dark:hover:bg-neutral-800"
+        text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600
+        hover:bg-slate-100 dark:hover:bg-slate-800"
     >
       {copied ? (
         <>
@@ -47,9 +47,9 @@ function CopyButton({ text }: { text: string }) {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
-        <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">{title}</h3>
+    <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{title}</h3>
       </div>
       <div className="px-4 py-3">{children}</div>
     </div>
@@ -60,15 +60,15 @@ function Field({ label, value }: { label: string; value?: string | number | null
   if (value === undefined || value === null) return null;
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-medium">{label}</span>
-      <span className="text-sm text-neutral-800 dark:text-neutral-200 font-mono">{value}</span>
+      <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-medium">{label}</span>
+      <span className="text-sm text-slate-800 dark:text-slate-200 font-mono">{value}</span>
     </div>
   );
 }
 
 function StatusBadge({ status }: { status: string }) {
   const upper = status.toUpperCase();
-  let color = 'bg-neutral-100 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-300';
+  let color = 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300';
   if (upper.includes('DONE')) color = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300';
   else if (upper.includes('EXECUTING')) color = 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300';
   else if (upper.includes('ERROR') || upper.includes('FAIL')) color = 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300';
@@ -91,7 +91,7 @@ function TimeBreakdownBar({ meta }: { meta: SqlMonitorMetadata }) {
 
   return (
     <div className="space-y-1.5">
-      <div className="flex h-5 rounded overflow-hidden bg-neutral-100 dark:bg-neutral-800">
+      <div className="flex h-5 rounded overflow-hidden bg-slate-100 dark:bg-slate-800">
         {cpu > 0 && (
           <div className="bg-emerald-500 dark:bg-emerald-600 transition-all" style={{ width: `${pct(cpu)}%` }}
             title={`CPU: ${fmt(cpu)} (${pct(cpu).toFixed(1)}%)`} />
@@ -105,7 +105,7 @@ function TimeBreakdownBar({ meta }: { meta: SqlMonitorMetadata }) {
             title={`PL/SQL: ${fmt(plsql)} (${pct(plsql).toFixed(1)}%)`} />
         )}
         {other > 0 && (
-          <div className="bg-neutral-400 dark:bg-neutral-500 transition-all" style={{ width: `${pct(other)}%` }}
+          <div className="bg-slate-400 dark:bg-slate-500 transition-all" style={{ width: `${pct(other)}%` }}
             title={`Other: ${fmt(other)} (${pct(other).toFixed(1)}%)`} />
         )}
       </div>
@@ -113,7 +113,7 @@ function TimeBreakdownBar({ meta }: { meta: SqlMonitorMetadata }) {
         {cpu > 0 && <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 dark:bg-emerald-600" />CPU {fmt(cpu)} ({pct(cpu).toFixed(1)}%)</span>}
         {io > 0 && <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-sky-500 dark:bg-sky-600" />I/O Wait {fmt(io)} ({pct(io).toFixed(1)}%)</span>}
         {plsql > 0 && <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-violet-500 dark:bg-violet-600" />PL/SQL {fmt(plsql)} ({pct(plsql).toFixed(1)}%)</span>}
-        {other > 0 && <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-neutral-400 dark:bg-neutral-500" />Other {fmt(other)} ({pct(other).toFixed(1)}%)</span>}
+        {other > 0 && <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-slate-400 dark:bg-slate-500" />Other {fmt(other)} ({pct(other).toFixed(1)}%)</span>}
       </div>
     </div>
   );
@@ -148,8 +148,8 @@ export function MonitorDetailsView() {
 
   if (!parsedPlan || !meta) {
     return (
-      <div className="h-full flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">
+      <div className="h-full flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           No SQL Monitor metadata available for this plan.
         </p>
       </div>
@@ -159,14 +159,14 @@ export function MonitorDetailsView() {
   const binds = parsedPlan.bindVariables;
 
   return (
-    <div className="h-full overflow-auto bg-neutral-50 dark:bg-neutral-950 p-4 space-y-4">
+    <div className="h-full overflow-auto bg-slate-50 dark:bg-slate-950 p-4 space-y-4">
       {/* Execution Summary */}
       <Section title="Execution Summary">
         <div className="space-y-3">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-3">
             {meta.status && (
               <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 font-medium">Status</span>
+                <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-medium">Status</span>
                 <StatusBadge status={meta.status} />
               </div>
             )}
@@ -211,7 +211,7 @@ export function MonitorDetailsView() {
             <div className="flex justify-end">
               <CopyButton text={parsedPlan.sqlText} />
             </div>
-            <div className="max-h-64 overflow-auto rounded border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-950 p-3">
+            <div className="max-h-64 overflow-auto rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-3">
               <pre className="text-xs font-mono leading-relaxed whitespace-pre-wrap break-words">
                 <code className="hljs language-sql" dangerouslySetInnerHTML={{ __html: highlightedSql }} />
               </pre>
@@ -226,7 +226,7 @@ export function MonitorDetailsView() {
           <div className="overflow-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-left text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 border-b border-neutral-200 dark:border-neutral-700">
+                <tr className="text-left text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 border-b border-slate-200 dark:border-slate-700">
                   <th className="pb-1.5 pr-4 font-medium">#</th>
                   <th className="pb-1.5 pr-4 font-medium">Name</th>
                   <th className="pb-1.5 pr-4 font-medium">Type</th>
@@ -235,11 +235,11 @@ export function MonitorDetailsView() {
               </thead>
               <tbody>
                 {binds.map((b, i) => (
-                  <tr key={b.name} className={i % 2 === 0 ? '' : 'bg-neutral-50 dark:bg-neutral-800/30'}>
-                    <td className="py-1 pr-4 font-mono text-neutral-400">{b.position ?? i + 1}</td>
-                    <td className="py-1 pr-4 font-mono font-medium text-neutral-700 dark:text-neutral-300">{b.name}</td>
-                    <td className="py-1 pr-4 text-neutral-500 dark:text-neutral-400">{b.type ?? '—'}</td>
-                    <td className="py-1 font-mono text-neutral-800 dark:text-neutral-200">{b.value ?? <span className="text-neutral-400 italic">null</span>}</td>
+                  <tr key={b.name} className={i % 2 === 0 ? '' : 'bg-slate-50 dark:bg-slate-800/30'}>
+                    <td className="py-1 pr-4 font-mono text-slate-400">{b.position ?? i + 1}</td>
+                    <td className="py-1 pr-4 font-mono font-medium text-slate-700 dark:text-slate-300">{b.name}</td>
+                    <td className="py-1 pr-4 text-slate-500 dark:text-slate-400">{b.type ?? '—'}</td>
+                    <td className="py-1 font-mono text-slate-800 dark:text-slate-200">{b.value ?? <span className="text-slate-400 italic">null</span>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -270,16 +270,16 @@ export function MonitorDetailsView() {
           <div className="overflow-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-left text-[10px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500 border-b border-neutral-200 dark:border-neutral-700">
+                <tr className="text-left text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 border-b border-slate-200 dark:border-slate-700">
                   <th className="pb-1.5 pr-4 font-medium">Parameter</th>
                   <th className="pb-1.5 font-medium">Value</th>
                 </tr>
               </thead>
               <tbody>
                 {Object.entries(meta.optimizerEnv).sort(([a], [b]) => a.localeCompare(b)).map(([key, val], i) => (
-                  <tr key={key} className={i % 2 === 0 ? '' : 'bg-neutral-50 dark:bg-neutral-800/30'}>
-                    <td className="py-1 pr-4 font-mono text-neutral-700 dark:text-neutral-300">{key}</td>
-                    <td className="py-1 font-mono text-neutral-800 dark:text-neutral-200">{val}</td>
+                  <tr key={key} className={i % 2 === 0 ? '' : 'bg-slate-50 dark:bg-slate-800/30'}>
+                    <td className="py-1 pr-4 font-mono text-slate-700 dark:text-slate-300">{key}</td>
+                    <td className="py-1 font-mono text-slate-800 dark:text-slate-200">{val}</td>
                   </tr>
                 ))}
               </tbody>
