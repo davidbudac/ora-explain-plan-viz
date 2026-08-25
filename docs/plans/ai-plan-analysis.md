@@ -1,4 +1,7 @@
-# AI Plan Analysis — connect an LLM for plan analysis & comparison
+# AI Plan Analysis & Test-Case Builder — LLM analysis, hosted SaaS, guided test cases
+
+> Phase 1 (analysis) is specified in full below. Phases 1.5–3 (hosted SaaS provider,
+> test-case builder, guided chat + agent auto-run) follow at the end of this document.
 
 ## Context
 
@@ -99,3 +102,123 @@ No SSE library — the ~40-line parser is unit-tested.
 - `npx vitest run --environment jsdom`, `npm run lint`, `npm run build`, `npm run build:pages` (confirm agent provider absent from Pages UI — flag unset).
 - Manual smoke via `npm run dev`: openai-compat path against local Ollama; Anthropic path with a real key (streamed report, cancel, findings→node navigation, compare mode).
 - Confirm no key appears in localStorage without the remember opt-in, in the settings blob, or in share URLs.
+
+---
+
+# Later phases: hosted SaaS + AI-guided test cases
+
+Direction: offer the AI features as a **hosted SaaS** (an oraplanviz cloud backend holds
+the Anthropic key; users authenticate with an account token), and beyond analysis have
+the AI help non-experts **build a reproducible test case** for a problem plan (starting
+from just plan + SQL ID) and **test whether an alternative plan is an improvement** —
+via an interactive guided chat, with automated execution through the local
+`oraplanviz-agent` against a designated *test* database.
+
+The provider abstraction above (`AiStreamEvent`, `parseSseStream`, `AiError`) is the
+stable seam all later phases build on. `AiProviderId` gains `'hosted'` in Phase 1.5.
+
+## Phase 1.5 — Hosted provider (SaaS)
+
+- **`src/lib/ai/providers/hosted.ts`** — same SSE wire contract as the agent provider
+  (`event delta {"text"}` · `done {"stopReason"}` · `error {"message","status"}`),
+  reusing `parseSseStream`. Config `{ baseUrl, accountToken }`; token stored via the
+  `secrets.ts` conventions (`oraplanviz.aiHostedToken`, sessionStorage; opt-in remember).
+- **Backend HTTP contract** (service in a new repo, e.g. `oraplanviz-cloud`; only the
+  contract lives here):
+  ```
+  POST /v1/analyze     Authorization: Bearer <account token>
+  Body: { system, prompt, model|null, maxTokens|null, kind: 'analyze'|'compare'|'testcase'|'chat' }
+  → 200 text/event-stream (delta/done/error)   → 401/402/429/500 JSON {"error","code"}
+  GET  /v1/me          → { plan: 'free'|'pro', usage: { tokensThisMonth, limit } }
+  ```
+- **Backend responsibilities**: holds the Anthropic key server-side; per-token auth;
+  usage metering + monthly caps; rate limiting; streaming pass-through; **no retention
+  of plan payloads** (log metadata only: token counts, timings). Model pinned
+  server-side (`claude-opus-5` default; per-tier overrides). Billing/signup out of
+  scope for v1 — start with manually issued tokens.
+- **UI**: hosted becomes the first provider radio in `AiAnalysisDialog`; BYO-key and
+  OpenAI-compat remain for self-hosters; the agent proxy stays gated on
+  `isDbAgentEnabled()`. No new dependencies (raw fetch + existing SSE parser).
+
+## Phase 2 — Test Case Builder (scripts; user runs them)
+
+Goal: from plan + metadata bundle (or plan + SQL ID → gather script first), produce a
+runnable synthetic repro so the optimizer reproduces the plan in a scratch schema —
+no production data required — plus scripts to try alternative plans.
+
+- **Bundle v3** (`src/lib/metadata/bundle.ts`, `SUPPORTED_BUNDLE_VERSIONS = [1,2,3]`):
+  add per-column `histogram.endpoints: [{ value, endpoint_number, repeat_count }]`
+  gathered from `DBA_TAB_HISTOGRAMS` (capped at 254 buckets). v2 stores only histogram
+  type + bucket count, which cannot replicate skew-dependent plans. Extend
+  `scripts/gather_plan_metadata.sql` inside the existing `@@GEN:...@@` marker scheme;
+  `gatherScript.ts` stamping unchanged.
+- **`src/lib/ai/testCase.ts`** — deterministic skeleton generator modeled on
+  `buildBaselineScript()` (`src/lib/baselineScript.ts`):
+  `buildTestCaseScript({ plan, bundle, targetSchema }): string`, emitting in order:
+  1. banner + safety note (scratch schema only);
+  2. `CREATE TABLE` / `CREATE INDEX` from bundle `ddl` (already storage-stripped) +
+     v2 `constraints`;
+  3. `DBMS_STATS.SET_TABLE_STATS` / `SET_INDEX_STATS` / `SET_COLUMN_STATS` from bundle
+     stats, incl. `PREPARE_COLUMN_VALUES` built from v3 histogram endpoints and
+     low/high raw values via the `srec` interface;
+  4. `ALTER SESSION` for non-default `optimizer_env` parameters;
+  5. the SQL with `VARIABLE`/bind stubs;
+  6. verification: `EXPLAIN PLAN` + `DBMS_XPLAN.DISPLAY` with the original plan hash
+     noted for comparison.
+- **AI's role on top of the skeleton** — judgment gaps only: bind values consistent
+  with predicates and low/high values; an optional row-data generator
+  (`INSERT … CONNECT BY` with skew matching histograms) when stats-only repro fails;
+  a narrative explaining each step. New prompt kind `'testcase'` in `prompts.ts`;
+  context = the analyze section builders + full (unprojected) metadata for referenced
+  objects.
+- **`src/lib/ai/experiments.ts`** — alternative-plan experiments. Candidates sourced
+  from `AdvisorReport.findings[].suggestion` + AI reasoning. Per candidate emit one of:
+  hint-variant SQL; a `DBMS_SQLDIAG.CREATE_SQL_PATCH` script via a new
+  `buildSqlPatchScript()` cloned from the `baselineScript.ts` structure (pre-checks →
+  create block → verification → drop crib sheet); or session-parameter script. The
+  winner is locked in with the existing `buildBaselineScript()`. Each experiment ends
+  with: load the resulting DBMS_XPLAN back into the app and use the Compare view.
+- **UI**: "Build test case" action in the AI dialog + command palette; scripts rendered
+  in the AI report view with per-script copy/download (reuse `clipboard.ts`; filename
+  helper in the style of `baselineScriptFilename`).
+- **Tests**: `testCase.test.ts`, `experiments.test.ts` — fixture bundle → exact script
+  text, same style as `baselineScript.test.ts`.
+
+## Phase 3 — Guided chat + agent auto-run
+
+- **Chat mode**: `useAiAnalysis.tsx` grows `messages: AiChatMessage[]` alongside the
+  one-shot report; the hosted backend's `kind: 'chat'` runs a server-side tool-use
+  loop. Tools exposed to the model:
+  - `get_plan_context(sections)` — resolved client-side from the Phase-1 context
+    builders;
+  - `run_script(sql, purpose)` / `explain(sql)` — available only when the local agent
+    is connected; **every call renders an approval card in the UI** (AI proposes →
+    user clicks Run → agent executes → result returned to the model).
+- **Agent extension** (contract only; implementation in `../oraplanviz-agent`):
+  ```
+  POST /api/test/connect     { dsn, user, password }      # separate TEST connection
+  POST /api/test/exec        { script }  → { ok, output, errors[] }
+  POST /api/test/explain     { sql }     → { dbmsXplanText }
+  POST /api/test/disconnect
+  ```
+  Invariants: the test connection is distinct from the read-only source connection;
+  the source connection never executes AI/user SQL; every exec requires explicit
+  per-call user approval; the agent keeps a statement log; bump `MIN_AGENT_VERSION`.
+- **Iteration loop**: AI generates repro → user approves, agent runs → resulting plan
+  is parsed back → AI compares plan hash/shape against the target → adjusts stats,
+  binds, or hints → repeat until reproduced; then run experiments and compare A/B in
+  the app's compare view.
+
+## Sequencing (phases)
+
+1. **Phase 1** — client-side analysis (this document above).
+2. **Phase 1.5** — hosted provider + `oraplanviz-cloud` contract.
+3. **Phase 2** — bundle v3 histograms; test-case + experiment script generators.
+4. **Phase 3** — chat mode; agent test-execution endpoints; approval-gated auto-run.
+
+## Privacy (later phases)
+
+- Hosted provider: plan data leaves the browser to oraplanviz cloud **only when Run is
+  clicked**; the backend streams to Anthropic and retains no plan payloads.
+- Agent execution: SQL and results stay on localhost between browser and agent; only
+  the AI conversation (including tool results the user approved) reaches the model.
