@@ -209,12 +209,116 @@ no production data required — plus scripts to try alternative plans.
   binds, or hints → repeat until reproduced; then run experiments and compare A/B in
   the app's compare view.
 
+## Phase 2.5 — Evaluation & backtesting harness
+
+The product's core claims are objectively checkable against a real Oracle instance:
+"the synthetic test case reproduces the plan" (plan shape match), "the analysis found
+the real problem" (known injected fault), and "the proposed alternative is faster"
+(measured runtime). This phase builds a harness that turns those into tracked metrics,
+run before every prompt/model/generator change. Four layers, cheapest first.
+
+### Layer 1 — deterministic unit tests (free, already planned)
+
+The vitest suites above (`planText`, `context`, `findings`, providers, `testCase`,
+`experiments`): fixture in → exact text out. No DB, no LLM, run on every commit.
+
+### Layer 2 — repro-fidelity backtest (no LLM needed for the skeleton path)
+
+**Question**: given a bundle gathered from a real schema, does the generated test-case
+script make the optimizer produce the same plan in a scratch schema?
+
+**Implementation** — new top-level `evals/` directory (excluded from the Vite build;
+plain Node + TypeScript via `tsx`, DB access via `node-oracledb` thin mode — no
+Instant Client needed):
+
+- **Database**: `gvenzl/oracle-free:23` in Docker (`evals/docker-compose.yml`); works
+  locally and as a GitHub Actions service container. Each scenario gets its own
+  schema (`EVAL_S01` …), dropped and recreated per run — no cross-contamination.
+- **Scenario corpus** — `evals/scenarios/NN-name/` with three files:
+  - `setup.sql` — schema + data + the deliberate condition (e.g. skewed column with a
+    FREQUENCY histogram, stale stats, missing index, partition layout);
+  - `query.sql` — the statement (with binds where relevant);
+  - `expect.json` — `{ tags: ["skew","histogram"], rootCause: "...", planFeatures:
+    ["TABLE ACCESS FULL EMP", "HASH JOIN"] }` (ground truth for layers 3–4).
+  Seed corpus (~15 scenarios): NL↔hash-join tipping point, frequency/hybrid histogram
+  skew, stale stats, implicit conversion disabling an index, cartesian merge join,
+  partition pruning present/absent, bind peeking, unindexed FK, temp spill,
+  selective full scan. Grow it over time with anonymized real-world cases.
+- **Runner** — `evals/run.ts`, per scenario:
+  1. provision schema, run `setup.sql`, execute `query.sql`;
+  2. capture the original plan (`DBMS_XPLAN.DISPLAY_CURSOR ... ALLSTATS LAST`) and
+     gather a bundle by executing `scripts/gather_plan_metadata.sql` in the container
+     (`docker exec ... sqlplus`) — this regression-tests the gather script and bundle
+     v3 for free;
+  3. run the pipeline under test: skeleton-only (`buildTestCaseScript`, deterministic)
+     or skeleton+AI (bind values / data generator filled by the model);
+  4. execute the generated script in a fresh scratch schema, `EXPLAIN PLAN`, parse
+     both plans with the app's own parser;
+  5. compare **plan shape**, not plan hash (hash differs across environments):
+     normalize each line to `(operation, options, objectName)` and reuse
+     `matchNodes` from `src/lib/compare.ts`; a scenario passes when all original
+     nodes match in order.
+- **Metrics** — `evals/results/<timestamp>.json` + a markdown summary: overall
+  **repro rate**, broken down by tag (histograms, partitioning, binds…), plus
+  gather-script coverage warnings. CI job (nightly + on-demand label, not per-PR —
+  the DB container is ~2 min startup) fails if repro rate drops below the last
+  recorded baseline.
+
+### Layer 3 — analysis-quality evals (LLM-judged over known faults)
+
+**Question**: does the analysis report identify the injected root cause?
+
+- Reuses the same scenarios: each `expect.json` names the fault the report must find.
+- `evals/analyze.ts` builds the context exactly as the app does (`buildAnalyzeSections`
+  → `assembleContext`) from the captured plan + bundle, calls the provider layer
+  directly (BYO key from env), and scores each report twice:
+  - **Hard checks, no judge** (in `evals/scoring.ts`): findings JSON parses via
+    `parseAiFindings`; every `nodeIds` entry exists in the plan; every object name
+    mentioned in findings exists in the bundle (hallucination check); the report
+    references the plan lines from `expect.json.planFeatures`.
+  - **LLM judge**: rubric prompt ("Did the report identify <rootCause>? Did it point
+    at the correct plan line(s)? Score 0–2 with quote as evidence"), run with a fixed
+    cheap model (`claude-haiku-4-5`), temperature-stable, 3 samples majority vote.
+- **Baseline floor**: run `runAdvisor` on the same input; the report's recall over the
+  advisor's own findings must be ≥ 90% — the AI must never miss what the free
+  heuristics already catch.
+- Output: per-scenario score matrix by prompt version + model, appended to
+  `evals/results/`; a prompt change ships only if mean score is non-decreasing.
+
+### Layer 4 — experiment payoff backtest (measured, no judge)
+
+**Question**: do the proposed alternative-plan experiments actually help?
+
+- `evals/experiments.ts`: for each scenario, take the AI's proposed experiments
+  (hints / SQL Patch / parameter scripts), execute each variant in the scenario
+  schema, and measure elapsed time and buffer gets (from
+  `V$SQL_PLAN_STATISTICS_ALL` after execution) vs. the original.
+- Metrics per proposal: *plan changed?* (shape diff), *improved?* (≥20% fewer buffer
+  gets), *regressed?*. Headline numbers: improvement rate and regression rate —
+  the two numbers that decide whether the guidance is worth paying for.
+
+### Production feedback loop (SaaS)
+
+- Backend addition: `POST /v1/feedback { runId, verdict: 'up'|'down', kind }` and a
+  per-run event log (kind, model, prompt version, token counts, latency — never plan
+  payloads). Thumbs up/down buttons in `AiReportView`.
+- Phase-3 agent loop generates its own labels: every iteration records
+  `reproMatched: boolean` and, for experiments, the measured before/after plan pair —
+  a live repro-rate / improvement-rate dashboard segmented by model + prompt version,
+  the online counterpart of layers 2 and 4.
+- Prompt versions are tagged (`promptVersion` constant in `prompts.ts`, sent to the
+  backend) so offline eval results and online feedback join on the same key.
+
 ## Sequencing (phases)
 
 1. **Phase 1** — client-side analysis (this document above).
 2. **Phase 1.5** — hosted provider + `oraplanviz-cloud` contract.
 3. **Phase 2** — bundle v3 histograms; test-case + experiment script generators.
-4. **Phase 3** — chat mode; agent test-execution endpoints; approval-gated auto-run.
+4. **Phase 2.5** — `evals/` harness: Docker Oracle, scenario corpus, repro-rate
+   runner first (validates Phase 2 deterministically), then analysis evals and
+   experiment payoff. Built alongside Phase 2, gating from then on.
+5. **Phase 3** — chat mode; agent test-execution endpoints; approval-gated auto-run;
+   feedback loop wired into the hosted backend.
 
 ## Privacy (later phases)
 
