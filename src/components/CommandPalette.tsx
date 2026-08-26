@@ -91,6 +91,9 @@ const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
   estact: 'Est ⇄ Act',
   rail: 'Icon Rail',
   ticker: 'Ticker',
+  stripe: 'Stripe',
+  tinted: 'Tinted',
+  terminal: 'Terminal',
 };
 
 const HIGHLIGHT_STYLE_LABELS: Record<HighlightStyle, string> = {

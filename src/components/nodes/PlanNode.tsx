@@ -78,8 +78,11 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   const colors = schemeColors[category] || schemeColors['Other'];
   const isRail = colorScheme === 'rail';
   const isTicker = colorScheme === 'ticker';
+  // 'terminal' keeps the identity paint from COLOR_SCHEMES but restyles the card
+  // chrome: square corners, mono operation name, hard offset shadow.
+  const isTerminal = colorScheme === 'terminal';
   // Schemes that render stats as the Est ⇄ Act comparison grid
-  const usesEstActGrid = ['estact', 'rail', 'contrast', 'semantic'].includes(colorScheme);
+  const usesEstActGrid = ['estact', 'rail', 'contrast', 'semantic', 'stripe', 'tinted', 'terminal'].includes(colorScheme);
 
   const indicator = computeIndicatorMetric(node, nodeIndicatorMetric, totalCost, maxActualRows, maxStarts, totalElapsedTime);
 
@@ -200,8 +203,10 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
       ref={anchorRef}
       {...hoverProps}
       className={`
-        relative ${isCompact ? 'w-[200px]' : isTicker ? 'w-[240px]' : 'w-[260px]'} rounded-xl transition-all duration-300
-        shadow-md shadow-slate-400/30 dark:shadow-lg dark:shadow-black/40
+        relative ${isCompact ? 'w-[200px]' : isTicker ? 'w-[240px]' : 'w-[260px]'} ${isTerminal ? 'rounded-none' : 'rounded-xl'} transition-all duration-300
+        ${isTerminal
+          ? 'shadow-[3px_3px_0_rgba(15,23,42,0.15)] dark:shadow-[3px_3px_0_rgba(0,0,0,0.45)]'
+          : 'shadow-md shadow-slate-400/30 dark:shadow-lg dark:shadow-black/40'}
         ${colors.bg} ${colors.border}
         ${isSelected ? 'ring-2 ring-blue-600 ring-offset-4 dark:ring-offset-slate-950 scale-105 z-30' : ''}
         ${isInFocusPath && !(highlightColor && showAnnotationsOverlay) ? 'ring-2 ring-blue-400/40' : ''}
@@ -293,7 +298,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
       {/* Metric indicator bar */}
       <div
-        className="absolute top-0 left-0 right-0 h-1 rounded-t-md overflow-hidden bg-slate-200 dark:bg-slate-700"
+        className={`absolute top-0 left-0 right-0 h-1 ${isTerminal ? 'rounded-none' : 'rounded-t-md'} overflow-hidden bg-slate-200 dark:bg-slate-700`}
         title={
           nodeIndicatorMetric === 'cost'
             ? `${indicator.label}: ${indicator.formattedValue}`
@@ -333,7 +338,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
         {/* Operation name */}
         <div className="relative">
-          <div className={`font-semibold text-sm leading-tight mb-1 ${colors.text}`} title={tooltip}>
+          <div className={`font-semibold text-sm leading-tight mb-1 ${isTerminal ? 'font-mono tracking-tight' : ''} ${colors.text}`} title={tooltip}>
             <HighlightText text={node.operation} query={searchText} />
             {isTicker && !isCompact && options.showObjectName && node.objectName && (
               <span className="font-mono font-semibold text-slate-700 dark:text-slate-200"> · <HighlightText text={node.objectName} query={searchText} /></span>
