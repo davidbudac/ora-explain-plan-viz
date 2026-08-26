@@ -4,7 +4,7 @@ import { useAi } from '../hooks/useAiAnalysis';
 import { runAdvisor } from '../lib/advisor';
 import { isDbAgentEnabled, normalizeBaseUrl, DEFAULT_AGENT_BASE_URL } from '../lib/agent/client';
 import { loadSettings, saveSettings } from '../lib/settings';
-import { assembleContext, buildAnalyzeSections, buildCompareSections } from '../lib/ai/context';
+import { assembleContext, buildAnalyzeSections, buildCompareSections, buildTestCaseSections } from '../lib/ai/context';
 import { MODEL_PRESETS } from '../lib/ai/prompts';
 import { getAiSecret, setAiSecret } from '../lib/ai/secrets';
 import type { AiRunConfig } from '../lib/ai/provider';
@@ -114,6 +114,9 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
   const planB = plans[compareRight]?.parsedPlan ?? null;
   const analyzePlan = activeSlot?.parsedPlan ?? null;
 
+  // Test-case builds require an attached metadata bundle (DDL + stats).
+  const missingBundle = mode === 'testcase' && !metadataBundle;
+
   const sectioned = useMemo(() => {
     if (mode === 'compare') {
       if (!planA || !planB) return null;
@@ -121,6 +124,10 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
     }
     if (!analyzePlan) return null;
     const advisorReport = runAdvisor(analyzePlan, metadataBundle ?? null);
+    if (mode === 'testcase') {
+      if (!metadataBundle) return null;
+      return buildTestCaseSections(analyzePlan, metadataBundle, advisorReport);
+    }
     return buildAnalyzeSections(analyzePlan, metadataBundle ?? null, advisorReport);
   }, [mode, analyzePlan, planA, planB, metadataBundle]);
 
@@ -219,7 +226,7 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-800">
           <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-            {mode === 'compare' ? 'AI Compare Plans' : 'AI Analyze Plan'}
+            {mode === 'compare' ? 'AI Compare Plans' : mode === 'testcase' ? 'AI Build Test Case' : 'AI Analyze Plan'}
           </h3>
           <button
             type="button"
@@ -232,12 +239,24 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
         </div>
 
         <div className="p-4 space-y-4">
-          {!sectioned && (
+          {!sectioned && !missingBundle && (
             <p className="text-[11px] text-red-600 dark:text-red-400">
               {mode === 'compare'
                 ? 'Both compare plans must be loaded and parsed before running an AI comparison.'
                 : 'Load and parse a plan before running an AI analysis.'}
             </p>
+          )}
+
+          {missingBundle && analyzePlan && (
+            <div className="rounded-md border border-amber-500/20 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-[11px] text-amber-800 dark:text-amber-300 leading-snug">
+              <p className="font-semibold mb-1">Schema metadata bundle required</p>
+              <p>
+                Building a test case needs the referenced objects&apos; DDL and optimizer statistics.
+                Generate a gather script from the input panel (Metadata → Gather script), run it in
+                the source database, and attach the resulting JSON bundle to this plan — then reopen
+                this dialog.
+              </p>
+            </div>
           )}
 
           {/* Provider */}
@@ -465,14 +484,16 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
           >
             Cancel
           </button>
-          <button
-            type="button"
-            onClick={run}
-            disabled={!configValid}
-            className="text-xs px-4 py-1.5 font-semibold rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {status === 'streaming' ? 'Running…' : 'Run analysis'}
-          </button>
+          {!missingBundle && (
+            <button
+              type="button"
+              onClick={run}
+              disabled={!configValid}
+              className="text-xs px-4 py-1.5 font-semibold rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {status === 'streaming' ? 'Running…' : mode === 'testcase' ? 'Build test case' : 'Run analysis'}
+            </button>
+          )}
         </div>
       </div>
     </div>

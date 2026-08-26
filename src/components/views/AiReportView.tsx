@@ -7,6 +7,7 @@ import { splitReport } from '../../lib/ai/findings';
 import type { AiError, AiFinding, AiProviderId } from '../../lib/ai/types';
 import { SEVERITY_STYLES } from '../../lib/severityStyles';
 import { copyToClipboard } from '../../lib/clipboard';
+import { testCaseScriptFilename } from '../../lib/ai/testCase';
 
 const PROVIDER_LABELS: Record<AiProviderId, string> = {
   anthropic: 'Anthropic',
@@ -57,6 +58,63 @@ function errorMessage(error: AiError): { title: string; detail: string } {
     default:
       return { title: 'Analysis failed', detail: error.message || 'An unknown error occurred.' };
   }
+}
+
+/** Split markdown into prose and ```sql fenced segments (test-case reports). */
+function splitSqlFences(markdown: string): { type: 'md' | 'sql'; text: string }[] {
+  const segments: { type: 'md' | 'sql'; text: string }[] = [];
+  const fence = /```sql[^\S\n]*\r?\n([\s\S]*?)```/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  while ((match = fence.exec(markdown)) !== null) {
+    if (match.index > last) segments.push({ type: 'md', text: markdown.slice(last, match.index) });
+    segments.push({ type: 'sql', text: match[1] });
+    last = match.index + match[0].length;
+  }
+  if (last < markdown.length) segments.push({ type: 'md', text: markdown.slice(last) });
+  return segments;
+}
+
+function SqlScriptBlock({ sql, filename }: { sql: string; filename: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    const ok = await copyToClipboard(sql);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const download = () => {
+    const blob = new Blob([sql], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const buttonClass =
+    'px-2 py-0.5 text-[10px] font-medium rounded border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors';
+
+  return (
+    <div className="my-3 rounded-md border border-slate-200 dark:border-slate-700 overflow-hidden">
+      <div className="flex items-center gap-2 px-2 py-1 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+        <span className="flex-1 text-[10px] font-mono text-slate-500 dark:text-slate-400 truncate">{filename}</span>
+        <button type="button" onClick={copy} className={buttonClass}>
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+        <button type="button" onClick={download} className={buttonClass}>
+          Download
+        </button>
+      </div>
+      <pre className="p-3 bg-slate-50 dark:bg-slate-900 overflow-x-auto text-xs font-mono text-slate-800 dark:text-slate-200">
+        {sql}
+      </pre>
+    </div>
+  );
 }
 
 function AiFindingRow({ finding, onNavigate }: { finding: AiFinding; onNavigate: (nodeId: number) => void }) {
@@ -116,20 +174,36 @@ function AiFindingRow({ finding, onNavigate }: { finding: AiFinding; onNavigate:
 }
 
 export function AiReportView() {
-  const { selectNode } = usePlan();
+  const { selectNode, plans } = usePlan();
   const { report, status, streamText, error, openAiDialog, cancel } = useAi();
   const [copied, setCopied] = useState(false);
 
   const markdown = report?.markdown ?? streamText;
   const { narrative } = useMemo(() => splitReport(markdown), [markdown]);
 
+  const isTestCase = report?.kind === 'testcase';
+
   const narrativeHtml = useMemo(() => {
-    if (!narrative) return '';
+    if (!narrative || isTestCase) return '';
     const raw = marked.parse(narrative, { async: false, gfm: true, breaks: false });
     return DOMPurify.sanitize(raw);
-  }, [narrative]);
+  }, [narrative, isTestCase]);
 
-  const dialogMode = report?.kind === 'compare' ? 'compare' : 'analyze';
+  // Test-case reports: split out ```sql fences so each script gets its own
+  // copy/download controls; prose in between renders as normal markdown.
+  const testCaseSegments = useMemo(() => {
+    if (!isTestCase || !narrative) return null;
+    return splitSqlFences(narrative).map((seg) =>
+      seg.type === 'md'
+        ? { type: 'md' as const, html: DOMPurify.sanitize(marked.parse(seg.text, { async: false, gfm: true, breaks: false })) }
+        : { type: 'sql' as const, sql: seg.text },
+    );
+  }, [isTestCase, narrative]);
+
+  const sourcePlan = report ? plans[report.slotIds[0]]?.parsedPlan ?? null : null;
+  const scriptFilename = sourcePlan ? testCaseScriptFilename(sourcePlan) : 'test_case.sql';
+
+  const dialogMode = report?.kind ?? 'analyze';
 
   const handleCopy = async () => {
     const ok = await copyToClipboard(markdown);
@@ -188,7 +262,7 @@ export function AiReportView() {
       {/* Header bar */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-200 dark:border-slate-800 shrink-0">
         <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-          AI {dialogMode === 'compare' ? 'plan comparison' : 'plan analysis'}
+          AI {dialogMode === 'compare' ? 'plan comparison' : dialogMode === 'testcase' ? 'test case' : 'plan analysis'}
         </span>
         {providerBadge}
         {statusIndicator}
@@ -258,7 +332,17 @@ export function AiReportView() {
           )}
 
           {/* Streamed / final narrative */}
-          {narrativeHtml ? (
+          {testCaseSegments ? (
+            <div>
+              {testCaseSegments.map((seg, index) =>
+                seg.type === 'md' ? (
+                  <div key={index} className={MARKDOWN_CLASSES} dangerouslySetInnerHTML={{ __html: seg.html }} />
+                ) : (
+                  <SqlScriptBlock key={index} sql={seg.sql} filename={scriptFilename} />
+                ),
+              )}
+            </div>
+          ) : narrativeHtml ? (
             <div className={MARKDOWN_CLASSES} dangerouslySetInnerHTML={{ __html: narrativeHtml }} />
           ) : status === 'streaming' ? (
             <p className="text-sm text-slate-500 dark:text-slate-400">Waiting for the model…</p>

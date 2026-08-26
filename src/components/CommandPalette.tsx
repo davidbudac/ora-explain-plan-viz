@@ -129,6 +129,7 @@ function useCommands(onExportPng: () => void): Command[] {
     share,
     setBaselineDialogOpen,
     setConnectPanelOpen,
+    metadataBundle,
   } = usePlan();
   const { report: aiReport, openAiDialog } = useAi();
 
@@ -558,6 +559,15 @@ function useCommands(onExportPng: () => void): Command[] {
     });
 
     commands.push({
+      id: 'ai-build-testcase',
+      label: 'AI: Build test case…',
+      category: 'AI',
+      keywords: ['ai', 'test', 'case', 'testcase', 'repro', 'reproduce', 'script', 'build'],
+      execute: () => openAiDialog('testcase'),
+      isAvailable: () => parsedPlan !== null && metadataBundle !== null,
+    });
+
+    commands.push({
       id: 'ai-open-report',
       label: 'AI: Open report',
       category: 'AI',
@@ -580,7 +590,7 @@ function useCommands(onExportPng: () => void): Command[] {
     setInputPanelCollapsed, setFilterPanelCollapsed,
     setDetailPanelCollapsed, setHotspotsEnabled, setTreeCompareEnabled,
     exportAnnotatedPlan, clearAnnotations, share, onExportPng, setBaselineDialogOpen, setConnectPanelOpen,
-    aiReport, openAiDialog,
+    aiReport, openAiDialog, metadataBundle,
     toggleNodeDisplayOption, enableAllDisplayOptions, disableAllDisplayOptions,
   ]);
 }

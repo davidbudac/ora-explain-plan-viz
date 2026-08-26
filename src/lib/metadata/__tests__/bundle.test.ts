@@ -625,10 +625,10 @@ describe('parseBundle — v2 fields', () => {
     }
   });
 
-  it('rejects version 3 with a message naming the supported versions', () => {
+  it('rejects version 4 with a message naming the supported versions', () => {
     const json = JSON.stringify({
       format: 'ora-plan-metadata',
-      version: 3,
+      version: 4,
       captured_at: '2026-05-15T10:23:00Z',
       source: { db_name: 'PROD1', oracle_version: '19.0.0.0.0', container_name: 'PDB1' },
       plan_ref: { sql_id: 'abc123def456', plan_hash_value: 1234567890 },
@@ -636,8 +636,103 @@ describe('parseBundle — v2 fields', () => {
       coverage_warnings: [],
     });
 
-    expect(() => parseBundle(json)).toThrow(/unsupported version: 3/);
-    expect(() => parseBundle(json)).toThrow(/supports versions 1, 2/);
+    expect(() => parseBundle(json)).toThrow(/unsupported version: 4/);
+    expect(() => parseBundle(json)).toThrow(/supports versions 1, 2, 3/);
+  });
+});
+
+describe('parseBundle — v3 histogram endpoints', () => {
+  it('accepts version 3 and round-trips per-column histogram endpoints', () => {
+    const json = JSON.stringify({
+      format: 'ora-plan-metadata',
+      version: 3,
+      captured_at: '2026-08-26T10:00:00Z',
+      source: { db_name: 'PROD1', oracle_version: '19.27.0.0.0', container_name: 'PDB1' },
+      plan_ref: { sql_id: 'gwt6xjc6gcs2f', plan_hash_value: 767733636 },
+      objects: {
+        'HR.EMPLOYEES': {
+          type: 'TABLE',
+          stats: {
+            num_rows: 500000,
+            blocks: 4200,
+            avg_row_len: 64,
+            last_analyzed: '2026-04-01T03:15:00Z',
+            stale_stats: 'NO',
+            partitioned: false,
+          },
+          columns: {
+            STATUS: {
+              data_type: 'VARCHAR2',
+              nullable: true,
+              num_distinct: 3,
+              num_nulls: 0,
+              low_value: 'ACTIVE',
+              high_value: 'RETIRED',
+              density: 0.000001,
+              histogram: {
+                type: 'FREQUENCY',
+                buckets: 3,
+                endpoints: [
+                  { value: 'ACTIVE', endpoint_number: 480000 },
+                  { value: 'INACTIVE', endpoint_number: 499000 },
+                  { value: 'RETIRED', endpoint_number: 500000 },
+                ],
+              },
+            },
+            DEPT_ID: {
+              data_type: 'NUMBER',
+              nullable: false,
+              num_distinct: 5000,
+              num_nulls: 0,
+              low_value: '1',
+              high_value: '5000',
+              density: 0.0002,
+              histogram: {
+                type: 'HYBRID',
+                buckets: 254,
+                endpoints: [
+                  { value: 1, endpoint_number: 1, repeat_count: 1 },
+                  { value: 42, endpoint_number: 9000, repeat_count: 8500 },
+                  { value: 5000, endpoint_number: 500000, repeat_count: 3 },
+                ],
+              },
+            },
+            ID: {
+              data_type: 'NUMBER',
+              nullable: false,
+              num_distinct: 500000,
+              num_nulls: 0,
+              low_value: '1',
+              high_value: '500000',
+              density: 0.000002,
+              histogram: { type: 'NONE', buckets: 0 },
+            },
+          },
+          indexes: [],
+        },
+      },
+      coverage_warnings: [],
+    });
+
+    const bundle = parseBundle(json);
+
+    expect(bundle.version).toBe(3);
+    const emp = bundle.objects['HR.EMPLOYEES'];
+    expect(emp?.type).toBe('TABLE');
+    if (emp?.type === 'TABLE') {
+      const status = emp.columns['STATUS'].histogram;
+      expect(status.type).toBe('FREQUENCY');
+      expect(status.endpoints).toHaveLength(3);
+      expect(status.endpoints?.[0]).toEqual({ value: 'ACTIVE', endpoint_number: 480000 });
+      expect(status.endpoints?.[0].repeat_count).toBeUndefined();
+
+      const dept = emp.columns['DEPT_ID'].histogram;
+      expect(dept.type).toBe('HYBRID');
+      expect(dept.endpoints?.[1]).toEqual({ value: 42, endpoint_number: 9000, repeat_count: 8500 });
+
+      // NONE histograms carry no endpoints, matching the gather script.
+      expect(emp.columns['ID'].histogram.endpoints).toBeUndefined();
+    }
   });
 });
 

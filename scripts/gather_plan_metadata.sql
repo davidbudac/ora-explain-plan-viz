@@ -33,6 +33,10 @@
 --   V$SQL, V$SQL_OPTIMIZER_ENV, DBA_SQL_PLAN_BASELINES, DBA_SQL_PROFILES,
 --   DBA_SQL_PATCHES, DBA_SQL_PLAN_DIRECTIVES and DBA_SQL_PLAN_DIR_OBJECTS.
 --
+--   Bundle version 3 additionally reads DBA_TAB_HISTOGRAMS (falls back to
+--   ALL_TAB_HISTOGRAMS) for per-column histogram endpoints, again degrading
+--   to a coverage warning rather than failing the gather.
+--
 -- This script is read-only against the data dictionary.
 --------------------------------------------------------------------------------
 
@@ -101,6 +105,7 @@ DECLARE
   g_use_dba_part    BOOLEAN := TRUE;
   g_use_dba_seg     BOOLEAN := TRUE;   -- dba_segments -> user_segments (own schema only)
   g_use_dba_ext     BOOLEAN := TRUE;   -- dba_stat_extensions
+  g_use_dba_hist    BOOLEAN := TRUE;   -- dba_tab_histograms -> all_tab_histograms
 
   -- One-shot: only warn once about missing DBA_SEGMENTS access, even though
   -- write_segment is called once per table and once per index.
@@ -542,6 +547,75 @@ DECLARE
     );
   END;
 
+  -- v3: per-column histogram endpoints from {DBA|ALL}_TAB_HISTOGRAMS, capped
+  -- at 254 endpoints (the maximum bucket count). Appends an `,"endpoints":[...]`
+  -- fragment inside the already-open histogram object; called only for columns
+  -- whose histogram type is not NONE. String endpoints use ENDPOINT_ACTUAL_VALUE
+  -- (already decoded by Oracle); numeric ones fall back to ENDPOINT_VALUE.
+  -- ENDPOINT_REPEAT_COUNT (HYBRID histograms) is emitted as repeat_count only
+  -- when > 0. Any failure degrades to a coverage warning, never a failed gather.
+  PROCEDURE write_hist_endpoints(
+    p_owner   IN VARCHAR2,
+    p_name    IN VARCHAR2,
+    p_col     IN VARCHAR2,
+    p_buffer  IN OUT NOCOPY CLOB
+  ) IS
+    l_view    VARCHAR2(64);
+    l_stmt    VARCHAR2(2000);
+    l_first   BOOLEAN := TRUE;
+    TYPE t_ep IS RECORD (
+      ep_number    NUMBER,
+      ep_value     NUMBER,
+      actual_value VARCHAR2(4000),
+      repeat_count NUMBER
+    );
+    TYPE t_ep_tab IS TABLE OF t_ep;
+    l_eps     t_ep_tab;
+  BEGIN
+    l_view := CASE WHEN g_use_dba_hist THEN 'dba_tab_histograms' ELSE 'all_tab_histograms' END;
+    l_stmt := 'SELECT * FROM ('
+           || '  SELECT h.endpoint_number, h.endpoint_value, '
+           || '         h.endpoint_actual_value, h.endpoint_repeat_count '
+           || '  FROM ' || l_view || ' h '
+           || '  WHERE h.owner = :1 AND h.table_name = :2 AND h.column_name = :3 '
+           || '  ORDER BY h.endpoint_number'
+           || ') WHERE ROWNUM <= 254';
+
+    BEGIN
+      EXECUTE IMMEDIATE l_stmt BULK COLLECT INTO l_eps USING p_owner, p_name, p_col;
+    EXCEPTION
+      WHEN OTHERS THEN
+        IF SQLCODE = -942 AND g_use_dba_hist THEN
+          g_use_dba_hist := FALSE;
+          write_hist_endpoints(p_owner, p_name, p_col, p_buffer);
+          RETURN;
+        END IF;
+        add_warning(p_owner || '.' || p_name || '.' || p_col,
+          'Histogram endpoints query failed: ' || SUBSTR(SQLERRM, 1, 200));
+        RETURN;
+    END;
+
+    IF l_eps.COUNT = 0 THEN RETURN; END IF;
+
+    DBMS_LOB.APPEND(p_buffer, ',"endpoints":[');
+    FOR i IN 1 .. l_eps.COUNT LOOP
+      IF NOT l_first THEN DBMS_LOB.APPEND(p_buffer, ','); END IF;
+      l_first := FALSE;
+      DBMS_LOB.APPEND(p_buffer,
+        '{"value":'
+        || CASE WHEN l_eps(i).actual_value IS NOT NULL
+                THEN js_string(l_eps(i).actual_value)
+                ELSE js_number(l_eps(i).ep_value) END
+        || ',"endpoint_number":' || js_number(l_eps(i).ep_number)
+        || CASE WHEN l_eps(i).repeat_count > 0
+                THEN ',"repeat_count":' || js_number(l_eps(i).repeat_count)
+                ELSE '' END
+        || '}'
+      );
+    END LOOP;
+    DBMS_LOB.APPEND(p_buffer, ']');
+  END;
+
   PROCEDURE write_columns(
     p_owner   IN VARCHAR2,
     p_name    IN VARCHAR2,
@@ -614,7 +688,12 @@ DECLARE
         || ',"histogram":{'
         || '"type":' || js_string(l_cols(i).histogram)
         || ',"buckets":' || js_number(l_cols(i).hist_buckets)
-        || '}'
+      );
+      IF l_cols(i).histogram <> 'NONE' THEN
+        write_hist_endpoints(p_owner, p_name, l_cols(i).col_name, p_buffer);
+      END IF;
+      DBMS_LOB.APPEND(p_buffer,
+        '}'
         || CASE WHEN l_cols(i).virtual_col = 'YES' THEN ',"virtual":true' ELSE '' END
         || CASE WHEN l_cols(i).hidden_col = 'YES' THEN ',"hidden":true' ELSE '' END
         || '}'
@@ -1669,7 +1748,7 @@ BEGIN
   DBMS_LOB.APPEND(l_buffer,
     '{'
     || '"format":"ora-plan-metadata"'
-    || ',"version":2'
+    || ',"version":3'
     || ',"captured_at":' || js_iso_ts(CAST(SYSTIMESTAMP AS TIMESTAMP))
     || ',"source":{'
     || '"db_name":' || js_string(g_db_name)

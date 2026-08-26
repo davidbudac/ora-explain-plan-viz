@@ -107,7 +107,7 @@ const tabs: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
 ];
 
 export function NavRibbon() {
-  const { viewMode, setViewMode, parsedPlan, plans, visualizationMaximized, setVisualizationMaximized } = usePlan();
+  const { viewMode, setViewMode, parsedPlan, plans, metadataBundle, visualizationMaximized, setVisualizationMaximized } = usePlan();
   const { report, openAiDialog } = useAi();
 
   const comparablePlanCount = plans.filter((slot) => slot.parsedPlan).length;
@@ -185,6 +185,29 @@ export function NavRibbon() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
           </svg>
           <span className="hidden xl:inline">AI analysis</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => openAiDialog('testcase')}
+          disabled={!parsedPlan || !metadataBundle}
+          title={
+            !parsedPlan
+              ? 'Load a plan first'
+              : !metadataBundle
+                ? 'Attach a schema metadata bundle to build a test case'
+                : 'Build a reproducible test case…'
+          }
+          className={`h-8 px-2.5 flex items-center gap-1.5 rounded-md border text-xs font-semibold transition-colors shadow-sm ${
+            parsedPlan && metadataBundle
+              ? 'border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30'
+              : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50'
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+          </svg>
+          <span className="hidden xl:inline">Build test case</span>
         </button>
 
         <button
