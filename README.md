@@ -45,6 +45,7 @@ Notes and colour highlights on nodes, exported as JSON or baked into a shareable
 | **Tabular / Sankey / Plan Text / SQL** views | **Filters** by operation, predicates, cost/rows/time ranges, cardinality mismatch |
 | **Experimental** views — timeline Gantt with ASH wait classes, E-Rows vs A-Rows scatter, wasted-work waterfall | **Schema metadata** — attach table/index/column stats, browse them in the Metadata explorer |
 | **SQL Plan Baseline** script generator (DBMS_SPM) | **Shareable URL straight from the DB** via [`scripts/plan_to_url.sql`](scripts/plan_to_url.sql) |
+| **Client report** — plan, notes, and findings exported as one self-contained HTML document (or print to PDF) | **Make it yours** — light/dark themes, 5 app palettes, 8 node color schemes, Minimal→Detailed density, focus mode (`Z`) |
 
 ![Execution timeline with ASH wait classes](site/assets/timeline.png)
 
