@@ -10,10 +10,8 @@ const HISTOGRAM_BUCKETS = 40;
 
 const FOCUS_RING =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
-// Segmented controls sit flush inside a padded, bordered group — keep their
-// ring inside the button so it doesn't spill over the group's border.
-const FOCUS_RING_INSET =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
+// Hairline used by the panel's quiet chips and segmented controls.
+const HAIRLINE = 'border border-slate-200/70 dark:border-slate-700/50';
 
 /** Renders a robust histogram behind a range slider showing node value distribution. */
 function SliderHistogram({ values, max, height = 40 }: { values: number[]; max: number; height?: number }) {
@@ -53,7 +51,7 @@ function IndicatorButton<T extends string>({
   label,
   current,
   onClick,
-  activeClass = 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-400/30',
+  activeClass = 'bg-slate-200/80 dark:bg-slate-700/70 text-slate-900 dark:text-slate-100',
 }: {
   metric: T;
   label: string;
@@ -65,7 +63,7 @@ function IndicatorButton<T extends string>({
     <button
       type="button"
       onClick={() => onClick(metric)}
-      className={`px-2 py-1 text-[10px] rounded-md transition-all font-semibold uppercase tracking-wider ${FOCUS_RING_INSET} ${current === metric ? activeClass : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+      className={`px-2 py-1 text-[10px] rounded-md transition-all font-semibold uppercase tracking-wider ${FOCUS_RING} ${current === metric ? activeClass : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
     >
       {label}
     </button>
@@ -273,30 +271,26 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
   if (isCollapsed) {
     const filtersActive = hasActiveFilters(filters) || filteredCount !== totalCount;
     return (
-      <div className="bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col items-center py-3 px-1.5">
-        <button
-          onClick={() => setIsCollapsed(false)}
-          className={`relative h-9 w-9 flex items-center justify-center rounded-md transition-colors ${FOCUS_RING} ${
-            filtersActive
-              ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-          title={filtersActive ? `Show filters (active: ${filteredCount} / ${totalCount} ops visible)` : 'Show filters'}
-          aria-label="Show filters"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-          </svg>
-          {filtersActive && (
-            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-white dark:border-slate-900" aria-hidden="true" />
-          )}
-        </button>
+      <button
+        type="button"
+        onClick={() => setIsCollapsed(false)}
+        className={`shrink-0 w-[26px] h-full flex flex-col items-center pt-2.5 gap-2.5 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`}
+        title={filtersActive ? `Show filters (active: ${filteredCount} / ${totalCount} ops visible)` : 'Show filters'}
+        aria-label="Show filters"
+        aria-expanded={false}
+      >
+        <svg className="w-3.5 h-3.5 shrink-0 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+        <span className="[writing-mode:vertical-rl] uppercase text-[10px] font-bold tracking-[0.14em] text-slate-500 dark:text-slate-400">
+          Filters
+        </span>
         {filtersActive && (
-          <span className="mt-2 text-[10px] font-semibold text-amber-600 dark:text-amber-400 font-mono whitespace-nowrap">
+          <span className="[writing-mode:vertical-rl] text-[10px] font-semibold font-mono tabular-nums text-amber-600 dark:text-amber-400">
             {filteredCount}/{totalCount}
           </span>
         )}
-      </div>
+      </button>
     );
   }
 
@@ -308,10 +302,10 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       <button
         type="button"
         onPointerDown={onResizeStart}
-        className={`absolute right-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none bg-transparent hover:bg-blue-500/40 transition-colors ${FOCUS_RING}`}
+        className={`absolute right-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors ${FOCUS_RING}`}
         aria-label="Resize filters panel"
       />
-      <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+      <div className="px-3 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
         <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-2 min-w-0">
             <h3 className="font-semibold text-xs text-slate-900 dark:text-slate-100 uppercase tracking-widest">Filters</h3>
@@ -328,22 +322,12 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
                 Reset
               </button>
             )}
-            <button
-              onClick={() => setIsCollapsed(true)}
-              className={`p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md transition-colors text-slate-400 dark:text-slate-500 ${FOCUS_RING}`}
-              title="Collapse panel"
-              aria-label="Collapse filters panel"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-              </svg>
-            </button>
           </div>
         </div>
       </div>
 
       {/* View Settings */}
-      <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
+      <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
         <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">
           View Settings
         </label>
@@ -351,7 +335,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
         {viewMode === 'hierarchical' && parsedPlan && !treeCompareEnabled && (
           <div className="mb-4">
             <span className="block text-[11px] text-slate-500 dark:text-slate-400 mb-2 font-medium">Node Indicator</span>
-            <div className="grid grid-cols-2 gap-1 bg-slate-100 dark:bg-slate-800 rounded-md p-1 border border-slate-200 dark:border-slate-700">
+            <div className="grid grid-cols-2 gap-0.5">
               <IndicatorButton metric="cost" label="Cost" current={nodeIndicatorMetric} onClick={setNodeIndicatorMetric} />
               {parsedPlan.hasActualStats && (
                 <>
@@ -367,7 +351,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
         {viewMode === 'sankey' && parsedPlan && (
            <div className="mb-4">
             <span className="block text-[11px] text-slate-500 dark:text-slate-400 mb-2 font-medium">Flow Metric</span>
-            <div className="grid grid-cols-2 gap-1 bg-slate-100 dark:bg-slate-800 rounded-md p-1 border border-slate-200 dark:border-slate-700">
+            <div className="grid grid-cols-2 gap-0.5">
                 <IndicatorButton metric="rows" label={parsedPlan.hasActualStats ? 'E-Rows' : 'Rows'} current={sankeyMetric} onClick={setSankeyMetric} />
                 <IndicatorButton metric="cost" label="Cost" current={sankeyMetric} onClick={setSankeyMetric} />
                 {parsedPlan.hasActualStats && (
@@ -383,7 +367,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
         {viewMode === 'flame' && parsedPlan && (
            <div className="mb-4">
             <span className="block text-[11px] text-slate-500 dark:text-slate-400 mb-2 font-medium">Flame Metric</span>
-            <div className="grid grid-cols-2 gap-1 bg-slate-100 dark:bg-slate-800 rounded-md p-1 border border-slate-200 dark:border-slate-700">
+            <div className="grid grid-cols-2 gap-0.5">
                 <IndicatorButton metric="cost" label="Cost" current={flameMetric} onClick={setFlameMetric} />
                 {parsedPlan.hasActualStats && (
                   <>
@@ -404,7 +388,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       </div>
 
       {/* Search */}
-      <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
+      <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
         <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">
           Search
         </label>
@@ -414,9 +398,9 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
             value={filters.searchText}
             onChange={(e) => setFilters({ searchText: e.target.value })}
             placeholder="Operation, object, predicate..."
-            className="w-full px-3 py-1.5 text-[11px] border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 shadow-sm"
+            className="w-full pl-0.5 pr-5 py-1.5 text-[11px] bg-transparent border-0 border-b border-slate-300 dark:border-slate-700 rounded-none text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-0 focus:border-blue-500"
           />
-          <div className="absolute right-2 top-1.5 pointer-events-none">
+          <div className="absolute right-0.5 top-1.5 pointer-events-none">
              <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
              </svg>
@@ -454,7 +438,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       </div>
 
       {/* Predicate Types */}
-      <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
+      <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
         <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">
           Predicate types
         </label>
@@ -472,17 +456,17 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
                 key={type}
                 onClick={() => handlePredicateTypeToggle(type)}
                 className={`
-                  flex items-center gap-1.5 px-2 py-1 text-[10px] rounded-md transition-all font-semibold uppercase tracking-tight border
-                  ${FOCUS_RING}
+                  flex items-center gap-1.5 px-2 py-1 text-[10px] rounded-md transition-colors font-semibold uppercase tracking-tight
+                  ${HAIRLINE} ${FOCUS_RING}
                   ${
                     isActive
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm ring-1 ring-blue-400/30'
-                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+                      ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100'
+                      : 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }
                 `}
               >
                 <span>{label}</span>
-                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${isActive ? 'bg-blue-700 text-blue-100' : 'bg-slate-100 dark:bg-slate-900 text-slate-500'}`}>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${isActive ? 'bg-slate-300/70 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200' : 'bg-slate-100 dark:bg-slate-900 text-slate-500'}`}>
                   {count}
                 </span>
               </button>
@@ -492,7 +476,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       </div>
 
       {/* Operation Categories */}
-      <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
+      <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
         <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">
           Operation types
         </label>
@@ -508,17 +492,17 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
                 key={category}
                 onClick={() => handleCategoryToggle(category)}
                 className={`
-                   flex items-center gap-1.5 px-2 py-1 text-[10px] rounded-md transition-all font-semibold uppercase tracking-tight border
-                  ${FOCUS_RING}
+                   flex items-center gap-1.5 px-2 py-1 text-[10px] rounded-md transition-colors font-semibold uppercase tracking-tight
+                  ${HAIRLINE} ${FOCUS_RING}
                   ${
                     isActive
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm ring-1 ring-blue-400/30'
-                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+                      ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100'
+                      : 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }
                 `}
               >
                 <span className="truncate max-w-[120px]">{category}</span>
-                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${isActive ? 'bg-blue-700 text-blue-100' : 'bg-slate-100 dark:bg-slate-900 text-slate-500'}`}>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${isActive ? 'bg-slate-300/70 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200' : 'bg-slate-100 dark:bg-slate-900 text-slate-500'}`}>
                   {count}
                 </span>
               </button>
@@ -528,7 +512,7 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
       </div>
 
       {/* Thresholds */}
-      <div className="p-4">
+      <div className="p-3">
         <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">
           Hide below threshold
         </label>

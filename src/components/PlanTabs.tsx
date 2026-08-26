@@ -53,7 +53,7 @@ function InlineRenameLabel({
         className={`
           w-24 px-1 py-0 text-xs font-semibold bg-transparent border-b outline-none
           ${isActive
-            ? 'text-white border-white/50 placeholder-blue-200'
+            ? 'text-slate-900 dark:text-slate-100 border-slate-500 dark:border-slate-400 placeholder-slate-400'
             : 'text-slate-700 dark:text-slate-300 border-slate-400 dark:border-slate-500 placeholder-slate-400'
           }
         `}
@@ -85,7 +85,7 @@ function InlineRenameLabel({
         className={`
           p-0.5 rounded opacity-0 group-hover/tab:opacity-60 hover:!opacity-100 focus-visible:opacity-100 transition-opacity
           ${FOCUS_RING}
-          ${isActive ? 'hover:bg-blue-500' : 'hover:bg-slate-200 dark:hover:bg-slate-700'}
+          ${isActive ? 'hover:bg-slate-300 dark:hover:bg-slate-600' : 'hover:bg-slate-200 dark:hover:bg-slate-700'}
         `}
         title="Rename plan"
       >
@@ -135,7 +135,7 @@ export function PlanTabs() {
               group/tab shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border cursor-pointer
               ${FOCUS_RING_INSET}
               ${isActive
-                ? 'bg-blue-600 text-white border-blue-600'
+                ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600'
                 : 'text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
               }
             `}
@@ -148,7 +148,7 @@ export function PlanTabs() {
                 onRename={renamePlanSlot}
               />
               {phv && (
-                <span className={`font-mono text-[10px] ${isActive ? 'text-blue-200' : 'text-slate-400 dark:text-slate-500'}`}>
+                <span className={`font-mono text-[10px] ${isActive ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500'}`}>
                   PHV: {phv}
                 </span>
               )}
@@ -160,12 +160,10 @@ export function PlanTabs() {
                     setBaselineDialogOpen(true);
                   }}
                   className={`
-                    px-1 py-px text-[10px] font-semibold rounded border transition-colors
+                    px-1 py-px text-[10px] font-semibold rounded border bg-transparent transition-colors
+                    border-slate-300/70 dark:border-slate-600/70 text-slate-500 dark:text-slate-400
+                    hover:border-slate-400 dark:hover:border-slate-500 hover:text-slate-700 dark:hover:text-slate-200
                     ${FOCUS_RING}
-                    ${isActive
-                      ? 'border-blue-400 text-blue-200 hover:bg-blue-500 hover:text-white'
-                      : 'border-slate-300 dark:border-slate-600 text-slate-400 dark:text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300'
-                    }
                   `}
                   title="Generate SQL Plan Baseline script (DBMS_SPM)"
                 >
@@ -173,7 +171,7 @@ export function PlanTabs() {
                 </button>
               )}
               {!slot.parsedPlan && (
-                <span className={`text-[10px] italic ${isActive ? 'text-blue-200' : 'text-slate-400 dark:text-slate-500'}`}>
+                <span className={`text-[10px] italic ${isActive ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500'}`}>
                   (empty)
                 </span>
               )}
@@ -188,7 +186,7 @@ export function PlanTabs() {
                   ml-1 p-0.5 rounded transition-colors
                   ${FOCUS_RING}
                   ${isActive
-                    ? 'hover:bg-blue-500 text-blue-200'
+                    ? 'hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400'
                     : 'hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500'
                   }
                 `}
@@ -224,14 +222,14 @@ export function PlanTabs() {
             <button
               type="button"
               onClick={() => setTreeCompareEnabled(false)}
-              className={`px-2.5 py-1 text-xs rounded-md transition-colors font-medium ${FOCUS_RING_INSET} ${!treeCompareEnabled ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+              className={`px-2.5 py-1 text-xs rounded-md transition-colors font-medium ${FOCUS_RING_INSET} ${!treeCompareEnabled ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
             >
               Single
             </button>
             <button
               type="button"
               onClick={() => setTreeCompareEnabled(true)}
-              className={`px-2.5 py-1 text-xs rounded-md transition-colors font-medium ${FOCUS_RING_INSET} ${treeCompareEnabled ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+              className={`px-2.5 py-1 text-xs rounded-md transition-colors font-medium ${FOCUS_RING_INSET} ${treeCompareEnabled ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
             >
               Side-by-side
             </button>

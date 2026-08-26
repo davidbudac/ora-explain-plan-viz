@@ -140,7 +140,7 @@ export function InputPanel() {
       className={`flex flex-col bg-white dark:bg-slate-900 border-b ${
         isDraggingFile
           ? 'border-blue-500 ring-2 ring-inset ring-blue-500/60'
-          : 'border-slate-200 dark:border-slate-800'
+          : 'border-slate-200/70 dark:border-slate-800/70'
       }`}
     >
       {/* Header - always visible */}
@@ -163,7 +163,7 @@ export function InputPanel() {
             </svg>
             <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
               {hasMultiplePlans && (
-                <span className="text-blue-600 dark:text-blue-400 mr-1.5">{plans[activePlanIndex].customLabel || plans[activePlanIndex].label}:</span>
+                <span className="text-slate-500 dark:text-slate-400 mr-1.5">{plans[activePlanIndex].customLabel || plans[activePlanIndex].label}:</span>
               )}
               {parsedPlan?.sqlId
                 ? <span>SQL ID: <span className="font-mono">{parsedPlan.sqlId}</span></span>
@@ -205,8 +205,8 @@ export function InputPanel() {
               aria-pressed={showConnectPanel}
               className={`h-8 px-3 text-xs border rounded-md transition-colors flex items-center gap-1 font-semibold ${FOCUS_RING} ${
                 showConnectPanel
-                  ? 'border-blue-500 bg-blue-600 text-white'
-                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                  ? 'border-slate-300 dark:border-slate-600 bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100'
+                  : 'border-slate-200 dark:border-slate-700 bg-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               DB Connect
@@ -215,7 +215,7 @@ export function InputPanel() {
           <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowSampleMenu(!showSampleMenu)}
-            className={`h-8 px-3 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1 font-semibold ${FOCUS_RING}`}
+            className={`h-8 px-3 text-xs border border-slate-200 dark:border-slate-700 bg-transparent text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1 font-semibold ${FOCUS_RING}`}
           >
             Load Example
             <svg className={`w-4 h-4 transition-transform ${showSampleMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">

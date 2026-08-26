@@ -97,7 +97,7 @@ export function NavRibbon() {
   return (
     <div
       ref={rootRef}
-      className="flex items-center justify-between gap-3 px-3 py-1 bg-slate-50 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 shadow-sm z-20"
+      className="flex items-center justify-between gap-3 px-3 py-1 bg-white dark:bg-slate-900 border-b border-slate-200/70 dark:border-slate-800/70 z-20"
     >
       <div className="flex-1 min-w-0 overflow-x-auto scrollbar-none">
         {/* Inner w-max wrapper: its scrollWidth is the plan tabs' natural width,

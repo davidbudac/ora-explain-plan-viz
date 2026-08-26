@@ -88,6 +88,14 @@ const nodeTypes: NodeTypes = {
   annotationGroup: AnnotationGroupNode as unknown as NodeTypes['annotationGroup'],
 };
 
+// Staged canvas backdrop — a soft pool of light the plan tree sits in.
+// Sized as a fixed ellipse anchored in percentages so it reads the same in the
+// full-width tree view and in the narrower dual panes of the compare view.
+const CANVAS_BACKDROP_LIGHT =
+  'radial-gradient(1100px 620px at 50% 32%, #ffffff 0%, #f3f6fa 62%, #e9eef5 100%)';
+const CANVAS_BACKDROP_DARK =
+  'radial-gradient(1100px 620px at 50% 32%, #1b2740 0%, #0e1526 62%, #0b1120 100%)';
+
 // Layout dimensions for dagre algorithm
 const NODE_WIDTH = 260;
 const NODE_BASE_HEIGHT = 60; // Base: operation name + ID badge + cost bar
@@ -490,7 +498,8 @@ function HierarchicalViewContent({
         const viewportEl = containerRef.current?.querySelector('.react-flow__viewport') as HTMLElement | null;
         if (!viewportEl) return;
 
-        const bgColor = theme === 'dark' ? '#171717' : '#ffffff';
+        // Matches the mid stop of the staged canvas backdrop
+        const bgColor = theme === 'dark' ? '#0e1526' : '#ffffff';
         const dataUrl = await toPng(viewportEl, {
           backgroundColor: bgColor,
           width: imageWidth,
@@ -1050,7 +1059,8 @@ function HierarchicalViewContent({
         }
 
         const labelFill = theme === 'dark' ? '#a3a3a3' : '#737373';
-        const labelBgFill = theme === 'dark' ? '#171717' : 'white';
+        // Tuned to the staged canvas backdrop so edge labels don't read as chips
+        const labelBgFill = theme === 'dark' ? '#101a2e' : '#ffffff';
         const labelStyle = { fill: labelFill, fontSize: 10, fontWeight: 500 };
         const labelBgStyle = { fill: labelBgFill, fillOpacity: 0.9 };
 
@@ -1212,11 +1222,24 @@ function HierarchicalViewContent({
   return (
     <div
       ref={containerRef}
-      className={`w-full h-full min-h-[320px] min-w-0 transition-opacity duration-150 ${
+      className={`relative w-full h-full min-h-[320px] min-w-0 overflow-hidden transition-opacity duration-150 ${
         layoutReady ? 'opacity-100' : 'opacity-0'
       }`}
     >
+      {/* Staged canvas backdrop: the tree sits in a soft pool of light.
+          Two stacked layers so the gradient follows the .dark root class. */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none dark:hidden"
+        style={{ background: CANVAS_BACKDROP_LIGHT }}
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none hidden dark:block"
+        style={{ background: CANVAS_BACKDROP_DARK }}
+      />
       <ReactFlow
+        className="!bg-transparent"
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
@@ -1230,18 +1253,21 @@ function HierarchicalViewContent({
         maxZoom={2}
         onlyRenderVisibleElements={!isExporting}
       >
+        {/* Transparent so the staged gradient behind the flow shows through
+            (index.css paints .react-flow__background flat in dark mode). */}
         <Background
           variant={BackgroundVariant.Dots}
           gap={20}
           size={1}
-          color={theme === 'dark' ? '#334155' : '#e2e8f0'}
+          className="!bg-transparent"
+          color={theme === 'dark' ? 'rgba(148,163,184,0.16)' : 'rgba(100,116,139,0.16)'}
         />
-        <Controls className="!bg-white dark:!bg-slate-800 !border-slate-200 dark:!border-slate-700" />
+        <Controls className="!bg-transparent !border-none !shadow-none [&_button]:!bg-white/80 [&_button]:!border-slate-200/80 [&_button]:!text-slate-600 [&_button]:backdrop-blur-sm dark:[&_button]:!bg-slate-800/70 dark:[&_button]:!border-slate-700/70 dark:[&_button]:!text-slate-300 [&_button:hover]:!bg-white dark:[&_button:hover]:!bg-slate-700/80" />
         <Panel position="top-right">
           <button
             type="button"
             onClick={resetLayout}
-            className="p-1.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-sm"
+            className="p-1.5 rounded-md bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm border border-slate-200/80 dark:border-slate-700/70 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700/80 transition-colors shadow-sm"
             title="Redraw layout"
             aria-label="Redraw layout"
           >
