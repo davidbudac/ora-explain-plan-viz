@@ -177,19 +177,15 @@ pre code.hljs {
    is removed from <html> entirely).
    ============================================================================ */
 
-/* Staged canvas backdrop (HierarchicalView) — palette-restylable glow stops.
+/* Canvas backdrop (HierarchicalView) — a palette-restylable solid.
    --canvas-label-bg is the chip behind edge labels; it rides along so labels
    keep sitting *in* the canvas instead of punching through it. */
 :root {
-  --canvas-glow-1: #ffffff;
-  --canvas-glow-2: #f3f6fa;
-  --canvas-glow-3: #e9eef5;
+  --canvas-bg: #f3f6fa;
   --canvas-label-bg: #ffffff;
 }
 .dark {
-  --canvas-glow-1: #1b2740;
-  --canvas-glow-2: #0e1526;
-  --canvas-glow-3: #0b1120;
+  --canvas-bg: #0e1526;
   --canvas-label-bg: #101a2e;
 }
 
@@ -222,15 +218,11 @@ pre code.hljs {
   --app-bg: #f7f6f3;
   --app-bg-dark: #141216;
 
-  --canvas-glow-1: #fbfaf7;
-  --canvas-glow-2: #f1efe9;
-  --canvas-glow-3: #e8e5dd;
+  --canvas-bg: #f1efe9;
   --canvas-label-bg: #fbfaf7;
 }
 :root[data-palette="graphite"].dark {
-  --canvas-glow-1: #2a2430;
-  --canvas-glow-2: #1a171d;
-  --canvas-glow-3: #131116;
+  --canvas-bg: #1a171d;
   --canvas-label-bg: #201d24;
 }
 
@@ -263,15 +255,11 @@ pre code.hljs {
   --app-bg: #f0f7f6;
   --app-bg-dark: #071312;
 
-  --canvas-glow-1: #f4faf8;
-  --canvas-glow-2: #e6f1ee;
-  --canvas-glow-3: #dcebe7;
+  --canvas-bg: #e6f1ee;
   --canvas-label-bg: #f4faf8;
 }
 :root[data-palette="teal"].dark {
-  --canvas-glow-1: #133634;
-  --canvas-glow-2: #0c1d1c;
-  --canvas-glow-3: #081312;
+  --canvas-bg: #0c1d1c;
   --canvas-label-bg: #0f2726;
 }
 
@@ -304,15 +292,11 @@ pre code.hljs {
   --app-bg: #f6f5fa;
   --app-bg-dark: #100e1e;
 
-  --canvas-glow-1: #f7f5fc;
-  --canvas-glow-2: #ebe8f5;
-  --canvas-glow-3: #e1ddf0;
+  --canvas-bg: #ebe8f5;
   --canvas-label-bg: #f7f5fc;
 }
 :root[data-palette="violet"].dark {
-  --canvas-glow-1: #241d45;
-  --canvas-glow-2: #151228;
-  --canvas-glow-3: #0f0d1c;
+  --canvas-bg: #151228;
   --canvas-label-bg: #1a1633;
 }
 
@@ -349,14 +333,10 @@ pre code.hljs {
   --app-bg: #f6f2ea;
   --app-bg-dark: #141311;
 
-  --canvas-glow-1: #fffdf8;
-  --canvas-glow-2: #f6f0e5;
-  --canvas-glow-3: #eee6d6;
+  --canvas-bg: #f6f0e5;
   --canvas-label-bg: #fffdf8;
 }
 :root[data-palette="paper"].dark {
-  --canvas-glow-1: #2b2620;
-  --canvas-glow-2: #1b1815;
-  --canvas-glow-3: #131110;
+  --canvas-bg: #1b1815;
   --canvas-label-bg: #221e19;
 }
