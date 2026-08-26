@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildPlan, byId, makeBundle, makeColumn, makeIndex, makeTable } from '../../advisor/__tests__/helpers';
-import { assembleContext, buildAnalyzeSections, buildCompareSections, estimateTokens } from '../context';
+import { assembleContext, buildAnalyzeSections, buildCompareSections, buildTestCaseSections, estimateTokens } from '../context';
+import { buildSystemPrompt } from '../prompts';
 import { projectMetadata } from '../metadataProjection';
 
 function monitoredPlan() {
@@ -105,6 +106,47 @@ describe('projectMetadata', () => {
 
     const emptyBundle = makeBundle({ 'SCOTT.OTHER': makeTable() });
     expect(projectMetadata(emptyBundle, plan)).toBe('');
+  });
+});
+
+describe('buildTestCaseSections', () => {
+  it('appends the deterministic skeleton to the core and includes full metadata with DDL', () => {
+    const plan = monitoredPlan();
+    const bundle = makeBundle({
+      'SCOTT.EMP': { ...makeTable({}, { SAL: makeColumn() }), ddl: 'CREATE TABLE emp (...)' },
+    });
+    const { core, sections } = buildTestCaseSections(plan, bundle, null);
+
+    // Analyze core is preserved, skeleton appended.
+    expect(core).toContain('SQL_ID: abc123def456');
+    expect(core).toContain('=== DETERMINISTIC TEST CASE SKELETON ===');
+
+    const metadata = sections.find((s) => s.id === 'metadata');
+    expect(metadata).toBeDefined();
+    // Full (unprojected) metadata: DDL included, non-predicate columns kept.
+    expect(metadata!.text).toContain('CREATE TABLE emp');
+    expect(metadata!.charCount).toBe(metadata!.text.length);
+  });
+
+  it('is deterministic', () => {
+    const plan = monitoredPlan();
+    const bundle = makeBundle({ 'SCOTT.EMP': makeTable() });
+    const a = buildTestCaseSections(plan, bundle, null);
+    const b = buildTestCaseSections(plan, bundle, null);
+    expect(assembleContext(a.core, a.sections).userMessage).toBe(
+      assembleContext(b.core, b.sections).userMessage,
+    );
+  });
+});
+
+describe('buildSystemPrompt testcase kind', () => {
+  it('carries the test-case task and keeps the findings JSON contract', () => {
+    const prompt = buildSystemPrompt('testcase');
+    expect(prompt).toContain('DETERMINISTIC TEST CASE SKELETON');
+    expect(prompt).toContain('## Repro approach');
+    expect(prompt).toContain('## Alternative-plan experiments');
+    expect(prompt).toContain('```json');
+    expect(prompt).toContain('"findings"');
   });
 });
 

@@ -17,7 +17,7 @@ import { streamAnalysis } from '../lib/ai/provider';
 import { buildSystemPrompt, DEFAULT_MAX_TOKENS } from '../lib/ai/prompts';
 import { parseAiFindings } from '../lib/ai/findings';
 
-export type AiDialogMode = 'analyze' | 'compare';
+export type AiDialogMode = 'analyze' | 'compare' | 'testcase';
 export type AiStatus = 'idle' | 'streaming' | 'done' | 'error' | 'cancelled';
 
 /** Flush the internal stream buffer to React state at most this often (ms). */

@@ -46,7 +46,7 @@ export interface AiFinding {
   nodeIds: number[];
 }
 
-export type AiReportKind = 'analyze' | 'compare';
+export type AiReportKind = 'analyze' | 'compare' | 'testcase';
 
 export interface AiReport {
   kind: AiReportKind;

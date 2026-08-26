@@ -7,6 +7,8 @@ import { assessPartitionPruning, computeParallelSignals, getDopDowngrade } from 
 import { formatNumberShort, formatTimeShort } from '../format';
 import { renderNotes, renderPlanTable, renderPredicates } from './planText';
 import { projectMetadata } from './metadataProjection';
+import { buildTestCaseScript } from './testCase';
+import { findObjectInBundle } from '../metadata/lookup';
 import {
   buildComparisonRows,
   computeComparisonSummary,
@@ -68,6 +70,66 @@ export function buildAnalyzeSections(
   ].filter((s): s is ContextSection => s !== null);
 
   return { core, sections };
+}
+
+/**
+ * Test-case context: the analyze sections, but with FULL (unprojected)
+ * metadata for the referenced objects — including DDL — and with the
+ * deterministic test-case skeleton script appended to the always-sent core.
+ */
+export function buildTestCaseSections(
+  plan: ParsedPlan,
+  bundle: MetadataBundle,
+  advisorReport: AdvisorReport | null,
+): SectionedContext {
+  const base = buildAnalyzeSections(plan, bundle, advisorReport);
+
+  const core = [
+    base.core,
+    '',
+    '=== DETERMINISTIC TEST CASE SKELETON ===',
+    buildTestCaseScript({ plan, bundle }),
+  ].join('\n');
+
+  const fullMetadata = renderFullMetadata(bundle, plan);
+  const sections = base.sections
+    .map((s) =>
+      s.id === 'metadata' ? { ...s, text: fullMetadata, charCount: fullMetadata.length } : s,
+    )
+    .filter((s) => s.text.trim() !== '');
+
+  return { core, sections };
+}
+
+/**
+ * Full metadata for the plan's referenced objects (plus indexes of referenced
+ * tables): everything the bundle holds, DDL included — no projection or cap.
+ */
+function renderFullMetadata(bundle: MetadataBundle, plan: ParsedPlan): string {
+  const keys = new Set<string>();
+  for (const node of plan.allNodes) {
+    const found = findObjectInBundle(bundle, node.objectName);
+    if (found) keys.add(found.key);
+  }
+  for (const key of [...keys]) {
+    const object = bundle.objects[key];
+    if (object.type !== 'TABLE') continue;
+    for (const indexName of object.indexes) {
+      const found = findObjectInBundle(bundle, indexName);
+      if (found) keys.add(found.key);
+    }
+  }
+  if (keys.size === 0) return '';
+
+  const objects: Record<string, unknown> = {};
+  for (const key of [...keys].sort()) objects[key] = bundle.objects[key];
+
+  const full: Record<string, unknown> = { source: bundle.source, objects };
+  if (bundle.system_params) full.system_params = bundle.system_params;
+  if (bundle.optimizer_env?.length) full.optimizer_env = bundle.optimizer_env;
+  if (bundle.sql_management) full.sql_management = bundle.sql_management;
+
+  return JSON.stringify(full, null, 1);
 }
 
 /**
