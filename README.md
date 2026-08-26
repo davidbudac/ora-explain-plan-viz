@@ -38,6 +38,12 @@ Notes and colour highlights on nodes, exported as JSON or baked into a shareable
 
 ![Annotate nodes and share via URL](site/assets/annotate.gif)
 
+### AI plan analysis
+
+Optional AI-assisted review of the loaded plan (or a plan-A vs plan-B comparison): pick a provider (Anthropic, an OpenAI-compatible endpoint, or the local DB agent build), click Run, and get a streamed report with findings linked back to plan nodes.
+
+**Privacy note**: everything stays in your browser until you click Run — only then is the plan (and optional schema metadata) sent to the provider you chose. API keys are kept in sessionStorage only and are never baked into URLs or saved settings.
+
 ### And more
 
 | | |

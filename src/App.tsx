@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { PlanProvider, usePlan } from './hooks/usePlanContext';
+import { AiProvider, useAi } from './hooks/useAiAnalysis';
+import { AiAnalysisDialog } from './components/AiAnalysisDialog';
 import { Header } from './components/Header';
 import { InputPanel } from './components/InputPanel';
 import { NavRibbon } from './components/NavRibbon';
@@ -137,6 +139,7 @@ function AppContent() {
     metadataBundle, metadataPopoutOpen, setMetadataPopoutOpen,
     baselineDialogOpen, setBaselineDialogOpen,
   } = usePlan();
+  const { aiDialogOpen, closeAiDialog } = useAi();
   const activeParsedPlan = plans[activePlanIndex]?.parsedPlan ?? null;
   const anyPlanParsed = plans.some(p => p.parsedPlan);
   const featuredExamples = useMemo(() => getFeaturedExamples(), []);
@@ -235,6 +238,7 @@ function AppContent() {
           onClose={() => setBaselineDialogOpen(false)}
         />
       )}
+      {aiDialogOpen && <AiAnalysisDialog onClose={closeAiDialog} />}
       {metadataPopoutOpen && metadataBundle && (
         <PopoutWindow title="Metadata Explorer" onClose={() => setMetadataPopoutOpen(false)}>
           <MetadataPopoutContent onReturn={() => setMetadataPopoutOpen(false)} />
@@ -386,7 +390,9 @@ function AppContent() {
 function App() {
   return (
     <PlanProvider>
-      <AppContent />
+      <AiProvider>
+        <AppContent />
+      </AiProvider>
     </PlanProvider>
   );
 }
