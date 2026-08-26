@@ -2,6 +2,9 @@ import { useMemo } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { COLOR_SCHEME_PALETTES, getOperationCategory } from '../lib/types';
 
+const FOCUS_RING =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
+
 /**
  * Floating legend for the visualization area: operation-category colors for
  * the active color scheme, warning-badge meanings, and edge-width semantics.
@@ -33,7 +36,7 @@ export function Legend() {
             <button
               type="button"
               onClick={() => setLegendVisible(false)}
-              className="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
+              className={`p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 ${FOCUS_RING}`}
               title="Hide legend"
               aria-label="Hide legend"
             >
@@ -45,7 +48,7 @@ export function Legend() {
 
           {categories.length > 0 && (
             <div className="mb-3">
-              <div className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">
+              <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
                 Operation categories
               </div>
               <div className="space-y-1">
@@ -63,7 +66,7 @@ export function Legend() {
           )}
 
           <div className="mb-3">
-            <div className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">
+            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
               Badges
             </div>
             <div className="space-y-1.5 text-slate-700 dark:text-slate-300">
@@ -72,15 +75,15 @@ export function Legend() {
                 <span><span className="font-semibold">Hotspot</span> — slowest operation in the plan</span>
               </div>
               <div className="flex items-start gap-2">
-                <span className="mt-0.5 px-1 rounded shrink-0 text-[8px] font-bold bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300">SPILL</span>
+                <span className="mt-0.5 px-1 rounded shrink-0 text-[10px] font-bold bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300">SPILL</span>
                 <span><span className="font-semibold">Spill</span> — operation wrote to temp space</span>
               </div>
               <div className="flex items-start gap-2">
-                <span className="mt-0.5 px-1 rounded shrink-0 text-[8px] font-bold bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">3x</span>
+                <span className="mt-0.5 px-1 rounded shrink-0 text-[10px] font-bold bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">3x</span>
                 <span><span className="font-semibold">Cardinality mismatch</span> — E-Rows vs A-Rows differ ≥3× (amber) / ≥10× (red)</span>
               </div>
               <div className="flex items-start gap-2">
-                <span className="mt-0.5 px-1 rounded shrink-0 text-[8px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">STALE</span>
+                <span className="mt-0.5 px-1 rounded shrink-0 text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">STALE</span>
                 <span><span className="font-semibold">Stats badges</span> — stale or missing optimizer statistics (needs a metadata bundle)</span>
               </div>
             </div>
@@ -98,7 +101,7 @@ export function Legend() {
         type="button"
         onClick={() => setLegendVisible(!legendVisible)}
         aria-pressed={legendVisible}
-        className={`pointer-events-auto h-7 px-2 flex items-center gap-1.5 rounded-md border text-[10px] font-semibold uppercase tracking-wider shadow-sm transition-colors ${
+        className={`pointer-events-auto h-7 px-2 flex items-center gap-1.5 rounded-md border text-[10px] font-semibold uppercase tracking-wider shadow-sm transition-colors ${FOCUS_RING} ${
           legendVisible
             ? 'bg-blue-600 text-white border-blue-600'
             : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'

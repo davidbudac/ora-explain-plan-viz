@@ -37,11 +37,11 @@ export function ComparePlanPicker() {
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-xs text-neutral-600 dark:text-neutral-400">Compare</span>
+      <span className="text-xs text-slate-600 dark:text-slate-400">Compare</span>
       <select
         value={leftIndex}
         onChange={(event) => updateLeftIndex(Number(event.target.value))}
-        className="h-8 min-w-0 max-w-[220px] px-2.5 rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/60"
+        className="h-8 min-w-0 max-w-[220px] px-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/60"
         aria-label="Left compare plan"
       >
         {comparablePlans.map(({ slot, index }) => (
@@ -53,7 +53,7 @@ export function ComparePlanPicker() {
       <button
         type="button"
         onClick={swapComparePlans}
-        className="h-8 w-8 flex items-center justify-center rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
+        className="h-8 w-8 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
         title="Swap compared plans"
         aria-label="Swap compared plans"
       >
@@ -64,7 +64,7 @@ export function ComparePlanPicker() {
       <select
         value={rightIndex}
         onChange={(event) => updateRightIndex(Number(event.target.value))}
-        className="h-8 min-w-0 max-w-[220px] px-2.5 rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/60"
+        className="h-8 min-w-0 max-w-[220px] px-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/60"
         aria-label="Right compare plan"
       >
         {comparablePlans.map(({ slot, index }) => (

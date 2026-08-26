@@ -92,17 +92,17 @@ export function BaselineScriptModal({ initialSqlId, initialPlanHash, onClose }: 
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-neutral-900 rounded-lg shadow-xl border border-neutral-200 dark:border-neutral-700 w-[640px] max-w-[95vw] my-6"
+        className="bg-white dark:bg-slate-900 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 w-[640px] max-w-[95vw] my-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-800">
-          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
             Create SQL Plan Baseline
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-200 text-lg leading-none px-1"
+            className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 text-lg leading-none px-1"
             aria-label="Close"
           >
             ×
@@ -110,7 +110,7 @@ export function BaselineScriptModal({ initialSqlId, initialPlanHash, onClose }: 
         </div>
 
         <div className="p-4 space-y-4">
-          <p className="text-[11px] text-neutral-600 dark:text-neutral-400 leading-snug">
+          <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-snug">
             This generates a script that captures this exact plan (SQL ID + plan hash value) as a{' '}
             SQL Plan Baseline via <code>DBMS_SPM</code>. The app stays offline — you run the script
             yourself in SQL*Plus / SQLcl on the target database. Requires the{' '}
@@ -119,7 +119,7 @@ export function BaselineScriptModal({ initialSqlId, initialPlanHash, onClose }: 
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-medium text-neutral-600 dark:text-neutral-400 mb-1 uppercase tracking-wide">
+              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
                 SQL_ID
               </label>
               <input
@@ -129,9 +129,9 @@ export function BaselineScriptModal({ initialSqlId, initialPlanHash, onClose }: 
                 onChange={(e) => setSqlId(e.target.value.trim())}
                 placeholder="e.g. an05rsj1up1k5"
                 spellCheck={false}
-                className={`w-full px-2.5 py-1.5 text-xs font-mono rounded-md bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:outline-none focus:ring-2 ${
+                className={`w-full px-2.5 py-1.5 text-xs font-mono rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 ${
                   sqlId === '' || sqlIdValid
-                    ? 'border border-neutral-200 dark:border-neutral-700 focus:ring-blue-500/60'
+                    ? 'border border-slate-200 dark:border-slate-700 focus:ring-blue-500/60'
                     : 'border border-red-400 dark:border-red-500 focus:ring-red-500/60'
                 }`}
               />
@@ -142,7 +142,7 @@ export function BaselineScriptModal({ initialSqlId, initialPlanHash, onClose }: 
               )}
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-neutral-600 dark:text-neutral-400 mb-1 uppercase tracking-wide">
+              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
                 Plan hash
               </label>
               <input
@@ -151,9 +151,9 @@ export function BaselineScriptModal({ initialSqlId, initialPlanHash, onClose }: 
                 onChange={(e) => setPlanHash(e.target.value.trim())}
                 placeholder="e.g. 3001234567"
                 spellCheck={false}
-                className={`w-full px-2.5 py-1.5 text-xs font-mono rounded-md bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:outline-none focus:ring-2 ${
+                className={`w-full px-2.5 py-1.5 text-xs font-mono rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 ${
                   planHash === '' || planHashValid
-                    ? 'border border-neutral-200 dark:border-neutral-700 focus:ring-blue-500/60'
+                    ? 'border border-slate-200 dark:border-slate-700 focus:ring-blue-500/60'
                     : 'border border-red-400 dark:border-red-500 focus:ring-red-500/60'
                 }`}
               />
@@ -166,7 +166,7 @@ export function BaselineScriptModal({ initialSqlId, initialPlanHash, onClose }: 
           </div>
 
           <div>
-            <span className="block text-[11px] font-medium text-neutral-600 dark:text-neutral-400 uppercase tracking-wide mb-1.5">
+            <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
               Source
             </span>
             <div className="flex flex-col gap-1.5">
@@ -176,7 +176,7 @@ export function BaselineScriptModal({ initialSqlId, initialPlanHash, onClose }: 
                   className={`flex items-start gap-2 p-2 rounded-md border cursor-pointer transition-colors ${
                     source === opt.value
                       ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/20'
-                      : 'border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800'
+                      : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
                   }`}
                 >
                   <input
@@ -188,10 +188,10 @@ export function BaselineScriptModal({ initialSqlId, initialPlanHash, onClose }: 
                     className="mt-0.5"
                   />
                   <span>
-                    <span className="block text-xs font-semibold text-neutral-800 dark:text-neutral-200">
+                    <span className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
                       {opt.label}
                     </span>
-                    <span className="block text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
+                    <span className="block text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
                       {opt.description}
                     </span>
                   </span>
@@ -209,10 +209,10 @@ export function BaselineScriptModal({ initialSqlId, initialPlanHash, onClose }: 
                 className="mt-0.5"
               />
               <span>
-                <span className="block text-xs font-semibold text-neutral-800 dark:text-neutral-200">
+                <span className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
                   Mark as FIXED
                 </span>
-                <span className="block text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
+                <span className="block text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
                   Fixed baselines take priority and stop automatic plan evolution for the statement.
                 </span>
               </span>
@@ -224,18 +224,18 @@ export function BaselineScriptModal({ initialSqlId, initialPlanHash, onClose }: 
                 onChange={(e) => setEnabled(e.target.checked)}
                 className="mt-0.5"
               />
-              <span className="block text-xs font-semibold text-neutral-800 dark:text-neutral-200">
+              <span className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
                 ENABLED
               </span>
             </label>
           </div>
 
           <div>
-            <span className="block text-[11px] font-medium text-neutral-600 dark:text-neutral-400 uppercase tracking-wide mb-1.5">
+            <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
               Get the script
             </span>
             {!options && (
-              <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mb-1.5">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-1.5">
                 Enter a valid SQL_ID and plan hash above to generate the script.
               </p>
             )}
@@ -252,17 +252,17 @@ export function BaselineScriptModal({ initialSqlId, initialPlanHash, onClose }: 
                 type="button"
                 onClick={download}
                 disabled={!script}
-                className="h-8 px-3 text-xs font-semibold rounded border border-neutral-300 dark:border-neutral-600 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="h-8 px-3 text-xs font-semibold rounded border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Download .sql
               </button>
             </div>
             {script && (
               <details className="mt-2">
-                <summary className="text-[10px] text-neutral-500 dark:text-neutral-400 cursor-pointer select-none hover:text-neutral-700 dark:hover:text-neutral-300">
+                <summary className="text-[10px] text-slate-500 dark:text-slate-400 cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-300">
                   Preview script ({script.split('\n').length} lines)
                 </summary>
-                <pre className="mt-1 text-[10px] font-mono p-2 rounded border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-950 text-neutral-800 dark:text-neutral-200 whitespace-pre overflow-auto max-h-72">
+                <pre className="mt-1 text-[10px] font-mono p-2 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 whitespace-pre overflow-auto max-h-72">
                   {script}
                 </pre>
               </details>
@@ -270,11 +270,11 @@ export function BaselineScriptModal({ initialSqlId, initialPlanHash, onClose }: 
           </div>
         </div>
 
-        <div className="flex justify-end px-4 py-3 border-t border-neutral-200 dark:border-neutral-800">
+        <div className="flex justify-end px-4 py-3 border-t border-slate-200 dark:border-slate-800">
           <button
             type="button"
             onClick={onClose}
-            className="text-xs px-3 py-1.5 rounded border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+            className="text-xs px-3 py-1.5 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
           >
             Close
           </button>

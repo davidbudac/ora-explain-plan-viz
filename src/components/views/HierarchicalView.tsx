@@ -46,7 +46,7 @@ const QueryBlockGroupNode = memo(({ data }: { data: QueryBlockGroupData }) => {
       className="border border-dashed border-slate-400/80 dark:border-slate-600/50 rounded-lg bg-slate-500/[0.06] dark:bg-slate-400/[0.03] pointer-events-none"
       style={{ width: data.width, height: data.height }}
     >
-      <div className="query-block-drag-handle absolute -top-3 left-3 px-2 py-0.5 bg-white dark:bg-gray-900 text-slate-500 dark:text-slate-500 text-xs font-mono cursor-grab active:cursor-grabbing select-none pointer-events-auto">
+      <div className="query-block-drag-handle absolute -top-3 left-3 px-2 py-0.5 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-500 text-xs font-mono cursor-grab active:cursor-grabbing select-none pointer-events-auto">
         ⠿ {data.label}
       </div>
     </div>
@@ -69,11 +69,11 @@ const AnnotationGroupNode = memo(({ data }: { data: AnnotationGroupData }) => {
       className={`border-2 border-dashed rounded-lg ${data.borderClass} ${data.bgClass}`}
       style={{ width: data.width, height: data.height }}
     >
-      <div className={`absolute -top-3 left-3 px-2 bg-white dark:bg-gray-900 text-xs font-medium`}>
-        <span className="text-neutral-700 dark:text-neutral-300">{data.label}</span>
+      <div className={`absolute -top-3 left-3 px-2 bg-white dark:bg-slate-900 text-xs font-medium`}>
+        <span className="text-slate-700 dark:text-slate-300">{data.label}</span>
       </div>
       {data.note && (
-        <div className="absolute -bottom-2.5 left-3 px-2 bg-white dark:bg-gray-900 text-[10px] text-neutral-500 dark:text-neutral-400 italic truncate max-w-[200px]">
+        <div className="absolute -bottom-2.5 left-3 px-2 bg-white dark:bg-slate-900 text-[10px] text-slate-500 dark:text-slate-400 italic truncate max-w-[200px]">
           {data.note}
         </div>
       )}
@@ -886,10 +886,21 @@ function HierarchicalViewContent({
     setEdges(layoutData.edges);
   }, [layoutData, setNodes, setEdges]);
 
+  // React Flow paints edges a frame or two before the nodes have positions, so
+  // the first mount flashes a ghost frame of stray edges. Stay invisible until
+  // the initial layout has been fitted, then fade in. Only the first fit gates
+  // opacity — later re-layouts never hide the canvas again.
+  const [layoutReady, setLayoutReady] = useState(false);
+  const layoutReadyRef = useRef(false);
+
   // Re-fit viewport when layout changes (e.g. enabling predicate details expands nodes).
   useEffect(() => {
     const timer = setTimeout(() => {
       fitView({ padding: 0.2 });
+      if (!layoutReadyRef.current) {
+        layoutReadyRef.current = true;
+        requestAnimationFrame(() => setLayoutReady(true));
+      }
     }, 50);
     return () => clearTimeout(timer);
   }, [layoutData, fitView]);
@@ -1192,14 +1203,19 @@ function HierarchicalViewContent({
 
   if (!parsedPlan?.rootNode) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+      <div className="flex items-center justify-center h-full text-slate-500 dark:text-slate-400">
         No execution plan to display. Parse a plan to see the visualization.
       </div>
     );
   }
 
   return (
-    <div ref={containerRef} className="w-full h-full min-h-[320px] min-w-0">
+    <div
+      ref={containerRef}
+      className={`w-full h-full min-h-[320px] min-w-0 transition-opacity duration-150 ${
+        layoutReady ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -1218,14 +1234,14 @@ function HierarchicalViewContent({
           variant={BackgroundVariant.Dots}
           gap={20}
           size={1}
-          color={theme === 'dark' ? '#374151' : '#e5e7eb'}
+          color={theme === 'dark' ? '#334155' : '#e2e8f0'}
         />
-        <Controls className="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-700" />
+        <Controls className="!bg-white dark:!bg-slate-800 !border-slate-200 dark:!border-slate-700" />
         <Panel position="top-right">
           <button
             type="button"
             onClick={resetLayout}
-            className="p-1.5 rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-sm"
+            className="p-1.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-sm"
             title="Redraw layout"
             aria-label="Redraw layout"
           >
