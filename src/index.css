@@ -157,3 +157,206 @@ pre code.hljs {
 .dark .hljs-quote,
 .dark .hljs-selector-tag,
 .dark .hljs-selector-pseudo { color: #7ee787 }
+
+/* ============================================================================
+   App palettes
+   ----------------------------------------------------------------------------
+   A palette is a third appearance axis next to theme (light/dark) and color
+   scheme (data paint). Tailwind v4 compiles `bg-slate-900` to
+   `background-color: var(--color-slate-900)`, so re-skinning the whole app is
+   just a matter of redefining the slate (neutral surfaces) and blue (accent)
+   ramps under an `html[data-palette=…]` attribute — no component changes.
+
+   These rules are deliberately UNLAYERED: unlayered declarations beat every
+   `@layer` (including Tailwind's `theme` layer, where @theme emits its :root
+   defaults), so a palette always wins regardless of source order.
+
+   One ramp serves BOTH themes: the light UI leans on 50–200 + white, the dark
+   UI on 700–950, so each ramp is kept coherent across its full range.
+   'slate' is the built-in look and applies no overrides at all (the attribute
+   is removed from <html> entirely).
+   ============================================================================ */
+
+/* Staged canvas backdrop (HierarchicalView) — palette-restylable glow stops.
+   --canvas-label-bg is the chip behind edge labels; it rides along so labels
+   keep sitting *in* the canvas instead of punching through it. */
+:root {
+  --canvas-glow-1: #ffffff;
+  --canvas-glow-2: #f3f6fa;
+  --canvas-glow-3: #e9eef5;
+  --canvas-label-bg: #ffffff;
+}
+.dark {
+  --canvas-glow-1: #1b2740;
+  --canvas-glow-2: #0e1526;
+  --canvas-glow-3: #0b1120;
+  --canvas-label-bg: #101a2e;
+}
+
+/* --- Graphite: warm-grey neutrals + amber accent --------------------------- */
+:root[data-palette="graphite"] {
+  --color-slate-50: #f7f6f3;
+  --color-slate-100: #edebe7;
+  --color-slate-200: #dedad3;
+  --color-slate-300: #c2bdb4;
+  --color-slate-400: #98938b;
+  --color-slate-500: #6e6963;
+  --color-slate-600: #4d4a46;
+  --color-slate-700: #363238;
+  --color-slate-800: #242127;
+  --color-slate-900: #1b191e;
+  --color-slate-950: #141216;
+
+  --color-blue-50: #fffbeb;
+  --color-blue-100: #fef3c7;
+  --color-blue-200: #fde68a;
+  --color-blue-300: #fcd34d;
+  --color-blue-400: #fbbf24;
+  --color-blue-500: #f59e0b;
+  --color-blue-600: #d97706;
+  --color-blue-700: #b45309;
+  --color-blue-800: #92400e;
+  --color-blue-900: #78350f;
+  --color-blue-950: #451a03;
+
+  --app-bg: #f7f6f3;
+  --app-bg-dark: #141216;
+
+  --canvas-glow-1: #fbfaf7;
+  --canvas-glow-2: #f1efe9;
+  --canvas-glow-3: #e8e5dd;
+  --canvas-label-bg: #fbfaf7;
+}
+:root[data-palette="graphite"].dark {
+  --canvas-glow-1: #2a2430;
+  --canvas-glow-2: #1a171d;
+  --canvas-glow-3: #131116;
+  --canvas-label-bg: #201d24;
+}
+
+/* --- Teal: cool green-grey neutrals + teal accent -------------------------- */
+:root[data-palette="teal"] {
+  --color-slate-50: #f0f7f6;
+  --color-slate-100: #e0efed;
+  --color-slate-200: #c8e2de;
+  --color-slate-300: #a3ccc7;
+  --color-slate-400: #6fa39d;
+  --color-slate-500: #4a7d78;
+  --color-slate-600: #315a56;
+  --color-slate-700: #183130;
+  --color-slate-800: #122423;
+  --color-slate-900: #0c1a19;
+  --color-slate-950: #071312;
+
+  --color-blue-50: #f0fdfa;
+  --color-blue-100: #ccfbf1;
+  --color-blue-200: #99f6e4;
+  --color-blue-300: #5eead4;
+  --color-blue-400: #2dd4bf;
+  --color-blue-500: #14b8a6;
+  --color-blue-600: #0d9488;
+  --color-blue-700: #0f766e;
+  --color-blue-800: #115e59;
+  --color-blue-900: #134e4a;
+  --color-blue-950: #042f2e;
+
+  --app-bg: #f0f7f6;
+  --app-bg-dark: #071312;
+
+  --canvas-glow-1: #f4faf8;
+  --canvas-glow-2: #e6f1ee;
+  --canvas-glow-3: #dcebe7;
+  --canvas-label-bg: #f4faf8;
+}
+:root[data-palette="teal"].dark {
+  --canvas-glow-1: #133634;
+  --canvas-glow-2: #0c1d1c;
+  --canvas-glow-3: #081312;
+  --canvas-label-bg: #0f2726;
+}
+
+/* --- Violet: cool purple-grey neutrals + violet accent --------------------- */
+:root[data-palette="violet"] {
+  --color-slate-50: #f6f5fa;
+  --color-slate-100: #edebf5;
+  --color-slate-200: #ddd9ec;
+  --color-slate-300: #c3bcdc;
+  --color-slate-400: #948bb8;
+  --color-slate-500: #6b628f;
+  --color-slate-600: #4b4468;
+  --color-slate-700: #272242;
+  --color-slate-800: #1e1a35;
+  --color-slate-900: #161329;
+  --color-slate-950: #100e1e;
+
+  --color-blue-50: #f5f3ff;
+  --color-blue-100: #ede9fe;
+  --color-blue-200: #ddd6fe;
+  --color-blue-300: #c4b5fd;
+  --color-blue-400: #a78bfa;
+  --color-blue-500: #8b5cf6;
+  --color-blue-600: #7c3aed;
+  --color-blue-700: #6d28d9;
+  --color-blue-800: #5b21b6;
+  --color-blue-900: #4c1d95;
+  --color-blue-950: #2e1065;
+
+  --app-bg: #f6f5fa;
+  --app-bg-dark: #100e1e;
+
+  --canvas-glow-1: #f7f5fc;
+  --canvas-glow-2: #ebe8f5;
+  --canvas-glow-3: #e1ddf0;
+  --canvas-label-bg: #f7f5fc;
+}
+:root[data-palette="violet"].dark {
+  --canvas-glow-1: #241d45;
+  --canvas-glow-2: #151228;
+  --canvas-glow-3: #0f0d1c;
+  --canvas-label-bg: #1a1633;
+}
+
+/* --- Paper: warm paper neutrals + terracotta accent ------------------------
+   The only palette that also remaps --color-white, so `bg-white` surfaces read
+   as warm paper stock rather than punching through as pure white. */
+:root[data-palette="paper"] {
+  --color-white: #faf7f1;
+
+  --color-slate-50: #f6f2ea;
+  --color-slate-100: #efe9dd;
+  --color-slate-200: #e3dac9;
+  --color-slate-300: #cfc4ad;
+  --color-slate-400: #a2988a;
+  --color-slate-500: #776f63;
+  --color-slate-600: #55504a;
+  --color-slate-700: #37332e;
+  --color-slate-800: #262320;
+  --color-slate-900: #1c1a17;
+  --color-slate-950: #141311;
+
+  --color-blue-50: #fbf1ea;
+  --color-blue-100: #f6e3d7;
+  --color-blue-200: #eec4ab;
+  --color-blue-300: #e0a583;
+  --color-blue-400: #cf7a4e;
+  --color-blue-500: #b4552d;
+  --color-blue-600: #9a4423;
+  --color-blue-700: #7d3517;
+  --color-blue-800: #62290f;
+  --color-blue-900: #4e200b;
+  --color-blue-950: #2e1206;
+
+  --app-bg: #f6f2ea;
+  --app-bg-dark: #141311;
+
+  --canvas-glow-1: #fffdf8;
+  --canvas-glow-2: #f6f0e5;
+  --canvas-glow-3: #eee6d6;
+  --canvas-label-bg: #fffdf8;
+}
+:root[data-palette="paper"].dark {
+  --canvas-glow-1: #2b2620;
+  --canvas-glow-2: #1b1815;
+  --canvas-glow-3: #131110;
+  --canvas-label-bg: #221e19;
+}

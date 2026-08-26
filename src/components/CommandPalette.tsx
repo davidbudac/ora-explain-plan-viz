@@ -5,6 +5,7 @@ import { usePlan } from '../hooks/usePlanContext';
 import type { ViewMode, SankeyMetric, NodeIndicatorMetric, ColorScheme, NodeDisplayOptions } from '../lib/types';
 import type { HighlightStyle } from '../lib/annotations';
 import { hasAnnotations } from '../lib/annotations';
+import { APP_PALETTE_LABELS, APP_PALETTE_ORDER } from '../lib/types';
 import { DENSITY_PRESET_LABELS, DENSITY_PRESET_ORDER } from '../lib/density';
 import { isDbAgentEnabled } from '../lib/agent/client';
 
@@ -126,6 +127,7 @@ function useCommands(onExportPng: () => void): Command[] {
     annotations,
     legendVisible,
     densitySelection,
+    palette,
     // Actions
     setLegendVisible,
     setShortcutsOverlayOpen,
@@ -133,6 +135,7 @@ function useCommands(onExportPng: () => void): Command[] {
     setViewMode,
     setTheme,
     setColorScheme,
+    setPalette,
     setFilters,
     setSankeyMetric,
     setNodeIndicatorMetric,
@@ -424,6 +427,18 @@ function useCommands(onExportPng: () => void): Command[] {
       });
     }
 
+    // App palettes
+    for (const value of APP_PALETTE_ORDER) {
+      commands.push({
+        id: `app-palette-${value}`,
+        label: `Palette: ${APP_PALETTE_LABELS[value]}`,
+        category: 'Theme',
+        keywords: ['palette', 'theme', 'skin', 'colors', APP_PALETTE_LABELS[value].toLowerCase()],
+        execute: () => setPalette(value),
+        isActive: () => palette === value,
+      });
+    }
+
     // Highlight styles
     for (const [style, label] of Object.entries(HIGHLIGHT_STYLE_LABELS) as [HighlightStyle, string][]) {
       commands.push({
@@ -583,14 +598,14 @@ function useCommands(onExportPng: () => void): Command[] {
 
     return commands;
   }, [
-    viewMode, theme, colorScheme, filters, sankeyMetric, nodeIndicatorMetric,
+    viewMode, theme, colorScheme, palette, filters, sankeyMetric, nodeIndicatorMetric,
     highlightStyle, parsedPlan, visualizationMaximized,
     inputPanelCollapsed, filterPanelCollapsed, detailPanelCollapsed, focusMode,
     hotspotsEnabled, treeCompareEnabled, annotations, anyPlanParsed,
     hasActualStats, hasAnyInput, canExportPng, multipleParsedPlans,
     legendVisible, setLegendVisible, setShortcutsOverlayOpen,
     densitySelection, applyDensityPreset,
-    setViewMode, setTheme, setColorScheme, setFilters, setSankeyMetric,
+    setViewMode, setTheme, setColorScheme, setPalette, setFilters, setSankeyMetric,
     setNodeIndicatorMetric, setHighlightStyle, setVisualizationMaximized,
     setInputPanelCollapsed, setFilterPanelCollapsed,
     setDetailPanelCollapsed, setFocusMode, setHotspotsEnabled, setTreeCompareEnabled,

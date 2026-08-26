@@ -307,6 +307,25 @@ export function getOperationCategory(operation: string): string {
 
 export type ColorScheme = 'contrast' | 'semantic' | 'estact' | 'rail' | 'ticker';
 
+/**
+ * App palette — a third appearance axis next to theme (light/dark) and color
+ * scheme (data paint). It re-skins the app's neutral surfaces and accent by
+ * redefining the Tailwind slate/blue ramps under `html[data-palette=…]`
+ * (see the palette blocks in index.css). 'slate' is the built-in look and
+ * applies zero overrides.
+ */
+export type AppPalette = 'slate' | 'graphite' | 'teal' | 'violet' | 'paper';
+
+export const APP_PALETTE_ORDER: AppPalette[] = ['slate', 'graphite', 'teal', 'violet', 'paper'];
+
+export const APP_PALETTE_LABELS: Record<AppPalette, string> = {
+  slate: 'Slate',
+  graphite: 'Graphite',
+  teal: 'Teal',
+  violet: 'Violet',
+  paper: 'Paper',
+};
+
 export const COLOR_SCHEME_PALETTES: Record<ColorScheme, Record<string, string>> = {
   contrast: {
     'Table Access': '#d97706',

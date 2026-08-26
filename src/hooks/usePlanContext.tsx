@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useReducer, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, FlameMetric, ExperimentalSubView, NodeIndicatorMetric, Theme, ColorScheme } from '../lib/types';
+import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, FlameMetric, ExperimentalSubView, NodeIndicatorMetric, Theme, ColorScheme, AppPalette } from '../lib/types';
 import type { PlanSlot, CompareMetric } from '../lib/compare';
 import { createEmptySlot, DEFAULT_COMPARE_METRICS, getPlanSlotLabel } from '../lib/compare';
 import { parseExplainPlan, splitDbmsXplanPlanBatches } from '../lib/parser';
@@ -45,6 +45,7 @@ interface PlanState {
   experimentalSubView: ExperimentalSubView;
   nodeIndicatorMetric: NodeIndicatorMetric;
   colorScheme: ColorScheme;
+  palette: AppPalette;
   theme: Theme;
   filters: FilterState;
   // UI panel states (persisted)
@@ -74,6 +75,7 @@ type PlanAction =
   | { type: 'SET_EXPERIMENTAL_SUB_VIEW'; payload: ExperimentalSubView }
   | { type: 'SET_NODE_INDICATOR_METRIC'; payload: NodeIndicatorMetric }
   | { type: 'SET_COLOR_SCHEME'; payload: ColorScheme }
+  | { type: 'SET_PALETTE'; payload: AppPalette }
   | { type: 'SET_THEME'; payload: Theme }
   | { type: 'SET_FILTERS'; payload: Partial<FilterState> }
   | { type: 'SET_ERROR'; payload: string | null }
@@ -295,6 +297,7 @@ const getInitialState = (): PlanState => {
     experimentalSubView: settings.experimentalSubView ?? 'scatter',
     nodeIndicatorMetric: settings.nodeIndicatorMetric,
     colorScheme: settings.colorScheme ?? 'semantic',
+    palette: settings.palette ?? 'slate',
     theme: getInitialTheme(),
     filters: applySettingsToFilters(initialFilters, settings),
     highlightStyle: settings.highlightStyle ?? 'circle',
@@ -435,6 +438,9 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
 
     case 'SET_COLOR_SCHEME':
       return { ...state, colorScheme: action.payload };
+
+    case 'SET_PALETTE':
+      return { ...state, palette: action.payload };
 
     case 'SET_THEME':
       return { ...state, theme: action.payload };
@@ -714,6 +720,7 @@ interface PlanContextValue {
   experimentalSubView: ExperimentalSubView;
   nodeIndicatorMetric: NodeIndicatorMetric;
   colorScheme: ColorScheme;
+  palette: AppPalette;
   theme: Theme;
   filters: FilterState;
   legendVisible: boolean;
@@ -749,6 +756,7 @@ interface PlanContextValue {
   setExperimentalSubView: (view: ExperimentalSubView) => void;
   setNodeIndicatorMetric: (metric: NodeIndicatorMetric) => void;
   setColorScheme: (scheme: ColorScheme) => void;
+  setPalette: (palette: AppPalette) => void;
   setTheme: (theme: Theme) => void;
   setFilters: (filters: Partial<FilterState>) => void;
   clearPlan: () => void;
@@ -1101,7 +1109,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     [parsedPlan, metadataBundle]
   );
 
-  // Apply theme to document
+  // Apply theme + app palette to document
   useEffect(() => {
     const root = document.documentElement;
     if (state.theme === 'dark') {
@@ -1109,8 +1117,14 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     } else {
       root.classList.remove('dark');
     }
+    // 'slate' is the built-in look: drop the attribute so no palette block matches.
+    if (state.palette === 'slate') {
+      delete root.dataset.palette;
+    } else {
+      root.dataset.palette = state.palette;
+    }
     localStorage.setItem('theme', state.theme);
-  }, [state.theme]);
+  }, [state.theme, state.palette]);
 
   // Load plan from URL param or default example on first mount
   const hasLoadedDefaultRef = useRef(false);
@@ -1216,6 +1230,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         experimentalSubView: state.experimentalSubView,
         nodeIndicatorMetric: state.nodeIndicatorMetric,
         colorScheme: state.colorScheme,
+        palette: state.palette,
         highlightStyle: state.highlightStyle,
         hotspotsEnabled: state.hotspotsEnabled,
         showAdvisorSuggestions: state.showAdvisorSuggestions,
@@ -1240,6 +1255,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     state.experimentalSubView,
     state.nodeIndicatorMetric,
     state.colorScheme,
+    state.palette,
     state.highlightStyle,
     state.hotspotsEnabled,
     state.showAdvisorSuggestions,
@@ -1297,6 +1313,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   const setColorScheme = useCallback((scheme: ColorScheme) => {
     dispatch({ type: 'SET_COLOR_SCHEME', payload: scheme });
+  }, []);
+
+  const setPalette = useCallback((palette: AppPalette) => {
+    dispatch({ type: 'SET_PALETTE', payload: palette });
   }, []);
 
   const setTheme = useCallback((theme: Theme) => {
@@ -1582,6 +1602,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     experimentalSubView: state.experimentalSubView,
     nodeIndicatorMetric: state.nodeIndicatorMetric,
     colorScheme: state.colorScheme,
+    palette: state.palette,
     theme: state.theme,
     filters: state.filters,
     legendVisible: state.legendVisible,
@@ -1616,6 +1637,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setExperimentalSubView,
     setNodeIndicatorMetric,
     setColorScheme,
+    setPalette,
     setTheme,
     setFilters,
     clearPlan,
