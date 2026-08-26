@@ -101,8 +101,64 @@ interface FilterPanelProps {
 
 export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
   const {
-    parsedPlan, filters, setFilters, filteredNodes, selectNode,
+    parsedPlan, filters, filteredNodes,
     filterPanelCollapsed: isCollapsed, setFilterPanelCollapsed: setIsCollapsed,
+  } = usePlan();
+
+  const filteredCount = filteredNodes.length;
+  const totalCount = parsedPlan?.allNodes.length || 0;
+
+  if (!parsedPlan) return null;
+
+  if (isCollapsed) {
+    const filtersActive = hasActiveFilters(filters) || filteredCount !== totalCount;
+    return (
+      <button
+        type="button"
+        onClick={() => setIsCollapsed(false)}
+        className={`shrink-0 w-[26px] h-full flex flex-col items-center pt-2.5 gap-2.5 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`}
+        title={filtersActive ? `Show filters (active: ${filteredCount} / ${totalCount} ops visible)` : 'Show filters'}
+        aria-label="Show filters"
+        aria-expanded={false}
+      >
+        <svg className="w-3.5 h-3.5 shrink-0 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+        <span className="[writing-mode:vertical-rl] uppercase text-[10px] font-bold tracking-[0.14em] text-slate-500 dark:text-slate-400">
+          Filters
+        </span>
+        {filtersActive && (
+          <span className="[writing-mode:vertical-rl] text-[10px] font-semibold font-mono tabular-nums text-amber-600 dark:text-amber-400">
+            {filteredCount}/{totalCount}
+          </span>
+        )}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className="relative shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 overflow-y-auto"
+      style={{ width: panelWidth }}
+    >
+      <button
+        type="button"
+        onPointerDown={onResizeStart}
+        className={`absolute right-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors ${FOCUS_RING}`}
+        aria-label="Resize filters panel"
+      />
+      <FilterPanelBody />
+    </div>
+  );
+}
+
+/**
+ * The filter controls themselves, with no panel shell around them — shared by
+ * the docked filter panel and focus mode's floating filter popover.
+ */
+export function FilterPanelBody() {
+  const {
+    parsedPlan, filters, setFilters, filteredNodes, selectNode,
     nodeIndicatorMetric, setNodeIndicatorMetric,
     viewMode, sankeyMetric, setSankeyMetric, flameMetric, setFlameMetric, treeCompareEnabled
   } = usePlan();
@@ -269,43 +325,8 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
 
   if (!parsedPlan) return null;
 
-  if (isCollapsed) {
-    const filtersActive = hasActiveFilters(filters) || filteredCount !== totalCount;
-    return (
-      <button
-        type="button"
-        onClick={() => setIsCollapsed(false)}
-        className={`shrink-0 w-[26px] h-full flex flex-col items-center pt-2.5 gap-2.5 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`}
-        title={filtersActive ? `Show filters (active: ${filteredCount} / ${totalCount} ops visible)` : 'Show filters'}
-        aria-label="Show filters"
-        aria-expanded={false}
-      >
-        <svg className="w-3.5 h-3.5 shrink-0 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-        <span className="[writing-mode:vertical-rl] uppercase text-[10px] font-bold tracking-[0.14em] text-slate-500 dark:text-slate-400">
-          Filters
-        </span>
-        {filtersActive && (
-          <span className="[writing-mode:vertical-rl] text-[10px] font-semibold font-mono tabular-nums text-amber-600 dark:text-amber-400">
-            {filteredCount}/{totalCount}
-          </span>
-        )}
-      </button>
-    );
-  }
-
   return (
-    <div
-      className="relative shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 overflow-y-auto"
-      style={{ width: panelWidth }}
-    >
-      <button
-        type="button"
-        onPointerDown={onResizeStart}
-        className={`absolute right-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors ${FOCUS_RING}`}
-        aria-label="Resize filters panel"
-      />
+    <>
       <div className="px-3 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
         <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-2 min-w-0">
@@ -623,6 +644,6 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 }

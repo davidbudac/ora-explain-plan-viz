@@ -120,6 +120,7 @@ function useCommands(onExportPng: () => void): Command[] {
     inputPanelCollapsed,
     filterPanelCollapsed,
     detailPanelCollapsed,
+    focusMode,
     hotspotsEnabled,
     treeCompareEnabled,
     annotations,
@@ -140,6 +141,7 @@ function useCommands(onExportPng: () => void): Command[] {
     setInputPanelCollapsed,
     setFilterPanelCollapsed,
     setDetailPanelCollapsed,
+    setFocusMode,
     setHotspotsEnabled,
     setTreeCompareEnabled,
     exportAnnotatedPlan,
@@ -519,6 +521,19 @@ function useCommands(onExportPng: () => void): Command[] {
     });
 
     commands.push({
+      id: 'toggle-focus-mode',
+      label: 'Toggle focus mode',
+      category: 'Panels',
+      keywords: ['focus', 'mode', 'floating', 'zen', 'panels', 'distraction', 'canvas'],
+      shortcut: 'Z',
+      execute: () => setFocusMode(!focusMode),
+      isActive: () => focusMode,
+      // Inert in the comparison workspace — there are no docked panels to trade
+      // away, so the command hides there rather than doing nothing.
+      isAvailable: () => anyPlanParsed && viewMode !== 'compare',
+    });
+
+    commands.push({
       id: 'toggle-hotspots',
       label: 'Toggle hotspot detection',
       category: 'Panels',
@@ -560,7 +575,7 @@ function useCommands(onExportPng: () => void): Command[] {
   }, [
     viewMode, theme, colorScheme, filters, sankeyMetric, nodeIndicatorMetric,
     highlightStyle, parsedPlan, visualizationMaximized,
-    inputPanelCollapsed, filterPanelCollapsed, detailPanelCollapsed,
+    inputPanelCollapsed, filterPanelCollapsed, detailPanelCollapsed, focusMode,
     hotspotsEnabled, treeCompareEnabled, annotations, anyPlanParsed,
     hasActualStats, hasAnyInput, canExportPng, multipleParsedPlans,
     legendVisible, setLegendVisible, setShortcutsOverlayOpen,
@@ -568,7 +583,7 @@ function useCommands(onExportPng: () => void): Command[] {
     setViewMode, setTheme, setColorScheme, setFilters, setSankeyMetric,
     setNodeIndicatorMetric, setHighlightStyle, setVisualizationMaximized,
     setInputPanelCollapsed, setFilterPanelCollapsed,
-    setDetailPanelCollapsed, setHotspotsEnabled, setTreeCompareEnabled,
+    setDetailPanelCollapsed, setFocusMode, setHotspotsEnabled, setTreeCompareEnabled,
     exportAnnotatedPlan, clearAnnotations, share, onExportPng, setBaselineDialogOpen, setConnectPanelOpen,
     toggleNodeDisplayOption, enableAllDisplayOptions, disableAllDisplayOptions,
   ]);

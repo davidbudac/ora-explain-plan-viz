@@ -54,6 +54,7 @@ interface PlanState {
   inputPanelCollapsed: boolean;
   filterPanelCollapsed: boolean;
   detailPanelCollapsed: boolean;
+  focusMode: boolean;
   visualizationMaximized: boolean;
   _preMaxPanelState: { filter: boolean; detail: boolean } | null;
   // Highlight style
@@ -83,6 +84,7 @@ type PlanAction =
   | { type: 'SET_INPUT_PANEL_COLLAPSED'; payload: boolean }
   | { type: 'SET_FILTER_PANEL_COLLAPSED'; payload: boolean }
   | { type: 'SET_DETAIL_PANEL_COLLAPSED'; payload: boolean }
+  | { type: 'SET_FOCUS_MODE'; payload: boolean }
   | { type: 'SET_VISUALIZATION_MAXIMIZED'; payload: boolean }
   | { type: 'ADD_PLAN_SLOT' }
   | { type: 'REMOVE_PLAN_SLOT'; payload: number }
@@ -302,6 +304,7 @@ const getInitialState = (): PlanState => {
     inputPanelCollapsed: initialPlans.some((slot) => slot.parsedPlan) ? settings.inputPanelCollapsed : false,
     filterPanelCollapsed: settings.filterPanelCollapsed,
     detailPanelCollapsed: false,
+    focusMode: settings.focusMode ?? false,
     visualizationMaximized: false,
     _preMaxPanelState: null,
   };
@@ -488,6 +491,9 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
 
     case 'SET_DETAIL_PANEL_COLLAPSED':
       return { ...state, detailPanelCollapsed: action.payload };
+
+    case 'SET_FOCUS_MODE':
+      return { ...state, focusMode: action.payload };
 
     case 'SET_VISUALIZATION_MAXIMIZED': {
       if (action.payload) {
@@ -714,6 +720,7 @@ interface PlanContextValue {
   inputPanelCollapsed: boolean;
   filterPanelCollapsed: boolean;
   detailPanelCollapsed: boolean;
+  focusMode: boolean;
   treeCompareEnabled: boolean;
   visualizationMaximized: boolean;
 
@@ -778,6 +785,7 @@ interface PlanContextValue {
   setInputPanelCollapsed: (collapsed: boolean) => void;
   setFilterPanelCollapsed: (collapsed: boolean) => void;
   setDetailPanelCollapsed: (collapsed: boolean) => void;
+  setFocusMode: (enabled: boolean) => void;
   setVisualizationMaximized: (maximized: boolean) => void;
 
   // Annotations
@@ -1211,6 +1219,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         legendVisible: state.legendVisible,
         inputPanelCollapsed: state.inputPanelCollapsed,
         filterPanelCollapsed: state.filterPanelCollapsed,
+        focusMode: state.focusMode,
         compareMetrics: state.compareMetrics,
         ...extractFilterSettings(state.filters),
       });
@@ -1234,6 +1243,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     state.legendVisible,
     state.inputPanelCollapsed,
     state.filterPanelCollapsed,
+    state.focusMode,
     state.compareMetrics,
     state.filters,
   ]);
@@ -1333,6 +1343,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   const setDetailPanelCollapsed = useCallback((collapsed: boolean) => {
     dispatch({ type: 'SET_DETAIL_PANEL_COLLAPSED', payload: collapsed });
+  }, []);
+
+  const setFocusMode = useCallback((enabled: boolean) => {
+    dispatch({ type: 'SET_FOCUS_MODE', payload: enabled });
   }, []);
 
   const setVisualizationMaximized = useCallback((maximized: boolean) => {
@@ -1571,6 +1585,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     inputPanelCollapsed: state.inputPanelCollapsed,
     filterPanelCollapsed: state.filterPanelCollapsed,
     detailPanelCollapsed: state.detailPanelCollapsed,
+    focusMode: state.focusMode,
     treeCompareEnabled: state.treeCompareEnabled,
     visualizationMaximized: state.visualizationMaximized,
 
@@ -1632,6 +1647,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setInputPanelCollapsed,
     setFilterPanelCollapsed,
     setDetailPanelCollapsed,
+    setFocusMode,
     setVisualizationMaximized,
 
     // Annotations (derived from active plan slot)

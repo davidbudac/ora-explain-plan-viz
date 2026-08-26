@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { PlanProvider, usePlan } from './hooks/usePlanContext';
 import { InputPanel } from './components/InputPanel';
-import { NavRibbon } from './components/NavRibbon';
+import { MaximizedTopBar } from './components/NavRibbon';
 import { FilterPanel } from './components/FilterPanel';
 import { VisualizationTabs } from './components/VisualizationTabs';
 import { NodeDetailPanel } from './components/NodeDetailPanel';
 import { PanelEdgeTab } from './components/PanelEdgeTab';
+import { FocusOverlay } from './components/FocusOverlay';
 import { CommandPalette } from './components/CommandPalette';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay';
 import { ShareResultDialog } from './components/ShareResultDialog';
@@ -237,12 +238,16 @@ function AppContent() {
     baselineDialogOpen, setBaselineDialogOpen,
     filterPanelCollapsed, setFilterPanelCollapsed,
     detailPanelCollapsed, setDetailPanelCollapsed,
+    focusMode, setFocusMode,
   } = usePlan();
   const activeSlot = plans[activePlanIndex];
   const activeParsedPlan = activeSlot?.parsedPlan ?? null;
   const anyPlanParsed = plans.some(p => p.parsedPlan);
   const featuredExamples = useMemo(() => getFeaturedExamples(), []);
   const isComparisonWorkspace = viewMode === 'compare';
+  // The comparison workspace has no docked side panels to hide, so focus mode
+  // simply doesn't apply there.
+  const focusModeActive = focusMode && !isComparisonWorkspace;
   // A slot the user added with "+ Add Plan" but hasn't filled yet: the plan
   // views and the details rail have nothing to say about it.
   const activeSlotEmpty = anyPlanParsed && !activeParsedPlan && !isComparisonWorkspace;
@@ -325,6 +330,21 @@ function AppContent() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [anyPlanParsed, visualizationMaximized, setVisualizationMaximized]);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'z' || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+      // Inert in the comparison workspace, which has no docked panels to hide.
+      if (!anyPlanParsed || isComparisonWorkspace) return;
+      const tag = (event.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if ((event.target as HTMLElement)?.isContentEditable) return;
+      event.preventDefault();
+      setFocusMode(!focusMode);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [anyPlanParsed, isComparisonWorkspace, focusMode, setFocusMode]);
+
   const startResize = (side: ResizeSide) => (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.button !== 0) return;
     event.preventDefault();
@@ -353,14 +373,14 @@ function AppContent() {
           <MetadataPopoutContent onReturn={() => setMetadataPopoutOpen(false)} />
         </PopoutWindow>
       )}
-      {/* The merged top bar (brand + input header + app actions) lives in
-          InputPanel; maximizing hides it exactly as it hid both bars before. */}
-      {!visualizationMaximized && <InputPanel />}
-      {anyPlanParsed && <NavRibbon />}
+      {/* One bar for the whole app: InputPanel owns it (brand, input drawer,
+          plan/view tabs, actions). Maximizing swaps it for the navigation-only
+          slim variant so the canvas keeps a way back out. */}
+      {visualizationMaximized && anyPlanParsed ? <MaximizedTopBar /> : <InputPanel />}
 
       {anyPlanParsed && (
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          {!isComparisonWorkspace && (
+          {!isComparisonWorkspace && !focusModeActive && (
             <FilterPanel
               panelWidth={panelWidths.left}
               onResizeStart={startResize('left')}
@@ -377,14 +397,15 @@ function AppContent() {
             ) : (
               <VisualizationTabs />
             )}
-            {!isComparisonWorkspace && !filterPanelCollapsed && (
+            {focusModeActive && !activeSlotEmpty && <FocusOverlay />}
+            {!isComparisonWorkspace && !focusModeActive && !filterPanelCollapsed && (
               <PanelEdgeTab
                 side="left"
                 label="Hide filters"
                 onClick={() => setFilterPanelCollapsed(true)}
               />
             )}
-            {!isComparisonWorkspace && !activeSlotEmpty && !detailPanelCollapsed && (
+            {!isComparisonWorkspace && !focusModeActive && !activeSlotEmpty && !detailPanelCollapsed && (
               <PanelEdgeTab
                 side="right"
                 label="Hide details"
@@ -392,7 +413,7 @@ function AppContent() {
               />
             )}
           </main>
-          {!isComparisonWorkspace && !activeSlotEmpty && (
+          {!isComparisonWorkspace && !focusModeActive && !activeSlotEmpty && (
             <NodeDetailPanel
               panelWidth={panelWidths.right}
               onResizeStart={startResize('right')}
