@@ -40,8 +40,8 @@ function formatDelta(delta: MetricDelta, metric: CompareMetric): { text: string;
 }
 
 const DELTA_TONE_CLASS: Record<string, string> = {
-  none: 'text-neutral-400 dark:text-neutral-500',
-  neutral: 'text-neutral-500 dark:text-neutral-400',
+  none: 'text-slate-400 dark:text-slate-500',
+  neutral: 'text-slate-500 dark:text-slate-400',
   improvement: 'text-green-600 dark:text-green-400 font-medium',
   regression: 'text-red-600 dark:text-red-400 font-medium',
 };
@@ -59,7 +59,7 @@ function MatchIcon({ type }: { type: MatchType }) {
   const colors: Record<MatchType, string> = {
     'exact-id': 'bg-green-500',
     'heuristic': 'bg-yellow-500',
-    'unmatched': 'bg-neutral-400 dark:bg-neutral-500',
+    'unmatched': 'bg-slate-400 dark:bg-slate-500',
   };
   const titles: Record<MatchType, string> = {
     'exact-id': 'Exact ID match',
@@ -95,51 +95,93 @@ function SummaryCard({ label, plan, cost, time, nodeCount, phv }: {
     <div className={`flex-1 rounded-lg border p-3 ${styles.panel}`}>
       <div className="flex items-center gap-2 mb-2">
         <span className={`text-xs font-bold ${styles.label}`}>{label}</span>
-        {phv && <span className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400">PHV: {phv}</span>}
+        {phv && <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">PHV: {phv}</span>}
       </div>
       <div className="grid grid-cols-3 gap-2 text-xs">
         <div>
-          <div className="text-neutral-500 dark:text-neutral-400">Cost</div>
-          <div className="font-semibold text-neutral-800 dark:text-neutral-200">{formatNumberShort(cost)}</div>
+          <div className="text-slate-500 dark:text-slate-400">Cost</div>
+          <div className="font-semibold text-slate-800 dark:text-slate-200">{formatNumberShort(cost)}</div>
         </div>
         {time !== undefined && (
           <div>
-            <div className="text-neutral-500 dark:text-neutral-400">A-Time</div>
-            <div className="font-semibold text-neutral-800 dark:text-neutral-200">{formatTimeShort(time)}</div>
+            <div className="text-slate-500 dark:text-slate-400">A-Time</div>
+            <div className="font-semibold text-slate-800 dark:text-slate-200">{formatTimeShort(time)}</div>
           </div>
         )}
         <div>
-          <div className="text-neutral-500 dark:text-neutral-400">Nodes</div>
-          <div className="font-semibold text-neutral-800 dark:text-neutral-200">{nodeCount}</div>
+          <div className="text-slate-500 dark:text-slate-400">Nodes</div>
+          <div className="font-semibold text-slate-800 dark:text-slate-200">{nodeCount}</div>
         </div>
       </div>
     </div>
   );
 }
 
-function DeltaArrow({ delta, deltaPercent, label, lowerIsBetter = true }: {
+/** A delta smaller than this rounds to 0.0% and reads as "no change". */
+const NO_CHANGE_EPSILON = 0.05;
+
+function DeltaPill({ delta, deltaPercent, label, lowerIsBetter = true }: {
   delta: number;
   deltaPercent: number;
   label: string;
   lowerIsBetter?: boolean;
 }) {
   const isImprovement = lowerIsBetter ? delta < 0 : delta > 0;
-  const color = delta === 0
-    ? 'text-neutral-500'
-    : isImprovement
-      ? 'text-green-600 dark:text-green-400'
-      : 'text-red-600 dark:text-red-400';
+  const styles = isImprovement
+    ? 'border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-950/50 text-green-700 dark:text-green-400'
+    : 'border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-400';
 
   return (
-    <div className={`flex flex-col items-center text-xs ${color}`}>
-      <span className="text-[10px] text-neutral-500 dark:text-neutral-400">{label}</span>
-      <span className="font-bold">
-        {delta === 0 ? '=' : delta > 0 ? '+' : ''}{deltaPercent.toFixed(1)}%
-      </span>
-      {delta !== 0 && (
-        <svg className={`w-4 h-4 ${delta > 0 ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-        </svg>
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold whitespace-nowrap ${styles}`}
+      title={`${label}: ${delta > 0 ? '+' : ''}${deltaPercent.toFixed(1)}% in Plan B`}
+    >
+      <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{label}</span>
+      <svg
+        className={`w-3 h-3 shrink-0 ${delta > 0 ? '' : 'rotate-180'}`}
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        aria-hidden="true"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
+      </svg>
+      <span className="tabular-nums">{Math.abs(deltaPercent).toFixed(1)}%</span>
+    </span>
+  );
+}
+
+/** The Cost/Time verdict shown between the two plan summary cards. */
+function SummaryDeltas({ costDelta, costDeltaPercent, timeDelta, timeDeltaPercent }: {
+  costDelta: number;
+  costDeltaPercent: number;
+  timeDelta?: number;
+  timeDeltaPercent?: number;
+}) {
+  const hasTime = timeDelta !== undefined && timeDeltaPercent !== undefined;
+  const costFlat = Math.abs(costDeltaPercent) < NO_CHANGE_EPSILON;
+  const timeFlat = !hasTime || Math.abs(timeDeltaPercent) < NO_CHANGE_EPSILON;
+
+  if (costFlat && timeFlat) {
+    return (
+      <div className="flex items-center px-2 shrink-0">
+        <span
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap"
+          title="Cost and time are effectively identical between the two plans"
+        >
+          <span aria-hidden="true">≈</span> no change
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-1.5 px-2 shrink-0">
+      {!costFlat && (
+        <DeltaPill delta={costDelta} deltaPercent={costDeltaPercent} label="Cost" />
+      )}
+      {hasTime && !timeFlat && (
+        <DeltaPill delta={timeDelta} deltaPercent={timeDeltaPercent} label="Time" />
       )}
     </div>
   );
@@ -170,15 +212,15 @@ function ExpandedRowDetail({ row, labelA, labelB, onViewInTree }: {
       <div className={`flex-1 rounded-lg border p-2.5 ${styles}`}>
         <div className={`text-[10px] font-bold uppercase tracking-wider mb-1.5 ${labelStyle}`}>{label}</div>
         {node ? (
-          <div className="space-y-0.5 text-xs text-neutral-700 dark:text-neutral-300">
-            <div><span className="text-neutral-400 dark:text-neutral-500">#{node.id}</span> <span className="font-semibold">{node.operation}</span></div>
+          <div className="space-y-0.5 text-xs text-slate-700 dark:text-slate-300">
+            <div><span className="text-slate-400 dark:text-slate-500">#{node.id}</span> <span className="font-semibold">{node.operation}</span></div>
             {node.objectName && <div className="font-mono text-[11px]">{node.objectName}</div>}
-            <div className="text-[10px] text-neutral-500 dark:text-neutral-400">
+            <div className="text-[10px] text-slate-500 dark:text-slate-400">
               depth {node.depth}{node.queryBlock ? ` · ${node.queryBlock}` : ''}
             </div>
           </div>
         ) : (
-          <div className="text-xs italic text-neutral-400 dark:text-neutral-500">Not present in this plan</div>
+          <div className="text-xs italic text-slate-400 dark:text-slate-500">Not present in this plan</div>
         )}
       </div>
     );
@@ -192,10 +234,10 @@ function ExpandedRowDetail({ row, labelA, labelB, onViewInTree }: {
       </div>
 
       {metricsWithValues.length > 0 && (
-        <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
           <table className="w-full text-xs">
             <thead>
-              <tr className="bg-neutral-100 dark:bg-neutral-800/80 text-neutral-500 dark:text-neutral-400">
+              <tr className="bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400">
                 <th className="px-2 py-1 text-left font-medium">Metric</th>
                 <th className="px-2 py-1 text-center font-medium text-blue-600 dark:text-blue-400">A</th>
                 <th className="px-2 py-1 text-center font-medium text-violet-600 dark:text-violet-400">B</th>
@@ -207,10 +249,10 @@ function ExpandedRowDetail({ row, labelA, labelB, onViewInTree }: {
                 const delta = row.deltas[metric]!;
                 const formatted = formatDelta(delta, metric);
                 return (
-                  <tr key={metric} className="border-t border-neutral-100 dark:border-neutral-800">
-                    <td className="px-2 py-1 text-neutral-600 dark:text-neutral-400">{getMetricLabel(metric)}</td>
-                    <td className="px-2 py-1 text-center text-neutral-700 dark:text-neutral-300">{formatMetricValue(delta.valueA, metric)}</td>
-                    <td className="px-2 py-1 text-center text-neutral-700 dark:text-neutral-300">{formatMetricValue(delta.valueB, metric)}</td>
+                  <tr key={metric} className="border-t border-slate-100 dark:border-slate-800">
+                    <td className="px-2 py-1 text-slate-600 dark:text-slate-400">{getMetricLabel(metric)}</td>
+                    <td className="px-2 py-1 text-center text-slate-700 dark:text-slate-300">{formatMetricValue(delta.valueA, metric)}</td>
+                    <td className="px-2 py-1 text-center text-slate-700 dark:text-slate-300">{formatMetricValue(delta.valueB, metric)}</td>
                     <td className={`px-2 py-1 text-center ${DELTA_TONE_CLASS[formatted.tone]}`}>{formatted.text}</td>
                   </tr>
                 );
@@ -229,21 +271,21 @@ function ExpandedRowDetail({ row, labelA, labelB, onViewInTree }: {
             return (
               <div key={kind} className="col-span-2">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                     {kind === 'accessPredicates' ? 'Access predicates' : 'Filter predicates'}
                   </span>
                   {changed && (
-                    <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 uppercase">
+                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 uppercase">
                       changed
                     </span>
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <code className="block text-[11px] bg-neutral-100 dark:bg-neutral-900 p-2 rounded border border-neutral-200 dark:border-neutral-700 whitespace-pre-wrap break-words text-neutral-700 dark:text-neutral-300 min-h-[2rem]">
-                    {nodeA?.[kind] ?? <span className="italic text-neutral-400">—</span>}
+                  <code className="block text-[11px] bg-slate-100 dark:bg-slate-900 p-2 rounded border border-slate-200 dark:border-slate-700 whitespace-pre-wrap break-words text-slate-700 dark:text-slate-300 min-h-[2rem]">
+                    {nodeA?.[kind] ?? <span className="italic text-slate-400">—</span>}
                   </code>
-                  <code className="block text-[11px] bg-neutral-100 dark:bg-neutral-900 p-2 rounded border border-neutral-200 dark:border-neutral-700 whitespace-pre-wrap break-words text-neutral-700 dark:text-neutral-300 min-h-[2rem]">
-                    {nodeB?.[kind] ?? <span className="italic text-neutral-400">—</span>}
+                  <code className="block text-[11px] bg-slate-100 dark:bg-slate-900 p-2 rounded border border-slate-200 dark:border-slate-700 whitespace-pre-wrap break-words text-slate-700 dark:text-slate-300 min-h-[2rem]">
+                    {nodeB?.[kind] ?? <span className="italic text-slate-400">—</span>}
                   </code>
                 </div>
               </div>
@@ -356,7 +398,7 @@ export function CompareView() {
 
   if (!planA || !planB || !summary) {
     return (
-      <div className="flex-1 flex items-center justify-center text-neutral-500 dark:text-neutral-400 p-8">
+      <div className="flex-1 flex items-center justify-center text-slate-500 dark:text-slate-400 p-8">
         <p>Both plans must be loaded to compare.</p>
       </div>
     );
@@ -390,7 +432,7 @@ export function CompareView() {
   const totalColumns = 5 + compareMetrics.length * 3;
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-auto bg-neutral-50 dark:bg-neutral-950 p-4 gap-4">
+    <div className="flex-1 flex flex-col min-h-0 overflow-auto bg-slate-50 dark:bg-slate-950 p-4 gap-4">
       {/* Summary header */}
       <div className="flex items-center gap-3">
         <SummaryCard
@@ -401,12 +443,12 @@ export function CompareView() {
           nodeCount={planA.allNodes.length}
           phv={planA.planHashValue}
         />
-        <div className="flex flex-col items-center gap-1 px-2">
-          <DeltaArrow delta={summary.costDelta} deltaPercent={summary.costDeltaPercent} label="Cost" />
-          {summary.timeDelta !== undefined && summary.timeDeltaPercent !== undefined && (
-            <DeltaArrow delta={summary.timeDelta} deltaPercent={summary.timeDeltaPercent} label="Time" />
-          )}
-        </div>
+        <SummaryDeltas
+          costDelta={summary.costDelta}
+          costDeltaPercent={summary.costDeltaPercent}
+          timeDelta={summary.timeDelta}
+          timeDeltaPercent={summary.timeDeltaPercent}
+        />
         <SummaryCard
           label={labelB}
           plan="B"
@@ -434,7 +476,7 @@ export function CompareView() {
           <button
             type="button"
             onClick={() => applyMetadataToAllSlots(sharedBundleCandidate.bundle)}
-            className="ml-auto whitespace-nowrap px-2 py-1 rounded border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-neutral-900 hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
+            className="ml-auto whitespace-nowrap px-2 py-1 rounded border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-900 hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
           >
             Apply to both
           </button>
@@ -442,7 +484,7 @@ export function CompareView() {
       )}
 
       {/* Match stats + changed-only filter */}
-      <div className="flex items-center gap-4 text-xs text-neutral-600 dark:text-neutral-400">
+      <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400">
         <span className="flex items-center gap-1">
           <MatchIcon type="exact-id" />
           {summary.matchedCount - matches.filter(m => m.matchType === 'heuristic').length} exact
@@ -464,7 +506,7 @@ export function CompareView() {
           className={`ml-auto px-2.5 py-1 rounded-full border text-[11px] font-semibold transition-colors ${
             showChangedOnly
               ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-              : 'bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700'
+              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
           }`}
         >
           Changed rows only ({visibleRows.length}/{rows.length})
@@ -475,16 +517,16 @@ export function CompareView() {
       <CompareMetricSelector />
 
       {/* Comparison table */}
-      <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+      <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="bg-neutral-100 dark:bg-neutral-800/80 border-b border-neutral-200 dark:border-neutral-700">
-                <th className="px-2 py-2 text-left font-semibold text-neutral-600 dark:text-neutral-400 w-6" />
-                <th className="px-2 py-2 text-left font-semibold text-neutral-600 dark:text-neutral-400 w-10">ID(A)</th>
-                <th className="px-2 py-2 text-left font-semibold text-neutral-600 dark:text-neutral-400 w-10">ID(B)</th>
-                <th className="px-2 py-2 text-left font-semibold text-neutral-600 dark:text-neutral-400">Operation</th>
-                <th className="px-2 py-2 text-left font-semibold text-neutral-600 dark:text-neutral-400">Object</th>
+              <tr className="bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
+                <th className="px-2 py-2 text-left font-semibold text-slate-600 dark:text-slate-400 w-6" />
+                <th className="px-2 py-2 text-left font-semibold text-slate-600 dark:text-slate-400 w-10">ID(A)</th>
+                <th className="px-2 py-2 text-left font-semibold text-slate-600 dark:text-slate-400 w-10">ID(B)</th>
+                <th className="px-2 py-2 text-left font-semibold text-slate-600 dark:text-slate-400">Operation</th>
+                <th className="px-2 py-2 text-left font-semibold text-slate-600 dark:text-slate-400">Object</th>
                 {compareMetrics.map(metric => {
                   const active = effectiveSort?.metric === metric;
                   const ariaSort = active ? (effectiveSort!.direction === 'desc' ? 'descending' : 'ascending') : 'none';
@@ -493,14 +535,14 @@ export function CompareView() {
                       key={`header-${metric}`}
                       colSpan={3}
                       aria-sort={ariaSort}
-                      className="border-l border-neutral-200 dark:border-neutral-700 p-0"
+                      className="border-l border-slate-200 dark:border-slate-700 p-0"
                     >
                       <button
                         type="button"
                         onClick={() => cycleSort(metric)}
                         title={`Sort by ${getMetricLabel(metric)} delta (largest change first)`}
-                        className={`w-full px-2 py-2 text-center font-semibold transition-colors hover:bg-neutral-200/60 dark:hover:bg-neutral-700/60 ${
-                          active ? 'text-blue-600 dark:text-blue-400' : 'text-neutral-600 dark:text-neutral-400'
+                        className={`w-full px-2 py-2 text-center font-semibold transition-colors hover:bg-slate-200/60 dark:hover:bg-slate-700/60 ${
+                          active ? 'text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400'
                         }`}
                       >
                         {getMetricLabel(metric)}
@@ -510,13 +552,13 @@ export function CompareView() {
                   );
                 })}
               </tr>
-              <tr className="bg-neutral-50 dark:bg-neutral-800/40 border-b border-neutral-200 dark:border-neutral-700">
+              <tr className="bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-700">
                 <th colSpan={5} />
                 {compareMetrics.map(metric => (
                   <React.Fragment key={`subheader-${metric}`}>
-                    <th className="px-2 py-1 text-center text-[10px] font-medium text-blue-600 dark:text-blue-400 border-l border-neutral-200 dark:border-neutral-700">A</th>
+                    <th className="px-2 py-1 text-center text-[10px] font-medium text-blue-600 dark:text-blue-400 border-l border-slate-200 dark:border-slate-700">A</th>
                     <th className="px-2 py-1 text-center text-[10px] font-medium text-violet-600 dark:text-violet-400">B</th>
-                    <th className="px-2 py-1 text-center text-[10px] font-medium text-neutral-500 dark:text-neutral-400">Delta</th>
+                    <th className="px-2 py-1 text-center text-[10px] font-medium text-slate-500 dark:text-slate-400">Delta</th>
                   </React.Fragment>
                 ))}
               </tr>
@@ -540,36 +582,36 @@ export function CompareView() {
                       tabIndex={0}
                       aria-expanded={isExpanded}
                       aria-controls={isExpanded ? `compare-detail-${row.key}` : undefined}
-                      className={`border-b border-neutral-100 dark:border-neutral-800 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 ${
+                      className={`border-b border-slate-100 dark:border-slate-800 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 ${
                         isExpanded
                           ? 'bg-blue-50/60 dark:bg-blue-950/25'
-                          : 'hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
+                          : 'hover:bg-slate-100 dark:hover:bg-slate-800/60'
                       }`}
                     >
                       <td className="px-2 py-1.5 text-center">
                         <MatchIcon type={row.match.matchType} />
                       </td>
-                      <td className="px-2 py-1.5 font-mono text-neutral-600 dark:text-neutral-400">
+                      <td className="px-2 py-1.5 font-mono text-slate-600 dark:text-slate-400">
                         {nodeA?.id ?? '-'}
                       </td>
-                      <td className="px-2 py-1.5 font-mono text-neutral-600 dark:text-neutral-400">
+                      <td className="px-2 py-1.5 font-mono text-slate-600 dark:text-slate-400">
                         {nodeB?.id ?? '-'}
                       </td>
-                      <td className="px-2 py-1.5 font-medium text-neutral-800 dark:text-neutral-200 whitespace-nowrap">
-                        <span className={`inline-block mr-1 text-neutral-400 dark:text-neutral-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▸</span>
+                      <td className="px-2 py-1.5 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                        <span className={`inline-block mr-1 text-slate-400 dark:text-slate-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▸</span>
                         {operation}
                       </td>
-                      <td className="px-2 py-1.5 text-neutral-600 dark:text-neutral-400 whitespace-nowrap">
+                      <td className="px-2 py-1.5 text-slate-600 dark:text-slate-400 whitespace-nowrap">
                         {objectName}
                       </td>
                       {compareMetrics.map(metric => {
                         const delta = row.deltas[metric];
                         return (
                           <React.Fragment key={`${row.key}-${metric}`}>
-                            <td className="px-2 py-1.5 text-center text-neutral-700 dark:text-neutral-300 border-l border-neutral-100 dark:border-neutral-800">
+                            <td className="px-2 py-1.5 text-center text-slate-700 dark:text-slate-300 border-l border-slate-100 dark:border-slate-800">
                               {formatMetricValue(delta?.valueA, metric)}
                             </td>
-                            <td className="px-2 py-1.5 text-center text-neutral-700 dark:text-neutral-300">
+                            <td className="px-2 py-1.5 text-center text-slate-700 dark:text-slate-300">
                               {formatMetricValue(delta?.valueB, metric)}
                             </td>
                             <DeltaCell delta={delta} metric={metric} />
@@ -578,7 +620,7 @@ export function CompareView() {
                       })}
                     </tr>
                     {isExpanded && (
-                      <tr id={`compare-detail-${row.key}`} className="border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50/80 dark:bg-neutral-900/60">
+                      <tr id={`compare-detail-${row.key}`} className="border-b border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-900/60">
                         <td colSpan={totalColumns}>
                           <ExpandedRowDetail
                             row={row}
@@ -594,7 +636,7 @@ export function CompareView() {
               })}
               {visibleRows.length === 0 && (
                 <tr>
-                  <td colSpan={totalColumns} className="px-4 py-6 text-center text-neutral-500 dark:text-neutral-400">
+                  <td colSpan={totalColumns} className="px-4 py-6 text-center text-slate-500 dark:text-slate-400">
                     No rows differ in the selected metrics.
                   </td>
                 </tr>

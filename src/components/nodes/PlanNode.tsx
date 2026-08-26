@@ -282,7 +282,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
       {/* Metric indicator bar */}
       <div
-        className="absolute top-0 left-0 right-0 h-1 rounded-t-md overflow-hidden bg-gray-200 dark:bg-gray-700"
+        className="absolute top-0 left-0 right-0 h-1 rounded-t-md overflow-hidden bg-slate-200 dark:bg-slate-700"
         title={
           nodeIndicatorMetric === 'cost'
             ? `${indicator.label}: ${indicator.formattedValue}`
@@ -297,7 +297,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
       <div className="p-3 pt-4">
         {/* Operation ID badge */}
-        <div className="absolute -top-2 -left-2 w-6 h-6 text-xs rounded-full bg-gray-700 dark:bg-gray-300 text-white dark:text-gray-900 font-bold flex items-center justify-center shadow">
+        <div className="absolute -top-2 -left-2 w-6 h-6 text-xs rounded-full bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 font-bold flex items-center justify-center shadow">
           {node.id}
         </div>
 
@@ -371,7 +371,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           <div className={`font-semibold text-sm leading-tight mb-1 ${colors.text}`} title={tooltip}>
             <HighlightText text={node.operation} query={searchText} />
             {isTicker && options.showObjectName && node.objectName && (
-              <span className="font-mono font-semibold text-neutral-700 dark:text-neutral-200"> · <HighlightText text={node.objectName} query={searchText} /></span>
+              <span className="font-mono font-semibold text-slate-700 dark:text-slate-200"> · <HighlightText text={node.objectName} query={searchText} /></span>
             )}
           </div>
           {showHighlight && highlightStyle === 'underline' && (
@@ -396,7 +396,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
         {/* Object name if present (ticker scheme renders it inline in the operation name) */}
         {!isTicker && options.showObjectName && node.objectName && (
-          <div className="text-sm font-semibold font-mono text-neutral-700 dark:text-neutral-200 mb-2 truncate">
+          <div className="text-sm font-semibold font-mono text-slate-700 dark:text-slate-200 mb-2 truncate">
             <HighlightText text={node.objectName} query={searchText} />
           </div>
         )}
@@ -404,11 +404,11 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         {/* Query block badge (rail scheme moves it to the footer rail) */}
         {!isRail && options.showQueryBlockBadge && node.queryBlock && (
           <div className="flex flex-wrap gap-1 mb-2">
-            <span className="px-1.5 py-0.5 text-xs rounded font-mono bg-violet-200 dark:bg-violet-800 text-violet-800 dark:text-violet-200">
+            <span className="px-1.5 py-0.5 text-xs rounded font-mono bg-violet-500/10 border border-violet-400/40 dark:border-violet-500/40 text-violet-700 dark:text-violet-300">
               {node.queryBlock}
             </span>
             {node.objectAlias && (
-              <span className="px-1.5 py-0.5 bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 text-xs rounded font-mono">
+              <span className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 border border-transparent text-slate-700 dark:text-slate-200 text-xs rounded font-mono">
                 {node.objectAlias}
               </span>
             )}
@@ -431,14 +431,14 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             const showBytesPart = options.showBytes && node.bytes !== undefined;
             return (
               <div
-                className="mt-1.5 space-y-0.5 font-mono text-[11px] leading-tight text-neutral-700 dark:text-neutral-300"
+                className="mt-1.5 space-y-0.5 font-mono text-[11px] leading-tight text-slate-700 dark:text-slate-300"
                 style={{ fontVariantNumeric: 'tabular-nums' }}
               >
                 {showRowsLine && (
                   <div>
-                    <span className="text-[9px] text-neutral-400 dark:text-neutral-500">rows </span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">rows </span>
                     {showEstRows && (
-                      <span className={showActRows ? 'text-neutral-400 dark:text-neutral-500' : 'font-semibold'}>
+                      <span className={showActRows ? 'text-slate-400 dark:text-slate-500' : 'font-semibold'}>
                         {formatNumberShort(node.rows)}
                       </span>
                     )}
@@ -459,16 +459,16 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                   <div>
                     {showActualTimePart && (
                       <>
-                        <span className="text-[9px] text-neutral-400 dark:text-neutral-500">t </span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500">t </span>
                         <span className="font-semibold">{formatTimeCompact(node.actualTime)}</span>
                       </>
                     )}
                     {showActualTimePart && showStartsPart && (
-                      <span className="text-neutral-300 dark:text-neutral-600"> · </span>
+                      <span className="text-slate-300 dark:text-slate-600"> · </span>
                     )}
                     {showStartsPart && (
                       <>
-                        <span className="text-[9px] text-neutral-400 dark:text-neutral-500">starts </span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500">starts </span>
                         <span className="font-semibold">{formatNumberShort(node.starts)}</span>
                       </>
                     )}
@@ -478,12 +478,12 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                   <div>
                     {showCostPart && (
                       <>
-                        <span className="text-[9px] text-neutral-400 dark:text-neutral-500">cost </span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500">cost </span>
                         <span className="font-semibold">{formatNumberShort(node.cost)}</span>
                       </>
                     )}
                     {showCostPart && showBytesPart && (
-                      <span className="text-neutral-300 dark:text-neutral-600"> · </span>
+                      <span className="text-slate-300 dark:text-slate-600"> · </span>
                     )}
                     {showBytesPart && (
                       <span className="font-semibold">{formatBytes(node.bytes)}</span>
@@ -496,31 +496,31 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         ) : usesEstActGrid ? (
           /* Est ⇄ Act mode: comparison grid — metric | estimated | actual | deviation */
           estActRows.length > 0 && (
-            <div className="mt-1 rounded border border-neutral-200 dark:border-neutral-700 overflow-hidden bg-neutral-50/60 dark:bg-neutral-900/40">
+            <div className="mt-1 rounded border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-50/60 dark:bg-slate-900/40">
               <div className={`grid ${hasActualStats ? 'grid-cols-[auto_1fr_1fr_auto]' : 'grid-cols-[auto_1fr]'} text-[11px] leading-tight`}>
                 {hasActualStats && (
                   <>
-                    <span className="px-2 py-0.5 bg-neutral-100/80 dark:bg-neutral-800/80" />
-                    <span className="px-2 py-0.5 bg-neutral-100/80 dark:bg-neutral-800/80 text-right text-[9px] font-bold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Est</span>
-                    <span className="px-2 py-0.5 bg-neutral-100/80 dark:bg-neutral-800/80 text-right text-[9px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400">Act</span>
-                    <span className="px-2 py-0.5 bg-neutral-100/80 dark:bg-neutral-800/80" />
+                    <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80" />
+                    <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Est</span>
+                    <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80 text-right text-[10px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400">Act</span>
+                    <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80" />
                   </>
                 )}
                 {estActRows.map((r, i) => {
-                  const rowBorder = i > 0 || hasActualStats ? 'border-t border-neutral-200/70 dark:border-neutral-700/70' : '';
+                  const rowBorder = i > 0 || hasActualStats ? 'border-t border-slate-200/70 dark:border-slate-700/70' : '';
                   return (
                     <Fragment key={r.label}>
-                      <span className={`px-2 py-0.5 text-neutral-500 dark:text-neutral-400 ${rowBorder}`}>{r.label}</span>
+                      <span className={`px-2 py-0.5 text-slate-500 dark:text-slate-400 ${rowBorder}`}>{r.label}</span>
                       <span className={`px-2 py-0.5 text-right font-mono tabular-nums ${rowBorder} ${
                         hasActualStats
-                          ? r.est !== undefined ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-300 dark:text-neutral-600'
-                          : 'font-semibold text-neutral-900 dark:text-neutral-100'
+                          ? r.est !== undefined ? 'text-slate-500 dark:text-slate-400' : 'text-slate-300 dark:text-slate-600'
+                          : 'font-semibold text-slate-900 dark:text-slate-100'
                       }`}>
                         {r.est ?? '—'}
                       </span>
                       {hasActualStats && (
                         <span className={`px-2 py-0.5 text-right font-mono tabular-nums ${rowBorder} ${
-                          r.act !== undefined ? 'font-semibold text-neutral-900 dark:text-neutral-100' : 'text-neutral-300 dark:text-neutral-600'
+                          r.act !== undefined ? 'font-semibold text-slate-900 dark:text-slate-100' : 'text-slate-300 dark:text-slate-600'
                         }`}>
                           {r.act ?? '—'}
                         </span>
@@ -529,7 +529,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                         <span className={`pl-0.5 pr-1.5 py-0.5 flex items-center justify-end ${rowBorder}`}>
                           {'isRowsRow' in r && r.isRowsRow && cardLabel && cardSeverity !== 'good' ? (
                             <em
-                              className={`not-italic px-1 rounded text-[9px] font-bold whitespace-nowrap ${
+                              className={`not-italic px-1 rounded text-[10px] font-bold whitespace-nowrap ${
                                 cardSeverity === 'bad'
                                   ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
                                   : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
@@ -539,7 +539,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                               {cardLabel}
                             </em>
                           ) : 'isRowsRow' in r && r.isRowsRow && r.est !== undefined && r.act !== undefined ? (
-                            <em className="not-italic px-1 rounded text-[9px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" title="Estimate matches actual rows">
+                            <em className="not-italic px-1 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" title="Estimate matches actual rows">
                               ≈
                             </em>
                           ) : null}
@@ -556,17 +556,17 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           <>
             <div className="flex flex-wrap gap-2 text-xs">
               {options.showRows && node.rows !== undefined && (
-                <span className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300">
+                <span className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-black/20 text-slate-700 dark:text-slate-300">
                   {rowsLabel}: {formatNumberShort(node.rows)}
                 </span>
               )}
               {options.showCost && node.cost !== undefined && (
-                <span className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300">
+                <span className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-black/20 text-slate-700 dark:text-slate-300">
                   Cost: {formatNumberShort(node.cost)}
                 </span>
               )}
               {options.showBytes && node.bytes !== undefined && (
-                <span className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-black/20 text-gray-700 dark:text-gray-300">
+                <span className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-black/20 text-slate-700 dark:text-slate-300">
                   {formatBytes(node.bytes)}
                 </span>
               )}
@@ -633,7 +633,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             {node.accessPredicates && (
               <div className="text-xs">
                 <span className="font-medium text-green-700 dark:text-green-300">A: </span>
-                <code className="text-gray-600 dark:text-gray-400 break-all">
+                <code className="text-slate-600 dark:text-slate-400 break-all">
                   <HighlightText text={node.accessPredicates} query={searchText} />
                 </code>
               </div>
@@ -641,7 +641,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             {node.filterPredicates && (
               <div className="text-xs">
                 <span className="font-medium text-amber-700 dark:text-amber-300">F: </span>
-                <code className="text-gray-600 dark:text-gray-400 break-all">
+                <code className="text-slate-600 dark:text-slate-400 break-all">
                   <HighlightText text={node.filterPredicates} query={searchText} />
                 </code>
               </div>
@@ -657,7 +657,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             (options.showPredicateIndicators && (node.accessPredicates || node.filterPredicates)) ||
             (options.showPartitionInfo && formatPartitionRange(node.pstart, node.pstop)) ||
             (options.showQueryBlockBadge && node.queryBlock)) && (
-            <div className="flex items-center gap-1 mt-2 pt-1.5 border-t border-neutral-200 dark:border-neutral-700">
+            <div className="flex items-center gap-1 mt-2 pt-1.5 border-t border-slate-200 dark:border-slate-700">
               {showHot && (
                 <span
                   className="w-5 h-5 rounded bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 flex items-center justify-center shrink-0"
@@ -700,7 +700,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
               )}
               {options.showQueryBlockBadge && node.queryBlock && (
                 <span
-                  className="ml-auto font-mono text-[10px] text-neutral-400 dark:text-neutral-500 truncate"
+                  className="ml-auto font-mono text-[10px] text-slate-400 dark:text-slate-500 truncate"
                   title={node.objectAlias ? `${node.queryBlock} · ${node.objectAlias}` : node.queryBlock}
                 >
                   {node.queryBlock}
@@ -712,10 +712,10 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
         {/* Annotation preview */}
         {showAnnotationsOverlay && annotationText && (
-          <div className="mt-2 pt-1.5 border-t border-neutral-200 dark:border-neutral-700">
+          <div className="mt-2 pt-1.5 border-t border-slate-200 dark:border-slate-700">
             <div
               className={`text-[11px] whitespace-pre-wrap break-words ${
-                highlightColor ? getHighlightColorDef(highlightColor).text : 'text-neutral-500 dark:text-neutral-400'
+                highlightColor ? getHighlightColorDef(highlightColor).text : 'text-slate-500 dark:text-slate-400'
               }`}
             >
               {annotationText}
@@ -782,7 +782,7 @@ function computeIndicatorMetric(
     ratio: Math.min(1, ratio),
     label,
     formattedValue,
-    color: ratio === 0 ? 'bg-gray-200 dark:bg-gray-700' : getMetricColor(ratio),
+    color: ratio === 0 ? 'bg-slate-200 dark:bg-slate-700' : getMetricColor(ratio),
   };
 }
 

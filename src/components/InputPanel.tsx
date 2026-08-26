@@ -13,6 +13,15 @@ import { ConnectPanel } from './ConnectPanel';
 
 const dbAgentEnabled = isDbAgentEnabled();
 
+const FOCUS_RING =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
+// Full-bleed rows (dropdown items) sit flush against their container's border,
+// so their ring goes inside rather than spilling over it.
+const FOCUS_RING_INSET =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
+const SAMPLE_ITEM_CLASS =
+  `w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 ${FOCUS_RING_INSET}`;
+
 export function InputPanel() {
   const { rawInput, setInput, parsePlan, loadAndParsePlan, loadMetadataBundle, attachMetadataBundleToSlot, clearPlan, removePlanSlot, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex, metadataBundle, metadataBundleWarning, detachMetadataBundle, connectPanelOpen: showConnectPanel, setConnectPanelOpen: setShowConnectPanel } = usePlan();
   const [showSampleMenu, setShowSampleMenu] = useState(false);
@@ -128,31 +137,31 @@ export function InputPanel() {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`flex flex-col bg-white dark:bg-neutral-900 border-b ${
+      className={`flex flex-col bg-white dark:bg-slate-900 border-b ${
         isDraggingFile
           ? 'border-blue-500 ring-2 ring-inset ring-blue-500/60'
-          : 'border-neutral-200 dark:border-neutral-800'
+          : 'border-slate-200 dark:border-slate-800'
       }`}
     >
       {/* Header - always visible */}
-      <div className="flex items-center justify-between px-3 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 transition-colors">
+      <div className="flex items-center justify-between px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <button
             type="button"
             onClick={() => setIsCollapsed(!isCollapsed)}
             aria-expanded={!isCollapsed}
             aria-controls="input-panel-content"
-            className="flex items-center gap-2 text-left min-w-0"
+            className={`flex items-center gap-2 text-left min-w-0 rounded-md ${FOCUS_RING}`}
           >
             <svg
-              className={`w-4 h-4 text-neutral-500 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
+              className={`w-4 h-4 text-slate-500 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-            <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
               {hasMultiplePlans && (
                 <span className="text-blue-600 dark:text-blue-400 mr-1.5">{plans[activePlanIndex].customLabel || plans[activePlanIndex].label}:</span>
               )}
@@ -171,16 +180,16 @@ export function InputPanel() {
           )}
           {isCollapsed && parsedPlan && (
             <div className="hidden lg:flex items-center gap-1.5">
-              <span className="px-2 py-0.5 border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded text-[11px] font-medium">
+              <span className="px-2 py-0.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium">
                 {getSourceDisplayName(parsedPlan.source)}
               </span>
               {parsedPlan.hasActualStats && (
-                <span className="px-2 py-0.5 border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded text-[11px] font-medium">
+                <span className="px-2 py-0.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium">
                   Actual Stats
                 </span>
               )}
               {parsedPlan.bindVariables && parsedPlan.bindVariables.length > 0 && (
-                <span className="px-2 py-0.5 border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded text-[11px] font-medium">
+                <span className="px-2 py-0.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium">
                   {parsedPlan.bindVariables.length} bind{parsedPlan.bindVariables.length !== 1 ? 's' : ''}
                 </span>
               )}
@@ -194,10 +203,10 @@ export function InputPanel() {
               type="button"
               onClick={() => setShowConnectPanel(!showConnectPanel)}
               aria-pressed={showConnectPanel}
-              className={`h-8 px-3 text-xs border rounded-md transition-colors flex items-center gap-1 font-semibold ${
+              className={`h-8 px-3 text-xs border rounded-md transition-colors flex items-center gap-1 font-semibold ${FOCUS_RING} ${
                 showConnectPanel
                   ? 'border-blue-500 bg-blue-600 text-white'
-                  : 'border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700'
+                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
               }`}
             >
               DB Connect
@@ -206,7 +215,7 @@ export function InputPanel() {
           <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowSampleMenu(!showSampleMenu)}
-            className="h-8 px-3 text-xs border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors flex items-center gap-1 font-semibold"
+            className={`h-8 px-3 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1 font-semibold ${FOCUS_RING}`}
           >
             Load Example
             <svg className={`w-4 h-4 transition-transform ${showSampleMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -214,44 +223,44 @@ export function InputPanel() {
             </svg>
           </button>
           {showSampleMenu && (
-            <div className="absolute right-0 mt-1 w-56 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg z-50">
+            <div className="absolute right-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50">
               <div className="py-1">
-                <div className="px-3 py-1.5 text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
+                <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                   DBMS_XPLAN
                 </div>
                 {SAMPLE_PLANS_BY_CATEGORY.dbms_xplan.map((sample) => (
                   <button
                     key={sample.name}
                     onClick={() => handleLoadSample(sample)}
-                    className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                    className={SAMPLE_ITEM_CLASS}
                   >
                     {sample.name}
                   </button>
                 ))}
-                <div className="border-t border-neutral-200 dark:border-neutral-700 my-1" />
-                <div className="px-3 py-1.5 text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
+                <div className="border-t border-slate-200 dark:border-slate-700 my-1" />
+                <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                   SQL Monitor
                 </div>
                 {SAMPLE_PLANS_BY_CATEGORY.sql_monitor.map((sample) => (
                   <button
                     key={sample.name}
                     onClick={() => handleLoadSample(sample)}
-                    className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                    className={SAMPLE_ITEM_CLASS}
                   >
                     {sample.name}
                   </button>
                 ))}
                 {SAMPLE_PLANS_BY_CATEGORY.json.length > 0 && (
                   <>
-                    <div className="border-t border-neutral-200 dark:border-neutral-700 my-1" />
-                    <div className="px-3 py-1.5 text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
+                    <div className="border-t border-slate-200 dark:border-slate-700 my-1" />
+                    <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                       JSON (V$SQL_PLAN)
                     </div>
                     {SAMPLE_PLANS_BY_CATEGORY.json.map((sample) => (
                       <button
                         key={sample.name}
                         onClick={() => handleLoadSample(sample)}
-                        className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                        className={SAMPLE_ITEM_CLASS}
                       >
                         {sample.name}
                       </button>
@@ -260,15 +269,15 @@ export function InputPanel() {
                 )}
                 {SAMPLE_PLANS_BY_CATEGORY.xbi.length > 0 && (
                   <>
-                    <div className="border-t border-neutral-200 dark:border-neutral-700 my-1" />
-                    <div className="px-3 py-1.5 text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
+                    <div className="border-t border-slate-200 dark:border-slate-700 my-1" />
+                    <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                       XBI (Tanel Poder)
                     </div>
                     {SAMPLE_PLANS_BY_CATEGORY.xbi.map((sample) => (
                       <button
                         key={sample.name}
                         onClick={() => handleLoadSample(sample)}
-                        className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                        className={SAMPLE_ITEM_CLASS}
                       >
                         {sample.name}
                       </button>
@@ -301,7 +310,7 @@ export function InputPanel() {
               }
             }}
             placeholder={"Paste an Oracle execution plan here, drop a plan file onto this box, or click Load Example -->\n\nSupported formats:\n  \u2022 DBMS_XPLAN output\n  \u2022 SQL Monitor text report\n  \u2022 SQL Monitor XML report\n  \u2022 V$SQL_PLAN JSON\n  \u2022 Metadata bundle (gather_plan_metadata.sql output)\n\nMultiple plans in one paste are supported and are split into separate tabs."}
-            className="w-full h-36 p-2.5 font-mono text-xs bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-blue-500/60 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500"
+            className="w-full h-36 p-2.5 font-mono text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-blue-500/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
           />
 
           {error && (
@@ -314,14 +323,14 @@ export function InputPanel() {
             <button
               onClick={handleParse}
               disabled={!rawInput.trim()}
-              className="h-8 px-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold text-xs"
+              className={`h-8 px-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold text-xs ${FOCUS_RING}`}
             >
               Parse <kbd className="ml-1 text-[10px] opacity-70 font-normal">{navigator.platform?.includes('Mac') ? '\u2318' : 'Ctrl'}{'\u23CE'}</kbd>
             </button>
             {parsedPlan && (
               <button
                 onClick={handleClear}
-                className="h-8 px-3 border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors font-semibold text-xs"
+                className={`h-8 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-semibold text-xs ${FOCUS_RING}`}
               >
                 Clear
               </button>
@@ -329,19 +338,19 @@ export function InputPanel() {
             {!parsedPlan && plans.length > 1 && (
               <button
                 onClick={() => removePlanSlot(activePlanIndex)}
-                className="h-8 px-3 border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors font-semibold text-xs"
+                className={`h-8 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-semibold text-xs ${FOCUS_RING}`}
                 title="Discard this empty plan"
               >
                 Cancel
               </button>
             )}
             {parsedPlan && (
-              <div className="hidden xl:flex items-center ml-auto text-xs text-neutral-600 dark:text-neutral-400 gap-2">
-                <span className="px-2 py-0.5 border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded text-[11px] font-medium">
+              <div className="hidden xl:flex items-center ml-auto text-xs text-slate-600 dark:text-slate-400 gap-2">
+                <span className="px-2 py-0.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium">
                   {getSourceDisplayName(parsedPlan.source)}
                 </span>
                 {parsedPlan.hasActualStats && (
-                  <span className="px-2 py-0.5 border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded text-[11px] font-medium">
+                  <span className="px-2 py-0.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium">
                     Actual Stats
                   </span>
                 )}
@@ -382,7 +391,7 @@ export function InputPanel() {
               type="button"
               onClick={() => setBundleMessage(null)}
               aria-label="Dismiss"
-              className="shrink-0 font-bold opacity-60 hover:opacity-100 leading-none"
+              className={`shrink-0 font-bold opacity-60 hover:opacity-100 leading-none rounded ${FOCUS_RING}`}
             >
               ×
             </button>
@@ -495,9 +504,9 @@ function BundleAttachChooser({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60 p-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-md bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-xl p-4">
-        <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">Attach metadata bundle</h3>
-        <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-3">{reason}</p>
+      <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl p-4">
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-1">Attach metadata bundle</h3>
+        <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">{reason}</p>
         <div className="flex flex-col gap-2 mb-4">
           {candidateIndices.map((idx) => {
             const slot = plans[idx];
@@ -507,11 +516,11 @@ function BundleAttachChooser({
               <button
                 key={idx}
                 onClick={() => onChoose(idx)}
-                className="text-left p-2 border border-neutral-200 dark:border-neutral-700 rounded-md hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                className={`text-left p-2 border border-slate-200 dark:border-slate-700 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 ${FOCUS_RING}`}
               >
-                <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Attach to {label}</div>
+                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Attach to {label}</div>
                 {sqlId && (
-                  <div className="text-[11px] text-neutral-500 dark:text-neutral-400 font-mono">SQL_ID: {sqlId}</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">SQL_ID: {sqlId}</div>
                 )}
               </button>
             );
@@ -520,7 +529,7 @@ function BundleAttachChooser({
         <div className="flex justify-end">
           <button
             onClick={onCancel}
-            className="h-8 px-3 text-xs border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+            className={`h-8 px-3 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ${FOCUS_RING}`}
           >
             Cancel
           </button>

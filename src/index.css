@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "highlight.js/styles/github.css" layer(hljs);
 
@@ -18,6 +18,13 @@
 
   html {
     font-family: Inter, "Segoe UI", sans-serif;
+    /* Declaring color-scheme opts out of Chrome's Auto Dark Mode, which
+       otherwise force-darkens the light theme into a dark/light patchwork. */
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
   }
 
   body {
@@ -33,6 +40,12 @@
 
   code, kbd, pre, .font-mono {
     font-family: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    /* Fira Code ligates !=, <=, >=, <> — SQL operators must render as typed. */
+    font-variant-ligatures: none;
+    /* Pin figure widths so metric columns stay aligned. */
+    font-variant-numeric: tabular-nums;
+    /* No faux bold: font-bold (700) falls back to the loaded 600 face. */
+    font-synthesis: none;
   }
 
   #root {
@@ -85,6 +98,16 @@
 
 .highlight-breathe {
   animation: highlight-breathe 3s ease-in-out infinite;
+}
+
+/* Horizontal scroll without a visible scrollbar (nav ribbon strips) */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 /* Vertical text for collapsed panels */

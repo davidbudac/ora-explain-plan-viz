@@ -441,17 +441,19 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
 
   if (!parsedPlan) return null;
 
-  const groupThClass = 'px-2 py-1 text-center text-[11px] font-semibold text-neutral-600 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-900 sticky top-0 z-10 border-b border-neutral-200 dark:border-neutral-700 select-none';
-  const thClass = 'relative px-2 py-1.5 text-left text-[11px] font-medium text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-900 sticky top-[22px] z-10 border-b border-neutral-200 dark:border-neutral-700 select-none';
-  const thSortableClass = thClass + ' cursor-pointer hover:text-neutral-700 dark:hover:text-neutral-200';
+  const groupThClass = 'px-2 py-1 text-center text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700 select-none';
+  const thClass = 'relative px-2 py-1.5 text-left text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 sticky top-[22px] z-10 border-b border-slate-200 dark:border-slate-700 select-none';
+  const thSortableClass = thClass + ' cursor-pointer hover:text-slate-700 dark:hover:text-slate-200';
   const thRightClass = 'text-right';
-  const groupBorderClass = 'border-l border-neutral-200 dark:border-neutral-700';
-  const bodyGroupBorderClass = 'border-l border-neutral-100 dark:border-neutral-800';
+  const groupBorderClass = 'border-l border-slate-200 dark:border-slate-700';
+  const bodyGroupBorderClass = 'border-l border-slate-100 dark:border-slate-800';
 
+  // pr-4 keeps the rightmost column (and its inline mismatch bars) off the
+  // details rail; it stays part of the scrollable area when columns overflow.
   return (
     <div
       ref={tableRef}
-      className="h-full overflow-auto bg-white dark:bg-neutral-950 focus:outline-none relative"
+      className="h-full overflow-auto pr-4 bg-white dark:bg-slate-950 focus:outline-none relative"
       tabIndex={0}
       onKeyDown={handleKeyDown}
       onMouseLeave={() => { setHoveredNodeId(null); setTooltip(null); }}
@@ -464,18 +466,18 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
         const tooltipColorDef = tooltipHighlight ? getHighlightColorDef(tooltipHighlight.color) : null;
         return (
           <div
-            className="absolute z-50 max-w-sm rounded-md shadow-lg px-2.5 py-1.5 text-xs pointer-events-none bg-white dark:bg-neutral-800"
+            className="absolute z-50 max-w-sm rounded-md shadow-lg px-2.5 py-1.5 text-xs pointer-events-none bg-white dark:bg-slate-800"
             style={{
               left: tooltip.x,
               top: tooltip.y + 2,
               isolation: 'isolate',
               borderLeft: `3px solid ${tooltipColorDef ? tooltipColorDef.hex : '#a3a3a3'}`,
-              borderTop: '1px solid var(--border-color, #e5e7eb)',
-              borderRight: '1px solid var(--border-color, #e5e7eb)',
-              borderBottom: '1px solid var(--border-color, #e5e7eb)',
+              borderTop: '1px solid var(--border-color, #e2e8f0)',
+              borderRight: '1px solid var(--border-color, #e2e8f0)',
+              borderBottom: '1px solid var(--border-color, #e2e8f0)',
             }}
           >
-            <span className="text-neutral-800 dark:text-neutral-200 whitespace-pre-wrap">{tooltipAnnotation.text}</span>
+            <span className="text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{tooltipAnnotation.text}</span>
           </div>
         );
       })()}
@@ -504,7 +506,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
               Id<SortArrow column="id" sortColumn={sortColumn} sortDirection={sortDirection} />
               <ResizeHandle column="id" onResizeStart={handleResizeStart} onResizeDoubleClick={handleResizeDoubleClick} />
             </th>
-            <th className={`${thClass} sticky left-0 z-20 bg-neutral-50 dark:bg-neutral-900`}>
+            <th className={`${thClass} sticky left-0 z-20 bg-slate-50 dark:bg-slate-900`}>
               Operation
               <ResizeHandle column="operation" onResizeStart={handleResizeStart} onResizeDoubleClick={handleResizeDoubleClick} />
             </th>
@@ -600,17 +602,17 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                   outlineOffset: '-1.5px',
                 } : undefined}
                 className={`
-                  border-b border-neutral-100 dark:border-neutral-800 cursor-pointer transition-colors
+                  border-b border-slate-100 dark:border-slate-800 cursor-pointer transition-colors
                   ${isSelected
                     ? 'bg-blue-50/60 dark:bg-blue-950/25'
                     : isHoverHighlighted
-                      ? 'bg-neutral-50 dark:bg-neutral-800/30'
+                      ? 'bg-slate-50 dark:bg-slate-800/30'
                       : ''}
                   ${isFiltered ? 'opacity-30' : ''}
                 `}
               >
                 {/* Id */}
-                <td className="px-2 py-1.5 text-right font-mono text-neutral-500 dark:text-neutral-400 tabular-nums">
+                <td className="px-2 py-1.5 text-right font-mono text-slate-500 dark:text-slate-400 tabular-nums">
                   {node.id}
                 </td>
 
@@ -626,14 +628,14 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                       if (isConnector) {
                         return (
                           <span key={i} className="w-4 flex-shrink-0 relative">
-                            <span className={`absolute left-[7px] top-0 ${isLast ? 'h-1/2' : 'h-full'} w-px bg-neutral-300 dark:bg-neutral-600`} />
-                            <span className="absolute left-[7px] top-1/2 w-[9px] h-px bg-neutral-300 dark:bg-neutral-600" />
+                            <span className={`absolute left-[7px] top-0 ${isLast ? 'h-1/2' : 'h-full'} w-px bg-slate-300 dark:bg-slate-600`} />
+                            <span className="absolute left-[7px] top-1/2 w-[9px] h-px bg-slate-300 dark:bg-slate-600" />
                           </span>
                         );
                       } else if (hasVert) {
                         return (
                           <span key={i} className="w-4 flex-shrink-0 relative">
-                            <span className="absolute left-[7px] top-0 h-full w-px bg-neutral-300 dark:bg-neutral-600" />
+                            <span className="absolute left-[7px] top-0 h-full w-px bg-slate-300 dark:bg-slate-600" />
                           </span>
                         );
                       }
@@ -657,7 +659,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                             title={isCollapsed ? 'Expand subtree' : 'Collapse subtree'}
                             aria-label={isCollapsed ? 'Expand subtree' : 'Collapse subtree'}
                             aria-expanded={!isCollapsed}
-                            className="w-3.5 h-3.5 flex items-center justify-center flex-shrink-0 rounded text-neutral-400 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-700"
+                            className="w-3.5 h-3.5 flex items-center justify-center flex-shrink-0 rounded text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700"
                           >
                             <svg
                               className={`w-3 h-3 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
@@ -677,7 +679,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                           <HighlightText
                             text={node.operation}
                             query={searchText}
-                            className="font-medium text-neutral-900 dark:text-neutral-100 whitespace-nowrap"
+                            className="font-medium text-slate-900 dark:text-slate-100 whitespace-nowrap"
                           />
                         </span>
                         {/* Object name */}
@@ -695,21 +697,21 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                           const desc = new Set<number>();
                           collectDescendantIds(node, desc);
                           return (
-                            <span className="px-1 py-0 text-[9px] font-medium bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 rounded">
+                            <span className="px-1 py-0 text-[10px] font-medium bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded">
                               +{desc.size}
                             </span>
                           );
                         })()}
                         {/* Hot badge */}
                         {isHot && (
-                          <span className="px-1 py-0 text-[9px] font-bold bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded">
+                          <span className="px-1 py-0 text-[10px] font-bold bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded">
                             HOT
                           </span>
                         )}
                         {/* Annotation note indicator */}
                         {annotation && (
                           <span
-                            className={`flex-shrink-0 ${highlightColorDef ? highlightColorDef.text : 'text-neutral-400 dark:text-neutral-500'}`}
+                            className={`flex-shrink-0 ${highlightColorDef ? highlightColorDef.text : 'text-slate-400 dark:text-slate-500'}`}
                             title={annotation.text}
                           >
                             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -723,7 +725,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                           return (
                             <span
                               key={group.id}
-                              className={`px-1 py-0 text-[9px] font-medium rounded border ${groupColorDef.groupBorder} ${groupColorDef.text}`}
+                              className={`px-1 py-0 text-[10px] font-medium rounded border ${groupColorDef.groupBorder} ${groupColorDef.text}`}
                               title={group.note ? `${group.name}: ${group.note}` : group.name}
                             >
                               {group.name}
@@ -733,18 +735,18 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                       </div>
                       {/* Inline predicates + partition pruning */}
                       {(node.accessPredicates || node.filterPredicates || formatPartitionRange(node.pstart, node.pstop)) && (
-                        <div className="ml-[calc(0.875rem+0.25rem)] mt-0.5 text-[10px] font-mono text-neutral-400 dark:text-neutral-500 whitespace-pre-wrap break-all leading-tight">
+                        <div className="ml-[calc(0.875rem+0.25rem)] mt-0.5 text-[10px] font-mono text-slate-400 dark:text-slate-500 whitespace-pre-wrap break-all leading-tight">
                           {node.accessPredicates && (
                             <span><span className="text-blue-400 dark:text-blue-500">A:</span> {node.accessPredicates}</span>
                           )}
                           {node.accessPredicates && node.filterPredicates && (
-                            <span className="mx-1.5 text-neutral-300 dark:text-neutral-600">|</span>
+                            <span className="mx-1.5 text-slate-300 dark:text-slate-600">|</span>
                           )}
                           {node.filterPredicates && (
                             <span><span className="text-amber-400 dark:text-amber-500">F:</span> {node.filterPredicates}</span>
                           )}
                           {(node.accessPredicates || node.filterPredicates) && formatPartitionRange(node.pstart, node.pstop) && (
-                            <span className="mx-1.5 text-neutral-300 dark:text-neutral-600">|</span>
+                            <span className="mx-1.5 text-slate-300 dark:text-slate-600">|</span>
                           )}
                           {formatPartitionRange(node.pstart, node.pstop) && (
                             <span title={`Pstart: ${node.pstart ?? '—'}, Pstop: ${node.pstop ?? '—'}`}><span className="text-indigo-400 dark:text-indigo-500">Part:</span> {formatPartitionRange(node.pstart, node.pstop)}</span>
@@ -757,18 +759,18 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
 
                 {/* Rows/E-Rows */}
                 {hasData.rows && (
-                  <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${bodyGroupBorderClass}`}>
+                  <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300 ${bodyGroupBorderClass}`}>
                     {formatNumberShort(node.rows)}
                   </td>
                 )}
 
                 {/* Cost + inline bar */}
                 {hasData.cost && (
-                  <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${hasData.rows ? '' : bodyGroupBorderClass}`}>
+                  <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300 ${hasData.rows ? '' : bodyGroupBorderClass}`}>
                     <div className="flex flex-col items-end gap-0.5">
                       <span>{formatNumberShort(node.cost)}</span>
                       {costRatio > 0 && (
-                        <div className="w-full h-[3px] bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                        <div className="w-full h-[3px] bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                           <div
                             className={`h-full rounded-full ${costRatio >= 0.5 ? 'bg-red-500' : costRatio >= 0.25 ? 'bg-orange-500' : costRatio >= 0.1 ? 'bg-yellow-500' : 'bg-green-500'}`}
                             style={{ width: `${Math.max(costRatio * 100, 1)}%` }}
@@ -783,25 +785,25 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                   <>
                     {/* A-Rows */}
                     {hasData.actualRows && (
-                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${bodyGroupBorderClass}`}>
+                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300 ${bodyGroupBorderClass}`}>
                         {formatNumberShort(node.actualRows)}
                       </td>
                     )}
 
                     {/* A-Time + inline bar */}
                     {hasData.actualTime && (
-                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${!hasData.actualRows ? bodyGroupBorderClass : ''}`}>
+                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300 ${!hasData.actualRows ? bodyGroupBorderClass : ''}`}>
                         <div className="flex flex-col items-end gap-0.5">
                           <div className="flex items-baseline gap-1.5">
                             <span>{formatTimeCompact(node.actualTime)}</span>
                             {timeRatio >= 0.01 && (
-                              <span className={`text-[9px] ${timeRatio >= 0.5 ? 'text-red-500' : timeRatio >= 0.25 ? 'text-orange-500' : timeRatio >= 0.1 ? 'text-yellow-600 dark:text-yellow-500' : 'text-neutral-400 dark:text-neutral-500'}`}>
+                              <span className={`text-[10px] ${timeRatio >= 0.5 ? 'text-red-500' : timeRatio >= 0.25 ? 'text-orange-500' : timeRatio >= 0.1 ? 'text-yellow-600 dark:text-yellow-500' : 'text-slate-400 dark:text-slate-500'}`}>
                                 {(timeRatio * 100).toFixed(0)}%
                               </span>
                             )}
                           </div>
                           {timeRatio > 0 && (
-                            <div className="w-full h-[3px] bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                            <div className="w-full h-[3px] bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                               <div
                                 className={`h-full rounded-full ${timeRatio >= 0.5 ? 'bg-red-500' : timeRatio >= 0.25 ? 'bg-orange-500' : timeRatio >= 0.1 ? 'bg-yellow-500' : 'bg-green-500'}`}
                                 style={{ width: `${Math.max(timeRatio * 100, 1)}%` }}
@@ -820,7 +822,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                         activity >= 50 ? 'text-red-500' :
                         activity >= 25 ? 'text-orange-500' :
                         activity >= 10 ? 'text-yellow-600 dark:text-yellow-500' :
-                        'text-neutral-700 dark:text-neutral-300';
+                        'text-slate-700 dark:text-slate-300';
                       const barTone =
                         activity >= 50 ? 'bg-red-500' :
                         activity >= 25 ? 'bg-orange-500' :
@@ -831,7 +833,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                           <div className="flex flex-col items-end gap-0.5">
                             <span>{node.activityPercent != null ? `${activity.toFixed(1)}%` : ''}</span>
                             {ratio > 0 && (
-                              <div className="w-full h-[3px] bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                              <div className="w-full h-[3px] bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                                 <div className={`h-full rounded-full ${barTone}`} style={{ width: `${Math.max(ratio * 100, 1)}%` }} />
                               </div>
                             )}
@@ -842,21 +844,21 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
 
                     {/* Starts */}
                     {hasData.starts && (
-                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${!hasData.actualRows && !hasData.actualTime && !hasData.activityPercent ? bodyGroupBorderClass : ''}`}>
+                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300 ${!hasData.actualRows && !hasData.actualTime && !hasData.activityPercent ? bodyGroupBorderClass : ''}`}>
                         {formatNumberShort(node.starts)}
                       </td>
                     )}
 
                     {/* Memory */}
                     {hasData.memoryUsed && (
-                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${!hasData.actualRows && !hasData.actualTime && !hasData.activityPercent && !hasData.starts ? bodyGroupBorderClass : ''}`}>
+                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300 ${!hasData.actualRows && !hasData.actualTime && !hasData.activityPercent && !hasData.starts ? bodyGroupBorderClass : ''}`}>
                         {formatBytes(node.memoryUsed)}
                       </td>
                     )}
 
                     {/* Temp */}
                     {hasData.tempUsed && (
-                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-neutral-700 dark:text-neutral-300 ${!hasData.actualRows && !hasData.actualTime && !hasData.activityPercent && !hasData.starts && !hasData.memoryUsed ? bodyGroupBorderClass : ''}`}>
+                      <td className={`px-2 py-1.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300 ${!hasData.actualRows && !hasData.actualTime && !hasData.activityPercent && !hasData.starts && !hasData.memoryUsed ? bodyGroupBorderClass : ''}`}>
                         <div className="flex items-center justify-end gap-1">
                           {formatBytes(node.tempUsed)}
                           {node.tempUsed != null && node.tempUsed > 0 && (
@@ -877,7 +879,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                           <span className={
                             cardSeverity === 'bad' ? 'text-red-600 dark:text-red-400 font-semibold' :
                             cardSeverity === 'warn' ? 'text-amber-600 dark:text-amber-400' :
-                            'text-neutral-500 dark:text-neutral-400'
+                            'text-slate-500 dark:text-slate-400'
                           }>
                             {formatCardinalityRatio(cardRatio)}
                           </span>

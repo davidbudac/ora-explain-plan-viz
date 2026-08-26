@@ -50,7 +50,7 @@ export function GroupAnnotationDialog({
 
         <div className="space-y-3">
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
               Name
             </label>
             <input
@@ -64,7 +64,7 @@ export function GroupAnnotationDialog({
           </div>
 
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
               Color
             </label>
             <div className="flex items-center gap-1.5">
@@ -85,7 +85,7 @@ export function GroupAnnotationDialog({
           </div>
 
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
               Note (optional)
             </label>
             <textarea

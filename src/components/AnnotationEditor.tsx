@@ -82,7 +82,7 @@ export function AnnotationEditor({
 
   return (
     <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-      <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
+      <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
         Annotation
       </h4>
 
