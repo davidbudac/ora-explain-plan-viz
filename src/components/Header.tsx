@@ -86,10 +86,10 @@ export function Header() {
   const canExportPng = parsedPlan !== null && viewMode === 'hierarchical' && !treeCompareEnabled;
 
   return (
-    <header className="h-11 flex items-center justify-between gap-3 px-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 z-30">
+    <header className="h-11 flex items-center justify-between gap-3 px-3 bg-white dark:bg-slate-900 border-b border-slate-200/70 dark:border-slate-800/70 z-30">
       <div className="flex items-center gap-2 min-w-0">
         <svg
-          className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0"
+          className="w-5 h-5 text-slate-500 dark:text-slate-400 shrink-0"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -132,7 +132,7 @@ export function Header() {
             onClick={exportAnnotatedPlan}
             className={
               hasSomethingToSave
-                ? `h-8 w-8 flex items-center justify-center rounded-md text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors ${FOCUS_RING}`
+                ? `h-8 w-8 flex items-center justify-center rounded-md text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 ring-1 ring-slate-300 dark:ring-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ${FOCUS_RING}`
                 : ICON_BTN
             }
             title="Save annotated plan (.json)"
@@ -235,7 +235,7 @@ export function Header() {
               />
             </svg>
           ) : (
-            <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"

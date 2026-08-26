@@ -6,6 +6,7 @@ import { NavRibbon } from './components/NavRibbon';
 import { FilterPanel } from './components/FilterPanel';
 import { VisualizationTabs } from './components/VisualizationTabs';
 import { NodeDetailPanel } from './components/NodeDetailPanel';
+import { PanelEdgeTab } from './components/PanelEdgeTab';
 import { CommandPalette } from './components/CommandPalette';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay';
 import { ShareResultDialog } from './components/ShareResultDialog';
@@ -235,6 +236,8 @@ function AppContent() {
     plans, activePlanIndex, viewMode, visualizationMaximized, setVisualizationMaximized, loadAndParsePlan,
     metadataBundle, metadataPopoutOpen, setMetadataPopoutOpen,
     baselineDialogOpen, setBaselineDialogOpen,
+    filterPanelCollapsed, setFilterPanelCollapsed,
+    detailPanelCollapsed, setDetailPanelCollapsed,
   } = usePlan();
   const activeSlot = plans[activePlanIndex];
   const activeParsedPlan = activeSlot?.parsedPlan ?? null;
@@ -373,6 +376,20 @@ function AppContent() {
               />
             ) : (
               <VisualizationTabs />
+            )}
+            {!isComparisonWorkspace && !filterPanelCollapsed && (
+              <PanelEdgeTab
+                side="left"
+                label="Hide filters"
+                onClick={() => setFilterPanelCollapsed(true)}
+              />
+            )}
+            {!isComparisonWorkspace && !activeSlotEmpty && !detailPanelCollapsed && (
+              <PanelEdgeTab
+                side="right"
+                label="Hide details"
+                onClick={() => setDetailPanelCollapsed(true)}
+              />
             )}
           </main>
           {!isComparisonWorkspace && !activeSlotEmpty && (

@@ -190,7 +190,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   return (
     <div
       className={`
-        relative ${isTicker ? 'w-[240px]' : 'w-[260px]'} rounded-xl shadow-sm transition-all duration-300
+        relative ${isTicker ? 'w-[240px]' : 'w-[260px]'} rounded-xl transition-all duration-300
+        shadow-md shadow-slate-400/30 dark:shadow-lg dark:shadow-black/40
         ${colors.bg} ${colors.border}
         ${isSelected ? 'ring-2 ring-blue-600 ring-offset-4 dark:ring-offset-slate-950 scale-105 z-30' : ''}
         ${isInFocusPath && !(highlightColor && showAnnotationsOverlay) ? 'ring-2 ring-blue-400/40' : ''}

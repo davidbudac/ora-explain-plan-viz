@@ -64,7 +64,7 @@ function WorstNodeRow({
       className={`relative overflow-hidden w-full text-left px-2 py-1.5 pb-2 text-[11px] rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between gap-2 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 font-mono ${FOCUS_RING_INSET}`}
     >
       <span className="flex items-center gap-1.5 truncate">
-        <span className="font-mono text-[11px] px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500 shrink-0">#{node.id}</span>
+        <span className="font-mono text-[11px] px-1.5 py-0.5 rounded border border-slate-200/70 dark:border-slate-700/50 text-slate-500 dark:text-slate-400 shrink-0">#{node.id}</span>
         <span className="truncate font-semibold">{node.operation}</span>
       </span>
       <span className="whitespace-nowrap shrink-0">
@@ -140,18 +140,21 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
   if (isCollapsed) {
     return (
-      <div className="bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col items-center py-4 px-1.5">
-        <button
-          onClick={() => setIsCollapsed(false)}
-          className={`h-9 w-9 flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700 transition-colors ${FOCUS_RING}`}
-          title="Show details"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </button>
-        <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-4 uppercase tracking-wider writing-mode-vertical whitespace-nowrap">Details</span>
-      </div>
+      <button
+        type="button"
+        onClick={() => setIsCollapsed(false)}
+        aria-label="Show details"
+        aria-expanded={false}
+        title="Show details"
+        className={`h-full w-[26px] shrink-0 flex flex-col items-center pt-2.5 gap-2.5 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`}
+      >
+        <svg className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+        </svg>
+        <span className="[writing-mode:vertical-rl] uppercase text-[10px] font-bold tracking-[0.14em] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+          Details
+        </span>
+      </button>
     );
   }
 
@@ -164,25 +167,14 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         <button
           type="button"
           onPointerDown={onResizeStart}
-          className={`absolute left-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none bg-transparent hover:bg-blue-500/40 transition-colors ${FOCUS_RING}`}
+          className={`absolute left-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors ${FOCUS_RING}`}
           aria-label="Resize details panel"
         />
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-          <div className="flex items-center justify-between">
-             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Details</h3>
-            <button
-                onClick={() => setIsCollapsed(true)}
-                className={`p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors text-slate-400 dark:text-slate-500 ${FOCUS_RING}`}
-                title="Collapse panel"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                </svg>
-              </button>
-          </div>
+        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Details</h3>
         </div>
 
-        <div className="p-3 border-b border-slate-200 dark:border-slate-800 space-y-2">
+        <div className="px-3 py-2.5 border-b border-slate-200 dark:border-slate-800 space-y-2">
            <div className="flex items-center justify-between">
               <h3 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Quick Analysis</h3>
               <div className="flex items-center gap-2">
@@ -288,7 +280,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
         {/* Bind Variables */}
         {parsedPlan?.bindVariables && parsedPlan.bindVariables.length > 0 && (
-          <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+          <div className="px-3 py-2.5 border-b border-slate-200 dark:border-slate-800">
             <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
               Bind Variables ({parsedPlan.bindVariables.length})
             </h4>
@@ -319,7 +311,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
         {/* Annotation Groups */}
         {annotations.groups.length > 0 && (
-          <div className="p-3">
+          <div className="px-3 py-2.5">
             <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Annotation Groups</h4>
             <div className="space-y-1">
               {annotations.groups.map((group) => {
@@ -391,7 +383,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           title="Resize details panel"
         />
 
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800">
+        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-start justify-between">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               {selectedNodes.length} nodes selected
@@ -420,7 +412,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           />
           <button
             onClick={() => setShowGroupDialog(true)}
-            className={`mt-3 w-full px-3 py-2 text-[11px] font-medium text-blue-600 dark:text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-md hover:bg-blue-500/20 transition-colors ${FOCUS_RING}`}
+            className={`mt-3 w-full px-3 py-2 text-[11px] font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-md hover:bg-slate-200/80 dark:hover:bg-slate-700/70 transition-colors ${FOCUS_RING}`}
           >
             Create Group
           </button>
@@ -510,10 +502,10 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         title="Resize details panel"
       />
       {/* Header */}
-      <div className="p-4 border-b border-slate-200 dark:border-slate-800">
+      <div className="p-3 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-             <span className="font-mono text-[11px] px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500">
+             <span className="font-mono text-[11px] px-1.5 py-0.5 rounded border border-slate-200/70 dark:border-slate-700/50 text-slate-500 dark:text-slate-400">
                 #{node.id}
              </span>
              <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400">{category}</span>
@@ -744,7 +736,7 @@ function StatItem({ label, value, highlight }: { label: string; value?: string; 
 function Accordion({ title, subtitle, children, defaultOpen = true }: { title: string; subtitle?: string; children: React.ReactNode; defaultOpen?: boolean }) {
   return (
     <details className="group border-b border-slate-200 dark:border-slate-800" open={defaultOpen}>
-      <summary className={`flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors list-none select-none ${FOCUS_RING_INSET}`}>
+      <summary className={`flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors list-none select-none ${FOCUS_RING_INSET}`}>
         <div className="flex items-center gap-2.5">
           <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{title}</h4>
           {subtitle && <span className="text-[10px] text-slate-400 dark:text-slate-500 lowercase tracking-normal font-medium">{subtitle}</span>}
@@ -753,7 +745,7 @@ function Accordion({ title, subtitle, children, defaultOpen = true }: { title: s
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
         </svg>
       </summary>
-      <div className="px-4 pb-3 overflow-hidden">
+      <div className="px-3 pb-2.5 overflow-hidden">
         {children}
       </div>
     </details>
@@ -933,7 +925,7 @@ function MetadataSection({
         <button
           type="button"
           onClick={() => setShowGatherModal(true)}
-          className={`w-full text-[11px] font-bold py-1.5 rounded-md border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors uppercase tracking-wider ${FOCUS_RING}`}
+          className={`w-full text-[11px] font-bold py-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-slate-700/70 transition-colors uppercase tracking-wider ${FOCUS_RING}`}
         >
           {planSqlId ? 'Generate gather script' : 'Manual gather script'}
         </button>

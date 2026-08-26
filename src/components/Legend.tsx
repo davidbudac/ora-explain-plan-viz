@@ -8,7 +8,8 @@ const FOCUS_RING =
 /**
  * Floating legend for the visualization area: operation-category colors for
  * the active color scheme, warning-badge meanings, and edge-width semantics.
- * Visibility is persisted via the existing `legendVisible` setting.
+ * Toggled from the command palette ("Toggle legend"); visibility is persisted
+ * via the existing `legendVisible` setting.
  */
 export function Legend() {
   const { legendVisible, setLegendVisible, colorScheme, parsedPlan, filters } = usePlan();
@@ -25,7 +26,7 @@ export function Legend() {
     return Object.keys(palette).filter((category) => present.has(category));
   }, [parsedPlan, palette]);
 
-  if (!parsedPlan) return null;
+  if (!parsedPlan || !legendVisible) return null;
 
   return (
     <div className="absolute bottom-3 left-14 z-30 flex flex-col items-start gap-2 pointer-events-none">
@@ -96,23 +97,6 @@ export function Legend() {
           )}
         </div>
       )}
-
-      <button
-        type="button"
-        onClick={() => setLegendVisible(!legendVisible)}
-        aria-pressed={legendVisible}
-        className={`pointer-events-auto h-7 px-2 flex items-center gap-1.5 rounded-md border text-[10px] font-semibold uppercase tracking-wider shadow-sm transition-colors ${FOCUS_RING} ${
-          legendVisible
-            ? 'bg-blue-600 text-white border-blue-600'
-            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
-        }`}
-        title={legendVisible ? 'Hide legend' : 'Show legend (color coding and badge meanings)'}
-      >
-        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485" />
-        </svg>
-        Legend
-      </button>
     </div>
   );
 }
