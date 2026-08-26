@@ -510,7 +510,7 @@ export function SankeyView() {
   if (!parsedPlan?.rootNode) {
     return (
       <div className="flex items-center justify-center h-full text-slate-500 dark:text-slate-400">
-        No execution plan to display. Parse a plan to see the visualization.
+        No plan loaded yet. Paste an execution plan in the input panel and press Parse.
       </div>
     );
   }

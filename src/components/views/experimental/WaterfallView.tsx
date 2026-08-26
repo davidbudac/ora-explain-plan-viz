@@ -100,7 +100,7 @@ export function WaterfallView() {
   if (!parsedPlan?.rootNode || !flow) {
     return (
       <div className="h-full flex items-center justify-center text-sm text-slate-400 dark:text-slate-500">
-        No execution plan to display. Parse a plan to see the row-flow waterfall.
+        No plan loaded yet. Paste an execution plan in the input panel and press Parse.
       </div>
     );
   }
