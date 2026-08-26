@@ -10,6 +10,7 @@ import { getDopDowngrade } from '../lib/planSignals';
 import type { ParsedPlan } from '../lib/types';
 import { isDbAgentEnabled } from '../lib/agent/client';
 import { ConnectPanel } from './ConnectPanel';
+import { BrandMark, HeaderActions } from './Header';
 
 const dbAgentEnabled = isDbAgentEnabled();
 
@@ -137,21 +138,22 @@ export function InputPanel() {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`flex flex-col bg-white dark:bg-slate-900 border-b ${
+      className={`relative z-30 flex flex-col bg-white dark:bg-slate-900 border-b ${
         isDraggingFile
           ? 'border-blue-500 ring-2 ring-inset ring-blue-500/60'
           : 'border-slate-200/70 dark:border-slate-800/70'
       }`}
     >
-      {/* Header - always visible */}
-      <div className="flex items-center justify-between px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+      {/* Merged top bar: brand + input-panel header + former app-header actions */}
+      <div className="h-11 flex items-center justify-between gap-3 px-3">
         <div className="flex items-center gap-2 min-w-0 flex-1">
+          <BrandMark />
           <button
             type="button"
             onClick={() => setIsCollapsed(!isCollapsed)}
             aria-expanded={!isCollapsed}
             aria-controls="input-panel-content"
-            className={`flex items-center gap-2 text-left min-w-0 rounded-md ${FOCUS_RING}`}
+            className={`flex items-center gap-2 text-left min-w-0 rounded-md px-1 py-1 -ml-1 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`}
           >
             <svg
               className={`w-4 h-4 text-slate-500 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
@@ -179,7 +181,7 @@ export function InputPanel() {
             />
           )}
           {isCollapsed && parsedPlan && (
-            <div className="hidden lg:flex items-center gap-1.5">
+            <div className="hidden lg:flex items-center gap-1.5 min-w-0 overflow-hidden">
               <span className="px-2 py-0.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium">
                 {getSourceDisplayName(parsedPlan.source)}
               </span>
@@ -197,7 +199,7 @@ export function InputPanel() {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {dbAgentEnabled && (
             <button
               type="button"
@@ -288,6 +290,8 @@ export function InputPanel() {
             </div>
           )}
           </div>
+          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700" aria-hidden="true" />
+          <HeaderActions />
         </div>
       </div>
 

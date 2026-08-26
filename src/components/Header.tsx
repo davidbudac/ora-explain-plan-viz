@@ -19,7 +19,41 @@ const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
   ticker: 'Ticker',
 };
 
-export function Header() {
+/**
+ * Glyph-only brand mark. The app title lives in the document `<title>` and in
+ * this mark's tooltip — the merged top bar has no room for a wordmark.
+ */
+export function BrandMark() {
+  return (
+    <span
+      className="shrink-0 flex items-center"
+      title="Oracle Plan Visualizer"
+      aria-label="Oracle Plan Visualizer"
+      role="img"
+    >
+      <svg
+        className="w-5 h-5 text-slate-500 dark:text-slate-400"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+        />
+      </svg>
+    </span>
+  );
+}
+
+/**
+ * The former app-header action cluster (import/export, PNG, share, command
+ * palette, color scheme, theme, GitHub). Rendered inside the input panel's
+ * header row now that the app is down to two chrome bars.
+ */
+export function HeaderActions() {
   const {
     theme,
     setTheme,
@@ -86,183 +120,162 @@ export function Header() {
   const canExportPng = parsedPlan !== null && viewMode === 'hierarchical' && !treeCompareEnabled;
 
   return (
-    <header className="h-11 flex items-center justify-between gap-3 px-3 bg-white dark:bg-slate-900 border-b border-slate-200/70 dark:border-slate-800/70 z-30">
-      <div className="flex items-center gap-2 min-w-0">
-        <svg
-          className="w-5 h-5 text-slate-500 dark:text-slate-400 shrink-0"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-          />
+    <div className="flex items-center gap-1.5 shrink-0">
+      {/* Load annotated plan */}
+      <button
+        onClick={handleLoad}
+        className={ICON_BTN}
+        title="Load annotated plan (.json)"
+        aria-label="Load annotated plan"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
         </svg>
-        <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate tracking-tight">
-          Oracle Plan Visualizer
-        </h1>
-      </div>
+      </button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        onChange={handleFileChange}
+        className="hidden"
+      />
 
-      <div className="flex items-center gap-1.5">
-        {/* Load annotated plan */}
+      {/* Save annotated plan */}
+      {showSave && (
         <button
-          onClick={handleLoad}
-          className={ICON_BTN}
-          title="Load annotated plan (.json)"
-          aria-label="Load annotated plan"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-          </svg>
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          onChange={handleFileChange}
-          className="hidden"
-        />
-
-        {/* Save annotated plan */}
-        {showSave && (
-          <button
-            onClick={exportAnnotatedPlan}
-            className={
-              hasSomethingToSave
-                ? `h-8 w-8 flex items-center justify-center rounded-md text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 ring-1 ring-slate-300 dark:ring-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ${FOCUS_RING}`
-                : ICON_BTN
-            }
-            title="Save annotated plan (.json)"
-            aria-label="Save annotated plan"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-          </button>
-        )}
-
-        {/* Export as PNG */}
-        <button
-          onClick={handleExportPng}
-          disabled={!canExportPng || exporting}
-          className={`${ICON_BTN} disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500 dark:disabled:hover:text-slate-400`}
-          title="Export plan as PNG"
-          aria-label="Export plan as PNG"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-        </button>
-
-        {/* Share plan via URL */}
-        <button
-          onClick={handleShare}
-          disabled={!hasAnyInput}
+          onClick={exportAnnotatedPlan}
           className={
-            shareCopied
-              ? `h-8 w-8 flex items-center justify-center rounded-md bg-green-50 dark:bg-green-900/30 transition-colors ${FOCUS_RING}`
-              : shareKind === 'error'
-                ? `h-8 w-8 flex items-center justify-center rounded-md text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 transition-colors ${FOCUS_RING}`
-                : shareKind === 'manual'
-                  ? `h-8 w-8 flex items-center justify-center rounded-md text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 transition-colors ${FOCUS_RING}`
-                  : `${ICON_BTN} disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500 dark:disabled:hover:text-slate-400`
+            hasSomethingToSave
+              ? `h-8 w-8 flex items-center justify-center rounded-md text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 ring-1 ring-slate-300 dark:ring-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ${FOCUS_RING}`
+              : ICON_BTN
           }
-          aria-label="Share plan via URL"
-          title={
-            shareKind === 'copied' ? 'URL copied to clipboard!'
-              : shareKind === 'warning' ? 'URL copied — verify the full link pasted'
-              : shareKind === 'manual' ? 'Copy the link manually'
-              : shareKind === 'error' ? 'Could not build a share link'
-              : 'Share plan via URL'
-          }
-        >
-          {shareCopied ? (
-            <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          ) : (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-            </svg>
-          )}
-        </button>
-
-        <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" aria-hidden="true" />
-
-        {/* Command palette */}
-        <button
-          onClick={() => setCommandPaletteOpen(true)}
-          className={`h-8 px-2.5 flex items-center gap-1.5 rounded-md border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`}
-          title="Command palette — search every action and setting"
+          title="Save annotated plan (.json)"
+          aria-label="Save annotated plan"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
-          <kbd className="text-[10px] font-semibold">{navigator.platform?.includes('Mac') ? '⌘K' : 'Ctrl+K'}</kbd>
         </button>
+      )}
 
-        <select
-          value={colorScheme}
-          onChange={(e) => setColorScheme(e.target.value as ColorScheme)}
-          className={`h-8 px-2 rounded-md border border-transparent bg-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium cursor-pointer transition-colors ${FOCUS_RING}`}
-          title="Graph color palette"
-          aria-label="Graph color palette"
-        >
-          {Object.entries(COLOR_SCHEME_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
+      {/* Export as PNG */}
+      <button
+        onClick={handleExportPng}
+        disabled={!canExportPng || exporting}
+        className={`${ICON_BTN} disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500 dark:disabled:hover:text-slate-400`}
+        title="Export plan as PNG"
+        aria-label="Export plan as PNG"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </button>
 
-        <button
-          onClick={toggleTheme}
-          className={ICON_BTN}
-          title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-          aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-        >
-          {theme === 'light' ? (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-              />
-            </svg>
-          ) : (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-              />
-            </svg>
-          )}
-        </button>
+      {/* Share plan via URL */}
+      <button
+        onClick={handleShare}
+        disabled={!hasAnyInput}
+        className={
+          shareCopied
+            ? `h-8 w-8 flex items-center justify-center rounded-md bg-green-50 dark:bg-green-900/30 transition-colors ${FOCUS_RING}`
+            : shareKind === 'error'
+              ? `h-8 w-8 flex items-center justify-center rounded-md text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 transition-colors ${FOCUS_RING}`
+              : shareKind === 'manual'
+                ? `h-8 w-8 flex items-center justify-center rounded-md text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 transition-colors ${FOCUS_RING}`
+                : `${ICON_BTN} disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500 dark:disabled:hover:text-slate-400`
+        }
+        aria-label="Share plan via URL"
+        title={
+          shareKind === 'copied' ? 'URL copied to clipboard!'
+            : shareKind === 'warning' ? 'URL copied — verify the full link pasted'
+            : shareKind === 'manual' ? 'Copy the link manually'
+            : shareKind === 'error' ? 'Could not build a share link'
+            : 'Share plan via URL'
+        }
+      >
+        {shareCopied ? (
+          <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        ) : (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+          </svg>
+        )}
+      </button>
 
-        <a
-          href="https://github.com/davidbudac/ora-explain-plan-viz"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={ICON_BTN}
-          title="View on GitHub"
-          aria-label="View on GitHub"
-        >
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+      <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" aria-hidden="true" />
+
+      {/* Command palette */}
+      <button
+        onClick={() => setCommandPaletteOpen(true)}
+        className={`h-8 px-2.5 flex items-center gap-1.5 rounded-md border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`}
+        title="Command palette — search every action and setting"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <kbd className="text-[10px] font-semibold">{navigator.platform?.includes('Mac') ? '⌘K' : 'Ctrl+K'}</kbd>
+      </button>
+
+      <select
+        value={colorScheme}
+        onChange={(e) => setColorScheme(e.target.value as ColorScheme)}
+        className={`h-8 px-2 rounded-md border border-transparent bg-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium cursor-pointer transition-colors ${FOCUS_RING}`}
+        title="Graph color palette"
+        aria-label="Graph color palette"
+      >
+        {Object.entries(COLOR_SCHEME_LABELS).map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </select>
+
+      <button
+        onClick={toggleTheme}
+        className={ICON_BTN}
+        title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+        aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+      >
+        {theme === 'light' ? (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
-              fillRule="evenodd"
-              clipRule="evenodd"
-              d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.341-3.369-1.341-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
             />
           </svg>
-        </a>
-      </div>
-    </header>
+        ) : (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+            />
+          </svg>
+        )}
+      </button>
+
+      <a
+        href="https://github.com/davidbudac/ora-explain-plan-viz"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={ICON_BTN}
+        title="View on GitHub"
+        aria-label="View on GitHub"
+      >
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+          <path
+            fillRule="evenodd"
+            clipRule="evenodd"
+            d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.341-3.369-1.341-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"
+          />
+        </svg>
+      </a>
+    </div>
   );
 }

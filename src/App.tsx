@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { PlanProvider, usePlan } from './hooks/usePlanContext';
-import { Header } from './components/Header';
 import { InputPanel } from './components/InputPanel';
 import { NavRibbon } from './components/NavRibbon';
 import { FilterPanel } from './components/FilterPanel';
@@ -354,7 +353,8 @@ function AppContent() {
           <MetadataPopoutContent onReturn={() => setMetadataPopoutOpen(false)} />
         </PopoutWindow>
       )}
-      {!visualizationMaximized && <Header />}
+      {/* The merged top bar (brand + input header + app actions) lives in
+          InputPanel; maximizing hides it exactly as it hid both bars before. */}
       {!visualizationMaximized && <InputPanel />}
       {anyPlanParsed && <NavRibbon />}
 

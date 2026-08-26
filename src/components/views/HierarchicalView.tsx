@@ -98,6 +98,7 @@ const CANVAS_BACKDROP_DARK =
 
 // Layout dimensions for dagre algorithm
 const NODE_WIDTH = 260;
+const COMPACT_NODE_WIDTH = 200; // Minimal density card (mirrors PlanNode)
 const NODE_BASE_HEIGHT = 60; // Base: operation name + ID badge + cost bar
 
 // Calculate dynamic node height based on display options and node content
@@ -111,6 +112,15 @@ function calculateNodeHeight(
   isTicker?: boolean,
   hasAdvisorBadge?: boolean,
 ): number {
+  // Minimal density: operation name + optional object row + one metric line
+  if (displayOptions.compactStats) {
+    let compactHeight = NODE_BASE_HEIGHT;
+    if (displayOptions.showObjectName && node.objectName) compactHeight += 20;
+    compactHeight += 18; // single mono metric line (+ warning dot)
+    if (hasAnnotation) compactHeight += 20;
+    return compactHeight;
+  }
+
   let height = NODE_BASE_HEIGHT;
 
   // Warning badges row (hotspot, spill, cardinality mismatch, advisor)
@@ -605,7 +615,9 @@ function HierarchicalViewContent({
     const isTicker = colorScheme === 'ticker';
     // Schemes that render stats as the Est ⇄ Act comparison grid (mirrors PlanNode)
     const usesGrid = ['estact', 'rail', 'contrast', 'semantic'].includes(colorScheme);
-    const effectiveNodeWidth = isTicker ? 240 : NODE_WIDTH;
+    // Minimal density narrows the card; tree spacing keeps the wider gaps (extra air is fine)
+    const isCompactNode = effectiveDisplayOptions.compactStats;
+    const effectiveNodeWidth = isCompactNode ? COMPACT_NODE_WIDTH : isTicker ? 240 : NODE_WIDTH;
 
     const planNodes: Node[] = [];
     const edges: Edge[] = [];

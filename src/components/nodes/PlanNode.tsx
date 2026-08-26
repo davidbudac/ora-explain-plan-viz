@@ -104,7 +104,12 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     showMissingStatsBadge: true,
     showMismatchNoHistogramBadge: true,
     showAnnotations: true,
+    compactStats: false,
   };
+
+  // Minimal density: operation + object + one quiet metric line + warning dot.
+  // Overrides the per-field toggles so the node body stays radically reduced.
+  const isCompact = options.compactStats === true;
 
   // Label for rows depends on whether we have actual stats
   const rowsLabel = hasActualStats ? 'E-Rows' : 'Rows';
@@ -133,19 +138,49 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   const showAnnotationsOverlay = options.showAnnotations;
 
   // Grid schemes show the mismatch inline in the stats grid; 'rail' moves badges to the footer rail
-  const showHotInRow = showHot && !isRail;
-  const showSpillInRow = hasSpill && options.showSpillBadge && !isRail;
+  const showHotInRow = showHot && !isRail && !isCompact;
+  const showSpillInRow = hasSpill && options.showSpillBadge && !isRail && !isCompact;
   const showCardBadgeInRow =
-    options.showCardinalityBadge && cardSeverity !== 'good' && !!cardLabel && !usesEstActGrid;
-  const showAdvisorBadge = !!advisorSeverity && options.showAdvisorBadge;
+    options.showCardinalityBadge && cardSeverity !== 'good' && !!cardLabel && !usesEstActGrid && !isCompact;
+  const showAdvisorBadge = !!advisorSeverity && options.showAdvisorBadge && !isCompact;
   const advisorBadgeClasses: Record<FindingSeverity, string> = {
     info: 'bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300',
     warning: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300',
     critical: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',
   };
 
+  // Minimal density: one mono line — actuals when the plan has them, estimates otherwise.
+  const compactParts: { text: string; strong: boolean }[] = [];
+  if (isCompact) {
+    if (hasActualStats) {
+      if (node.actualTime !== undefined) compactParts.push({ text: formatTimeCompact(node.actualTime)!, strong: true });
+      if (node.actualRows !== undefined) compactParts.push({ text: `${formatNumberShort(node.actualRows)} rows`, strong: false });
+    }
+    if (compactParts.length === 0) {
+      if (node.cost !== undefined) compactParts.push({ text: `cost ${formatNumberShort(node.cost)}`, strong: true });
+      if (node.rows !== undefined) compactParts.push({ text: `${formatNumberShort(node.rows)} rows`, strong: false });
+    }
+  }
+
+  // Any badge-worthy signal collapses into a single amber dot in minimal density
+  const compactWarnings: string[] = [];
+  if (isCompact) {
+    if (hasSpill && options.showSpillBadge) compactWarnings.push('Spill to disk — temp space used');
+    if (options.showCardinalityBadge && cardSeverity !== 'good' && cardLabel) {
+      compactWarnings.push(`Cardinality mismatch: E-Rows=${formatNumberShort(node.rows)} vs A-Rows=${formatNumberShort(node.actualRows)}`);
+    }
+    if (advisorSeverity && options.showAdvisorBadge) {
+      compactWarnings.push(...(advisorTitles && advisorTitles.length > 0 ? advisorTitles : ['Advisor finding']));
+    }
+    for (const badge of metadataBadges ?? []) compactWarnings.push(badge.reason);
+    if (options.showPartitionInfo && partitionPruning === 'none') {
+      compactWarnings.push('No partition pruning — all partitions are scanned');
+    }
+    for (const signal of parallelSignals ?? []) compactWarnings.push(signal.reason);
+  }
+
   // Rows for the comparison grid: metric | estimated | actual (| deviation)
-  const estActRows = usesEstActGrid
+  const estActRows = usesEstActGrid && !isCompact
     ? [
         {
           label: 'Rows',
@@ -190,7 +225,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   return (
     <div
       className={`
-        relative ${isTicker ? 'w-[240px]' : 'w-[260px]'} rounded-xl transition-all duration-300
+        relative ${isCompact ? 'w-[200px]' : isTicker ? 'w-[240px]' : 'w-[260px]'} rounded-xl transition-all duration-300
         shadow-md shadow-slate-400/30 dark:shadow-lg dark:shadow-black/40
         ${colors.bg} ${colors.border}
         ${isSelected ? 'ring-2 ring-blue-600 ring-offset-4 dark:ring-offset-slate-950 scale-105 z-30' : ''}
@@ -296,14 +331,14 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         />
       </div>
 
-      <div className="p-3 pt-4">
+      <div className={isCompact ? 'p-2.5 pt-3.5' : 'p-3 pt-4'}>
         {/* Operation ID badge */}
         <div className="absolute -top-2 -left-2 w-6 h-6 text-xs rounded-full bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 font-bold flex items-center justify-center shadow">
           {node.id}
         </div>
 
         {/* Warning badges row (hot node, spill, cardinality, advisor, metadata, pruning, parallel) */}
-        {(showHotInRow || showSpillInRow || showCardBadgeInRow || showAdvisorBadge || (metadataBadges && metadataBadges.length > 0) || partitionPruning === 'none' || (parallelSignals && parallelSignals.length > 0)) && (
+        {!isCompact && (showHotInRow || showSpillInRow || showCardBadgeInRow || showAdvisorBadge || (metadataBadges && metadataBadges.length > 0) || partitionPruning === 'none' || (parallelSignals && parallelSignals.length > 0)) && (
           <div className="flex flex-wrap gap-1 mb-1.5">
             {showAdvisorBadge && (
               <span
@@ -371,7 +406,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         <div className="relative">
           <div className={`font-semibold text-sm leading-tight mb-1 ${colors.text}`} title={tooltip}>
             <HighlightText text={node.operation} query={searchText} />
-            {isTicker && options.showObjectName && node.objectName && (
+            {isTicker && !isCompact && options.showObjectName && node.objectName && (
               <span className="font-mono font-semibold text-slate-700 dark:text-slate-200"> · <HighlightText text={node.objectName} query={searchText} /></span>
             )}
           </div>
@@ -396,14 +431,37 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         </div>
 
         {/* Object name if present (ticker scheme renders it inline in the operation name) */}
-        {!isTicker && options.showObjectName && node.objectName && (
-          <div className="text-sm font-semibold font-mono text-slate-700 dark:text-slate-200 mb-2 truncate">
+        {(!isTicker || isCompact) && options.showObjectName && node.objectName && (
+          <div className={`text-sm font-semibold font-mono text-slate-700 dark:text-slate-200 truncate ${isCompact ? 'mb-1' : 'mb-2'}`}>
             <HighlightText text={node.objectName} query={searchText} />
           </div>
         )}
 
+        {/* Minimal density: one quiet mono metric line + a single amber warning dot */}
+        {isCompact && (compactParts.length > 0 || compactWarnings.length > 0) && (
+          <div
+            className="flex items-center gap-1.5 font-mono text-[11px] font-semibold leading-tight text-slate-500 dark:text-slate-400"
+            style={{ fontVariantNumeric: 'tabular-nums' }}
+          >
+            <span className="truncate">
+              {compactParts.map((part, i) => (
+                <Fragment key={part.text}>
+                  {i > 0 && <span className="text-slate-300 dark:text-slate-600"> · </span>}
+                  <span className={part.strong ? 'text-slate-800 dark:text-slate-100' : undefined}>{part.text}</span>
+                </Fragment>
+              ))}
+            </span>
+            {compactWarnings.length > 0 && (
+              <span
+                className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"
+                title={compactWarnings.join('\n')}
+              />
+            )}
+          </div>
+        )}
+
         {/* Query block badge (rail scheme moves it to the footer rail) */}
-        {!isRail && options.showQueryBlockBadge && node.queryBlock && (
+        {!isRail && !isCompact && options.showQueryBlockBadge && node.queryBlock && (
           <div className="flex flex-wrap gap-1 mb-2">
             <span className="px-1.5 py-0.5 text-xs rounded font-mono bg-violet-500/10 border border-violet-400/40 dark:border-violet-500/40 text-violet-700 dark:text-violet-300">
               {node.queryBlock}
@@ -416,8 +474,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           </div>
         )}
 
-        {/* Stats - Estimated & Actual statistics */}
-        {isTicker ? (
+        {/* Stats - Estimated & Actual statistics (minimal density renders the single line above instead) */}
+        {isCompact ? null : isTicker ? (
           /* Ticker mode: ultra-compact monospace ticker lines */
           (() => {
             const showRowsLine = (options.showRows && node.rows !== undefined) || (options.showActualRows && node.actualRows !== undefined);
@@ -601,7 +659,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         )}
 
         {/* Predicate indicators (rail scheme renders them as footer chips) */}
-        {!isRail && options.showPredicateIndicators && (node.accessPredicates || node.filterPredicates) && (
+        {!isRail && !isCompact && options.showPredicateIndicators && (node.accessPredicates || node.filterPredicates) && (
           <div className="flex gap-1 mt-2">
             {node.accessPredicates && (
               <span className="rounded font-semibold px-1.5 py-0.5 text-xs bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200">
@@ -617,7 +675,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         )}
 
         {/* Partition pruning indicator (Pstart/Pstop) — mirrors predicate chips */}
-        {!isRail && options.showPartitionInfo && formatPartitionRange(node.pstart, node.pstop) && (
+        {!isRail && !isCompact && options.showPartitionInfo && formatPartitionRange(node.pstart, node.pstop) && (
           <div className="flex gap-1 mt-2">
             <span
               className="rounded font-semibold px-1.5 py-0.5 text-xs bg-indigo-200 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-200"
@@ -629,7 +687,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         )}
 
         {/* Predicate details */}
-        {options.showPredicateDetails && (node.accessPredicates || node.filterPredicates) && (
+        {!isCompact && options.showPredicateDetails && (node.accessPredicates || node.filterPredicates) && (
           <div className="mt-2 space-y-1">
             {node.accessPredicates && (
               <div className="text-xs">
@@ -652,7 +710,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
         {/* Icon badge rail (rail scheme): fixed footer slot for badges + query block.
             Cardinality mismatch is shown inline in the comparison grid instead. */}
-        {isRail &&
+        {isRail && !isCompact &&
           (showHot ||
             (hasSpill && options.showSpillBadge) ||
             (options.showPredicateIndicators && (node.accessPredicates || node.filterPredicates)) ||

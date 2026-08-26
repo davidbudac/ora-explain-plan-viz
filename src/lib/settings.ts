@@ -66,6 +66,7 @@ export const defaultNodeDisplayOptions: NodeDisplayOptions = {
   showMissingStatsBadge: true,
   showMismatchNoHistogramBadge: true,
   showAnnotations: true,
+  compactStats: false,
 };
 
 const VALID_COLOR_SCHEMES: ColorScheme[] = ['contrast', 'semantic', 'estact', 'rail', 'ticker'];

@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { FilterState, NodeDisplayOptions } from '../lib/types';
 import { usePlan } from '../hooks/usePlanContext';
-import { DENSITY_PRESET_LABELS } from '../lib/density';
+import { DENSITY_PRESET_LABELS, DENSITY_PRESET_ORDER } from '../lib/density';
 import type { DensityPreset } from '../lib/density';
 
 const DENSITY_PRESET_TITLES: Record<DensityPreset, string> = {
+  minimal: 'Operation, object and one metric line — warnings collapse into a single dot',
   compact: 'Operation + time only — triage mode',
   detailed: 'Everything, including predicate details',
 };
@@ -351,7 +352,9 @@ export function CustomizeViewMenu({
     let nextAnimateEdges = filters.animateEdges;
     let nextScaleEdgeWidth = filters.scaleEdgeWidth;
     let nextFocusSelection = filters.focusSelection;
-    const nextNodeDisplayOptions = { ...filters.nodeDisplayOptions };
+    // Enable/disable all is about the fields themselves — leave minimal density behind,
+    // otherwise the collapsed node body would ignore every toggle just flipped.
+    const nextNodeDisplayOptions = { ...filters.nodeDisplayOptions, compactStats: false };
 
     for (const command of availableCommands) {
       if (command.key === 'animateEdges') {
@@ -444,8 +447,8 @@ export function CustomizeViewMenu({
         >
           {/* Density presets */}
           <div className="p-2 border-b border-slate-200 dark:border-slate-700">
-            <div role="radiogroup" aria-label="Density preset" className="grid grid-cols-2 gap-1">
-              {(['compact', 'detailed'] as const).map((preset) => {
+            <div role="radiogroup" aria-label="Density preset" className="grid grid-cols-3 gap-1">
+              {DENSITY_PRESET_ORDER.map((preset) => {
                 const active = densitySelection === preset;
                 return (
                   <button
@@ -457,7 +460,7 @@ export function CustomizeViewMenu({
                     title={DENSITY_PRESET_TITLES[preset]}
                     className={`px-2 py-1.5 text-xs rounded-md border font-semibold transition-colors ${
                       active
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        ? 'bg-slate-200/80 dark:bg-slate-700/70 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600'
                         : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
                     }`}
                   >
