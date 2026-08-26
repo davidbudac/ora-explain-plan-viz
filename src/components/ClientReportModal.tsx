@@ -6,8 +6,6 @@ import {
   buildClientReport,
   clientReportFilename,
   DEFAULT_REPORT_SECTIONS,
-  loadReportIdentity,
-  saveReportIdentity,
   type ClientReportSections,
 } from '../lib/clientReport';
 
@@ -29,10 +27,7 @@ const INPUT_CLASS =
 
 export function ClientReportModal({ onClose }: ClientReportModalProps) {
   const { parsedPlan, rawInput, annotations, advisorReport, hottestNodeId } = usePlan();
-  const savedIdentity = useMemo(() => loadReportIdentity(), []);
   const [title, setTitle] = useState('');
-  const [clientName, setClientName] = useState(savedIdentity.clientName);
-  const [preparedBy, setPreparedBy] = useState(savedIdentity.preparedBy);
   const [summaryText, setSummaryText] = useState('');
   const [sections, setSections] = useState<ClientReportSections>({ ...DEFAULT_REPORT_SECTIONS });
   const [showPreview, setShowPreview] = useState(false);
@@ -95,21 +90,14 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
       },
       {
         title: title.trim() || 'Query Performance Documentation',
-        clientName,
-        preparedBy,
         summaryText,
         sections,
       }
     );
-  }, [parsedPlan, rawInput, annotations, advisorReport, hottestNodeId, title, clientName, preparedBy, summaryText, sections]);
-
-  const persistIdentity = () => {
-    saveReportIdentity({ clientName: clientName.trim(), preparedBy: preparedBy.trim() });
-  };
+  }, [parsedPlan, rawInput, annotations, advisorReport, hottestNodeId, title, summaryText, sections]);
 
   const download = () => {
     if (!parsedPlan || !html) return;
-    persistIdentity();
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -123,7 +111,6 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
 
   const openPrintView = () => {
     if (!html) return;
-    persistIdentity();
     const win = window.open('', '_blank');
     if (!win) return;
     win.document.open();
@@ -167,8 +154,8 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
 
         <div className="p-4 space-y-4">
           <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-snug">
-            Packages this plan, your annotations, and the app&apos;s analysis into a single
-            self-contained HTML document to hand to a client — download it, or open the print view
+            Packages this plan, your notes and highlights, and the app&apos;s analysis into a single
+            self-contained HTML document for a nice handover — download it, or open the print view
             to save it as a PDF. Everything is generated in the browser; nothing is uploaded.
           </p>
 
@@ -183,30 +170,6 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Query Performance Documentation"
-                className={INPUT_CLASS}
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
-                Client
-              </label>
-              <input
-                type="text"
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                placeholder="e.g. Acme Corp"
-                className={INPUT_CLASS}
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
-                Prepared by
-              </label>
-              <input
-                type="text"
-                value={preparedBy}
-                onChange={(e) => setPreparedBy(e.target.value)}
-                placeholder="Your name"
                 className={INPUT_CLASS}
               />
             </div>

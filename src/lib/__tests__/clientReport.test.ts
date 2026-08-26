@@ -101,13 +101,8 @@ describe('buildClientReport', () => {
     expect(html).not.toMatch(/src="http|href="http/);
   });
 
-  it('shows header metadata: client, author, SQL ID, plan hash, date', () => {
-    const html = buildClientReport(
-      makeInput(),
-      makeOptions({ clientName: 'Acme Corp', preparedBy: 'Jane Consultant' })
-    );
-    expect(html).toContain('Acme Corp');
-    expect(html).toContain('Jane Consultant');
+  it('shows header metadata: SQL ID, plan hash, date', () => {
+    const html = buildClientReport(makeInput(), makeOptions());
     expect(html).toContain('abc123def456');
     expect(html).toContain('987654321');
     expect(html).toContain('2026-08-26');

@@ -47,12 +47,8 @@ export const DEFAULT_REPORT_SECTIONS: ClientReportSections = {
 };
 
 export interface ClientReportOptions {
-  /** Document title, e.g. "Order Search Query — Performance Documentation". */
+  /** Document title, e.g. "Order Search Query — Performance Review". */
   title: string;
-  /** Client / engagement name shown in the document header. */
-  clientName?: string;
-  /** Consultant name shown as "Prepared by". */
-  preparedBy?: string;
   /** Free-text executive summary written by the consultant. */
   summaryText?: string;
   sections: ClientReportSections;
@@ -536,8 +532,6 @@ export function buildClientReport(input: ClientReportInput, options: ClientRepor
   const metaItems: string[] = [];
   const metaItem = (label: string, value: string, mono = false) =>
     `<div class="item"><div class="label">${escapeHtml(label)}</div><div class="value${mono ? ' mono' : ''}">${escapeHtml(value)}</div></div>`;
-  if (options.clientName?.trim()) metaItems.push(metaItem('Client', options.clientName.trim()));
-  if (options.preparedBy?.trim()) metaItems.push(metaItem('Prepared by', options.preparedBy.trim()));
   metaItems.push(metaItem('Date', generatedAt.toISOString().slice(0, 10)));
   if (plan.sqlId) metaItems.push(metaItem('SQL ID', plan.sqlId, true));
   if (plan.planHashValue) metaItems.push(metaItem('Plan hash value', plan.planHashValue, true));
@@ -572,7 +566,7 @@ export function buildClientReport(input: ClientReportInput, options: ClientRepor
 ${toc}
 ${body}
 <footer>
-  <span>${escapeHtml(options.clientName?.trim() ? `Prepared for ${options.clientName.trim()}` : 'Query performance documentation')}</span>
+  <span>Query performance documentation</span>
   <span>Generated ${escapeHtml(generatedAt.toISOString().slice(0, 10))} with Oracle Plan Visualizer</span>
 </footer>
 </div>
@@ -586,37 +580,4 @@ export function clientReportFilename(plan: ParsedPlan): string {
   if (plan.planHashValue) parts.push(plan.planHashValue);
   if (parts.length === 0) parts.push('plan');
   return `${parts.join('-')}-report.html`;
-}
-
-// --- author/client identity persistence (convenience across sessions) ---
-
-const IDENTITY_KEY = 'ora-explain-viz-report-identity';
-
-export interface ReportIdentity {
-  clientName: string;
-  preparedBy: string;
-}
-
-export function loadReportIdentity(): ReportIdentity {
-  try {
-    const raw = localStorage.getItem(IDENTITY_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Partial<ReportIdentity>;
-      return {
-        clientName: typeof parsed.clientName === 'string' ? parsed.clientName : '',
-        preparedBy: typeof parsed.preparedBy === 'string' ? parsed.preparedBy : '',
-      };
-    }
-  } catch {
-    /* ignore — default below */
-  }
-  return { clientName: '', preparedBy: '' };
-}
-
-export function saveReportIdentity(identity: ReportIdentity): void {
-  try {
-    localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity));
-  } catch {
-    /* ignore — persistence is best-effort */
-  }
 }
