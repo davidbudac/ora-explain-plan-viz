@@ -15,13 +15,16 @@
     "docker:compose:down": "docker compose down"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.121.0",
     "@dagrejs/dagre": "^1.1.8",
     "@xyflow/react": "^12.10.0",
     "d3-force": "^3.0.0",
     "d3-sankey": "^0.12.3",
+    "dompurify": "^3.4.14",
     "highlight.js": "^11.11.1",
     "html-to-image": "^1.11.13",
     "lz-string": "^1.5.0",
+    "marked": "^18.0.11",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
