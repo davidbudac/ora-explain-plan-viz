@@ -88,6 +88,7 @@ export function HeaderActions() {
     viewMode,
     treeCompareEnabled,
     setCommandPaletteOpen,
+    setReportDialogOpen,
     focusMode,
     setFocusMode,
   } = usePlan();
@@ -206,6 +207,19 @@ export function HeaderActions() {
           </svg>
         </button>
       )}
+
+      {/* Export client report */}
+      <button
+        onClick={() => setReportDialogOpen(true)}
+        disabled={parsedPlan === null}
+        className={`${ICON_BTN} disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500 dark:disabled:hover:text-slate-400`}
+        title="Export client report (.html / PDF)"
+        aria-label="Export client report"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      </button>
 
       {/* Export as PNG */}
       <button
