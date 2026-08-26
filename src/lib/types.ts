@@ -305,7 +305,15 @@ export function getOperationCategory(operation: string): string {
   return 'Other';
 }
 
-export type ColorScheme = 'contrast' | 'semantic' | 'estact' | 'rail' | 'ticker';
+export type ColorScheme =
+  | 'contrast'
+  | 'semantic'
+  | 'estact'
+  | 'rail'
+  | 'ticker'
+  | 'stripe'
+  | 'tinted'
+  | 'terminal';
 
 /**
  * App palette — a third appearance axis next to theme (light/dark) and color
@@ -324,6 +332,20 @@ export const APP_PALETTE_LABELS: Record<AppPalette, string> = {
   teal: 'Teal',
   violet: 'Violet',
   paper: 'Paper',
+};
+
+/** Full per-category hue map — the 'contrast' palette, shared by the schemes that paint every category. */
+const FULL_CATEGORY_PALETTE: Record<string, string> = {
+  'Table Access': '#d97706',
+  'Index Operations': '#059669',
+  'Join Operations': '#2563eb',
+  'Set Operations': '#7c3aed',
+  'Aggregation': '#db2777',
+  'Sort Operations': '#ea580c',
+  'Filter/View': '#0891b2',
+  'Partition': '#4f46e5',
+  'Parallelism': '#e11d48',
+  'Other': '#475569',
 };
 
 export const COLOR_SCHEME_PALETTES: Record<ColorScheme, Record<string, string>> = {
@@ -387,6 +409,9 @@ export const COLOR_SCHEME_PALETTES: Record<ColorScheme, Record<string, string>> 
     'Parallelism': '#e11d48',
     'Other': '#475569',
   },
+  stripe: FULL_CATEGORY_PALETTE,
+  tinted: FULL_CATEGORY_PALETTE,
+  terminal: FULL_CATEGORY_PALETTE,
 };
 
 /** Fallback hue for categories missing from a palette (slate-500). */
@@ -437,6 +462,18 @@ export const EDGE_SCHEME_COLORS: Record<ColorScheme, {
     light: { active: '#94a3b8', default: '#cbd5e1', focus: '#475569', dimmed: '#f1f5f9' },
     dark: { active: '#64748b', default: '#334155', focus: '#94a3b8', dimmed: '#1e293b' },
   },
+  stripe: {
+    light: { active: '#64748b', default: '#cbd5e1', focus: '#334155', dimmed: '#f1f5f9' },
+    dark: { active: '#64748b', default: '#334155', focus: '#94a3b8', dimmed: '#1e293b' },
+  },
+  tinted: {
+    light: { active: '#64748b', default: '#cbd5e1', focus: '#334155', dimmed: '#f1f5f9' },
+    dark: { active: '#64748b', default: '#334155', focus: '#94a3b8', dimmed: '#1e293b' },
+  },
+  terminal: {
+    light: { active: '#64748b', default: '#cbd5e1', focus: '#334155', dimmed: '#f1f5f9' },
+    dark: { active: '#64748b', default: '#334155', focus: '#94a3b8', dimmed: '#1e293b' },
+  },
 };
 
 // Option E: High Contrast — clean white cards, bold category borders, dark accessible text.
@@ -484,12 +521,60 @@ const COLORS_QUIET: Record<string, { bg: string; border: string; text: string }>
   'Other': { bg: 'bg-white dark:bg-slate-800', border: 'border border-slate-200 dark:border-slate-700', text: 'text-slate-600 dark:text-slate-300' },
 };
 
+// Stripe — neutral card, thick category spine on the left, category-colored title.
+// Identity lives in one edge + the operation name; the card itself stays out of the way.
+const COLORS_STRIPE: Record<string, { bg: string; border: string; text: string }> = {
+  'Table Access': { bg: 'bg-white dark:bg-slate-800', border: 'border-l-[5px] border-l-amber-500 border-y border-r border-slate-200/80 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-amber-700 dark:text-amber-300' },
+  'Index Operations': { bg: 'bg-white dark:bg-slate-800', border: 'border-l-[5px] border-l-emerald-500 border-y border-r border-slate-200/80 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-emerald-700 dark:text-emerald-300' },
+  'Join Operations': { bg: 'bg-white dark:bg-slate-800', border: 'border-l-[5px] border-l-blue-500 border-y border-r border-slate-200/80 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-blue-700 dark:text-blue-300' },
+  'Set Operations': { bg: 'bg-white dark:bg-slate-800', border: 'border-l-[5px] border-l-violet-500 border-y border-r border-slate-200/80 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-violet-700 dark:text-violet-300' },
+  'Aggregation': { bg: 'bg-white dark:bg-slate-800', border: 'border-l-[5px] border-l-pink-500 border-y border-r border-slate-200/80 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-pink-700 dark:text-pink-300' },
+  'Sort Operations': { bg: 'bg-white dark:bg-slate-800', border: 'border-l-[5px] border-l-orange-500 border-y border-r border-slate-200/80 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-orange-700 dark:text-orange-300' },
+  'Filter/View': { bg: 'bg-white dark:bg-slate-800', border: 'border-l-[5px] border-l-cyan-500 border-y border-r border-slate-200/80 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-cyan-700 dark:text-cyan-300' },
+  'Partition': { bg: 'bg-white dark:bg-slate-800', border: 'border-l-[5px] border-l-indigo-500 border-y border-r border-slate-200/80 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-indigo-700 dark:text-indigo-300' },
+  'Parallelism': { bg: 'bg-white dark:bg-slate-800', border: 'border-l-[5px] border-l-rose-500 border-y border-r border-slate-200/80 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-rose-700 dark:text-rose-300' },
+  'Other': { bg: 'bg-white dark:bg-slate-800', border: 'border-l-[5px] border-l-slate-400 dark:border-l-slate-500 border-y border-r border-slate-200/80 dark:border-y-slate-700 dark:border-r-slate-700', text: 'text-slate-700 dark:text-slate-300' },
+};
+
+// Tinted — the whole card carries a quiet category tint; identity is readable at
+// a glance from across the canvas without any single loud edge.
+const COLORS_TINTED: Record<string, { bg: string; border: string; text: string }> = {
+  'Table Access': { bg: 'bg-amber-50 dark:bg-amber-950/40', border: 'border border-amber-300/70 dark:border-amber-500/40', text: 'text-amber-800 dark:text-amber-200' },
+  'Index Operations': { bg: 'bg-emerald-50 dark:bg-emerald-950/40', border: 'border border-emerald-300/70 dark:border-emerald-500/40', text: 'text-emerald-800 dark:text-emerald-200' },
+  'Join Operations': { bg: 'bg-blue-50 dark:bg-blue-950/40', border: 'border border-blue-300/70 dark:border-blue-500/40', text: 'text-blue-800 dark:text-blue-200' },
+  'Set Operations': { bg: 'bg-violet-50 dark:bg-violet-950/40', border: 'border border-violet-300/70 dark:border-violet-500/40', text: 'text-violet-800 dark:text-violet-200' },
+  'Aggregation': { bg: 'bg-pink-50 dark:bg-pink-950/40', border: 'border border-pink-300/70 dark:border-pink-500/40', text: 'text-pink-800 dark:text-pink-200' },
+  'Sort Operations': { bg: 'bg-orange-50 dark:bg-orange-950/40', border: 'border border-orange-300/70 dark:border-orange-500/40', text: 'text-orange-800 dark:text-orange-200' },
+  'Filter/View': { bg: 'bg-cyan-50 dark:bg-cyan-950/40', border: 'border border-cyan-300/70 dark:border-cyan-500/40', text: 'text-cyan-800 dark:text-cyan-200' },
+  'Partition': { bg: 'bg-indigo-50 dark:bg-indigo-950/40', border: 'border border-indigo-300/70 dark:border-indigo-500/40', text: 'text-indigo-800 dark:text-indigo-200' },
+  'Parallelism': { bg: 'bg-rose-50 dark:bg-rose-950/40', border: 'border border-rose-300/70 dark:border-rose-500/40', text: 'text-rose-800 dark:text-rose-200' },
+  'Other': { bg: 'bg-slate-50 dark:bg-slate-800/60', border: 'border border-slate-300/70 dark:border-slate-600/60', text: 'text-slate-700 dark:text-slate-200' },
+};
+
+// Terminal — hairline category border on a near-black card (white in light mode);
+// PlanNode pairs it with square corners, a mono operation name and a hard offset shadow.
+const COLORS_TERMINAL: Record<string, { bg: string; border: string; text: string }> = {
+  'Table Access': { bg: 'bg-white dark:bg-[#0c1017]', border: 'border border-amber-600/70 dark:border-amber-400/60', text: 'text-amber-700 dark:text-amber-300' },
+  'Index Operations': { bg: 'bg-white dark:bg-[#0c1017]', border: 'border border-emerald-600/70 dark:border-emerald-400/60', text: 'text-emerald-700 dark:text-emerald-300' },
+  'Join Operations': { bg: 'bg-white dark:bg-[#0c1017]', border: 'border border-blue-600/70 dark:border-blue-400/60', text: 'text-blue-700 dark:text-blue-300' },
+  'Set Operations': { bg: 'bg-white dark:bg-[#0c1017]', border: 'border border-violet-600/70 dark:border-violet-400/60', text: 'text-violet-700 dark:text-violet-300' },
+  'Aggregation': { bg: 'bg-white dark:bg-[#0c1017]', border: 'border border-pink-600/70 dark:border-pink-400/60', text: 'text-pink-700 dark:text-pink-300' },
+  'Sort Operations': { bg: 'bg-white dark:bg-[#0c1017]', border: 'border border-orange-600/70 dark:border-orange-400/60', text: 'text-orange-700 dark:text-orange-300' },
+  'Filter/View': { bg: 'bg-white dark:bg-[#0c1017]', border: 'border border-cyan-600/70 dark:border-cyan-400/60', text: 'text-cyan-700 dark:text-cyan-300' },
+  'Partition': { bg: 'bg-white dark:bg-[#0c1017]', border: 'border border-indigo-600/70 dark:border-indigo-400/60', text: 'text-indigo-700 dark:text-indigo-300' },
+  'Parallelism': { bg: 'bg-white dark:bg-[#0c1017]', border: 'border border-rose-600/70 dark:border-rose-400/60', text: 'text-rose-700 dark:text-rose-300' },
+  'Other': { bg: 'bg-white dark:bg-[#0c1017]', border: 'border border-slate-400/70 dark:border-slate-500/60', text: 'text-slate-700 dark:text-slate-300' },
+};
+
 export const COLOR_SCHEMES: Record<ColorScheme, Record<string, { bg: string; border: string; text: string }>> = {
   contrast: COLORS_CONTRAST,
   semantic: COLORS_SEMANTIC,
   estact: COLORS_QUIET,
   rail: COLORS_QUIET,
   ticker: COLORS_QUIET,
+  stripe: COLORS_STRIPE,
+  tinted: COLORS_TINTED,
+  terminal: COLORS_TERMINAL,
 };
 
 export function getCostColor(cost: number, totalCost: number): string {

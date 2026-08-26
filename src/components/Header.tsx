@@ -18,6 +18,9 @@ const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
   estact: 'Est ⇄ Act',
   rail: 'Icon Rail',
   ticker: 'Ticker',
+  stripe: 'Stripe',
+  tinted: 'Tinted',
+  terminal: 'Terminal',
 };
 
 // Below this the single top bar has no room for the full action cluster, so it

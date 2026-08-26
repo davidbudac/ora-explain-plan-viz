@@ -618,7 +618,7 @@ function HierarchicalViewContent({
     const isRail = colorScheme === 'rail';
     const isTicker = colorScheme === 'ticker';
     // Schemes that render stats as the Est ⇄ Act comparison grid (mirrors PlanNode)
-    const usesGrid = ['estact', 'rail', 'contrast', 'semantic'].includes(colorScheme);
+    const usesGrid = ['estact', 'rail', 'contrast', 'semantic', 'stripe', 'tinted', 'terminal'].includes(colorScheme);
     // Minimal density narrows the card; tree spacing keeps the wider gaps (extra air is fine)
     const isCompactNode = effectiveDisplayOptions.compactStats;
     const effectiveNodeWidth = isCompactNode ? COMPACT_NODE_WIDTH : isTicker ? 240 : NODE_WIDTH;
