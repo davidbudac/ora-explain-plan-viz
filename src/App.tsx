@@ -12,6 +12,7 @@ import { ShortcutsOverlay } from './components/ShortcutsOverlay';
 import { ShareResultDialog } from './components/ShareResultDialog';
 import { PopoutWindow } from './components/PopoutWindow';
 import { BaselineScriptModal } from './components/BaselineScriptModal';
+import { ClientReportModal } from './components/ClientReportModal';
 import { MetadataExplorer } from './components/metadata/MetadataExplorer';
 import { SAMPLE_PLANS_BY_CATEGORY } from './examples';
 import type { SamplePlan } from './examples';
@@ -236,6 +237,7 @@ function AppContent() {
     plans, activePlanIndex, viewMode, visualizationMaximized, setVisualizationMaximized, loadAndParsePlan,
     metadataBundle, metadataPopoutOpen, setMetadataPopoutOpen,
     baselineDialogOpen, setBaselineDialogOpen,
+    reportDialogOpen, setReportDialogOpen,
     filterPanelCollapsed, setFilterPanelCollapsed,
     detailPanelCollapsed, setDetailPanelCollapsed,
     focusMode, setFocusMode,
@@ -367,6 +369,9 @@ function AppContent() {
           initialPlanHash={activeParsedPlan?.planHashValue ?? ''}
           onClose={() => setBaselineDialogOpen(false)}
         />
+      )}
+      {reportDialogOpen && activeParsedPlan && (
+        <ClientReportModal onClose={() => setReportDialogOpen(false)} />
       )}
       {metadataPopoutOpen && metadataBundle && (
         <PopoutWindow title="Metadata Explorer" onClose={() => setMetadataPopoutOpen(false)}>

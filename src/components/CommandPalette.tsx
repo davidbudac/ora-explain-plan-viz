@@ -148,6 +148,7 @@ function useCommands(onExportPng: () => void): Command[] {
     clearAnnotations,
     share,
     setBaselineDialogOpen,
+    setReportDialogOpen,
     setConnectPanelOpen,
   } = usePlan();
 
@@ -455,6 +456,15 @@ function useCommands(onExportPng: () => void): Command[] {
     });
 
     commands.push({
+      id: 'export-client-report',
+      label: 'Export client report…',
+      category: 'Export & Share',
+      keywords: ['report', 'client', 'document', 'documentation', 'export', 'pdf', 'html', 'deliverable', 'consultant'],
+      execute: () => setReportDialogOpen(true),
+      isAvailable: () => parsedPlan !== null,
+    });
+
+    commands.push({
       id: 'create-baseline-script',
       label: 'Create SQL Plan Baseline script…',
       category: 'Export & Share',
@@ -584,7 +594,7 @@ function useCommands(onExportPng: () => void): Command[] {
     setNodeIndicatorMetric, setHighlightStyle, setVisualizationMaximized,
     setInputPanelCollapsed, setFilterPanelCollapsed,
     setDetailPanelCollapsed, setFocusMode, setHotspotsEnabled, setTreeCompareEnabled,
-    exportAnnotatedPlan, clearAnnotations, share, onExportPng, setBaselineDialogOpen, setConnectPanelOpen,
+    exportAnnotatedPlan, clearAnnotations, share, onExportPng, setBaselineDialogOpen, setReportDialogOpen, setConnectPanelOpen,
     toggleNodeDisplayOption, enableAllDisplayOptions, disableAllDisplayOptions,
   ]);
 }
