@@ -88,13 +88,9 @@ const nodeTypes: NodeTypes = {
   annotationGroup: AnnotationGroupNode as unknown as NodeTypes['annotationGroup'],
 };
 
-// Staged canvas backdrop — a soft pool of light the plan tree sits in.
-// Sized as a fixed ellipse anchored in percentages so it reads the same in the
-// full-width tree view and in the narrower dual panes of the compare view.
-// The stops come from CSS variables (index.css) so theme *and* app palette can
-// restyle them without a second stacked layer here.
-const CANVAS_BACKDROP =
-  'radial-gradient(1100px 620px at 50% 32%, var(--canvas-glow-1) 0%, var(--canvas-glow-2) 62%, var(--canvas-glow-3) 100%)';
+// Canvas backdrop — a solid surface from a CSS variable (index.css) so theme
+// *and* app palette can restyle it.
+const CANVAS_BACKDROP = 'var(--canvas-bg)';
 
 // Layout dimensions for dagre algorithm
 const NODE_WIDTH = 260;
@@ -508,12 +504,12 @@ function HierarchicalViewContent({
         const viewportEl = containerRef.current?.querySelector('.react-flow__viewport') as HTMLElement | null;
         if (!viewportEl) return;
 
-        // Matches the mid stop of the staged canvas backdrop, read live so the
-        // export follows the active theme *and* app palette.
-        const glowMid = getComputedStyle(document.documentElement)
-          .getPropertyValue('--canvas-glow-2')
+        // Matches the canvas backdrop, read live so the export follows the
+        // active theme *and* app palette.
+        const canvasBg = getComputedStyle(document.documentElement)
+          .getPropertyValue('--canvas-bg')
           .trim();
-        const bgColor = glowMid || (theme === 'dark' ? '#0e1526' : '#ffffff');
+        const bgColor = canvasBg || (theme === 'dark' ? '#0e1526' : '#ffffff');
         const dataUrl = await toPng(viewportEl, {
           backgroundColor: bgColor,
           width: imageWidth,
