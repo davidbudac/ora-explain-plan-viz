@@ -2,7 +2,7 @@
 title: Non-expert analysis report design
 labels: [wayfinder:prototype]
 status: open
-assignee:
+assignee: davidbudac
 blocked-by: []
 ---
 
@@ -20,3 +20,13 @@ Prototype (skill `mattpocock-skills:prototype`): a static mock of the `AiReportV
 - streaming presentation (text streams in; structured findings appear at the end).
 
 Link the prototype as an asset; resolution = the agreed report anatomy for the spec.
+
+## Prototype (asset — awaiting user reaction, 2026-08-26)
+
+Built and verified in-app: dev-only tab **AI (proto)** (visible only in `npm run dev`), three variants in `src/components/views/prototype/` (uncommitted working-tree files; move to a throwaway branch once a winner is picked). Open `http://localhost:5173/?example=22` → AI (proto) tab; flip variants with the floating bar or `←`/`→` (also `?variant=A|B|C`):
+
+- **A — The Memo**: single-column expert-report document; findings interleaved into the streaming narrative; actions checklist; builder card as closing recommendation.
+- **B — The Triage Board**: ops console; left rail = ranked findings (Verified check vs AI insight chips), right pane = overview/finding detail with evidence tiles; builder card permanently docked.
+- **C — The Guided Path**: numbered walkthrough (see what went wrong → fix stats → verify → *prove it before production*); the locked Builder **is Step 4**; foreshadows ticket 13.
+
+All variants share: verdict-first banner, simulated streaming (prose streams, structured parts appear at end), plain-language node pills that jump to the Tree view, advisor-vs-AI source chips (deterministic never contradicted; AI labeled), F0–F3 fidelity meter with "you are here", quota chip (3 free), "Go deeper · ¼ credit" pill. Mock content is hand-written for example *22 · Cardinality Trap (NL)*; `mockReport.ts` doubles as a draft report contract.

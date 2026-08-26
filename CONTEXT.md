@@ -19,5 +19,6 @@ Canonical vocabulary for the Oracle Execution Plan Visualizer domain. Glossary o
 - **Guided Anonymization** — an offline, client-side pass run *before* any AI upload: consistently renames identifiers to placeholders and scrubs sensitive values across plan/SQL/metadata, with a guided review of the mapping; responses are de-anonymized locally. Part of the Privacy Fence, never a backend feature.
 - **Walkthrough** — a generated, ordered step sequence ("run this, then load the new plan, verify with Compare") that guides a non-expert through fixing their query. Static output of an AI Analysis — not interactive chat (that is the out-of-scope Phase 8).
 - **Hosted tier / oraplanviz-cloud** — the paid backend that holds model credentials and streams AI output; the primary AI path for v1.
+- **Run** — one metered, streamed model invocation through oraplanviz-cloud (kinds: teaser analysis, deep analysis, walkthrough, build, repair). The unit that metering, debits, feedback, and repair linkage attach to; never stored beyond payload-free metadata.
 - **Companion** — the optional local `oraplanviz-agent` process for database connectivity; not part of AI v1.
 - **Repro Rate** — the measured fraction of eval scenarios whose generated test case reproduces the original plan shape; the number that gates selling the Builder.
