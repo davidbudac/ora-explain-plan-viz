@@ -1,6 +1,7 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
-import type { ColorScheme } from '../lib/types';
+import type { ColorScheme, AppPalette } from '../lib/types';
+import { APP_PALETTE_LABELS, APP_PALETTE_ORDER } from '../lib/types';
 import { hasAnnotations } from '../lib/annotations';
 
 // Shared focus token for the header chrome. `focus-visible` only, so mouse
@@ -76,6 +77,8 @@ export function HeaderActions() {
     setTheme,
     colorScheme,
     setColorScheme,
+    palette,
+    setPalette,
     parsedPlan,
     annotations,
     hasUnsavedAnnotations,
@@ -319,6 +322,20 @@ export function HeaderActions() {
         {Object.entries(COLOR_SCHEME_LABELS).map(([value, label]) => (
           <option key={value} value={value}>
             {label}
+          </option>
+        ))}
+      </select>
+
+      <select
+        value={palette}
+        onChange={(e) => setPalette(e.target.value as AppPalette)}
+        className={`h-8 px-2 rounded-md border border-transparent bg-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium cursor-pointer transition-colors ${FOCUS_RING}`}
+        title="App palette"
+        aria-label="App palette"
+      >
+        {APP_PALETTE_ORDER.map((value) => (
+          <option key={value} value={value}>
+            {APP_PALETTE_LABELS[value]}
           </option>
         ))}
       </select>

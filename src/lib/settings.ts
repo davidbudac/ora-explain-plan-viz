@@ -1,4 +1,5 @@
-import type { FilterState, ViewMode, SankeyMetric, FlameMetric, ExperimentalSubView, NodeIndicatorMetric, NodeDisplayOptions, ColorScheme } from './types';
+import type { FilterState, ViewMode, SankeyMetric, FlameMetric, ExperimentalSubView, NodeIndicatorMetric, NodeDisplayOptions, ColorScheme, AppPalette } from './types';
+import { APP_PALETTE_ORDER } from './types';
 import type { CompareMetric } from './compare';
 import type { HighlightStyle } from './annotations';
 
@@ -20,6 +21,8 @@ export interface UserSettings {
   experimentalSubView: ExperimentalSubView;
   nodeIndicatorMetric: NodeIndicatorMetric;
   colorScheme: ColorScheme;
+  /** App palette: re-skins neutral surfaces + accent (see index.css). */
+  palette: AppPalette;
 
   // UI panel states
   legendVisible: boolean;
@@ -72,6 +75,7 @@ export const defaultNodeDisplayOptions: NodeDisplayOptions = {
 };
 
 const VALID_COLOR_SCHEMES: ColorScheme[] = ['contrast', 'semantic', 'estact', 'rail', 'ticker'];
+const VALID_PALETTES: AppPalette[] = APP_PALETTE_ORDER;
 const VALID_EXPERIMENTAL_SUB_VIEWS: ExperimentalSubView[] = ['scatter', 'timeline', 'waterfall', 'morph', 'waits'];
 
 const defaultSettings: UserSettings = {
@@ -82,6 +86,7 @@ const defaultSettings: UserSettings = {
   experimentalSubView: 'scatter',
   nodeIndicatorMetric: 'cost',
   colorScheme: 'semantic',
+  palette: 'slate',
   hotspotsEnabled: true,
   showAdvisorSuggestions: false,
   legendVisible: false,
@@ -115,6 +120,11 @@ export function loadSettings(): UserSettings {
     // Drop color schemes that no longer exist (removed themes fall back to the default)
     if (parsed.colorScheme && !VALID_COLOR_SCHEMES.includes(parsed.colorScheme)) {
       delete parsed.colorScheme;
+    }
+
+    // Drop palettes that no longer exist (removed palettes fall back to the default)
+    if (parsed.palette && !VALID_PALETTES.includes(parsed.palette)) {
+      delete parsed.palette;
     }
 
     // Drop experimental sub-views that no longer exist (removed views fall back to the default)

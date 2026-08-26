@@ -91,10 +91,10 @@ const nodeTypes: NodeTypes = {
 // Staged canvas backdrop — a soft pool of light the plan tree sits in.
 // Sized as a fixed ellipse anchored in percentages so it reads the same in the
 // full-width tree view and in the narrower dual panes of the compare view.
-const CANVAS_BACKDROP_LIGHT =
-  'radial-gradient(1100px 620px at 50% 32%, #ffffff 0%, #f3f6fa 62%, #e9eef5 100%)';
-const CANVAS_BACKDROP_DARK =
-  'radial-gradient(1100px 620px at 50% 32%, #1b2740 0%, #0e1526 62%, #0b1120 100%)';
+// The stops come from CSS variables (index.css) so theme *and* app palette can
+// restyle them without a second stacked layer here.
+const CANVAS_BACKDROP =
+  'radial-gradient(1100px 620px at 50% 32%, var(--canvas-glow-1) 0%, var(--canvas-glow-2) 62%, var(--canvas-glow-3) 100%)';
 
 // Layout dimensions for dagre algorithm
 const NODE_WIDTH = 260;
@@ -508,8 +508,12 @@ function HierarchicalViewContent({
         const viewportEl = containerRef.current?.querySelector('.react-flow__viewport') as HTMLElement | null;
         if (!viewportEl) return;
 
-        // Matches the mid stop of the staged canvas backdrop
-        const bgColor = theme === 'dark' ? '#0e1526' : '#ffffff';
+        // Matches the mid stop of the staged canvas backdrop, read live so the
+        // export follows the active theme *and* app palette.
+        const glowMid = getComputedStyle(document.documentElement)
+          .getPropertyValue('--canvas-glow-2')
+          .trim();
+        const bgColor = glowMid || (theme === 'dark' ? '#0e1526' : '#ffffff');
         const dataUrl = await toPng(viewportEl, {
           backgroundColor: bgColor,
           width: imageWidth,
@@ -1071,8 +1075,10 @@ function HierarchicalViewContent({
         }
 
         const labelFill = theme === 'dark' ? '#a3a3a3' : '#737373';
-        // Tuned to the staged canvas backdrop so edge labels don't read as chips
-        const labelBgFill = theme === 'dark' ? '#101a2e' : '#ffffff';
+        // Tuned to the staged canvas backdrop so edge labels don't read as chips.
+        // A CSS variable, so it tracks both the theme and the active app palette
+        // (a fixed navy would clash with the warm graphite/paper canvases).
+        const labelBgFill = 'var(--canvas-label-bg)';
         const labelStyle = { fill: labelFill, fontSize: 10, fontWeight: 500 };
         const labelBgStyle = { fill: labelBgFill, fillOpacity: 0.9 };
 
@@ -1239,16 +1245,12 @@ function HierarchicalViewContent({
       }`}
     >
       {/* Staged canvas backdrop: the tree sits in a soft pool of light.
-          Two stacked layers so the gradient follows the .dark root class. */}
+          One layer — the gradient stops are CSS variables that follow the
+          .dark root class and the active app palette. */}
       <div
         aria-hidden
-        className="absolute inset-0 pointer-events-none dark:hidden"
-        style={{ background: CANVAS_BACKDROP_LIGHT }}
-      />
-      <div
-        aria-hidden
-        className="absolute inset-0 pointer-events-none hidden dark:block"
-        style={{ background: CANVAS_BACKDROP_DARK }}
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: CANVAS_BACKDROP }}
       />
       <ReactFlow
         className="!bg-transparent"
