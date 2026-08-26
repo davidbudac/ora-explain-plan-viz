@@ -849,7 +849,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         ...slot,
         rawInput: input,
         parsedPlan: parsed.rootNode ? parsed : null,
-        error: parsed.rootNode ? null : 'Could not parse the execution plan. Please check the format.',
+        error: parsed.rootNode ? null : 'Could not parse this as an execution plan. Supported formats: DBMS_XPLAN, SQL Monitor text/XML, and V$SQL_PLAN JSON.',
       };
     } catch (err) {
       return {
@@ -908,7 +908,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       if (parsedPlanCount === 0) {
         dispatch({
           type: 'SET_ERROR',
-          payload: 'Could not parse any execution plans from the input. Please check the format.',
+          payload: 'Could not find an execution plan in the pasted text. Supported formats: DBMS_XPLAN, SQL Monitor text/XML, and V$SQL_PLAN JSON.',
         });
       }
       return;
@@ -920,7 +920,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     if (!slot?.parsedPlan) {
       dispatch({
         type: 'SET_ERROR',
-        payload: slot?.error ?? 'Could not parse the execution plan. Please check the format.',
+        payload: slot?.error ?? 'Could not parse this as an execution plan. Supported formats: DBMS_XPLAN, SQL Monitor text/XML, and V$SQL_PLAN JSON.',
       });
       return;
     }
@@ -1439,7 +1439,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       const text = await file.text();
       const data = JSON.parse(text);
       if (!validateExport(data)) {
-        dispatch({ type: 'SET_ERROR', payload: 'Invalid annotated plan file. Please check the format.' });
+        dispatch({ type: 'SET_ERROR', payload: 'Not a valid annotated-plan file. Expected the JSON exported via "Save annotated plan".' });
         return;
       }
       // Parse the plan text from the file

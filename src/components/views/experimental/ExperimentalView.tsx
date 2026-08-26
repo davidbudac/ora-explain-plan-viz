@@ -56,7 +56,7 @@ export function ExperimentalView() {
   if (!parsedPlan) {
     return (
       <div className="h-full flex items-center justify-center bg-slate-50 dark:bg-slate-950 text-sm text-slate-500 dark:text-slate-400">
-        No execution plan to display. Parse a plan to see the visualization.
+        No plan loaded yet. Paste an execution plan in the input panel and press Parse.
       </div>
     );
   }
