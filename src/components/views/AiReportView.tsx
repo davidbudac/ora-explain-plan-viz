@@ -1,15 +1,23 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { usePlan } from '../../hooks/usePlanContext';
 import { useAi } from '../../hooks/useAiAnalysis';
 import { splitReport } from '../../lib/ai/findings';
-import type { AiError, AiFinding, AiProviderId } from '../../lib/ai/types';
+import type { AiChatMessage, AiError, AiFinding, AiProviderId } from '../../lib/ai/types';
 import { SEVERITY_STYLES } from '../../lib/severityStyles';
 import { copyToClipboard } from '../../lib/clipboard';
 import { testCaseScriptFilename } from '../../lib/ai/testCase';
+import {
+  AgentError,
+  health as agentHealth,
+  isDbAgentEnabled,
+  loadStoredAgentConfig,
+  testExec as agentTestExec,
+} from '../../lib/agent/client';
 
 const PROVIDER_LABELS: Record<AiProviderId, string> = {
+  hosted: 'oraplanviz cloud',
   anthropic: 'Anthropic',
   'openai-compat': 'OpenAI-compatible',
   agent: 'Local agent',
@@ -75,8 +83,52 @@ function splitSqlFences(markdown: string): { type: 'md' | 'sql'; text: string }[
   return segments;
 }
 
-function SqlScriptBlock({ sql, filename }: { sql: string; filename: string }) {
+/** Statements that change or destroy data/objects — flagged in the approval card. */
+const DESTRUCTIVE_SQL = /\b(DROP|TRUNCATE|DELETE|ALTER|GRANT|REVOKE|UPDATE|INSERT|MERGE|PURGE)\b/i;
+
+/** Formats a testExec result as a quoted block the user can send as a chat turn. */
+function formatExecResultQuote(result: { ok: boolean; output: string; errors: string[] }): string {
+  const lines: string[] = [
+    `Result of running the script via the local agent (${result.ok ? 'ok' : 'failed'}):`,
+  ];
+  const body = [result.output, ...result.errors].filter(Boolean).join('\n');
+  for (const line of (body || '(no output)').split('\n')) {
+    lines.push(`> ${line}`);
+  }
+  return lines.join('\n');
+}
+
+function SqlScriptBlock({
+  sql,
+  filename,
+  canRunViaAgent = false,
+  onAppendResult,
+}: {
+  sql: string;
+  filename: string;
+  /** True when the local agent is reachable — shows the approval-gated "Run via agent" button. */
+  canRunViaAgent?: boolean;
+  /** Receives the quoted exec result to place into the chat input (the user sends it — never auto-sent). */
+  onAppendResult?: (quoted: string) => void;
+}) {
   const [copied, setCopied] = useState(false);
+  const [approvalOpen, setApprovalOpen] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [runError, setRunError] = useState<string | null>(null);
+
+  const confirmRun = async () => {
+    setRunning(true);
+    setRunError(null);
+    try {
+      const result = await agentTestExec(loadStoredAgentConfig(), { script: sql });
+      onAppendResult?.(formatExecResultQuote(result));
+      setApprovalOpen(false);
+    } catch (err) {
+      setRunError(err instanceof AgentError ? err.message : 'Failed to run the script.');
+    } finally {
+      setRunning(false);
+    }
+  };
 
   const copy = async () => {
     const ok = await copyToClipboard(sql);
@@ -109,10 +161,88 @@ function SqlScriptBlock({ sql, filename }: { sql: string; filename: string }) {
         <button type="button" onClick={download} className={buttonClass}>
           Download
         </button>
+        {canRunViaAgent && (
+          <button type="button" onClick={() => setApprovalOpen((v) => !v)} className={buttonClass}>
+            Run via agent
+          </button>
+        )}
       </div>
+      {approvalOpen && (
+        <div className="p-2 space-y-2 border-b border-slate-200 dark:border-slate-700 bg-amber-50 dark:bg-amber-950/20">
+          <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">
+            Run this exact script on the agent's test connection?
+          </div>
+          {DESTRUCTIVE_SQL.test(sql) && (
+            <div className="text-[11px] text-amber-700 dark:text-amber-300">
+              Warning: the script contains statements that modify or drop objects/data (DROP, ALTER, DELETE, …).
+              Only run it against a scratch schema.
+            </div>
+          )}
+          <pre className="max-h-48 p-2 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-auto text-[11px] font-mono text-slate-800 dark:text-slate-200">
+            {sql}
+          </pre>
+          {runError && <div className="text-[11px] text-red-600 dark:text-red-400">{runError}</div>}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={confirmRun}
+              disabled={running}
+              className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-colors"
+            >
+              {running ? 'Running…' : 'Confirm & run'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setApprovalOpen(false)}
+              disabled={running}
+              className={buttonClass}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
       <pre className="p-3 bg-slate-50 dark:bg-slate-900 overflow-x-auto text-xs font-mono text-slate-800 dark:text-slate-200">
         {sql}
       </pre>
+    </div>
+  );
+}
+
+/** Renders one assistant chat turn: markdown prose with ```sql fences broken out into runnable script blocks. */
+function AssistantChatContent({
+  content,
+  canRunViaAgent,
+  onAppendResult,
+}: {
+  content: string;
+  canRunViaAgent: boolean;
+  onAppendResult: (quoted: string) => void;
+}) {
+  const segments = useMemo(
+    () =>
+      splitSqlFences(content).map((seg) =>
+        seg.type === 'md'
+          ? { type: 'md' as const, html: DOMPurify.sanitize(marked.parse(seg.text, { async: false, gfm: true, breaks: false })) }
+          : { type: 'sql' as const, sql: seg.text },
+      ),
+    [content],
+  );
+  return (
+    <div>
+      {segments.map((seg, index) =>
+        seg.type === 'md' ? (
+          <div key={index} className={MARKDOWN_CLASSES} dangerouslySetInnerHTML={{ __html: seg.html }} />
+        ) : (
+          <SqlScriptBlock
+            key={index}
+            sql={seg.sql}
+            filename="chat_snippet.sql"
+            canRunViaAgent={canRunViaAgent}
+            onAppendResult={onAppendResult}
+          />
+        ),
+      )}
     </div>
   );
 }
@@ -175,8 +305,56 @@ function AiFindingRow({ finding, onNavigate }: { finding: AiFinding; onNavigate:
 
 export function AiReportView() {
   const { selectNode, plans } = usePlan();
-  const { report, status, streamText, error, openAiDialog, cancel } = useAi();
+  const {
+    report,
+    status,
+    streamText,
+    error,
+    openAiDialog,
+    cancel,
+    chatMessages,
+    chatStatus,
+    chatStreamText,
+    chatError,
+    sendChatMessage,
+  } = useAi();
   const [copied, setCopied] = useState(false);
+
+  // Follow-up chat input; exec results are appended here as quoted text for
+  // the user to review and send — never sent automatically.
+  const [chatInput, setChatInput] = useState('');
+  const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const appendToChatInput = useCallback((quoted: string) => {
+    setChatInput((prev) => (prev.trim() ? `${prev.trimEnd()}\n\n${quoted}\n` : `${quoted}\n`));
+    chatInputRef.current?.focus();
+  }, []);
+
+  // Probe the local agent (build-time gated) so sql fences can offer
+  // approval-gated "Run via agent".
+  const [agentReachable, setAgentReachable] = useState(false);
+  useEffect(() => {
+    if (!isDbAgentEnabled()) return;
+    let stale = false;
+    agentHealth(loadStoredAgentConfig().baseUrl)
+      .then(() => {
+        if (!stale) setAgentReachable(true);
+      })
+      .catch(() => {
+        if (!stale) setAgentReachable(false);
+      });
+    return () => {
+      stale = true;
+    };
+  }, [report]);
+  const canRunViaAgent = isDbAgentEnabled() && agentReachable;
+
+  const handleSendChat = useCallback(() => {
+    const text = chatInput.trim();
+    if (!text || chatStatus === 'streaming') return;
+    setChatInput('');
+    void sendChatMessage(text);
+  }, [chatInput, chatStatus, sendChatMessage]);
 
   const markdown = report?.markdown ?? streamText;
   const { narrative } = useMemo(() => splitReport(markdown), [markdown]);
@@ -338,7 +516,13 @@ export function AiReportView() {
                 seg.type === 'md' ? (
                   <div key={index} className={MARKDOWN_CLASSES} dangerouslySetInnerHTML={{ __html: seg.html }} />
                 ) : (
-                  <SqlScriptBlock key={index} sql={seg.sql} filename={scriptFilename} />
+                  <SqlScriptBlock
+                    key={index}
+                    sql={seg.sql}
+                    filename={scriptFilename}
+                    canRunViaAgent={canRunViaAgent}
+                    onAppendResult={appendToChatInput}
+                  />
                 ),
               )}
             </div>
@@ -362,6 +546,95 @@ export function AiReportView() {
                     onNavigate={selectNode}
                   />
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Follow-up conversation (after a completed report) */}
+          {report && status === 'done' && (
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Follow-up chat
+              </div>
+
+              {chatMessages.map((message: AiChatMessage, index: number) =>
+                message.role === 'user' ? (
+                  <div
+                    key={index}
+                    className="ml-8 rounded-md border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/30 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap"
+                  >
+                    {message.content}
+                  </div>
+                ) : (
+                  <div key={index} className="mr-4">
+                    <AssistantChatContent
+                      content={message.content}
+                      canRunViaAgent={canRunViaAgent}
+                      onAppendResult={appendToChatInput}
+                    />
+                  </div>
+                ),
+              )}
+
+              {/* In-flight reply */}
+              {chatStatus === 'streaming' && (
+                <div className="mr-4 space-y-1">
+                  {chatStreamText ? (
+                    <AssistantChatContent
+                      content={chatStreamText}
+                      canRunViaAgent={false}
+                      onAppendResult={appendToChatInput}
+                    />
+                  ) : null}
+                  <span className="flex items-center gap-1.5 text-[11px] text-blue-600 dark:text-blue-400">
+                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" aria-hidden="true" />
+                    Streaming…
+                    <button
+                      type="button"
+                      onClick={cancel}
+                      className="ml-2 px-2 py-0.5 text-[10px] font-medium rounded border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </span>
+                </div>
+              )}
+
+              {chatStatus === 'error' && chatError && (
+                <div className="rounded-md border border-red-500/20 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+                  {errorMessage(chatError).title}: {errorMessage(chatError).detail}
+                </div>
+              )}
+
+              {/* Input */}
+              <div className="flex flex-col gap-1.5">
+                <textarea
+                  ref={chatInputRef}
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSendChat();
+                    }
+                  }}
+                  rows={3}
+                  placeholder="Ask a follow-up question about this report… (Cmd/Ctrl-Enter to send)"
+                  className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/60 font-mono resize-y"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSendChat}
+                    disabled={!chatInput.trim() || chatStatus === 'streaming'}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-md bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
+                  >
+                    Send
+                  </button>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                    Replies go to the same provider as the report{canRunViaAgent ? ' · agent script runs always require your confirmation' : ''}
+                  </span>
+                </div>
               </div>
             </div>
           )}

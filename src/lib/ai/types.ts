@@ -1,7 +1,7 @@
 import type { FindingSeverity } from '../advisor/types';
 
 /** Where the analysis request is sent. */
-export type AiProviderId = 'anthropic' | 'openai-compat' | 'agent';
+export type AiProviderId = 'hosted' | 'anthropic' | 'openai-compat' | 'agent';
 
 /**
  * Togglable context sections shown in the pre-send review dialog.
@@ -66,6 +66,12 @@ export type AiStopReason = 'end_turn' | 'max_tokens' | 'refusal' | 'other';
 export type AiStreamEvent =
   | { type: 'text'; text: string }
   | { type: 'done'; stopReason: AiStopReason; refusalExplanation?: string };
+
+/** One turn of a multi-turn follow-up conversation about a report. */
+export interface AiChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 export interface AiRequest {
   system: string;

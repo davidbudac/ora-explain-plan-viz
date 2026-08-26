@@ -1,0 +1,5 @@
+{
+  "tags": ["missing-index", "join"],
+  "rootCause": "EVAL_LINE_ITEMS has no index on the join column PO_ID, so despite the very selective REGION = 'RARE' filter the optimizer must hash-join with a full scan of EVAL_LINE_ITEMS instead of a nested loop",
+  "planFeatures": ["HASH JOIN", "TABLE ACCESS FULL"]
+}

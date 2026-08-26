@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import {
+  AGENT_TOKEN_STORAGE_KEY,
+  AGENT_URL_STORAGE_KEY,
   AgentError,
   DEFAULT_AGENT_BASE_URL,
   MIN_AGENT_VERSION,
@@ -11,14 +13,13 @@ import {
   health as agentHealth,
   normalizeBaseUrl,
   recentSql as agentRecentSql,
+  testConnect as agentTestConnect,
+  testDisconnect as agentTestDisconnect,
   type AgentHealth,
   type FetchPlanParams,
   type PlanSource,
   type RecentSqlItem,
 } from '../lib/agent/client';
-
-const AGENT_URL_STORAGE_KEY = 'oraplanviz.agentUrl';
-const AGENT_TOKEN_STORAGE_KEY = 'oraplanviz.agentToken';
 
 function loadStoredBaseUrl(): string {
   try {
@@ -76,6 +77,16 @@ export function ConnectPanel() {
   const [manualLoading, setManualLoading] = useState(false);
   const [manualError, setManualError] = useState<string | null>(null);
 
+  // Separate TEST connection (scratch DB for AI-proposed scripts) — distinct
+  // from the read-only source connection above; see /api/test/* in client.ts.
+  const [testDsn, setTestDsn] = useState('');
+  const [testUser, setTestUser] = useState('');
+  const [testPassword, setTestPassword] = useState('');
+  const [testConnected, setTestConnected] = useState(false);
+  const [testOracleVersion, setTestOracleVersion] = useState<string | null>(null);
+  const [testConnectError, setTestConnectError] = useState<string | null>(null);
+  const [testConnectLoading, setTestConnectLoading] = useState(false);
+
   const [attachMetadata, setAttachMetadata] = useState(true);
   // Non-blocking: set when a plan loaded fine but its metadata gather failed.
   const [metadataNotice, setMetadataNotice] = useState<string | null>(null);
@@ -114,9 +125,9 @@ export function ConnectPanel() {
   }, [baseUrl]);
 
   // Auto-probe once on mount so the status line is populated without a click.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     checkHealth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleConnect = async () => {
@@ -150,6 +161,38 @@ export function ConnectPanel() {
       setConnectError(err instanceof AgentError ? err.message : 'Failed to disconnect.');
     } finally {
       setConnectLoading(false);
+    }
+  };
+
+  const handleTestConnect = async () => {
+    setTestConnectLoading(true);
+    setTestConnectError(null);
+    try {
+      const result = await agentTestConnect(
+        { baseUrl: normalizeBaseUrl(baseUrl), token },
+        { dsn: testDsn, user: testUser, password: testPassword }
+      );
+      setTestConnected(true);
+      setTestOracleVersion(result.oracleVersion);
+      setTestPassword('');
+    } catch (err) {
+      setTestConnectError(err instanceof AgentError ? err.message : 'Failed to connect.');
+    } finally {
+      setTestConnectLoading(false);
+    }
+  };
+
+  const handleTestDisconnect = async () => {
+    setTestConnectLoading(true);
+    setTestConnectError(null);
+    try {
+      await agentTestDisconnect({ baseUrl: normalizeBaseUrl(baseUrl), token });
+      setTestConnected(false);
+      setTestOracleVersion(null);
+    } catch (err) {
+      setTestConnectError(err instanceof AgentError ? err.message : 'Failed to disconnect.');
+    } finally {
+      setTestConnectLoading(false);
     }
   };
 
@@ -326,6 +369,75 @@ export function ConnectPanel() {
       {connectError && (
         <div className="text-xs text-red-600 dark:text-red-400">{connectError}</div>
       )}
+
+      {/* Test connection (scratch DB for AI-proposed scripts) */}
+      <div className="flex flex-col gap-2 pt-1 border-t border-neutral-200 dark:border-neutral-800">
+        <div className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wide">
+          Test connection
+          <span className="ml-2 normal-case font-normal tracking-normal text-neutral-500 dark:text-neutral-400">
+            scratch schema for approved AI scripts — separate from the read-only connection above
+          </span>
+        </div>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="flex flex-col gap-1">
+            <label className={labelClass} htmlFor="agent-test-dsn">DSN</label>
+            <input
+              id="agent-test-dsn"
+              type="text"
+              value={testDsn}
+              onChange={(e) => setTestDsn(e.target.value)}
+              placeholder="//host:1521/scratchpdb"
+              disabled={testConnected}
+              className={`${inputClass} w-48 font-mono`}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className={labelClass} htmlFor="agent-test-user">User</label>
+            <input
+              id="agent-test-user"
+              type="text"
+              value={testUser}
+              onChange={(e) => setTestUser(e.target.value)}
+              disabled={testConnected}
+              className={`${inputClass} w-28`}
+            />
+          </div>
+          {!testConnected && (
+            <div className="flex flex-col gap-1">
+              <label className={labelClass} htmlFor="agent-test-password">Password</label>
+              <input
+                id="agent-test-password"
+                type="password"
+                value={testPassword}
+                onChange={(e) => setTestPassword(e.target.value)}
+                className={`${inputClass} w-32`}
+              />
+            </div>
+          )}
+          {testConnected ? (
+            <button type="button" onClick={handleTestDisconnect} disabled={testConnectLoading} className={buttonClass}>
+              {testConnectLoading ? 'Disconnecting…' : 'Disconnect'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleTestConnect}
+              disabled={testConnectLoading || !testDsn.trim() || !testUser.trim() || !testPassword}
+              className="h-8 px-3 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
+            >
+              {testConnectLoading ? 'Connecting…' : 'Connect'}
+            </button>
+          )}
+          {testConnected && (
+            <span className="text-xs text-emerald-600 dark:text-emerald-400">
+              Test connection ready{testOracleVersion ? ` — ${testOracleVersion}` : ''}
+            </span>
+          )}
+        </div>
+        {testConnectError && (
+          <div className="text-xs text-red-600 dark:text-red-400">{testConnectError}</div>
+        )}
+      </div>
 
       {/* Recent SQL */}
       <div className="flex flex-col gap-2">

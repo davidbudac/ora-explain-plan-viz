@@ -10,10 +10,10 @@
 import { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { usePlan } from './usePlanContext';
-import type { AiReport, AiReportKind, AiStopReason, BuiltContext } from '../lib/ai/types';
+import type { AiChatMessage, AiReport, AiReportKind, AiStopReason, BuiltContext } from '../lib/ai/types';
 import { AiError } from '../lib/ai/types';
 import type { AiRunConfig } from '../lib/ai/provider';
-import { streamAnalysis } from '../lib/ai/provider';
+import { streamAnalysis, streamChat } from '../lib/ai/provider';
 import { buildSystemPrompt, DEFAULT_MAX_TOKENS } from '../lib/ai/prompts';
 import { parseAiFindings } from '../lib/ai/findings';
 
@@ -41,6 +41,13 @@ interface AiContextValue {
   ) => Promise<void>;
   cancel: () => void;
   clearReport: () => void;
+  /** Follow-up conversation turns after the report (the report itself is the hidden seed exchange). */
+  chatMessages: AiChatMessage[];
+  chatStatus: AiStatus;
+  /** Reply streamed so far for the in-flight chat turn (throttled like streamText). */
+  chatStreamText: string;
+  chatError: AiError | null;
+  sendChatMessage: (text: string) => Promise<void>;
 }
 
 const AiContext = createContext<AiContextValue | null>(null);
@@ -55,7 +62,17 @@ export function AiProvider({ children }: { children: ReactNode }) {
   const [streamText, setStreamText] = useState('');
   const [error, setError] = useState<AiError | null>(null);
 
+  const [chatMessages, setChatMessages] = useState<AiChatMessage[]>([]);
+  const [chatStatus, setChatStatus] = useState<AiStatus>('idle');
+  const [chatStreamText, setChatStreamText] = useState('');
+  const [chatError, setChatError] = useState<AiError | null>(null);
+
   const abortRef = useRef<AbortController | null>(null);
+  // The run config and outgoing user message of the last runAnalysis, kept so
+  // follow-up chat turns reuse the same provider and seed the conversation.
+  const runConfigRef = useRef<AiRunConfig | null>(null);
+  const userMessageRef = useRef('');
+  const chatBufferRef = useRef('');
   const bufferRef = useRef('');
   const flushTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Cancel() marks the current run so its AbortError resolves to 'cancelled'.
@@ -90,6 +107,14 @@ export function AiProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const clearChat = useCallback(() => {
+    setChatMessages([]);
+    setChatStreamText('');
+    setChatError(null);
+    setChatStatus('idle');
+    chatBufferRef.current = '';
+  }, []);
+
   const clearReport = useCallback(() => {
     setReport(null);
     setStreamText('');
@@ -97,7 +122,10 @@ export function AiProvider({ children }: { children: ReactNode }) {
     setStatus('idle');
     bufferRef.current = '';
     sourceSlotIdsRef.current = [];
-  }, []);
+    runConfigRef.current = null;
+    userMessageRef.current = '';
+    clearChat();
+  }, [clearChat]);
 
   const runAnalysis = useCallback(
     async (
@@ -115,6 +143,9 @@ export function AiProvider({ children }: { children: ReactNode }) {
       abortRef.current = controller;
       cancelledRef.current = false;
       sourceSlotIdsRef.current = slotIds;
+      runConfigRef.current = runConfig;
+      userMessageRef.current = builtContext.userMessage;
+      clearChat();
 
       bufferRef.current = '';
       setStreamText('');
@@ -190,7 +221,103 @@ export function AiProvider({ children }: { children: ReactNode }) {
         }
       }
     },
-    [plans, setViewMode, stopFlushTimer, flushBuffer],
+    [plans, setViewMode, stopFlushTimer, flushBuffer, clearChat],
+  );
+
+  const sendChatMessage = useCallback(
+    async (text: string) => {
+      const runConfig = runConfigRef.current;
+      const currentReport = report;
+      const trimmed = text.trim();
+      // Follow-ups only make sense after a completed report from this session.
+      if (!trimmed || !runConfig || !currentReport || status === 'streaming') return;
+
+      // One stream at a time: abort any in-flight chat turn first.
+      if (abortRef.current) {
+        cancelledRef.current = true;
+        abortRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortRef.current = controller;
+      cancelledRef.current = false;
+
+      const userTurn: AiChatMessage = { role: 'user', content: trimmed };
+      // Seed the conversation with the original request + report as the first
+      // exchange, then the visible follow-up turns.
+      const outgoing: AiChatMessage[] = [
+        { role: 'user', content: userMessageRef.current },
+        { role: 'assistant', content: currentReport.markdown },
+        ...chatMessages,
+        userTurn,
+      ];
+
+      setChatMessages((prev) => [...prev, userTurn]);
+      chatBufferRef.current = '';
+      setChatStreamText('');
+      setChatError(null);
+      setChatStatus('streaming');
+
+      const flushTimer = setInterval(() => {
+        setChatStreamText(chatBufferRef.current);
+      }, STREAM_FLUSH_INTERVAL_MS);
+
+      try {
+        const stream = streamChat(
+          runConfig,
+          {
+            system: buildSystemPrompt(currentReport.kind),
+            messages: outgoing,
+            model: runConfig.model,
+            maxTokens: DEFAULT_MAX_TOKENS,
+          },
+          controller.signal,
+        );
+
+        for await (const event of stream) {
+          if (event.type === 'text') {
+            chatBufferRef.current += event.text;
+          }
+        }
+
+        const reply = chatBufferRef.current;
+        if (reply) {
+          setChatMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
+        }
+        chatBufferRef.current = '';
+        setChatStreamText('');
+        setChatStatus('done');
+      } catch (err) {
+        const isAbort =
+          cancelledRef.current ||
+          controller.signal.aborted ||
+          (err instanceof DOMException && err.name === 'AbortError') ||
+          (err instanceof Error && err.name === 'AbortError') ||
+          (err instanceof AiError && err.kind === 'aborted');
+        if (isAbort) {
+          // Cancel keeps the partial reply as a turn; never surfaces as a failure.
+          const partial = chatBufferRef.current;
+          if (partial) {
+            setChatMessages((prev) => [...prev, { role: 'assistant', content: partial }]);
+          }
+          chatBufferRef.current = '';
+          setChatStreamText('');
+          setChatStatus('cancelled');
+        } else {
+          setChatError(
+            err instanceof AiError
+              ? err
+              : new AiError('unknown', err instanceof Error ? err.message : 'Unknown error'),
+          );
+          setChatStatus('error');
+        }
+      } finally {
+        clearInterval(flushTimer);
+        if (abortRef.current === controller) {
+          abortRef.current = null;
+        }
+      }
+    },
+    [report, status, chatMessages],
   );
 
   // A report belongs to the plan(s) it was generated from: when the source
@@ -235,6 +362,11 @@ export function AiProvider({ children }: { children: ReactNode }) {
     runAnalysis,
     cancel,
     clearReport,
+    chatMessages,
+    chatStatus,
+    chatStreamText,
+    chatError,
+    sendChatMessage,
   };
 
   return <AiContext.Provider value={value}>{children}</AiContext.Provider>;

@@ -1,4 +1,4 @@
-import type { AiRequest, AiStreamEvent } from '../types';
+import type { AiChatMessage, AiRequest, AiStreamEvent } from '../types';
 import { AiError } from '../types';
 import { parseSseStream } from './sse';
 
@@ -49,7 +49,7 @@ function mapThrown(err: unknown): AiError {
  */
 export async function* streamOpenAiCompat(
   config: OpenAiCompatConfig,
-  req: AiRequest,
+  req: AiRequest & { messages?: AiChatMessage[] },
   signal: AbortSignal,
 ): AsyncGenerator<AiStreamEvent> {
   const url = buildChatCompletionsUrl(config.baseUrl);
@@ -66,9 +66,11 @@ export async function* streamOpenAiCompat(
         model: config.model,
         max_tokens: req.maxTokens,
         stream: true,
+        // Multi-turn chat maps the messages array after the system message;
+        // the single-turn AiRequest path keeps sending one user message.
         messages: [
           { role: 'system', content: req.system },
-          { role: 'user', content: req.user },
+          ...(req.messages ?? [{ role: 'user' as const, content: req.user }]),
         ],
       }),
     });
