@@ -19,9 +19,9 @@ Decision (2026-08-26): ship two versions of the product.
 | Repo | Visibility | Contents |
 |---|---|---|
 | `davidbudac/ora-explain-plan-viz` | public (exists) | Core app + BYO-key AI + evals harness + Docker deployment. Upstream of the fork. |
-| `davidbudac/oraplanviz-pro` | **private (to create)** | Downstream fork tracking this repo as `upstream`. Delta only: hosted provider as default, SaaS branding/billing UI, future paid-only features. |
-| `davidbudac/oraplanviz-cloud` | **private (to create)** | Hosted backend: streaming Anthropic proxy, token auth, metering. Contract: `docs/plans/ai-plan-analysis.md` Phase 1.5. |
-| `davidbudac/oraplanviz-agent` | public (exists) | Local DB-connect companion. Needs the `/api/test/*` endpoints (Phase 3 contract). |
+| `davidbudac/oraplanviz-pro` | private (created 2026-08-26) | Downstream fork tracking this repo as `upstream`. Delta only: hosted provider as default, SaaS branding/billing UI, future paid-only features. |
+| `davidbudac/oraplanviz-cloud` | private (created 2026-08-26) | Hosted backend: streaming Anthropic proxy, token auth, metering. Contract: `docs/plans/ai-plan-analysis.md` Phase 1.5. |
+| `davidbudac/oraplanviz-agent` | public (**local only — no remote yet**) | Local DB-connect companion. Needs the `/api/test/*` endpoints (Phase 3 contract). |
 
 ## Status
 
@@ -39,10 +39,29 @@ Decision (2026-08-26): ship two versions of the product.
   `de7a51d`). NOT yet pushed anywhere — the container is ephemeral; if the
   commit is lost, regenerate from the spec below (~1h of work).
 
-### Blocked — needs an agent/human with repo-creation privileges
+### Done (2026-08-26, follow-up session)
 
-The GitHub integration used here cannot create repositories (403 on
-`POST /user/repos`) and is scoped to this repo only.
+- Private repos created: `davidbudac/oraplanviz-pro`, `davidbudac/oraplanviz-cloud`.
+- `oraplanviz-cloud`: original `de7a51d` turned up on `origin/main` (pushed
+  from the container after all); a spec-regenerated tree landed on top as
+  `8037df5` v0.1.1 (32 tests, CORS allowlist, metadata-only logging,
+  `.env.example`). Local clone at `~/claude_projects/oraplanviz-cloud`.
+- `oraplanviz-pro` initialized at `~/claude_projects/oraplanviz-pro`
+  (`upstream` = public repo, `origin` = private), with `PRO.md` and the
+  `aiProvider: 'hosted'` default commit; pushed.
+- Public repo: rebased branch pushed; test infra fixed for Node >= 22
+  (`vitest.config.ts` + Web Storage shim); PR #95 opened
+  `claude/ai-integration-changes-ynb1ak` -> `main`.
+
+### Open
+
+- Merge PR #95 (owner's call — publishes AI UI to GitHub Pages), then in the
+  pro fork `git fetch upstream && git merge upstream/main`.
+- `oraplanviz-agent` has **no GitHub remote yet** (the table above was wrong:
+  the repo does not exist under `davidbudac`); create + push before the
+  `/api/test/*` work.
+- Step 5 follow-ups below (agent test endpoints, cloud deploy, optional
+  `VITE_ENABLE_HOSTED` flag) are not started.
 
 ## Remaining steps (in order)
 
