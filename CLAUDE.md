@@ -10,7 +10,7 @@ A client-side web application that parses Oracle execution plan output and rende
 - **Sankey Diagram**: D3-sankey
 - **Syntax Highlighting**: highlight.js (SQL)
 - **Layout Algorithm**: Custom tree layout (with Dagre fallback)
-- **Styling**: Tailwind CSS (slate color palette, compact layout)
+- **Styling**: Tailwind CSS (selectable app palettes — slate default, compact layout)
 
 ## Project Structure
 
@@ -23,7 +23,7 @@ src/
 │   ├── format.ts        # Number/time/bytes formatting + cardinality ratio utilities
 │   ├── analysis.ts      # Plan tree walking + hotspot/hottest-node detection helpers
 │   ├── planSignals.ts   # Plan-level signal detection (partition pruning, parallelism, spills)
-│   ├── density.ts       # Layout density presets (bundle node-display toggles into levels)
+│   ├── density.ts       # Layout density presets (Minimal / Compact / Detailed node-display levels)
 │   ├── clipboard.ts     # Clipboard copy helper (async API + fallback)
 │   ├── baselineScript.ts # SQL Plan Baseline script builder (DBMS_SPM; cursor cache / AWR / STS)
 │   ├── clientReport.ts  # Client report builder (self-contained HTML doc: plan, notes, findings)
@@ -52,8 +52,11 @@ src/
 ├── hooks/
 │   └── usePlanContext.tsx   # Global state management (React Context, multi-plan support)
 ├── components/
-│   ├── Header.tsx           # App header with theme toggle, annotation save/load
-│   ├── NavRibbon.tsx        # View tab ribbon (Tree/Compare/Tabular/Sankey/Flame/Text/SQL/Metadata/Monitor/Experimental) + maximize
+│   ├── Header.tsx           # Single top bar: brand, SQL ID, plan/view tabs, Load Example, all actions (collapse into a menu at narrow widths)
+│   ├── NavRibbon.tsx        # View tab ribbon (Tree/Compare/Tabular/Sankey/Flame/Text/SQL/Metadata/Monitor/Experimental) + maximize; labels degrade to icons → overflow menu
+│   ├── FocusOverlay.tsx     # Focus-mode floating instruments (search/filters/findings pill + selection inspector card)
+│   ├── PanelEdgeTab.tsx     # Seam-attached tabs that collapse the side panels (panels reopen via their slim rails)
+│   ├── viewIcons.tsx        # Icons for the view tabs
 │   ├── InputPanel.tsx       # Collapsible input with example loader
 │   ├── FilterPanel.tsx      # Filter by operation type, cost, search, predicates, cardinality mismatch
 │   ├── NodeDetailPanel.tsx  # Node details, hotspots, annotations, cardinality analysis
@@ -198,15 +201,19 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Node Details**: Click any node to see full attributes, predicates, cardinality analysis, and spill warnings
 
 ### UI/UX
+- **Single-Bar Chrome**: One top bar holds brand, SQL ID, plan tabs, view tabs, Load Example, and all actions; view tab labels degrade to icons and then an overflow menu, actions collapse into a menu at narrow widths. Metadata/format chips live in the input drawer
 - **Plan Tabs**: Tab bar for switching between Plan A / Plan B when comparing
 - **Example Plans**: Auto-loaded sample plans from `src/examples/` (add .txt files, no code changes needed)
 - **Plan Metadata**: SQL ID, Plan Hash, A-Rows, and A-Time shown in input panel header
-- **Collapsible Input Panel**: More space for visualization when collapsed
-- **Maximize Visualization**: Toggle a fullscreen visualization mode (F) that hides the surrounding panels
-- **Command Palette**: Cmd/Ctrl-K palette for switching views, color schemes, and running actions
+- **Collapsible Panels**: Input drawer collapses; side panels collapse via seam-attached edge tabs into slim clickable rails (with live filter count)
+- **Maximize Visualization**: Toggle a fullscreen visualization mode (F) that hides the surrounding panels, keeping a slim tabs-only bar
+- **Focus Mode**: Toggle (Z, persisted) that hides both side panels for a full-width canvas, replaced by a floating search/filters/findings pill and a selection-driven inspector card; composes with maximize, skipped in the compare workspace
+- **Density Presets**: Minimal / Compact / Detailed node density. Minimal reduces nodes to operation, object, one mono metric line, and an amber warning dot for collapsed signals; hovering (250ms) opens a portal card with the full Est/Act grid, badges, and predicates
+- **Command Palette**: Cmd/Ctrl-K palette for switching views, color schemes, palettes, and running actions
 - **Keyboard Shortcuts Overlay**: Help overlay listing available shortcuts
 - **Share via URL**: Encode the current plan into a shareable link (gzip-compressed) via the share dialog
-- **Color Schemes**: High Contrast, Semantic (default), Est ⇄ Act, Icon Rail, and Ticker options
+- **Color Schemes**: 8 data-paint options — High Contrast, Semantic (default), Est ⇄ Act, Icon Rail, Ticker, plus three node-identity schemes that restyle the node card itself: Stripe (category spine), Tinted (card carries a quiet category tint), and Terminal (square corners, mono titles, hard offset shadow)
+- **App Palettes**: Slate (default), Graphite, Teal, Violet, and Paper — a third appearance axis next to theme and color scheme that re-skins neutral surfaces and accent via CSS variable overrides (`html[data-palette=…]` in `index.css`); data colors (category, severity) are untouched
 - **Settings Persistence**: View preferences saved to localStorage
 - **Theme Toggle**: Light/dark mode with localStorage persistence
 - **Hideable Legend**: Color coding reference that can be hidden

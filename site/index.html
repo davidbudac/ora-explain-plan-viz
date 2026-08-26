@@ -91,9 +91,9 @@
     </h1>
 
     <p class="mt-5 max-w-2xl mx-auto text-lg text-slate-400 text-balance">
-      Paste DBMS_XPLAN or SQL Monitor output and get an interactive diagram with
-      hotspots, cardinality analysis, and plan comparison. No more scrolling
-      through a wall of ASCII pipes.
+      Paste DBMS_XPLAN, SQL Monitor, JSON, or xbi.sql output and get an interactive
+      diagram with hotspots, cardinality analysis, advisor findings, and plan
+      comparison. No more scrolling through a wall of ASCII pipes.
     </p>
 
     <div class="mt-8 flex items-center justify-center gap-3">
@@ -135,17 +135,17 @@
       <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-6">
         <span class="font-mono text-3xl text-amber-500">1</span>
         <h3 class="mt-3 font-medium text-slate-100">Paste your plan</h3>
-        <p class="mt-2 text-sm text-slate-400">Any supported format: DBMS_XPLAN, SQL Monitor text, or SQL Monitor XML. Format is auto-detected.</p>
+        <p class="mt-2 text-sm text-slate-400">Any supported format: DBMS_XPLAN, SQL Monitor (text or XML), JSON plans, or xbi.sql output. Format is auto-detected.</p>
       </div>
       <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-6">
         <span class="font-mono text-3xl text-amber-500">2</span>
         <h3 class="mt-3 font-medium text-slate-100">Pick a view</h3>
-        <p class="mt-2 text-sm text-slate-400">Tree, Sankey, raw plan text, or compare. Switch anytime without re-parsing.</p>
+        <p class="mt-2 text-sm text-slate-400">Tree, table, Sankey, flame graph, raw plan text — plus experimental timeline and calibration views. Switch anytime without re-parsing.</p>
       </div>
       <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-6">
         <span class="font-mono text-3xl text-amber-500">3</span>
         <h3 class="mt-3 font-medium text-slate-100">Find the problem</h3>
-        <p class="mt-2 text-sm text-slate-400">Hotspots and cardinality mismatches are flagged automatically. No manual hunting.</p>
+        <p class="mt-2 text-sm text-slate-400">Hotspots, cardinality mismatches, and advisor findings (spills, cartesian joins, stale stats&hellip;) are flagged automatically. No manual hunting.</p>
       </div>
     </div>
   </div>
@@ -253,9 +253,10 @@
           <p class="mt-3 text-slate-400 leading-relaxed">
             Load two plans side by side: before and after an index change, a hint, or a statistics
             refresh. A 3-pass node matcher (exact ID, then heuristic operation/object signature)
-            lines up equivalent steps across both plans and computes deltas across 8 metrics: cost,
-            rows, bytes, A-Rows, A-Time, starts, temp space, and memory, with improvement or
-            regression flagged on each.
+            lines up equivalent steps across both plans and computes deltas across 9 metrics: cost,
+            rows, bytes, A-Rows, A-Time, self time, starts, temp space, and memory, with improvement
+            or regression flagged on each. The Tree and Tabular tabs also switch to side-by-side
+            dual-pane variants when two plans are loaded.
           </p>
           <a data-app-link data-app-query="" href="https://github.com/davidbudac/ora-explain-plan-viz"
              class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-amber-500 hover:text-amber-400">
@@ -291,6 +292,84 @@
         </div>
       </div>
 
+      <!-- 7: Flame graph -->
+      <div class="grid gap-10 md:grid-cols-2 md:items-center">
+        <div>
+          <h3 class="text-xl font-semibold text-slate-50">Flame graph</h3>
+          <p class="mt-3 text-slate-400 leading-relaxed">
+            Where does the time (or cost) actually go? The plan rendered as a flame graph, with
+            bars sized by each operation's self value. Toggle the metric between Cost, A-Time,
+            and A-Rows, and click any bar to zoom into that subtree.
+          </p>
+          <a data-app-link data-app-query="?example=18&amp;view=flame" href="https://github.com/davidbudac/ora-explain-plan-viz"
+             class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-amber-500 hover:text-amber-400">
+            Try this live →
+          </a>
+        </div>
+        <div class="rounded-lg border border-slate-800 bg-slate-900 overflow-hidden">
+          <div class="aspect-16-10 bg-slate-950">
+            <img src="assets/flame.png" alt="Flame graph of an Oracle execution plan with bars sized by self time" class="w-full h-full object-cover" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 8: Execution timeline & experimental views -->
+      <div class="grid gap-10 md:grid-cols-2 md:items-center">
+        <div class="md:order-2">
+          <h3 class="text-xl font-semibold text-slate-50">Execution timeline &amp; experimental views</h3>
+          <p class="mt-3 text-slate-400 leading-relaxed">
+            From a SQL Monitor XML report, a Gantt of when each operation was actually active,
+            colored by ASH wait class. The Experimental tab also holds an E-Rows vs A-Rows
+            calibration scatter, a wasted-work waterfall (rows read vs returned), an
+            estimate&rarr;actual icicle morph, and per-line wait-class composition.
+          </p>
+          <a data-app-link data-app-query="?example=23&amp;view=experimental" href="https://github.com/davidbudac/ora-explain-plan-viz"
+             class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-amber-500 hover:text-amber-400">
+            Try this live →
+          </a>
+        </div>
+        <div class="md:order-1 rounded-lg border border-slate-800 bg-slate-900 overflow-hidden">
+          <div class="aspect-16-10 bg-slate-950">
+            <img src="assets/timeline.png" alt="Execution timeline Gantt chart with per-operation activity bars colored by ASH wait class" class="w-full h-full object-cover" />
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ================= AND MORE ================= -->
+<section class="border-b border-slate-800">
+  <div class="max-w-6xl mx-auto px-6 py-20">
+    <p class="font-mono text-xs uppercase tracking-widest text-amber-500 text-center">And more</p>
+    <h2 class="mt-2 text-2xl sm:text-3xl font-semibold text-slate-50 text-center">The rest of the toolbox</h2>
+
+    <div class="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-6">
+        <h3 class="font-medium text-slate-100">Plan advisor</h3>
+        <p class="mt-2 text-sm text-slate-400">Ten heuristic rules — cardinality mismatch, implicit conversion, cartesian joins, spills to disk, missed partition pruning, stale stats, and more — surfaced per node and as a ranked findings list.</p>
+      </div>
+      <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-6">
+        <h3 class="font-medium text-slate-100">Schema metadata</h3>
+        <p class="mt-2 text-sm text-slate-400">Attach table, index, and column stats gathered by a generated SQL script. Objects show inline badges in the plan, and a dedicated Metadata explorer browses the whole bundle.</p>
+      </div>
+      <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-6">
+        <h3 class="font-medium text-slate-100">SQL Plan Baseline script</h3>
+        <p class="mt-2 text-sm text-slate-400">Generates a ready-to-run DBMS_SPM script that pins the loaded plan — from the cursor cache, AWR, or a SQL Tuning Set — with pre-checks and verification queries.</p>
+      </div>
+      <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-6">
+        <h3 class="font-medium text-slate-100">Client report export</h3>
+        <p class="mt-2 text-sm text-slate-400">Package the plan, your notes and highlights, and all derived findings into one self-contained HTML document to hand to a client — or print it to PDF.</p>
+      </div>
+      <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-6">
+        <h3 class="font-medium text-slate-100">Share via URL</h3>
+        <p class="mt-2 text-sm text-slate-400">Bake the whole plan into a gzip-compressed link — from the app, or straight from the database with the bundled <code class="font-mono text-slate-300">plan_to_url.sql</code> script.</p>
+      </div>
+      <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-6">
+        <h3 class="font-medium text-slate-100">Make it yours</h3>
+        <p class="mt-2 text-sm text-slate-400">Light and dark themes, five app palettes, eight node color schemes, Minimal-to-Detailed density presets, a focus mode, and a Cmd/Ctrl-K command palette for all of it.</p>
+      </div>
     </div>
   </div>
 </section>
@@ -349,6 +428,34 @@
       &lt;sql_id&gt;96d05a34rtfqx&lt;/sql_id&gt;
     &lt;/report_parameters&gt;
     &lt;plan_monitor&gt;...&lt;/plan_monitor&gt;</code></pre>
+      </div>
+
+      <!-- JSON plan -->
+      <div class="rounded-lg border border-slate-800 bg-slate-950/60 overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-800">
+          <h3 class="font-medium text-slate-100">JSON plan</h3>
+          <p class="mt-1 text-xs text-slate-500">Rows from V$SQL_PLAN_STATISTICS_ALL as JSON — e.g. xdd.sql or Datadog exports.</p>
+        </div>
+        <pre class="m-0 px-5 py-4 text-[11px] leading-5 font-mono text-slate-400 overflow-x-auto"><code>[{"ID": 0,
+  "OPERATION": "SELECT STATEMENT",
+  "COST": 15234, "CARDINALITY": 1000,
+  "LAST_OUTPUT_ROWS": 4},
+ {"ID": 1,
+  "OPERATION": "HASH JOIN", ...}]</code></pre>
+      </div>
+
+      <!-- xbi.sql -->
+      <div class="rounded-lg border border-slate-800 bg-slate-950/60 overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-800">
+          <h3 class="font-medium text-slate-100">xbi.sql</h3>
+          <p class="mt-1 text-xs text-slate-500">Tanel Poder's "eXplain Better" script output, estimates vs actuals inline.</p>
+        </div>
+        <pre class="m-0 px-5 py-4 text-[11px] leading-5 font-mono text-slate-400 overflow-x-auto"><code>-- xbi.sql: eXplain Better v1.01
+ Op   Par.
+ ID     ID  Row Source          ms spent
+----- ----- ------------------- --------
+    0       SELECT STATEMENT    3,220.09
+    1     0  SORT ORDER BY           .07</code></pre>
       </div>
 
     </div>
