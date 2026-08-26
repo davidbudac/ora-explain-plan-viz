@@ -12,6 +12,7 @@ const SHORTCUT_GROUPS: { title: string; items: { keys: string[]; description: st
       { keys: [`${MOD}+K`], description: 'Open the command palette' },
       { keys: ['?'], description: 'Show this shortcuts overview' },
       { keys: ['F'], description: 'Maximize / restore the visualization' },
+      { keys: ['Z'], description: 'Toggle focus mode (floating instruments)' },
       { keys: [`${MOD}+Enter`], description: 'Parse the plan in the input panel' },
     ],
   },

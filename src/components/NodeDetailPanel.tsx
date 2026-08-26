@@ -88,55 +88,9 @@ function WorstNodeRow({
 
 export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelProps) {
   const {
-    selectedNode: selectedPrimaryNode, selectedNodes, selectedNodeIds, parsedPlan, selectNode,
-    filters, nodeIndicatorMetric, annotations,
-    setNodeAnnotation, removeNodeAnnotation, setNodeHighlight, removeNodeHighlight,
-    addAnnotationGroup, updateAnnotationGroup, removeAnnotationGroup,
-    hotspotsEnabled, setHotspotsEnabled,
-    showAdvisorSuggestions, setShowAdvisorSuggestions,
+    selectedNodes,
     detailPanelCollapsed: isCollapsed, setDetailPanelCollapsed: setIsCollapsed,
-    highlightStyle, setHighlightStyle,
-    metadataBundle, metadataBundleWarning,
-    advisorReport,
   } = usePlan();
-  const searchText = filters.searchText;
-  const [showGroupDialog, setShowGroupDialog] = useState(false);
-  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
-  const isMultiSelection = selectedNodes.length > 1;
-  const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : selectedPrimaryNode;
-  const aggregateSelection = isMultiSelection ? computeAggregateSelection(selectedNodes) : null;
-
-  // Compute worst nodes — must be before any early returns to satisfy Rules of Hooks
-  const worstNodes = useMemo(() => {
-    if (!parsedPlan) return { byCost: [], byTime: [] };
-
-    const nonRoot = parsedPlan.allNodes.filter(n => n.parentId !== undefined);
-
-    const byCost = [...nonRoot]
-      .sort((a, b) => (b.cost || 0) - (a.cost || 0))
-      .slice(0, 5);
-
-    // Rank by SELF time (own work, excluding children) — cumulative A-Time
-    // would surface one hot leaf plus its entire ancestor chain.
-    const byTime = parsedPlan.hasActualStats
-      ? [...nonRoot]
-          .filter(n => (n.selfTime ?? n.actualTime) !== undefined)
-          .sort((a, b) => (b.selfTime ?? b.actualTime ?? 0) - (a.selfTime ?? a.actualTime ?? 0))
-          .slice(0, 5)
-      : [];
-
-    return { byCost, byTime };
-  }, [parsedPlan]);
-
-  const usedIndexKeys = useMemo(() => {
-    if (!metadataBundle || !parsedPlan) return new Set<string>();
-    return findUsedIndexKeys(metadataBundle, parsedPlan.allNodes);
-  }, [metadataBundle, parsedPlan]);
-
-  const parallelSignals = useMemo(() => {
-    if (!parsedPlan) return [] as ParallelSignal[];
-    return computeParallelSignals(parsedPlan);
-  }, [parsedPlan]);
 
   if (isCollapsed) {
     return (
@@ -158,212 +112,283 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
     );
   }
 
-  if (selectedNodes.length === 0) {
-    return (
-      <div
-        className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 overflow-y-auto"
-        style={{ width: panelWidth }}
-      >
-        <button
-          type="button"
-          onPointerDown={onResizeStart}
-          className={`absolute left-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors ${FOCUS_RING}`}
-          aria-label="Resize details panel"
-        />
-        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Details</h3>
-        </div>
+  return (
+    <div
+      className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 overflow-y-auto"
+      style={{ width: panelWidth }}
+    >
+      <button
+        type="button"
+        onPointerDown={onResizeStart}
+        className={`absolute left-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors ${FOCUS_RING}`}
+        aria-label="Resize details panel"
+        title="Resize details panel"
+      />
+      {selectedNodes.length === 0 ? <NoSelectionBody /> : <NodeDetailBody />}
+    </div>
+  );
+}
 
-        <div className="px-3 py-2.5 border-b border-slate-200 dark:border-slate-800 space-y-2">
-           <div className="flex items-center justify-between">
-              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Quick Analysis</h3>
-              <div className="flex items-center gap-2">
-                 <span className="text-[10px] text-slate-400 dark:text-slate-500">Hotspots</span>
-                 <button
-                   role="switch"
-                   aria-checked={hotspotsEnabled}
-                   onClick={() => setHotspotsEnabled(!hotspotsEnabled)}
-                   className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${FOCUS_RING} ${
-                     hotspotsEnabled ? 'bg-red-500' : 'bg-slate-300 dark:bg-slate-700'
-                   }`}
-                 >
-                   <span className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${
-                     hotspotsEnabled ? 'translate-x-3.5' : 'translate-x-0.5'
-                   }`} />
-                 </button>
-              </div>
-           </div>
-           <div className="flex items-center justify-between">
-              <span className="text-[10px] text-slate-400 dark:text-slate-500" title="Show the tuning recommendation line on advisor findings">Suggestions</span>
-              <button
-                role="switch"
-                aria-checked={showAdvisorSuggestions}
-                onClick={() => setShowAdvisorSuggestions(!showAdvisorSuggestions)}
-                className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${FOCUS_RING} ${
-                  showAdvisorSuggestions ? 'bg-sky-500' : 'bg-slate-300 dark:bg-slate-700'
-                }`}
-              >
-                <span className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${
-                  showAdvisorSuggestions ? 'translate-x-3.5' : 'translate-x-0.5'
-                }`} />
-              </button>
-           </div>
-        </div>
+/** Plan-wide summary shown in the docked details panel when nothing is selected. */
+function NoSelectionBody() {
+  const {
+    parsedPlan, selectNode, annotations,
+    updateAnnotationGroup, removeAnnotationGroup,
+    hotspotsEnabled, setHotspotsEnabled,
+    showAdvisorSuggestions, setShowAdvisorSuggestions,
+    advisorReport,
+  } = usePlan();
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
 
-        {advisorReport && advisorReport.findings.length > 0 && (
-          <Accordion
-            title="Findings"
-            subtitle={`${advisorReport.findings.length}`}
-          >
-            <FindingsList />
-          </Accordion>
-        )}
+  const worstNodes = useMemo(() => {
+    if (!parsedPlan) return { byCost: [], byTime: [] };
 
-        {hotspotsEnabled && (
-          <>
-            {/* Worst by A-Time */}
-            {worstNodes.byTime.length > 0 && (
-              <Accordion title="Slowest Ops" subtitle="by self time">
-                <div className="space-y-1">
-                  {(() => {
-                    const maxSelf = worstNodes.byTime.reduce(
-                      (max, n) => Math.max(max, n.selfTime ?? n.actualTime ?? 0),
-                      0
-                    );
-                    return worstNodes.byTime.map((n, rank) => {
-                      const self = n.selfTime ?? n.actualTime;
-                      const showTotal = n.selfTime !== undefined
-                        && n.actualTime !== undefined
-                        && n.actualTime > n.selfTime;
-                      return (
-                        <WorstNodeRow
-                          key={n.id}
-                          node={n}
-                          rank={rank}
-                          ratio={maxSelf > 0 ? (self ?? 0) / maxSelf : 0}
-                          value={formatTimeCompact(self) ?? '—'}
-                          suffix={showTotal ? (
-                            <span className="text-slate-400 dark:text-slate-500"> · {formatTimeCompact(n.actualTime)} total</span>
-                          ) : undefined}
-                          onSelect={selectNode}
-                        />
-                      );
-                    });
-                  })()}
-                </div>
-              </Accordion>
-            )}
+    const nonRoot = parsedPlan.allNodes.filter(n => n.parentId !== undefined);
 
-            {/* Worst by Cost */}
-            {worstNodes.byCost.length > 0 && (
-              <Accordion title="Highest Cost" defaultOpen={false}>
-                <div className="space-y-1">
-                  {(() => {
-                    const maxCost = worstNodes.byCost.reduce((max, n) => Math.max(max, n.cost ?? 0), 0);
-                    return worstNodes.byCost.map((n, rank) => (
+    const byCost = [...nonRoot]
+      .sort((a, b) => (b.cost || 0) - (a.cost || 0))
+      .slice(0, 5);
+
+    // Rank by SELF time (own work, excluding children) — cumulative A-Time
+    // would surface one hot leaf plus its entire ancestor chain.
+    const byTime = parsedPlan.hasActualStats
+      ? [...nonRoot]
+          .filter(n => (n.selfTime ?? n.actualTime) !== undefined)
+          .sort((a, b) => (b.selfTime ?? b.actualTime ?? 0) - (a.selfTime ?? a.actualTime ?? 0))
+          .slice(0, 5)
+      : [];
+
+    return { byCost, byTime };
+  }, [parsedPlan]);
+
+  return (
+    <>
+      <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Details</h3>
+      </div>
+
+      <div className="px-3 py-2.5 border-b border-slate-200 dark:border-slate-800 space-y-2">
+         <div className="flex items-center justify-between">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Quick Analysis</h3>
+            <div className="flex items-center gap-2">
+               <span className="text-[10px] text-slate-400 dark:text-slate-500">Hotspots</span>
+               <button
+                 role="switch"
+                 aria-checked={hotspotsEnabled}
+                 onClick={() => setHotspotsEnabled(!hotspotsEnabled)}
+                 className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${FOCUS_RING} ${
+                   hotspotsEnabled ? 'bg-red-500' : 'bg-slate-300 dark:bg-slate-700'
+                 }`}
+               >
+                 <span className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${
+                   hotspotsEnabled ? 'translate-x-3.5' : 'translate-x-0.5'
+                 }`} />
+               </button>
+            </div>
+         </div>
+         <div className="flex items-center justify-between">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500" title="Show the tuning recommendation line on advisor findings">Suggestions</span>
+            <button
+              role="switch"
+              aria-checked={showAdvisorSuggestions}
+              onClick={() => setShowAdvisorSuggestions(!showAdvisorSuggestions)}
+              className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${FOCUS_RING} ${
+                showAdvisorSuggestions ? 'bg-sky-500' : 'bg-slate-300 dark:bg-slate-700'
+              }`}
+            >
+              <span className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${
+                showAdvisorSuggestions ? 'translate-x-3.5' : 'translate-x-0.5'
+              }`} />
+            </button>
+         </div>
+      </div>
+
+      {advisorReport && advisorReport.findings.length > 0 && (
+        <Accordion
+          title="Findings"
+          subtitle={`${advisorReport.findings.length}`}
+        >
+          <FindingsList />
+        </Accordion>
+      )}
+
+      {hotspotsEnabled && (
+        <>
+          {/* Worst by A-Time */}
+          {worstNodes.byTime.length > 0 && (
+            <Accordion title="Slowest Ops" subtitle="by self time">
+              <div className="space-y-1">
+                {(() => {
+                  const maxSelf = worstNodes.byTime.reduce(
+                    (max, n) => Math.max(max, n.selfTime ?? n.actualTime ?? 0),
+                    0
+                  );
+                  return worstNodes.byTime.map((n, rank) => {
+                    const self = n.selfTime ?? n.actualTime;
+                    const showTotal = n.selfTime !== undefined
+                      && n.actualTime !== undefined
+                      && n.actualTime > n.selfTime;
+                    return (
                       <WorstNodeRow
                         key={n.id}
                         node={n}
                         rank={rank}
-                        ratio={maxCost > 0 ? (n.cost ?? 0) / maxCost : 0}
-                        value={n.cost !== undefined ? String(n.cost) : '—'}
+                        ratio={maxSelf > 0 ? (self ?? 0) / maxSelf : 0}
+                        value={formatTimeCompact(self) ?? '—'}
+                        suffix={showTotal ? (
+                          <span className="text-slate-400 dark:text-slate-500"> · {formatTimeCompact(n.actualTime)} total</span>
+                        ) : undefined}
                         onSelect={selectNode}
                       />
-                    ));
-                  })()}
-                </div>
-              </Accordion>
-            )}
+                    );
+                  });
+                })()}
+              </div>
+            </Accordion>
+          )}
 
-          </>
-        )}
+          {/* Worst by Cost */}
+          {worstNodes.byCost.length > 0 && (
+            <Accordion title="Highest Cost" defaultOpen={false}>
+              <div className="space-y-1">
+                {(() => {
+                  const maxCost = worstNodes.byCost.reduce((max, n) => Math.max(max, n.cost ?? 0), 0);
+                  return worstNodes.byCost.map((n, rank) => (
+                    <WorstNodeRow
+                      key={n.id}
+                      node={n}
+                      rank={rank}
+                      ratio={maxCost > 0 ? (n.cost ?? 0) / maxCost : 0}
+                      value={n.cost !== undefined ? String(n.cost) : '—'}
+                      onSelect={selectNode}
+                    />
+                  ));
+                })()}
+              </div>
+            </Accordion>
+          )}
 
-        {/* Bind Variables */}
-        {parsedPlan?.bindVariables && parsedPlan.bindVariables.length > 0 && (
-          <div className="px-3 py-2.5 border-b border-slate-200 dark:border-slate-800">
-            <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-              Bind Variables ({parsedPlan.bindVariables.length})
-            </h4>
-            <div className="space-y-1.5">
-              {parsedPlan.bindVariables.map((bind, idx) => (
-                <div key={bind.name + idx} className="flex items-start gap-2 text-xs">
-                  <span className="font-mono text-blue-600 dark:text-blue-400 shrink-0">{bind.name}</span>
-                  {bind.type && (
-                    <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded text-[10px] font-medium shrink-0">
-                      {bind.type}
-                    </span>
-                  )}
-                  <span className="flex-1 min-w-0 flex items-center gap-1">
-                    {bind.value === null ? (
-                      <span className="italic text-slate-400 dark:text-slate-500">NULL</span>
-                    ) : (
-                      <>
-                        <code className="font-mono text-slate-800 dark:text-slate-200 truncate block">{bind.value}</code>
-                        <CopyButton text={bind.value} label={`Copy ${bind.name} value`} />
-                      </>
-                    )}
+        </>
+      )}
+
+      {/* Bind Variables */}
+      {parsedPlan?.bindVariables && parsedPlan.bindVariables.length > 0 && (
+        <div className="px-3 py-2.5 border-b border-slate-200 dark:border-slate-800">
+          <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+            Bind Variables ({parsedPlan.bindVariables.length})
+          </h4>
+          <div className="space-y-1.5">
+            {parsedPlan.bindVariables.map((bind, idx) => (
+              <div key={bind.name + idx} className="flex items-start gap-2 text-xs">
+                <span className="font-mono text-blue-600 dark:text-blue-400 shrink-0">{bind.name}</span>
+                {bind.type && (
+                  <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded text-[10px] font-medium shrink-0">
+                    {bind.type}
                   </span>
-                </div>
-              ))}
-            </div>
+                )}
+                <span className="flex-1 min-w-0 flex items-center gap-1">
+                  {bind.value === null ? (
+                    <span className="italic text-slate-400 dark:text-slate-500">NULL</span>
+                  ) : (
+                    <>
+                      <code className="font-mono text-slate-800 dark:text-slate-200 truncate block">{bind.value}</code>
+                      <CopyButton text={bind.value} label={`Copy ${bind.name} value`} />
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Annotation Groups */}
-        {annotations.groups.length > 0 && (
-          <div className="px-3 py-2.5">
-            <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Annotation Groups</h4>
-            <div className="space-y-1">
-              {annotations.groups.map((group) => {
-                const colorDef = HIGHLIGHT_COLORS_MAP[group.color];
-                return (
-                  <div
-                    key={group.id}
-                    className="flex items-center justify-between px-2 py-1.5 text-xs rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+      {/* Annotation Groups */}
+      {annotations.groups.length > 0 && (
+        <div className="px-3 py-2.5">
+          <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Annotation Groups</h4>
+          <div className="space-y-1">
+            {annotations.groups.map((group) => {
+              const colorDef = HIGHLIGHT_COLORS_MAP[group.color];
+              return (
+                <div
+                  key={group.id}
+                  className="flex items-center justify-between px-2 py-1.5 text-xs rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <span className={`w-3 h-3 rounded-full shrink-0 ${colorDef}`} />
+                    <span className="truncate text-slate-700 dark:text-slate-300">{group.name}</span>
+                    <span className="text-[10px] text-slate-400">({group.nodeIds.length})</span>
+                  </span>
+                  <button
+                    onClick={() => setEditingGroupId(group.id)}
+                    className={`p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded ${FOCUS_RING}`}
+                    title="Edit group"
                   >
-                    <span className="flex items-center gap-1.5 truncate">
-                      <span className={`w-3 h-3 rounded-full shrink-0 ${colorDef}`} />
-                      <span className="truncate text-slate-700 dark:text-slate-300">{group.name}</span>
-                      <span className="text-[10px] text-slate-400">({group.nodeIds.length})</span>
-                    </span>
-                    <button
-                      onClick={() => setEditingGroupId(group.id)}
-                      className={`p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded ${FOCUS_RING}`}
-                      title="Edit group"
-                    >
-                      <svg className="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+                    <svg className="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                </div>
+              );
+            })}
           </div>
-        )}
+        </div>
+      )}
 
-        {editingGroupId && (() => {
-          const group = annotations.groups.find((g) => g.id === editingGroupId);
-          if (!group) return null;
-          return (
-            <GroupAnnotationDialog
-              nodeIds={group.nodeIds}
-              existingGroup={group}
-              onSave={(data) => {
-                updateAnnotationGroup({ ...group, ...data });
-                setEditingGroupId(null);
-              }}
-              onDelete={() => {
-                removeAnnotationGroup(group.id);
-                setEditingGroupId(null);
-              }}
-              onClose={() => setEditingGroupId(null)}
-            />
-          );
-        })()}
-      </div>
-    );
-  }
+      {editingGroupId && (() => {
+        const group = annotations.groups.find((g) => g.id === editingGroupId);
+        if (!group) return null;
+        return (
+          <GroupAnnotationDialog
+            nodeIds={group.nodeIds}
+            existingGroup={group}
+            onSave={(data) => {
+              updateAnnotationGroup({ ...group, ...data });
+              setEditingGroupId(null);
+            }}
+            onDelete={() => {
+              removeAnnotationGroup(group.id);
+              setEditingGroupId(null);
+            }}
+            onClose={() => setEditingGroupId(null)}
+          />
+        );
+      })()}
+    </>
+  );
+}
+
+/**
+ * The selected-node (or multi-selection) detail content, with no panel shell or
+ * resize handle — shared by the docked details panel and focus mode's floating
+ * inspector card. Renders nothing when the selection is empty.
+ */
+export function NodeDetailBody() {
+  const {
+    selectedNode: selectedPrimaryNode, selectedNodes, selectedNodeIds, parsedPlan, selectNode,
+    filters, nodeIndicatorMetric, annotations,
+    setNodeAnnotation, removeNodeAnnotation, setNodeHighlight, removeNodeHighlight,
+    addAnnotationGroup,
+    highlightStyle, setHighlightStyle,
+    metadataBundle, metadataBundleWarning,
+  } = usePlan();
+  const searchText = filters.searchText;
+  const [showGroupDialog, setShowGroupDialog] = useState(false);
+  const isMultiSelection = selectedNodes.length > 1;
+  const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : selectedPrimaryNode;
+  const aggregateSelection = isMultiSelection ? computeAggregateSelection(selectedNodes) : null;
+
+  const usedIndexKeys = useMemo(() => {
+    if (!metadataBundle || !parsedPlan) return new Set<string>();
+    return findUsedIndexKeys(metadataBundle, parsedPlan.allNodes);
+  }, [metadataBundle, parsedPlan]);
+
+  const parallelSignals = useMemo(() => {
+    if (!parsedPlan) return [] as ParallelSignal[];
+    return computeParallelSignals(parsedPlan);
+  }, [parsedPlan]);
+
+  if (selectedNodes.length === 0) return null;
 
   if (isMultiSelection && aggregateSelection) {
     const indicator = computeNodeDetailIndicator(aggregateSelection.indicatorNode, parsedPlan, nodeIndicatorMetric);
@@ -371,18 +396,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
     const hasMoreIds = selectedNodeIds.length > 12;
 
     return (
-      <div
-        className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 overflow-y-auto"
-        style={{ width: panelWidth }}
-      >
-        <button
-          type="button"
-          onPointerDown={onResizeStart}
-          className={`absolute left-0 top-0 z-10 h-full w-2 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors ${FOCUS_RING}`}
-          aria-label="Resize details panel"
-          title="Resize details panel"
-        />
-
+      <>
         <div className="p-3 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-start justify-between">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
@@ -479,7 +493,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
             </div>
           </Accordion>
         )}
-      </div>
+      </>
     );
   }
 
@@ -490,17 +504,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
   const nodeParallelSignals = parallelSignals.filter((s) => s.nodeId === node.id);
 
   return (
-    <div
-      className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 overflow-y-auto"
-      style={{ width: panelWidth }}
-    >
-      <button
-        type="button"
-        onPointerDown={onResizeStart}
-        className={`absolute left-0 top-0 z-10 h-full w-2 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors ${FOCUS_RING}`}
-        aria-label="Resize details panel"
-        title="Resize details panel"
-      />
+    <>
       {/* Header */}
       <div className="p-3 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center justify-between mb-2">
@@ -710,8 +714,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         onHighlightChange={setNodeHighlight}
         onHighlightRemove={removeNodeHighlight}
       />
-
-    </div>
+    </>
   );
 }
 

@@ -11,6 +11,7 @@ import type { ParsedPlan } from '../lib/types';
 import { isDbAgentEnabled } from '../lib/agent/client';
 import { ConnectPanel } from './ConnectPanel';
 import { BrandMark, HeaderActions } from './Header';
+import { MaximizeButton, PlanTabsCluster, ViewTabStrip } from './NavRibbon';
 
 const dbAgentEnabled = isDbAgentEnabled();
 
@@ -22,6 +23,8 @@ const FOCUS_RING_INSET =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
 const SAMPLE_ITEM_CLASS =
   `w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 ${FOCUS_RING_INSET}`;
+const CHIP_CLASS =
+  'px-2 py-0.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium';
 
 export function InputPanel() {
   const { rawInput, setInput, parsePlan, loadAndParsePlan, loadMetadataBundle, attachMetadataBundleToSlot, clearPlan, removePlanSlot, error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed, hasMultiplePlans, plans, activePlanIndex, metadataBundle, metadataBundleWarning, detachMetadataBundle, connectPanelOpen: showConnectPanel, setConnectPanelOpen: setShowConnectPanel } = usePlan();
@@ -138,68 +141,50 @@ export function InputPanel() {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`relative z-30 flex flex-col bg-white dark:bg-slate-900 border-b ${
+      className={`relative z-30 shrink-0 flex flex-col bg-white dark:bg-slate-900 border-b ${
         isDraggingFile
           ? 'border-blue-500 ring-2 ring-inset ring-blue-500/60'
           : 'border-slate-200/70 dark:border-slate-800/70'
       }`}
     >
-      {/* Merged top bar: brand + input-panel header + former app-header actions */}
-      <div className="h-11 flex items-center justify-between gap-3 px-3">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <BrandMark />
-          <button
-            type="button"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            aria-expanded={!isCollapsed}
-            aria-controls="input-panel-content"
-            className={`flex items-center gap-2 text-left min-w-0 rounded-md px-1 py-1 -ml-1 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`}
+      {/* The app's single top bar: brand, input drawer handle + SQL ID, plan
+          tabs, view tabs, and the app actions. Only the SQL-ID title and the
+          plan tabs may shrink; the view tabs degrade through icon-only into an
+          overflow menu (see ViewTabStrip). */}
+      <div className="h-12 flex items-center gap-2 px-3">
+        <BrandMark />
+        <button
+          type="button"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          aria-expanded={!isCollapsed}
+          aria-controls="input-panel-content"
+          className={`shrink min-w-0 flex items-center gap-2 text-left rounded-md px-1 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 motion-safe:transition-colors ${FOCUS_RING}`}
+          title={isCollapsed ? 'Show plan input' : 'Hide plan input'}
+        >
+          <svg
+            className={`shrink-0 w-4 h-4 text-slate-500 motion-safe:transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
           >
-            <svg
-              className={`w-4 h-4 text-slate-500 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
-              {hasMultiplePlans && (
-                <span className="text-slate-500 dark:text-slate-400 mr-1.5">{plans[activePlanIndex].customLabel || plans[activePlanIndex].label}:</span>
-              )}
-              {parsedPlan?.sqlId
-                ? <span>SQL ID: <span className="font-mono">{parsedPlan.sqlId}</span></span>
-                : 'Oracle Execution Plan Input'}
-            </h2>
-          </button>
-          {parsedPlan && (
-            <MetadataChip
-              bundle={metadataBundle}
-              warning={metadataBundleWarning}
-              planSqlId={parsedPlan.sqlId}
-              onDetach={() => detachMetadataBundle(activePlanIndex)}
-            />
-          )}
-          {isCollapsed && parsedPlan && (
-            <div className="hidden lg:flex items-center gap-1.5 min-w-0 overflow-hidden">
-              <span className="px-2 py-0.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium">
-                {getSourceDisplayName(parsedPlan.source)}
-              </span>
-              {parsedPlan.hasActualStats && (
-                <span className="px-2 py-0.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium">
-                  Actual Stats
-                </span>
-              )}
-              {parsedPlan.bindVariables && parsedPlan.bindVariables.length > 0 && (
-                <span className="px-2 py-0.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium">
-                  {parsedPlan.bindVariables.length} bind{parsedPlan.bindVariables.length !== 1 ? 's' : ''}
-                </span>
-              )}
-              <PlanNoteChips parsedPlan={parsedPlan} />
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+            {hasMultiplePlans && (
+              <span className="text-slate-500 dark:text-slate-400 mr-1.5">{plans[activePlanIndex].customLabel || plans[activePlanIndex].label}:</span>
+            )}
+            {parsedPlan?.sqlId
+              ? <span>SQL ID: <span className="font-mono">{parsedPlan.sqlId}</span></span>
+              : 'Oracle Execution Plan Input'}
+          </h2>
+        </button>
+
+        <PlanTabsCluster />
+        <ViewTabStrip />
+
+        {/* `ml-auto` only bites in the empty state, where the view tabs are
+            absent and there is no flexible child to eat the free space. */}
+        <div className="ml-auto flex items-center gap-2 shrink-0">
           {dbAgentEnabled && (
             <button
               type="button"
@@ -292,6 +277,7 @@ export function InputPanel() {
           </div>
           <div className="w-px h-5 bg-slate-200 dark:bg-slate-700" aria-hidden="true" />
           <HeaderActions />
+          <MaximizeButton />
         </div>
       </div>
 
@@ -304,6 +290,27 @@ export function InputPanel() {
       {/* Collapsible content */}
       {!isCollapsed && (
         <div id="input-panel-content" className="flex flex-col gap-2 px-3 pb-3">
+          {/* Plan identity chips. They used to ride the top bar; the single bar
+              has no room for them, so the drawer carries them instead. */}
+          {parsedPlan && (
+            <div className="flex items-center flex-wrap gap-1.5">
+              <MetadataChip
+                bundle={metadataBundle}
+                warning={metadataBundleWarning}
+                planSqlId={parsedPlan.sqlId}
+                onDetach={() => detachMetadataBundle(activePlanIndex)}
+              />
+              <span className={CHIP_CLASS}>{getSourceDisplayName(parsedPlan.source)}</span>
+              {parsedPlan.hasActualStats && <span className={CHIP_CLASS}>Actual Stats</span>}
+              {parsedPlan.bindVariables && parsedPlan.bindVariables.length > 0 && (
+                <span className={CHIP_CLASS}>
+                  {parsedPlan.bindVariables.length} bind{parsedPlan.bindVariables.length !== 1 ? 's' : ''}
+                </span>
+              )}
+              <PlanNoteChips parsedPlan={parsedPlan} />
+            </div>
+          )}
+
           <textarea
             value={rawInput}
             onChange={(e) => setInput(e.target.value)}
@@ -348,17 +355,10 @@ export function InputPanel() {
                 Cancel
               </button>
             )}
+            {/* Format / note chips now live in the chip row at the top of the
+                drawer; this row keeps the plan's numbers only. */}
             {parsedPlan && (
-              <div className="hidden xl:flex items-center ml-auto text-xs text-slate-600 dark:text-slate-400 gap-2">
-                <span className="px-2 py-0.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium">
-                  {getSourceDisplayName(parsedPlan.source)}
-                </span>
-                {parsedPlan.hasActualStats && (
-                  <span className="px-2 py-0.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium">
-                    Actual Stats
-                  </span>
-                )}
-                <PlanNoteChips parsedPlan={parsedPlan} />
+              <div className="hidden lg:flex items-center ml-auto text-xs text-slate-600 dark:text-slate-400 gap-2">
                 <span>
                   {parsedPlan.allNodes.length} operations
                 </span>

@@ -25,6 +25,8 @@ export interface UserSettings {
   legendVisible: boolean;
   inputPanelCollapsed: boolean;
   filterPanelCollapsed: boolean;
+  /** Focus mode: docked side panels give way to floating instruments. */
+  focusMode: boolean;
 
   // Filter display options (checkboxes)
   animateEdges: boolean;
@@ -85,6 +87,7 @@ const defaultSettings: UserSettings = {
   legendVisible: false,
   inputPanelCollapsed: false,
   filterPanelCollapsed: false,
+  focusMode: false,
   animateEdges: false,
   scaleEdgeWidth: true,
   focusSelection: true,

@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import type { ColorScheme } from '../lib/types';
 import { hasAnnotations } from '../lib/annotations';
@@ -18,6 +18,23 @@ const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
   rail: 'Icon Rail',
   ticker: 'Ticker',
 };
+
+// Below this the single top bar has no room for the full action cluster, so it
+// folds into one "⋯" popover (every action stays reachable, just one click in).
+const COMPACT_ACTIONS_QUERY = '(max-width: 1100px)';
+
+function useCompactActions(): boolean {
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia(COMPACT_ACTIONS_QUERY);
+    const update = () => setCompact(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  return compact;
+}
 
 /**
  * Glyph-only brand mark. The app title lives in the document `<title>` and in
@@ -71,9 +88,14 @@ export function HeaderActions() {
     viewMode,
     treeCompareEnabled,
     setCommandPaletteOpen,
+    focusMode,
+    setFocusMode,
   } = usePlan();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
+  const compact = useCompactActions();
+  const [menuOpen, setMenuOpen] = useState(false);
   // `manual`/`warning`/`error` are shown in the App-level share dialog; the
   // button itself only needs to reflect the current outcome at a glance.
   const shareKind = shareNotice?.kind ?? null;
@@ -98,6 +120,29 @@ export function HeaderActions() {
 
   const handleShare = useCallback(() => { void share(); }, [share]);
 
+  // Close the compact popover on an outside click or Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!compact) setMenuOpen(false);
+  }, [compact]);
+
   const handleLoad = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
@@ -118,9 +163,13 @@ export function HeaderActions() {
   const hasSomethingToSave = showSave && (hasAnnotations(annotations) || hasUnsavedAnnotations);
   const hasAnyInput = plans.some((slot) => slot.rawInput.trim().length > 0);
   const canExportPng = parsedPlan !== null && viewMode === 'hierarchical' && !treeCompareEnabled;
+  // Mirrors App's `focusModeActive`: focus mode is inert in the comparison
+  // workspace, so the button must not advertise itself as on there.
+  const focusModeApplies = viewMode !== 'compare';
+  const focusModeOn = focusMode && focusModeApplies;
 
-  return (
-    <div className="flex items-center gap-1.5 shrink-0">
+  const actions = (
+    <>
       {/* Load annotated plan */}
       <button
         onClick={handleLoad}
@@ -207,6 +256,33 @@ export function HeaderActions() {
 
       <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" aria-hidden="true" />
 
+      {/* Focus mode — docked side panels give way to floating instruments.
+          The comparison workspace has no docked panels to trade away, so the
+          toggle reads as unavailable there rather than as a no-op. */}
+      <button
+        onClick={() => setFocusMode(!focusMode)}
+        disabled={parsedPlan === null || !focusModeApplies}
+        aria-pressed={focusModeOn}
+        className={
+          focusModeOn
+            ? `h-8 w-8 flex items-center justify-center rounded-md text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 ring-1 ring-slate-300 dark:ring-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 motion-safe:transition-colors ${FOCUS_RING}`
+            : `${ICON_BTN} disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500 dark:disabled:hover:text-slate-400`
+        }
+        title={
+          !focusModeApplies
+            ? 'Focus mode is unavailable in the comparison workspace'
+            : focusMode
+              ? 'Exit focus mode (z)'
+              : 'Focus mode (z)'
+        }
+        aria-label="Focus mode"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V6a2 2 0 012-2h2m8 0h2a2 2 0 012 2v2m0 8v2a2 2 0 01-2 2h-2m-8 0H6a2 2 0 01-2-2v-2" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 12a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      </button>
+
       {/* Command palette */}
       <button
         onClick={() => setCommandPaletteOpen(true)}
@@ -276,6 +352,40 @@ export function HeaderActions() {
           />
         </svg>
       </a>
+    </>
+  );
+
+  if (!compact) {
+    return <div className="flex items-center gap-1.5 shrink-0">{actions}</div>;
+  }
+
+  return (
+    <div className="relative shrink-0" ref={menuRef}>
+      <button
+        type="button"
+        onClick={() => setMenuOpen(!menuOpen)}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        aria-label="More actions"
+        title="More actions"
+        className={
+          menuOpen
+            ? `h-8 w-8 flex items-center justify-center rounded-md text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 motion-safe:transition-colors ${FOCUS_RING}`
+            : ICON_BTN
+        }
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01" />
+        </svg>
+      </button>
+      {menuOpen && (
+        <div
+          role="menu"
+          className="absolute right-0 top-full mt-1 p-1.5 flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50"
+        >
+          {actions}
+        </div>
+      )}
     </div>
   );
 }

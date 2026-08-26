@@ -4,6 +4,7 @@ import { getOperationCategory, COLOR_SCHEMES, getMetricColor, getOperationToolti
 import { formatNumberShort, formatBytes, formatTimeCompact, formatCardinalityRatio, cardinalityRatioSeverity, computeCardinalityRatio, formatPartitionRange } from '../../lib/format';
 import type { PlanNode as PlanNodeType, NodeDisplayOptions, ColorScheme, NodeIndicatorMetric } from '../../lib/types';
 import { HighlightText } from '../HighlightText';
+import { NodeHoverCard, useNodeHoverCard } from './NodeHoverCard';
 import { getHighlightColorDef } from '../../lib/annotations';
 import type { HighlightColor, HighlightStyle } from '../../lib/annotations';
 import type { MetadataBadge } from '../../lib/metadata/badges';
@@ -111,6 +112,9 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   // Overrides the per-field toggles so the node body stays radically reduced.
   const isCompact = options.compactStats === true;
 
+  // Minimal density trades detail for a hover/focus disclosure card
+  const { anchorRef, anchorRect, hoverProps } = useNodeHoverCard(isCompact);
+
   // Label for rows depends on whether we have actual stats
   const rowsLabel = hasActualStats ? 'E-Rows' : 'Rows';
 
@@ -143,11 +147,6 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   const showCardBadgeInRow =
     options.showCardinalityBadge && cardSeverity !== 'good' && !!cardLabel && !usesEstActGrid && !isCompact;
   const showAdvisorBadge = !!advisorSeverity && options.showAdvisorBadge && !isCompact;
-  const advisorBadgeClasses: Record<FindingSeverity, string> = {
-    info: 'bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300',
-    warning: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300',
-    critical: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',
-  };
 
   // Minimal density: one mono line — actuals when the plan has them, estimates otherwise.
   const compactParts: { text: string; strong: boolean }[] = [];
@@ -180,36 +179,10 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   }
 
   // Rows for the comparison grid: metric | estimated | actual (| deviation)
-  const estActRows = usesEstActGrid && !isCompact
-    ? [
-        {
-          label: 'Rows',
-          est: options.showRows && node.rows !== undefined ? formatNumberShort(node.rows) : undefined,
-          act: options.showActualRows && node.actualRows !== undefined ? formatNumberShort(node.actualRows) : undefined,
-          isRowsRow: true,
-        },
-        {
-          label: 'Time',
-          est: undefined,
-          act: options.showActualTime && node.actualTime !== undefined ? formatTimeCompact(node.actualTime) : undefined,
-        },
-        {
-          label: 'Cost',
-          est: options.showCost && node.cost !== undefined ? formatNumberShort(node.cost) : undefined,
-          act: undefined,
-        },
-        {
-          label: 'Bytes',
-          est: options.showBytes && node.bytes !== undefined ? formatBytes(node.bytes) : undefined,
-          act: undefined,
-        },
-        {
-          label: 'Starts',
-          est: undefined,
-          act: options.showStarts && node.starts !== undefined ? formatNumberShort(node.starts) : undefined,
-        },
-      ].filter((r) => r.est !== undefined || r.act !== undefined)
-    : [];
+  const estActRows = usesEstActGrid && !isCompact ? buildEstActRows(node, options) : [];
+
+  // Minimal density hides every stat; the hover card brings the full grid back.
+  const hoverStatRows = isCompact ? buildEstActRows(node, ALL_STATS_VISIBLE) : [];
 
   // Highlight is active when: has color and annotations visible (coexists with hot node)
   const showHighlight = !!(highlightColor && showAnnotationsOverlay);
@@ -224,6 +197,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     ? { backgroundColor: `${hexColor}18` } : {};
   return (
     <div
+      ref={anchorRef}
+      {...hoverProps}
       className={`
         relative ${isCompact ? 'w-[200px]' : isTicker ? 'w-[240px]' : 'w-[260px]'} rounded-xl transition-all duration-300
         shadow-md shadow-slate-400/30 dark:shadow-lg dark:shadow-black/40
@@ -338,68 +313,22 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         </div>
 
         {/* Warning badges row (hot node, spill, cardinality, advisor, metadata, pruning, parallel) */}
-        {!isCompact && (showHotInRow || showSpillInRow || showCardBadgeInRow || showAdvisorBadge || (metadataBadges && metadataBadges.length > 0) || partitionPruning === 'none' || (parallelSignals && parallelSignals.length > 0)) && (
-          <div className="flex flex-wrap gap-1 mb-1.5">
-            {showAdvisorBadge && (
-              <span
-                className={`px-1.5 py-0.5 text-[10px] rounded font-semibold flex items-center gap-0.5 ${advisorBadgeClasses[advisorSeverity!]}`}
-                title={advisorTitles && advisorTitles.length > 0 ? advisorTitles.join('\n') : undefined}
-              >
-                ⚠ {advisorCount ?? 1}
-              </span>
-            )}
-            {showHotInRow && (
-              <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-[10px] rounded font-semibold flex items-center gap-0.5" title="Slowest operation in plan (self time, excluding children)">
-                <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" /></svg>
-                Hotspot
-              </span>
-            )}
-            {showSpillInRow && (
-              <span className="px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 text-[10px] rounded font-semibold" title="Spill to disk — temp space used">
-                Spill
-              </span>
-            )}
-            {showCardBadgeInRow && (
-              <span
-                className={`px-1.5 py-0.5 text-[10px] rounded font-semibold ${
-                  cardSeverity === 'bad'
-                    ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
-                    : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
-                }`}
-                title={`Cardinality mismatch: E-Rows=${formatNumberShort(node.rows)} vs A-Rows=${formatNumberShort(node.actualRows)}`}
-              >
-                {cardLabel}
-              </span>
-            )}
-            {metadataBadges?.map((badge) => (
-              <span
-                key={badge.kind}
-                className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[10px] rounded font-semibold border border-indigo-300 dark:border-indigo-700 flex items-center gap-0.5"
-                title={badge.reason}
-              >
-                <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm11 1H6v8l4-2 4 2V6z" clipRule="evenodd" /></svg>
-                {badge.kind === 'stale-stats'
-                  ? 'Stale stats'
-                  : badge.kind === 'missing-stats'
-                    ? 'Missing stats'
-                    : 'No histogram'}
-              </span>
-            ))}
-            {partitionPruning === 'none' && (
-              <span className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[10px] rounded font-semibold" title="No partition pruning — all partitions are scanned">
-                No pruning
-              </span>
-            )}
-            {parallelSignals?.map((signal, idx) => (
-              <span
-                key={`px-${signal.kind}-${idx}`}
-                className="px-1.5 py-0.5 bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-[10px] rounded font-semibold"
-                title={signal.reason}
-              >
-                {signal.kind === 'broadcast-large' ? 'Broadcast' : 'Serial point'}
-              </span>
-            ))}
-          </div>
+        {!isCompact && (
+          <NodeBadgeRow
+            node={node}
+            showHot={showHotInRow}
+            showSpill={showSpillInRow}
+            showCardBadge={showCardBadgeInRow}
+            cardSeverity={cardSeverity}
+            cardLabel={cardLabel}
+            showAdvisor={showAdvisorBadge}
+            advisorSeverity={advisorSeverity}
+            advisorCount={advisorCount}
+            advisorTitles={advisorTitles}
+            metadataBadges={metadataBadges}
+            partitionPruning={partitionPruning}
+            parallelSignals={parallelSignals}
+          />
         )}
 
         {/* Operation name */}
@@ -461,17 +390,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         )}
 
         {/* Query block badge (rail scheme moves it to the footer rail) */}
-        {!isRail && !isCompact && options.showQueryBlockBadge && node.queryBlock && (
-          <div className="flex flex-wrap gap-1 mb-2">
-            <span className="px-1.5 py-0.5 text-xs rounded font-mono bg-violet-500/10 border border-violet-400/40 dark:border-violet-500/40 text-violet-700 dark:text-violet-300">
-              {node.queryBlock}
-            </span>
-            {node.objectAlias && (
-              <span className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 border border-transparent text-slate-700 dark:text-slate-200 text-xs rounded font-mono">
-                {node.objectAlias}
-              </span>
-            )}
-          </div>
+        {!isRail && !isCompact && options.showQueryBlockBadge && (
+          <QueryBlockChips node={node} className="mb-2" />
         )}
 
         {/* Stats - Estimated & Actual statistics (minimal density renders the single line above instead) */}
@@ -554,62 +474,14 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           })()
         ) : usesEstActGrid ? (
           /* Est ⇄ Act mode: comparison grid — metric | estimated | actual | deviation */
-          estActRows.length > 0 && (
-            <div className="mt-1 rounded border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-50/60 dark:bg-slate-900/40">
-              <div className={`grid ${hasActualStats ? 'grid-cols-[auto_1fr_1fr_auto]' : 'grid-cols-[auto_1fr]'} text-[11px] leading-tight`}>
-                {hasActualStats && (
-                  <>
-                    <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80" />
-                    <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Est</span>
-                    <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80 text-right text-[10px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400">Act</span>
-                    <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80" />
-                  </>
-                )}
-                {estActRows.map((r, i) => {
-                  const rowBorder = i > 0 || hasActualStats ? 'border-t border-slate-200/70 dark:border-slate-700/70' : '';
-                  return (
-                    <Fragment key={r.label}>
-                      <span className={`px-2 py-0.5 text-slate-500 dark:text-slate-400 ${rowBorder}`}>{r.label}</span>
-                      <span className={`px-2 py-0.5 text-right font-mono tabular-nums ${rowBorder} ${
-                        hasActualStats
-                          ? r.est !== undefined ? 'text-slate-500 dark:text-slate-400' : 'text-slate-300 dark:text-slate-600'
-                          : 'font-semibold text-slate-900 dark:text-slate-100'
-                      }`}>
-                        {r.est ?? '—'}
-                      </span>
-                      {hasActualStats && (
-                        <span className={`px-2 py-0.5 text-right font-mono tabular-nums ${rowBorder} ${
-                          r.act !== undefined ? 'font-semibold text-slate-900 dark:text-slate-100' : 'text-slate-300 dark:text-slate-600'
-                        }`}>
-                          {r.act ?? '—'}
-                        </span>
-                      )}
-                      {hasActualStats && (
-                        <span className={`pl-0.5 pr-1.5 py-0.5 flex items-center justify-end ${rowBorder}`}>
-                          {'isRowsRow' in r && r.isRowsRow && cardLabel && cardSeverity !== 'good' ? (
-                            <em
-                              className={`not-italic px-1 rounded text-[10px] font-bold whitespace-nowrap ${
-                                cardSeverity === 'bad'
-                                  ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
-                                  : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
-                              }`}
-                              title={`Cardinality mismatch: E-Rows=${formatNumberShort(node.rows)} vs A-Rows=${formatNumberShort(node.actualRows)}`}
-                            >
-                              {cardLabel}
-                            </em>
-                          ) : 'isRowsRow' in r && r.isRowsRow && r.est !== undefined && r.act !== undefined ? (
-                            <em className="not-italic px-1 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" title="Estimate matches actual rows">
-                              ≈
-                            </em>
-                          ) : null}
-                        </span>
-                      )}
-                    </Fragment>
-                  );
-                })}
-              </div>
-            </div>
-          )
+          <EstActStatsGrid
+            node={node}
+            rows={estActRows}
+            hasActualStats={!!hasActualStats}
+            cardLabel={cardLabel}
+            cardSeverity={cardSeverity}
+            className="mt-1"
+          />
         ) : (
           /* Standard modes: inline badge layout */
           <>
@@ -675,37 +547,13 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         )}
 
         {/* Partition pruning indicator (Pstart/Pstop) — mirrors predicate chips */}
-        {!isRail && !isCompact && options.showPartitionInfo && formatPartitionRange(node.pstart, node.pstop) && (
-          <div className="flex gap-1 mt-2">
-            <span
-              className="rounded font-semibold px-1.5 py-0.5 text-xs bg-indigo-200 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-200"
-              title={`Partitions accessed — Pstart: ${node.pstart ?? '—'}, Pstop: ${node.pstop ?? '—'}`}
-            >
-              Part {formatPartitionRange(node.pstart, node.pstop)}
-            </span>
-          </div>
+        {!isRail && !isCompact && options.showPartitionInfo && (
+          <PartitionChip node={node} className="mt-2" />
         )}
 
         {/* Predicate details */}
-        {!isCompact && options.showPredicateDetails && (node.accessPredicates || node.filterPredicates) && (
-          <div className="mt-2 space-y-1">
-            {node.accessPredicates && (
-              <div className="text-xs">
-                <span className="font-medium text-green-700 dark:text-green-300">A: </span>
-                <code className="text-slate-600 dark:text-slate-400 break-all">
-                  <HighlightText text={node.accessPredicates} query={searchText} />
-                </code>
-              </div>
-            )}
-            {node.filterPredicates && (
-              <div className="text-xs">
-                <span className="font-medium text-amber-700 dark:text-amber-300">F: </span>
-                <code className="text-slate-600 dark:text-slate-400 break-all">
-                  <HighlightText text={node.filterPredicates} query={searchText} />
-                </code>
-              </div>
-            )}
-          </div>
+        {!isCompact && options.showPredicateDetails && (
+          <PredicateDetails node={node} searchText={searchText} className="mt-2" />
         )}
 
         {/* Icon badge rail (rail scheme): fixed footer slot for badges + query block.
@@ -785,6 +633,359 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
       {node.children.length > 0 && (
         <Handle type="source" position={Position.Bottom} className="!opacity-0 !w-1 !h-1" />
+      )}
+
+      {/* Minimal density: everything the node body drops, disclosed on hover/focus */}
+      {isCompact && anchorRect && (
+        <NodeHoverCard anchorRect={anchorRect}>
+          <div className="flex items-baseline gap-1.5 mb-2">
+            <span className="shrink-0 text-[10px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">{node.id}</span>
+            <span className={`font-semibold text-xs leading-tight ${colors.text}`}>{node.operation}</span>
+          </div>
+          {node.objectName && (
+            <div className="font-mono text-xs font-semibold text-slate-700 dark:text-slate-200 truncate -mt-1 mb-2">
+              {node.objectName}
+            </div>
+          )}
+          <NodeBadgeRow
+            node={node}
+            showHot={!!showHot}
+            showSpill={hasSpill && options.showSpillBadge}
+            /* the grid already carries the mismatch chip */
+            showCardBadge={false}
+            cardSeverity={cardSeverity}
+            cardLabel={cardLabel}
+            showAdvisor={!!advisorSeverity && options.showAdvisorBadge}
+            advisorSeverity={advisorSeverity}
+            advisorCount={advisorCount}
+            advisorTitles={advisorTitles}
+            metadataBadges={metadataBadges}
+            partitionPruning={partitionPruning}
+            parallelSignals={parallelSignals}
+            className="mb-2"
+          />
+          <EstActStatsGrid
+            node={node}
+            rows={hoverStatRows}
+            hasActualStats={!!hasActualStats}
+            cardLabel={cardLabel}
+            cardSeverity={cardSeverity}
+          />
+          <QueryBlockChips node={node} className="mt-2" />
+          <PartitionChip node={node} className="mt-2" />
+          <PredicateDetails node={node} searchText={searchText} className="mt-2" clamp />
+        </NodeHoverCard>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Shared node fragments — rendered both inside the node body and, when
+ * Minimal density strips the body, inside the hover disclosure card, so
+ * the two can never drift apart.
+ * ------------------------------------------------------------------ */
+
+type CardinalitySeverity = 'good' | 'warn' | 'bad';
+
+type StatsVisibility = Pick<
+  NodeDisplayOptions,
+  'showRows' | 'showActualRows' | 'showActualTime' | 'showCost' | 'showBytes' | 'showStarts'
+>;
+
+/** Every stat on: the hover card shows the grid the way Detailed renders it. */
+const ALL_STATS_VISIBLE: StatsVisibility = {
+  showRows: true,
+  showActualRows: true,
+  showActualTime: true,
+  showCost: true,
+  showBytes: true,
+  showStarts: true,
+};
+
+interface EstActRow {
+  label: string;
+  est?: string;
+  act?: string;
+  isRowsRow?: boolean;
+}
+
+/** Rows for the comparison grid: metric | estimated | actual (| deviation) */
+function buildEstActRows(node: PlanNodeType, visibility: StatsVisibility): EstActRow[] {
+  return [
+    {
+      label: 'Rows',
+      est: visibility.showRows && node.rows !== undefined ? formatNumberShort(node.rows) : undefined,
+      act: visibility.showActualRows && node.actualRows !== undefined ? formatNumberShort(node.actualRows) : undefined,
+      isRowsRow: true,
+    },
+    {
+      label: 'Time',
+      est: undefined,
+      act: visibility.showActualTime && node.actualTime !== undefined ? formatTimeCompact(node.actualTime) : undefined,
+    },
+    {
+      label: 'Cost',
+      est: visibility.showCost && node.cost !== undefined ? formatNumberShort(node.cost) : undefined,
+      act: undefined,
+    },
+    {
+      label: 'Bytes',
+      est: visibility.showBytes && node.bytes !== undefined ? formatBytes(node.bytes) : undefined,
+      act: undefined,
+    },
+    {
+      label: 'Starts',
+      est: undefined,
+      act: visibility.showStarts && node.starts !== undefined ? formatNumberShort(node.starts) : undefined,
+    },
+  ].filter((r) => r.est !== undefined || r.act !== undefined);
+}
+
+interface EstActStatsGridProps {
+  node: PlanNodeType;
+  rows: EstActRow[];
+  hasActualStats: boolean;
+  cardLabel?: string;
+  cardSeverity: CardinalitySeverity;
+  className?: string;
+}
+
+function EstActStatsGrid({ node, rows, hasActualStats, cardLabel, cardSeverity, className = '' }: EstActStatsGridProps) {
+  if (rows.length === 0) return null;
+  return (
+    <div className={`rounded border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-50/60 dark:bg-slate-900/40 ${className}`}>
+      <div className={`grid ${hasActualStats ? 'grid-cols-[auto_1fr_1fr_auto]' : 'grid-cols-[auto_1fr]'} text-[11px] leading-tight`}>
+        {hasActualStats && (
+          <>
+            <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80" />
+            <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Est</span>
+            <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80 text-right text-[10px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400">Act</span>
+            <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80" />
+          </>
+        )}
+        {rows.map((r, i) => {
+          const rowBorder = i > 0 || hasActualStats ? 'border-t border-slate-200/70 dark:border-slate-700/70' : '';
+          return (
+            <Fragment key={r.label}>
+              <span className={`px-2 py-0.5 text-slate-500 dark:text-slate-400 ${rowBorder}`}>{r.label}</span>
+              <span className={`px-2 py-0.5 text-right font-mono tabular-nums ${rowBorder} ${
+                hasActualStats
+                  ? r.est !== undefined ? 'text-slate-500 dark:text-slate-400' : 'text-slate-300 dark:text-slate-600'
+                  : 'font-semibold text-slate-900 dark:text-slate-100'
+              }`}>
+                {r.est ?? '—'}
+              </span>
+              {hasActualStats && (
+                <span className={`px-2 py-0.5 text-right font-mono tabular-nums ${rowBorder} ${
+                  r.act !== undefined ? 'font-semibold text-slate-900 dark:text-slate-100' : 'text-slate-300 dark:text-slate-600'
+                }`}>
+                  {r.act ?? '—'}
+                </span>
+              )}
+              {hasActualStats && (
+                <span className={`pl-0.5 pr-1.5 py-0.5 flex items-center justify-end ${rowBorder}`}>
+                  {r.isRowsRow && cardLabel && cardSeverity !== 'good' ? (
+                    <em
+                      className={`not-italic px-1 rounded text-[10px] font-bold whitespace-nowrap ${
+                        cardSeverity === 'bad'
+                          ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+                          : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
+                      }`}
+                      title={`Cardinality mismatch: E-Rows=${formatNumberShort(node.rows)} vs A-Rows=${formatNumberShort(node.actualRows)}`}
+                    >
+                      {cardLabel}
+                    </em>
+                  ) : r.isRowsRow && r.est !== undefined && r.act !== undefined ? (
+                    <em className="not-italic px-1 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" title="Estimate matches actual rows">
+                      ≈
+                    </em>
+                  ) : null}
+                </span>
+              )}
+            </Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const ADVISOR_BADGE_CLASSES: Record<FindingSeverity, string> = {
+  info: 'bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300',
+  warning: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300',
+  critical: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',
+};
+
+interface NodeBadgeRowProps {
+  node: PlanNodeType;
+  showHot?: boolean;
+  showSpill?: boolean;
+  showCardBadge?: boolean;
+  cardSeverity: CardinalitySeverity;
+  cardLabel?: string;
+  showAdvisor?: boolean;
+  advisorSeverity?: FindingSeverity;
+  advisorCount?: number;
+  advisorTitles?: string[];
+  metadataBadges?: MetadataBadge[];
+  partitionPruning?: PartitionPruning;
+  parallelSignals?: ParallelSignal[];
+  className?: string;
+}
+
+function NodeBadgeRow({
+  node,
+  showHot,
+  showSpill,
+  showCardBadge,
+  cardSeverity,
+  cardLabel,
+  showAdvisor,
+  advisorSeverity,
+  advisorCount,
+  advisorTitles,
+  metadataBadges,
+  partitionPruning,
+  parallelSignals,
+  className = 'mb-1.5',
+}: NodeBadgeRowProps) {
+  const hasAdvisor = showAdvisor && !!advisorSeverity;
+  const hasAny =
+    showHot ||
+    showSpill ||
+    (showCardBadge && !!cardLabel) ||
+    hasAdvisor ||
+    (metadataBadges && metadataBadges.length > 0) ||
+    partitionPruning === 'none' ||
+    (parallelSignals && parallelSignals.length > 0);
+  if (!hasAny) return null;
+
+  return (
+    <div className={`flex flex-wrap gap-1 ${className}`}>
+      {hasAdvisor && (
+        <span
+          className={`px-1.5 py-0.5 text-[10px] rounded font-semibold flex items-center gap-0.5 ${ADVISOR_BADGE_CLASSES[advisorSeverity!]}`}
+          title={advisorTitles && advisorTitles.length > 0 ? advisorTitles.join('\n') : undefined}
+        >
+          ⚠ {advisorCount ?? 1}
+        </span>
+      )}
+      {showHot && (
+        <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-[10px] rounded font-semibold flex items-center gap-0.5" title="Slowest operation in plan (self time, excluding children)">
+          <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" /></svg>
+          Hotspot
+        </span>
+      )}
+      {showSpill && (
+        <span className="px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 text-[10px] rounded font-semibold" title="Spill to disk — temp space used">
+          Spill
+        </span>
+      )}
+      {showCardBadge && cardLabel && (
+        <span
+          className={`px-1.5 py-0.5 text-[10px] rounded font-semibold ${
+            cardSeverity === 'bad'
+              ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+              : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
+          }`}
+          title={`Cardinality mismatch: E-Rows=${formatNumberShort(node.rows)} vs A-Rows=${formatNumberShort(node.actualRows)}`}
+        >
+          {cardLabel}
+        </span>
+      )}
+      {metadataBadges?.map((badge) => (
+        <span
+          key={badge.kind}
+          className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[10px] rounded font-semibold border border-indigo-300 dark:border-indigo-700 flex items-center gap-0.5"
+          title={badge.reason}
+        >
+          <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm11 1H6v8l4-2 4 2V6z" clipRule="evenodd" /></svg>
+          {badge.kind === 'stale-stats'
+            ? 'Stale stats'
+            : badge.kind === 'missing-stats'
+              ? 'Missing stats'
+              : 'No histogram'}
+        </span>
+      ))}
+      {partitionPruning === 'none' && (
+        <span className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[10px] rounded font-semibold" title="No partition pruning — all partitions are scanned">
+          No pruning
+        </span>
+      )}
+      {parallelSignals?.map((signal, idx) => (
+        <span
+          key={`px-${signal.kind}-${idx}`}
+          className="px-1.5 py-0.5 bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-[10px] rounded font-semibold"
+          title={signal.reason}
+        >
+          {signal.kind === 'broadcast-large' ? 'Broadcast' : 'Serial point'}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function QueryBlockChips({ node, className = '' }: { node: PlanNodeType; className?: string }) {
+  if (!node.queryBlock) return null;
+  return (
+    <div className={`flex flex-wrap gap-1 ${className}`}>
+      <span className="px-1.5 py-0.5 text-xs rounded font-mono bg-violet-500/10 border border-violet-400/40 dark:border-violet-500/40 text-violet-700 dark:text-violet-300">
+        {node.queryBlock}
+      </span>
+      {node.objectAlias && (
+        <span className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 border border-transparent text-slate-700 dark:text-slate-200 text-xs rounded font-mono">
+          {node.objectAlias}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function PartitionChip({ node, className = '' }: { node: PlanNodeType; className?: string }) {
+  const range = formatPartitionRange(node.pstart, node.pstop);
+  if (!range) return null;
+  return (
+    <div className={`flex gap-1 ${className}`}>
+      <span
+        className="rounded font-semibold px-1.5 py-0.5 text-xs bg-indigo-200 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-200"
+        title={`Partitions accessed — Pstart: ${node.pstart ?? '—'}, Pstop: ${node.pstop ?? '—'}`}
+      >
+        Part {range}
+      </span>
+    </div>
+  );
+}
+
+interface PredicateDetailsProps {
+  node: PlanNodeType;
+  searchText?: string;
+  className?: string;
+  /** Hover card: keep long predicates from taking over the card. */
+  clamp?: boolean;
+}
+
+function PredicateDetails({ node, searchText, className = '', clamp = false }: PredicateDetailsProps) {
+  if (!node.accessPredicates && !node.filterPredicates) return null;
+  // Clamp on the line wrapper (not the <code>) so the A:/F: label stays inline.
+  const lineClass = `text-xs ${clamp ? 'line-clamp-3' : ''}`;
+  return (
+    <div className={`space-y-1 ${className}`}>
+      {node.accessPredicates && (
+        <div className={lineClass}>
+          <span className="font-medium text-green-700 dark:text-green-300">A: </span>
+          <code className="text-slate-600 dark:text-slate-400 break-all">
+            <HighlightText text={node.accessPredicates} query={searchText} />
+          </code>
+        </div>
+      )}
+      {node.filterPredicates && (
+        <div className={lineClass}>
+          <span className="font-medium text-amber-700 dark:text-amber-300">F: </span>
+          <code className="text-slate-600 dark:text-slate-400 break-all">
+            <HighlightText text={node.filterPredicates} query={searchText} />
+          </code>
+        </div>
       )}
     </div>
   );
