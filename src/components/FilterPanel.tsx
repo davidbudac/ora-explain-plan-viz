@@ -91,6 +91,7 @@ const DEFAULT_NODE_DISPLAY_OPTIONS: NodeDisplayOptions = {
   showMissingStatsBadge: true,
   showMismatchNoHistogramBadge: true,
   showAnnotations: true,
+  compactStats: false,
 };
 
 interface FilterPanelProps {

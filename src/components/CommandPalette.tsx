@@ -5,7 +5,7 @@ import { usePlan } from '../hooks/usePlanContext';
 import type { ViewMode, SankeyMetric, NodeIndicatorMetric, ColorScheme, NodeDisplayOptions } from '../lib/types';
 import type { HighlightStyle } from '../lib/annotations';
 import { hasAnnotations } from '../lib/annotations';
-import { DENSITY_PRESET_LABELS } from '../lib/density';
+import { DENSITY_PRESET_LABELS, DENSITY_PRESET_ORDER } from '../lib/density';
 import { isDbAgentEnabled } from '../lib/agent/client';
 
 type CommandCategory =
@@ -253,12 +253,12 @@ function useCommands(onExportPng: () => void): Command[] {
     });
 
     // --- Density presets ---
-    for (const preset of ['compact', 'detailed'] as const) {
+    for (const preset of DENSITY_PRESET_ORDER) {
       commands.push({
         id: `density-${preset}`,
         label: `Density preset: ${DENSITY_PRESET_LABELS[preset]}`,
         category: 'Node Display',
-        keywords: ['density', 'preset', 'compact', 'detailed', 'simplify', preset],
+        keywords: ['density', 'preset', 'minimal', 'compact', 'detailed', 'simplify', preset],
         execute: () => applyDensityPreset(preset),
         isActive: () => densitySelection === preset,
         isAvailable: () => anyPlanParsed,

@@ -178,6 +178,14 @@ export interface NodeDisplayOptions {
   showMismatchNoHistogramBadge: boolean;
   // Annotations overlay
   showAnnotations: boolean;
+  /**
+   * Progressive disclosure: collapse the whole node body into a single quiet
+   * mono metric line plus one amber warning dot. Suppresses the stats grid,
+   * badge row, query-block/alias chips, partition info and predicate chips
+   * regardless of the individual toggles above (those keep acting as signal
+   * sources for the dot). Defaults to false for existing saved settings.
+   */
+  compactStats: boolean;
 }
 
 export interface FilterState {
