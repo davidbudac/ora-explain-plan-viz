@@ -104,6 +104,15 @@ const tabs: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
       </svg>
     ),
   },
+  {
+    id: 'ai-report',
+    label: 'AI (proto)',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l1.8 4.7L18.5 9.5 13.8 11.3 12 16l-1.8-4.7L5.5 9.5l4.7-1.8L12 3zM18 15l.9 2.3 2.3.9-2.3.9L18 21.4l-.9-2.3-2.3-.9 2.3-.9L18 15z" />
+      </svg>
+    ),
+  },
 ];
 
 export function NavRibbon() {
@@ -116,6 +125,8 @@ export function NavRibbon() {
     if (tab.id === 'sql') return Boolean(parsedPlan?.sqlText);
     if (tab.id === 'monitor') return parsedPlan?.source === 'sql_monitor_xml';
     if (tab.id === 'ai') return Boolean(parsedPlan) || report !== null;
+    // Throwaway design prototype (wayfinder ticket 08) — dev builds only.
+    if (tab.id === 'ai-report') return import.meta.env.DEV;
     return true;
   });
 

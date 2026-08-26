@@ -64,6 +64,7 @@ const VIEW_MODE_LABELS: Record<ViewMode, string> = {
   monitor: 'Monitor',
   experimental: 'Experimental',
   ai: 'AI Analysis',
+  'ai-report': 'AI (proto)',
 };
 
 const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
@@ -187,6 +188,8 @@ function useCommands(onExportPng: () => void): Command[] {
         isAvailable: () => {
           if (mode === 'compare') return multipleParsedPlans;
           if (mode === 'sql') return anyPlanParsed;
+          // Throwaway design prototype (wayfinder ticket 08) — dev builds only.
+          if (mode === 'ai-report') return import.meta.env.DEV && anyPlanParsed;
           return anyPlanParsed;
         },
       });
