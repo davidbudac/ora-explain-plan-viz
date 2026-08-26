@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
+import { useAi } from '../hooks/useAiAnalysis';
 import { PlanTabs } from './PlanTabs';
 import type { ViewMode } from '../lib/types';
 
@@ -86,6 +87,15 @@ const tabs: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
+    id: 'ai',
+    label: 'AI',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+      </svg>
+    ),
+  },
+  {
     id: 'experimental',
     label: 'Experimental',
     icon: (
@@ -98,12 +108,14 @@ const tabs: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
 
 export function NavRibbon() {
   const { viewMode, setViewMode, parsedPlan, plans, visualizationMaximized, setVisualizationMaximized } = usePlan();
+  const { report, openAiDialog } = useAi();
 
   const comparablePlanCount = plans.filter((slot) => slot.parsedPlan).length;
   const compareEnabled = comparablePlanCount >= 2;
   const visibleTabs = tabs.filter((tab) => {
     if (tab.id === 'sql') return Boolean(parsedPlan?.sqlText);
     if (tab.id === 'monitor') return parsedPlan?.source === 'sql_monitor_xml';
+    if (tab.id === 'ai') return Boolean(parsedPlan) || report !== null;
     return true;
   });
 
@@ -157,6 +169,23 @@ export function NavRibbon() {
         </div>
 
         <div className="w-px h-6 bg-slate-300/50 dark:bg-slate-700/50 mx-1" />
+
+        <button
+          type="button"
+          onClick={() => openAiDialog(compareEnabled && viewMode === 'compare' ? 'compare' : 'analyze')}
+          disabled={!parsedPlan}
+          title={compareEnabled && viewMode === 'compare' ? 'AI compare plans…' : 'AI plan analysis…'}
+          className={`h-8 px-2.5 flex items-center gap-1.5 rounded-md border text-xs font-semibold transition-colors shadow-sm ${
+            parsedPlan
+              ? 'border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30'
+              : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50'
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+          </svg>
+          <span className="hidden xl:inline">AI analysis</span>
+        </button>
 
         <button
           type="button"

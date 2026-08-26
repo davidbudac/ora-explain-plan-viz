@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { usePlan } from '../hooks/usePlanContext';
+import { useAi } from '../hooks/useAiAnalysis';
 import type { ViewMode, SankeyMetric, NodeIndicatorMetric, ColorScheme, NodeDisplayOptions } from '../lib/types';
 import type { HighlightStyle } from '../lib/annotations';
 import { hasAnnotations } from '../lib/annotations';
@@ -18,7 +19,8 @@ type CommandCategory =
   | 'Export & Share'
   | 'Panels'
   | 'Metrics'
-  | 'Annotations';
+  | 'Annotations'
+  | 'AI';
 
 interface Command {
   id: string;
@@ -61,6 +63,7 @@ const VIEW_MODE_LABELS: Record<ViewMode, string> = {
   compare: 'Compare',
   monitor: 'Monitor',
   experimental: 'Experimental',
+  ai: 'AI Analysis',
 };
 
 const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
@@ -127,6 +130,7 @@ function useCommands(onExportPng: () => void): Command[] {
     setBaselineDialogOpen,
     setConnectPanelOpen,
   } = usePlan();
+  const { report: aiReport, openAiDialog } = useAi();
 
   const anyPlanParsed = plans.some(p => p.parsedPlan);
   const hasActualStats = parsedPlan?.hasActualStats ?? false;
@@ -534,6 +538,34 @@ function useCommands(onExportPng: () => void): Command[] {
       });
     }
 
+    // --- AI ---
+    commands.push({
+      id: 'ai-analyze-plan',
+      label: 'AI: Analyze plan…',
+      category: 'AI',
+      keywords: ['ai', 'analyze', 'analysis', 'llm', 'claude', 'anthropic', 'assistant'],
+      execute: () => openAiDialog('analyze'),
+      isAvailable: () => anyPlanParsed,
+    });
+
+    commands.push({
+      id: 'ai-compare-plans',
+      label: 'AI: Compare plans…',
+      category: 'AI',
+      keywords: ['ai', 'compare', 'diff', 'plans', 'llm', 'analysis'],
+      execute: () => openAiDialog('compare'),
+      isAvailable: () => multipleParsedPlans,
+    });
+
+    commands.push({
+      id: 'ai-open-report',
+      label: 'AI: Open report',
+      category: 'AI',
+      keywords: ['ai', 'report', 'open', 'view', 'analysis', 'result'],
+      execute: () => setViewMode('ai'),
+      isAvailable: () => aiReport !== null,
+    });
+
     return commands;
   }, [
     viewMode, theme, colorScheme, filters, sankeyMetric, nodeIndicatorMetric,
@@ -548,6 +580,7 @@ function useCommands(onExportPng: () => void): Command[] {
     setInputPanelCollapsed, setFilterPanelCollapsed,
     setDetailPanelCollapsed, setHotspotsEnabled, setTreeCompareEnabled,
     exportAnnotatedPlan, clearAnnotations, share, onExportPng, setBaselineDialogOpen, setConnectPanelOpen,
+    aiReport, openAiDialog,
     toggleNodeDisplayOption, enableAllDisplayOptions, disableAllDisplayOptions,
   ]);
 }
@@ -563,6 +596,7 @@ const CATEGORY_ORDER: CommandCategory[] = [
   'Panels',
   'Metrics',
   'Annotations',
+  'AI',
 ];
 
 export function CommandPalette() {
