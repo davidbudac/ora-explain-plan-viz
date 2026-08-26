@@ -923,7 +923,7 @@ function MetadataSection({
       <Accordion title="Metadata">
         {warningBanner}
         <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed mb-3">
-          No metadata loaded for this plan. Run the gather script to collect schema details (tables, indexes, column stats) for better analysis.
+          No metadata loaded for this plan. Run the gather script to attach schema details (tables, indexes, column stats).
         </p>
         <button
           type="button"

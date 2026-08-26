@@ -38,7 +38,7 @@ export function MetadataChip({ bundle, warning, planSqlId, onDetach }: MetadataC
         <button
           type="button"
           onClick={() => setShowModal(true)}
-          title="Attempt to gather schema metadata (tables, indexes, column stats, histograms) so you can analyze this plan with more context. Coverage depends on your database privileges."
+          title="Generate a SQL script that gathers schema metadata (tables, indexes, column stats, histograms) for this plan. Coverage depends on your database privileges."
           className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded border border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 bg-indigo-50/60 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors"
         >
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
