@@ -8,6 +8,7 @@ import { assembleContext, buildAnalyzeSections, buildCompareSections, buildTestC
 import { MODEL_PRESETS } from '../lib/ai/prompts';
 import { getAiSecret, setAiSecret } from '../lib/ai/secrets';
 import type { AiRunConfig } from '../lib/ai/provider';
+import { DEFAULT_HOSTED_BASE_URL } from '../lib/ai/provider';
 import type { AiProviderId, AiSectionId } from '../lib/ai/types';
 
 interface AiAnalysisDialogProps {
@@ -48,6 +49,11 @@ function hostOf(url: string): string {
 
 const PROVIDER_OPTIONS: { value: AiProviderId; label: string; description: string; gated?: boolean }[] = [
   {
+    value: 'hosted',
+    label: 'oraplanviz cloud (hosted)',
+    description: 'The hosted service holds the model credentials; you authenticate with an account token.',
+  },
+  {
     value: 'anthropic',
     label: 'Anthropic (bring your own API key)',
     description: 'Streams directly from your browser to api.anthropic.com using your key.',
@@ -86,6 +92,7 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
 
   const [anthropicKey, setAnthropicKey] = useState(() => getAiSecret('anthropic') ?? '');
   const [openAiKey, setOpenAiKey] = useState(() => getAiSecret('openai') ?? '');
+  const [hostedToken, setHostedToken] = useState(() => getAiSecret('hosted') ?? '');
   const [rememberKey, setRememberKey] = useState(false);
 
   const [openAiBaseUrl, setOpenAiBaseUrl] = useState(settings.aiOpenAiBaseUrl);
@@ -145,15 +152,17 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
     return assembleContext(sectioned.core, sections);
   }, [sectioned, included]);
 
-  const model =
-    provider === 'openai-compat'
+  const model = provider === 'hosted'
+    ? ''
+    : provider === 'openai-compat'
       ? openAiModel.trim()
       : modelChoice === CUSTOM_MODEL
         ? customModel.trim()
         : modelChoice;
 
-  const targetHost =
-    provider === 'anthropic'
+  const targetHost = provider === 'hosted'
+    ? hostOf(DEFAULT_HOSTED_BASE_URL)
+    : provider === 'anthropic'
       ? 'api.anthropic.com'
       : provider === 'openai-compat'
         ? openAiBaseUrl.trim()
@@ -164,11 +173,13 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
   const configValid =
     builtContext !== null &&
     status !== 'streaming' &&
-    (provider === 'anthropic'
-      ? anthropicKey.trim() !== '' && model !== ''
-      : provider === 'openai-compat'
-        ? openAiBaseUrl.trim() !== '' && model !== ''
-        : agentToken.trim() !== '');
+    (provider === 'hosted'
+      ? hostedToken.trim() !== ''
+      : provider === 'anthropic'
+        ? anthropicKey.trim() !== '' && model !== ''
+        : provider === 'openai-compat'
+          ? openAiBaseUrl.trim() !== '' && model !== ''
+          : agentToken.trim() !== '');
 
   const run = async () => {
     if (!builtContext || !configValid) return;
@@ -193,9 +204,13 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
     if (provider === 'openai-compat' && openAiKey.trim() !== '') {
       setAiSecret('openai', openAiKey.trim(), rememberKey);
     }
+    if (provider === 'hosted' && hostedToken.trim() !== '') {
+      setAiSecret('hosted', hostedToken.trim(), rememberKey);
+    }
 
-    const runConfig: AiRunConfig =
-      provider === 'anthropic'
+    const runConfig: AiRunConfig = provider === 'hosted'
+      ? { provider, model, accountToken: hostedToken.trim(), hostedBaseUrl: DEFAULT_HOSTED_BASE_URL }
+      : provider === 'anthropic'
         ? { provider, apiKey: anthropicKey.trim(), model }
         : provider === 'openai-compat'
           ? { provider, apiKey: openAiKey.trim(), baseUrl: openAiBaseUrl.trim(), model }
@@ -294,6 +309,32 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
           </div>
 
           {/* Provider-specific configuration */}
+          {provider === 'hosted' && (
+            <div>
+              <label className={labelClass}>Account token</label>
+              <input
+                type="password"
+                value={hostedToken}
+                onChange={(e) => setHostedToken(e.target.value)}
+                placeholder="Your oraplanviz cloud account token"
+                spellCheck={false}
+                autoComplete="off"
+                className={inputClass}
+              />
+              <label className="mt-1.5 flex items-center gap-1.5 cursor-pointer text-[11px] text-neutral-600 dark:text-neutral-400">
+                <input
+                  type="checkbox"
+                  checked={rememberKey}
+                  onChange={(e) => setRememberKey(e.target.checked)}
+                />
+                Remember on this device
+              </label>
+              <p className="mt-1.5 text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
+                The model is pinned server-side — no model selection is needed.
+              </p>
+            </div>
+          )}
+
           {provider === 'anthropic' && (
             <div className="grid grid-cols-2 gap-3">
               <div>

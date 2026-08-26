@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { AiRequest, AiStreamEvent, AiStopReason, AiErrorKind } from '../types';
+import type { AiChatMessage, AiRequest, AiStreamEvent, AiStopReason, AiErrorKind } from '../types';
 import { AiError } from '../types';
 
 /** Map an SDK stop_reason (+ optional stop_details) to our AiStopReason. */
@@ -58,7 +58,7 @@ function toAiError(err: unknown): AiError {
  */
 export async function* streamAnthropic(
   config: { apiKey: string },
-  req: AiRequest,
+  req: AiRequest & { messages?: AiChatMessage[] },
   signal: AbortSignal,
 ): AsyncGenerator<AiStreamEvent> {
   const client = new Anthropic({
@@ -72,7 +72,9 @@ export async function* streamAnthropic(
         model: req.model,
         max_tokens: req.maxTokens,
         system: req.system,
-        messages: [{ role: 'user', content: req.user }],
+        // Multi-turn chat passes the full messages array; the single-turn
+        // AiRequest path keeps sending the one user message.
+        messages: req.messages ?? [{ role: 'user', content: req.user }],
         betas: ['server-side-fallback-2026-07-01'],
         fallbacks: 'default',
       },
