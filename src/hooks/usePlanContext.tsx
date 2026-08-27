@@ -283,7 +283,8 @@ function normalizeComparePlanIndices(
 }
 
 const getInitialState = (): PlanState => {
-  const settings = loadSettings();
+  const initialTheme = getInitialTheme();
+  const settings = loadSettings(initialTheme);
   const initialPlans = [createEmptySlot(0)];
   return {
     plans: initialPlans,
@@ -297,8 +298,8 @@ const getInitialState = (): PlanState => {
     experimentalSubView: settings.experimentalSubView ?? 'scatter',
     nodeIndicatorMetric: settings.nodeIndicatorMetric,
     colorScheme: settings.colorScheme ?? 'semantic',
-    palette: settings.palette ?? 'slate',
-    theme: getInitialTheme(),
+    palette: settings.palette,
+    theme: initialTheme,
     filters: applySettingsToFilters(initialFilters, settings),
     highlightStyle: settings.highlightStyle ?? 'circle',
     hotspotsEnabled: settings.hotspotsEnabled ?? true,
