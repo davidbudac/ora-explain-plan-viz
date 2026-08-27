@@ -1,4 +1,4 @@
-import { useState, useMemo, type PointerEvent as ReactPointerEvent } from 'react';
+import { useState, useMemo, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { getOperationCategory, getMetricColor, getOperationTooltip } from '../lib/types';
 import { formatBytes, formatNumberShort, formatTimeCompact, formatTimeDetailed } from '../lib/format';
@@ -20,6 +20,13 @@ import type { ParallelSignal } from '../lib/planSignals';
 import { FindingsList, NodeFindings } from './FindingsPanel';
 import { DdlBlock, CopyButton, formatHistogramLabel, formatDateShort } from './metadata/shared';
 
+const FOCUS_RING =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
+// Full-width rows and accordion summaries run edge-to-edge inside the panel's
+// scroll container, where an outset ring would be clipped.
+const FOCUS_RING_INSET =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
+
 const HIGHLIGHT_COLORS_MAP: Record<HighlightColor, string> = Object.fromEntries(
   HIGHLIGHT_COLORS.map((c) => [c.name, c.chip])
 ) as Record<HighlightColor, string>;
@@ -29,27 +36,110 @@ interface NodeDetailPanelProps {
   onResizeStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
 }
 
+/**
+ * One row of a "worst nodes" list. Only the leader is coloured red — the rest
+ * carry their weight in a proportional micro-bar, so severity stays readable.
+ */
+function WorstNodeRow({
+  node,
+  rank,
+  ratio,
+  value,
+  suffix,
+  onSelect,
+}: {
+  node: PlanNodeType;
+  rank: number;
+  ratio: number;
+  value: string;
+  suffix?: ReactNode;
+  onSelect: (id: number) => void;
+}) {
+  const isLeader = rank === 0;
+  const barWidth = Math.max(2, Math.min(100, ratio * 100));
+
+  return (
+    <button
+      onClick={() => onSelect(node.id)}
+      className={`relative overflow-hidden w-full text-left px-2 py-1.5 pb-2 text-[11px] rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between gap-2 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 font-mono ${FOCUS_RING_INSET}`}
+    >
+      <span className="flex items-center gap-1.5 truncate">
+        <span className="font-mono text-[11px] px-1.5 py-0.5 rounded border border-slate-200/70 dark:border-slate-700/50 text-slate-500 dark:text-slate-400 shrink-0">#{node.id}</span>
+        <span className="truncate font-semibold">{node.operation}</span>
+      </span>
+      <span className="whitespace-nowrap shrink-0">
+        <span
+          className={`font-semibold ${isLeader ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-300'}`}
+        >
+          {value}
+        </span>
+        {suffix}
+      </span>
+      <span
+        aria-hidden="true"
+        className={`absolute left-2 bottom-1 h-0.5 rounded-full ${
+          isLeader ? 'bg-red-500/70' : 'bg-slate-300 dark:bg-slate-600'
+        }`}
+        style={{ width: `calc((100% - 1rem) * ${barWidth / 100})` }}
+      />
+    </button>
+  );
+}
+
 export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelProps) {
   const {
-    selectedNode: selectedPrimaryNode, selectedNodes, selectedNodeIds, parsedPlan, selectNode,
-    filters, nodeIndicatorMetric, annotations,
-    setNodeAnnotation, removeNodeAnnotation, setNodeHighlight, removeNodeHighlight,
-    addAnnotationGroup, updateAnnotationGroup, removeAnnotationGroup,
+    selectedNodes,
+    detailPanelCollapsed: isCollapsed, setDetailPanelCollapsed: setIsCollapsed,
+  } = usePlan();
+
+  if (isCollapsed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setIsCollapsed(false)}
+        aria-label="Show details"
+        aria-expanded={false}
+        title="Show details"
+        className={`h-full w-[26px] shrink-0 flex flex-col items-center pt-2.5 gap-2.5 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`}
+      >
+        <svg className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+        </svg>
+        <span className="[writing-mode:vertical-rl] uppercase text-[10px] font-bold tracking-[0.14em] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+          Details
+        </span>
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 overflow-y-auto"
+      style={{ width: panelWidth }}
+    >
+      <button
+        type="button"
+        onPointerDown={onResizeStart}
+        className={`absolute left-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors ${FOCUS_RING}`}
+        aria-label="Resize details panel"
+        title="Resize details panel"
+      />
+      {selectedNodes.length === 0 ? <NoSelectionBody /> : <NodeDetailBody />}
+    </div>
+  );
+}
+
+/** Plan-wide summary shown in the docked details panel when nothing is selected. */
+function NoSelectionBody() {
+  const {
+    parsedPlan, selectNode, annotations,
+    updateAnnotationGroup, removeAnnotationGroup,
     hotspotsEnabled, setHotspotsEnabled,
     showAdvisorSuggestions, setShowAdvisorSuggestions,
-    detailPanelCollapsed: isCollapsed, setDetailPanelCollapsed: setIsCollapsed,
-    highlightStyle, setHighlightStyle,
-    metadataBundle, metadataBundleWarning,
     advisorReport,
   } = usePlan();
-  const searchText = filters.searchText;
-  const [showGroupDialog, setShowGroupDialog] = useState(false);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
-  const isMultiSelection = selectedNodes.length > 1;
-  const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : selectedPrimaryNode;
-  const aggregateSelection = isMultiSelection ? computeAggregateSelection(selectedNodes) : null;
 
-  // Compute worst nodes — must be before any early returns to satisfy Rules of Hooks
   const worstNodes = useMemo(() => {
     if (!parsedPlan) return { byCost: [], byTime: [] };
 
@@ -71,6 +161,223 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
     return { byCost, byTime };
   }, [parsedPlan]);
 
+  return (
+    <>
+      <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Details</h3>
+      </div>
+
+      <div className="px-3 py-2.5 border-b border-slate-200 dark:border-slate-800 space-y-2">
+         <div className="flex items-center justify-between">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Quick Analysis</h3>
+            <div className="flex items-center gap-2">
+               <span className="text-[10px] text-slate-400 dark:text-slate-500">Hotspots</span>
+               <button
+                 role="switch"
+                 aria-checked={hotspotsEnabled}
+                 onClick={() => setHotspotsEnabled(!hotspotsEnabled)}
+                 className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${FOCUS_RING} ${
+                   hotspotsEnabled ? 'bg-red-500' : 'bg-slate-300 dark:bg-slate-700'
+                 }`}
+               >
+                 <span className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${
+                   hotspotsEnabled ? 'translate-x-3.5' : 'translate-x-0.5'
+                 }`} />
+               </button>
+            </div>
+         </div>
+         <div className="flex items-center justify-between">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500" title="Show the tuning recommendation line on advisor findings">Suggestions</span>
+            <button
+              role="switch"
+              aria-checked={showAdvisorSuggestions}
+              onClick={() => setShowAdvisorSuggestions(!showAdvisorSuggestions)}
+              className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${FOCUS_RING} ${
+                showAdvisorSuggestions ? 'bg-sky-500' : 'bg-slate-300 dark:bg-slate-700'
+              }`}
+            >
+              <span className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${
+                showAdvisorSuggestions ? 'translate-x-3.5' : 'translate-x-0.5'
+              }`} />
+            </button>
+         </div>
+      </div>
+
+      {advisorReport && advisorReport.findings.length > 0 && (
+        <Accordion
+          title="Findings"
+          subtitle={`${advisorReport.findings.length}`}
+        >
+          <FindingsList />
+        </Accordion>
+      )}
+
+      {hotspotsEnabled && (
+        <>
+          {/* Worst by A-Time */}
+          {worstNodes.byTime.length > 0 && (
+            <Accordion title="Slowest Ops" subtitle="by self time">
+              <div className="space-y-1">
+                {(() => {
+                  const maxSelf = worstNodes.byTime.reduce(
+                    (max, n) => Math.max(max, n.selfTime ?? n.actualTime ?? 0),
+                    0
+                  );
+                  return worstNodes.byTime.map((n, rank) => {
+                    const self = n.selfTime ?? n.actualTime;
+                    const showTotal = n.selfTime !== undefined
+                      && n.actualTime !== undefined
+                      && n.actualTime > n.selfTime;
+                    return (
+                      <WorstNodeRow
+                        key={n.id}
+                        node={n}
+                        rank={rank}
+                        ratio={maxSelf > 0 ? (self ?? 0) / maxSelf : 0}
+                        value={formatTimeCompact(self) ?? '—'}
+                        suffix={showTotal ? (
+                          <span className="text-slate-400 dark:text-slate-500"> · {formatTimeCompact(n.actualTime)} total</span>
+                        ) : undefined}
+                        onSelect={selectNode}
+                      />
+                    );
+                  });
+                })()}
+              </div>
+            </Accordion>
+          )}
+
+          {/* Worst by Cost */}
+          {worstNodes.byCost.length > 0 && (
+            <Accordion title="Highest Cost" defaultOpen={false}>
+              <div className="space-y-1">
+                {(() => {
+                  const maxCost = worstNodes.byCost.reduce((max, n) => Math.max(max, n.cost ?? 0), 0);
+                  return worstNodes.byCost.map((n, rank) => (
+                    <WorstNodeRow
+                      key={n.id}
+                      node={n}
+                      rank={rank}
+                      ratio={maxCost > 0 ? (n.cost ?? 0) / maxCost : 0}
+                      value={n.cost !== undefined ? String(n.cost) : '—'}
+                      onSelect={selectNode}
+                    />
+                  ));
+                })()}
+              </div>
+            </Accordion>
+          )}
+
+        </>
+      )}
+
+      {/* Bind Variables */}
+      {parsedPlan?.bindVariables && parsedPlan.bindVariables.length > 0 && (
+        <div className="px-3 py-2.5 border-b border-slate-200 dark:border-slate-800">
+          <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+            Bind Variables ({parsedPlan.bindVariables.length})
+          </h4>
+          <div className="space-y-1.5">
+            {parsedPlan.bindVariables.map((bind, idx) => (
+              <div key={bind.name + idx} className="flex items-start gap-2 text-xs">
+                <span className="font-mono text-blue-600 dark:text-blue-400 shrink-0">{bind.name}</span>
+                {bind.type && (
+                  <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded text-[10px] font-medium shrink-0">
+                    {bind.type}
+                  </span>
+                )}
+                <span className="flex-1 min-w-0 flex items-center gap-1">
+                  {bind.value === null ? (
+                    <span className="italic text-slate-400 dark:text-slate-500">NULL</span>
+                  ) : (
+                    <>
+                      <code className="font-mono text-slate-800 dark:text-slate-200 truncate block">{bind.value}</code>
+                      <CopyButton text={bind.value} label={`Copy ${bind.name} value`} />
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Annotation Groups */}
+      {annotations.groups.length > 0 && (
+        <div className="px-3 py-2.5">
+          <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Annotation Groups</h4>
+          <div className="space-y-1">
+            {annotations.groups.map((group) => {
+              const colorDef = HIGHLIGHT_COLORS_MAP[group.color];
+              return (
+                <div
+                  key={group.id}
+                  className="flex items-center justify-between px-2 py-1.5 text-xs rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <span className={`w-3 h-3 rounded-full shrink-0 ${colorDef}`} />
+                    <span className="truncate text-slate-700 dark:text-slate-300">{group.name}</span>
+                    <span className="text-[10px] text-slate-400">({group.nodeIds.length})</span>
+                  </span>
+                  <button
+                    onClick={() => setEditingGroupId(group.id)}
+                    className={`p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded ${FOCUS_RING}`}
+                    title="Edit group"
+                  >
+                    <svg className="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {editingGroupId && (() => {
+        const group = annotations.groups.find((g) => g.id === editingGroupId);
+        if (!group) return null;
+        return (
+          <GroupAnnotationDialog
+            nodeIds={group.nodeIds}
+            existingGroup={group}
+            onSave={(data) => {
+              updateAnnotationGroup({ ...group, ...data });
+              setEditingGroupId(null);
+            }}
+            onDelete={() => {
+              removeAnnotationGroup(group.id);
+              setEditingGroupId(null);
+            }}
+            onClose={() => setEditingGroupId(null)}
+          />
+        );
+      })()}
+    </>
+  );
+}
+
+/**
+ * The selected-node (or multi-selection) detail content, with no panel shell or
+ * resize handle — shared by the docked details panel and focus mode's floating
+ * inspector card. Renders nothing when the selection is empty.
+ */
+export function NodeDetailBody() {
+  const {
+    selectedNode: selectedPrimaryNode, selectedNodes, selectedNodeIds, parsedPlan, selectNode,
+    filters, nodeIndicatorMetric, annotations,
+    setNodeAnnotation, removeNodeAnnotation, setNodeHighlight, removeNodeHighlight,
+    addAnnotationGroup,
+    highlightStyle, setHighlightStyle,
+    metadataBundle, metadataBundleWarning,
+  } = usePlan();
+  const searchText = filters.searchText;
+  const [showGroupDialog, setShowGroupDialog] = useState(false);
+  const isMultiSelection = selectedNodes.length > 1;
+  const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : selectedPrimaryNode;
+  const aggregateSelection = isMultiSelection ? computeAggregateSelection(selectedNodes) : null;
+
   const usedIndexKeys = useMemo(() => {
     if (!metadataBundle || !parsedPlan) return new Set<string>();
     return findUsedIndexKeys(metadataBundle, parsedPlan.allNodes);
@@ -81,239 +388,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
     return computeParallelSignals(parsedPlan);
   }, [parsedPlan]);
 
-  if (isCollapsed) {
-    return (
-      <div className="bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col items-center py-4 px-1.5">
-        <button
-          onClick={() => setIsCollapsed(false)}
-          className="h-9 w-9 flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700 transition-colors"
-          title="Show details"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </button>
-        <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-4 uppercase tracking-wider writing-mode-vertical whitespace-nowrap">Details</span>
-      </div>
-    );
-  }
-
-  if (selectedNodes.length === 0) {
-    return (
-      <div
-        className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 overflow-y-auto"
-        style={{ width: panelWidth }}
-      >
-        <button
-          type="button"
-          onPointerDown={onResizeStart}
-          className="absolute left-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none bg-transparent hover:bg-blue-500/40 transition-colors"
-          aria-label="Resize details panel"
-        />
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-          <div className="flex items-center justify-between">
-             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Details</h3>
-            <button
-                onClick={() => setIsCollapsed(true)}
-                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors text-slate-400 dark:text-slate-500"
-                title="Collapse panel"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                </svg>
-              </button>
-          </div>
-        </div>
-
-        <div className="p-3 border-b border-slate-200 dark:border-slate-800 space-y-2">
-           <div className="flex items-center justify-between">
-              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Quick Analysis</h3>
-              <div className="flex items-center gap-2">
-                 <span className="text-[10px] text-slate-400 dark:text-slate-500">Hotspots</span>
-                 <button
-                   role="switch"
-                   aria-checked={hotspotsEnabled}
-                   onClick={() => setHotspotsEnabled(!hotspotsEnabled)}
-                   className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
-                     hotspotsEnabled ? 'bg-red-500' : 'bg-slate-300 dark:bg-slate-700'
-                   }`}
-                 >
-                   <span className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${
-                     hotspotsEnabled ? 'translate-x-3.5' : 'translate-x-0.5'
-                   }`} />
-                 </button>
-              </div>
-           </div>
-           <div className="flex items-center justify-between">
-              <span className="text-[10px] text-slate-400 dark:text-slate-500" title="Show the tuning recommendation line on advisor findings">Suggestions</span>
-              <button
-                role="switch"
-                aria-checked={showAdvisorSuggestions}
-                onClick={() => setShowAdvisorSuggestions(!showAdvisorSuggestions)}
-                className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
-                  showAdvisorSuggestions ? 'bg-sky-500' : 'bg-slate-300 dark:bg-slate-700'
-                }`}
-              >
-                <span className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${
-                  showAdvisorSuggestions ? 'translate-x-3.5' : 'translate-x-0.5'
-                }`} />
-              </button>
-           </div>
-        </div>
-
-        {advisorReport && advisorReport.findings.length > 0 && (
-          <Accordion
-            title="Findings"
-            subtitle={`${advisorReport.findings.length}`}
-          >
-            <FindingsList />
-          </Accordion>
-        )}
-
-        {hotspotsEnabled && (
-          <>
-            {/* Worst by A-Time */}
-            {worstNodes.byTime.length > 0 && (
-              <Accordion title="Slowest Ops" subtitle="by self time">
-                <div className="space-y-1">
-                  {worstNodes.byTime.map(n => {
-                    const self = n.selfTime ?? n.actualTime;
-                    const showTotal = n.selfTime !== undefined
-                      && n.actualTime !== undefined
-                      && n.actualTime > n.selfTime;
-                    return (
-                      <button
-                        key={n.id}
-                        onClick={() => selectNode(n.id)}
-                        className="w-full text-left px-2 py-1.5 text-[11px] rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between gap-2 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 font-mono"
-                      >
-                        <span className="flex items-center gap-1.5 truncate">
-                          <span className="font-mono text-[11px] px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500 shrink-0">#{n.id}</span>
-                          <span className="truncate font-semibold">{n.operation}</span>
-                        </span>
-                        <span className="whitespace-nowrap shrink-0">
-                          <span className="text-red-600 dark:text-red-400 font-semibold">{formatTimeCompact(self)}</span>
-                          {showTotal && (
-                            <span className="text-slate-400 dark:text-slate-500"> · {formatTimeCompact(n.actualTime)} total</span>
-                          )}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </Accordion>
-            )}
-
-            {/* Worst by Cost */}
-            {worstNodes.byCost.length > 0 && (
-              <Accordion title="Highest Cost" defaultOpen={false}>
-                <div className="space-y-1">
-                  {worstNodes.byCost.map(n => (
-                    <button
-                      key={n.id}
-                      onClick={() => selectNode(n.id)}
-                      className="w-full text-left px-2 py-1.5 text-[11px] rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between gap-2 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 font-mono"
-                    >
-                      <span className="flex items-center gap-1.5 truncate">
-                        <span className="font-mono text-[11px] px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500 shrink-0">#{n.id}</span>
-                        <span className="truncate font-semibold">{n.operation}</span>
-                      </span>
-                      <span className="text-slate-600 dark:text-slate-400 font-semibold">{n.cost}</span>
-                    </button>
-                  ))}
-                </div>
-              </Accordion>
-            )}
-
-          </>
-        )}
-
-        {/* Bind Variables */}
-        {parsedPlan?.bindVariables && parsedPlan.bindVariables.length > 0 && (
-          <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-            <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
-              Bind Variables ({parsedPlan.bindVariables.length})
-            </h4>
-            <div className="space-y-1.5">
-              {parsedPlan.bindVariables.map((bind, idx) => (
-                <div key={bind.name + idx} className="flex items-start gap-2 text-xs">
-                  <span className="font-mono text-blue-600 dark:text-blue-400 shrink-0">{bind.name}</span>
-                  {bind.type && (
-                    <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded text-[10px] font-medium shrink-0">
-                      {bind.type}
-                    </span>
-                  )}
-                  <span className="flex-1 min-w-0 flex items-center gap-1">
-                    {bind.value === null ? (
-                      <span className="italic text-slate-400 dark:text-slate-500">NULL</span>
-                    ) : (
-                      <>
-                        <code className="font-mono text-slate-800 dark:text-slate-200 truncate block">{bind.value}</code>
-                        <CopyButton text={bind.value} label={`Copy ${bind.name} value`} />
-                      </>
-                    )}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Annotation Groups */}
-        {annotations.groups.length > 0 && (
-          <div className="p-3">
-            <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Annotation Groups</h4>
-            <div className="space-y-1">
-              {annotations.groups.map((group) => {
-                const colorDef = HIGHLIGHT_COLORS_MAP[group.color];
-                return (
-                  <div
-                    key={group.id}
-                    className="flex items-center justify-between px-2 py-1.5 text-xs rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                  >
-                    <span className="flex items-center gap-1.5 truncate">
-                      <span className={`w-3 h-3 rounded-full shrink-0 ${colorDef}`} />
-                      <span className="truncate text-slate-700 dark:text-slate-300">{group.name}</span>
-                      <span className="text-[10px] text-slate-400">({group.nodeIds.length})</span>
-                    </span>
-                    <button
-                      onClick={() => setEditingGroupId(group.id)}
-                      className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"
-                      title="Edit group"
-                    >
-                      <svg className="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {editingGroupId && (() => {
-          const group = annotations.groups.find((g) => g.id === editingGroupId);
-          if (!group) return null;
-          return (
-            <GroupAnnotationDialog
-              nodeIds={group.nodeIds}
-              existingGroup={group}
-              onSave={(data) => {
-                updateAnnotationGroup({ ...group, ...data });
-                setEditingGroupId(null);
-              }}
-              onDelete={() => {
-                removeAnnotationGroup(group.id);
-                setEditingGroupId(null);
-              }}
-              onClose={() => setEditingGroupId(null)}
-            />
-          );
-        })()}
-      </div>
-    );
-  }
+  if (selectedNodes.length === 0) return null;
 
   if (isMultiSelection && aggregateSelection) {
     const indicator = computeNodeDetailIndicator(aggregateSelection.indicatorNode, parsedPlan, nodeIndicatorMetric);
@@ -321,26 +396,15 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
     const hasMoreIds = selectedNodeIds.length > 12;
 
     return (
-      <div
-        className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 overflow-y-auto"
-        style={{ width: panelWidth }}
-      >
-        <button
-          type="button"
-          onPointerDown={onResizeStart}
-          className="absolute left-0 top-0 z-10 h-full w-2 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors"
-          aria-label="Resize details panel"
-          title="Resize details panel"
-        />
-
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800">
+      <>
+        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-start justify-between">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               {selectedNodes.length} nodes selected
             </h3>
             <button
               onClick={() => selectNode(null)}
-              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors text-slate-400"
+              className={`p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors text-slate-400 ${FOCUS_RING}`}
               title="Clear selection"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -349,7 +413,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
             </button>
           </div>
           <div className="mt-2 text-[11px] font-mono text-slate-500 dark:text-slate-400 break-all">
-            <span className="text-slate-400 dark:text-slate-500 mr-1">IDs:</span> {selectedIdPreview}{hasMoreIds ? '...' : ''}
+            <span className="font-sans font-medium text-slate-500 dark:text-slate-400 mr-1">IDs:</span> {selectedIdPreview}{hasMoreIds ? '...' : ''}
           </div>
         </div>
 
@@ -362,7 +426,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
           />
           <button
             onClick={() => setShowGroupDialog(true)}
-            className="mt-3 w-full px-3 py-2 text-[11px] font-medium text-blue-600 dark:text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-md hover:bg-blue-500/20 transition-colors"
+            className={`mt-3 w-full px-3 py-2 text-[11px] font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-md hover:bg-slate-200/80 dark:hover:bg-slate-700/70 transition-colors ${FOCUS_RING}`}
           >
             Create Group
           </button>
@@ -381,7 +445,10 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
         <Accordion title={indicator.title}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-mono font-semibold tabular-nums text-slate-900 dark:text-slate-100">{indicator.formattedValue}</span>
+            <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+              <span className="text-slate-500 dark:text-slate-400 font-medium">{indicator.valueLabel}: </span>
+              <span className="font-mono tabular-nums">{indicator.formattedValue}</span>
+            </span>
             <span className="text-[10px] text-slate-400 dark:text-slate-500">{indicator.percentText}% {indicator.referenceLabel}</span>
           </div>
           <div className="h-1 rounded-full bg-slate-200 dark:bg-slate-700">
@@ -395,9 +462,9 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         {parsedPlan?.hasActualStats && (
           <Accordion title="Execution Stats (Sum)">
             <div className="grid grid-cols-2 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden [&>*:last-child:nth-child(odd)]:col-span-2">
-              <StatItem label="A-Rows" value={formatNumberShort(aggregateSelection.sumActualRows)} highlight="blue" />
-              <StatItem label="A-Time" value={formatTimeDetailed(aggregateSelection.sumActualTime)} highlight="purple" />
-              <StatItem label="Starts" value={formatNumberShort(aggregateSelection.sumStarts)} highlight="orange" />
+              <StatItem label="A-Rows" value={formatNumberShort(aggregateSelection.sumActualRows)} highlight="actual" />
+              <StatItem label="A-Time" value={formatTimeDetailed(aggregateSelection.sumActualTime)} highlight="actual" />
+              <StatItem label="Starts" value={formatNumberShort(aggregateSelection.sumStarts)} />
               <StatItem label="Avg Activity" value={aggregateSelection.avgActivityPercent !== undefined ? `${aggregateSelection.avgActivityPercent.toFixed(1)}%` : undefined} />
             </div>
           </Accordion>
@@ -426,7 +493,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
             </div>
           </Accordion>
         )}
-      </div>
+      </>
     );
   }
 
@@ -437,29 +504,19 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
   const nodeParallelSignals = parallelSignals.filter((s) => s.nodeId === node.id);
 
   return (
-    <div
-      className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 overflow-y-auto"
-      style={{ width: panelWidth }}
-    >
-      <button
-        type="button"
-        onPointerDown={onResizeStart}
-        className="absolute left-0 top-0 z-10 h-full w-2 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors"
-        aria-label="Resize details panel"
-        title="Resize details panel"
-      />
+    <>
       {/* Header */}
-      <div className="p-4 border-b border-slate-200 dark:border-slate-800">
+      <div className="p-3 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-             <span className="font-mono text-[11px] px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500">
+             <span className="font-mono text-[11px] px-1.5 py-0.5 rounded border border-slate-200/70 dark:border-slate-700/50 text-slate-500 dark:text-slate-400">
                 #{node.id}
              </span>
              <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400">{category}</span>
           </div>
           <button
             onClick={() => selectNode(null)}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors text-slate-400"
+            className={`p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors text-slate-400 ${FOCUS_RING}`}
             title="Clear selection"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -501,7 +558,10 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
       {/* Node indicator */}
       <Accordion title={indicator.title}>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-mono font-semibold tabular-nums text-slate-900 dark:text-slate-100">{indicator.formattedValue}</span>
+          <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+              <span className="text-slate-500 dark:text-slate-400 font-medium">{indicator.valueLabel}: </span>
+              <span className="font-mono tabular-nums">{indicator.formattedValue}</span>
+            </span>
           <span className="text-[10px] text-slate-400 dark:text-slate-500">{indicator.percentText}% {indicator.referenceLabel}</span>
         </div>
         <div className="h-1 rounded-full bg-slate-200 dark:bg-slate-700">
@@ -516,12 +576,12 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
       {parsedPlan?.hasActualStats && (
         <Accordion title="Execution Stats">
           <div className="grid grid-cols-2 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden [&>*:last-child:nth-child(odd)]:col-span-2">
-            <StatItem label="A-Rows" value={formatNumberShort(node.actualRows)} highlight="blue" />
+            <StatItem label="A-Rows" value={formatNumberShort(node.actualRows)} highlight="actual" />
             {node.selfTime !== undefined && (
-              <StatItem label="Self Time" value={formatTimeDetailed(node.selfTime)} highlight="purple" />
+              <StatItem label="Self Time" value={formatTimeDetailed(node.selfTime)} highlight="actual" />
             )}
-            <StatItem label="A-Time (cumul.)" value={formatTimeDetailed(node.actualTime)} />
-            <StatItem label="Starts" value={formatNumberShort(node.starts)} highlight="orange" />
+            <StatItem label="A-Time (cumul.)" value={formatTimeDetailed(node.actualTime)} highlight="actual" />
+            <StatItem label="Starts" value={formatNumberShort(node.starts)} />
             {node.activityPercent !== undefined && (
               <StatItem label="Activity" value={`${node.activityPercent.toFixed(1)}%`} />
             )}
@@ -654,18 +714,18 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
         onHighlightChange={setNodeHighlight}
         onHighlightRemove={removeNodeHighlight}
       />
-
-    </div>
+    </>
   );
 }
 
-function StatItem({ label, value, highlight }: { label: string; value?: string; highlight?: 'blue' | 'purple' | 'orange' }) {
+function StatItem({ label, value, highlight }: { label: string; value?: string; highlight?: 'actual' | 'warn' }) {
   if (!value) return null;
 
+  // 'actual' marks the actuals family (A-Rows / A-Time / Self Time), matching the
+  // Est ⇄ Act 'Act' column convention. 'warn' is reserved for flagged values.
   const valueStyles = {
-    blue: 'text-blue-600 dark:text-blue-400',
-    purple: 'text-purple-600 dark:text-purple-400',
-    orange: 'text-orange-600 dark:text-orange-400',
+    actual: 'text-blue-600 dark:text-blue-400',
+    warn: 'text-red-600 dark:text-red-400',
   };
 
   return (
@@ -679,16 +739,16 @@ function StatItem({ label, value, highlight }: { label: string; value?: string; 
 function Accordion({ title, subtitle, children, defaultOpen = true }: { title: string; subtitle?: string; children: React.ReactNode; defaultOpen?: boolean }) {
   return (
     <details className="group border-b border-slate-200 dark:border-slate-800" open={defaultOpen}>
-      <summary className="flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors list-none select-none">
+      <summary className={`flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors list-none select-none ${FOCUS_RING_INSET}`}>
         <div className="flex items-center gap-2.5">
-          <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{title}</h4>
-          {subtitle && <span className="text-[9px] text-slate-400 dark:text-slate-500 lowercase tracking-normal font-medium">{subtitle}</span>}
+          <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{title}</h4>
+          {subtitle && <span className="text-[10px] text-slate-400 dark:text-slate-500 lowercase tracking-normal font-medium">{subtitle}</span>}
         </div>
         <svg className="w-4 h-4 text-slate-300 group-open:rotate-180 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
         </svg>
       </summary>
-      <div className="px-4 pb-3 overflow-hidden">
+      <div className="px-3 pb-2.5 overflow-hidden">
         {children}
       </div>
     </details>
@@ -698,6 +758,9 @@ function Accordion({ title, subtitle, children, defaultOpen = true }: { title: s
 interface NodeDetailIndicator {
   ratio: number;
   title: string;
+  /** App-speak metric name (rendered in the UI face, not mono). */
+  valueLabel: string;
+  /** Database-derived value (rendered mono, tabular). */
   formattedValue: string;
   referenceLabel: string;
   percentText: string;
@@ -716,38 +779,44 @@ function computeNodeDetailIndicator(
 
   let ratio = 0;
   let title = 'Cost Impact';
-  let formattedValue = `Cost: ${node.cost || 0}`;
+  let valueLabel = 'Cost';
+  let formattedValue = `${node.cost || 0}`;
   let referenceLabel = 'of total';
 
   switch (metric) {
     case 'cost':
       ratio = totalCost > 0 ? (node.cost || 0) / totalCost : 0;
       title = 'Cost Impact';
-      formattedValue = `Cost: ${node.cost || 0}`;
+      valueLabel = 'Cost';
+      formattedValue = `${node.cost || 0}`;
       referenceLabel = 'of total';
       break;
     case 'actualRows':
       ratio = maxActualRows > 0 ? (node.actualRows || 0) / maxActualRows : 0;
       title = 'A-Rows Impact';
-      formattedValue = `A-Rows: ${formatNumberShort(node.actualRows || 0) ?? '0'}`;
+      valueLabel = 'A-Rows';
+      formattedValue = formatNumberShort(node.actualRows || 0) ?? '0';
       referenceLabel = 'of max';
       break;
     case 'actualTime':
       ratio = totalElapsedTime > 0 ? (node.actualTime || 0) / totalElapsedTime : 0;
       title = 'A-Time Impact';
-      formattedValue = `A-Time: ${formatTimeCompact(node.actualTime || 0) ?? '0ms'}`;
+      valueLabel = 'A-Time';
+      formattedValue = formatTimeCompact(node.actualTime || 0) ?? '0ms';
       referenceLabel = 'of total';
       break;
     case 'starts':
       ratio = maxStarts > 0 ? (node.starts || 0) / maxStarts : 0;
       title = 'Starts Impact';
-      formattedValue = `Starts: ${formatNumberShort(node.starts || 0) ?? '0'}`;
+      valueLabel = 'Starts';
+      formattedValue = formatNumberShort(node.starts || 0) ?? '0';
       referenceLabel = 'of max';
       break;
     case 'activityPercent':
       ratio = (node.activityPercent || 0) / 100;
       title = 'Activity Impact';
-      formattedValue = `Activity: ${(node.activityPercent || 0).toFixed(1)}%`;
+      valueLabel = 'Activity';
+      formattedValue = `${(node.activityPercent || 0).toFixed(1)}%`;
       referenceLabel = 'of total';
       break;
   }
@@ -756,10 +825,11 @@ function computeNodeDetailIndicator(
   return {
     ratio: clampedRatio,
     title,
+    valueLabel,
     formattedValue,
     referenceLabel,
     percentText: (clampedRatio * 100).toFixed(1),
-    color: clampedRatio === 0 ? 'bg-gray-200 dark:bg-gray-700' : getMetricColor(clampedRatio),
+    color: clampedRatio === 0 ? 'bg-slate-200 dark:bg-slate-700' : getMetricColor(clampedRatio),
   };
 }
 
@@ -853,12 +923,12 @@ function MetadataSection({
       <Accordion title="Metadata">
         {warningBanner}
         <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed mb-3">
-          No metadata loaded for this plan. Run the gather script to collect schema details (tables, indexes, column stats) for better analysis.
+          No metadata loaded for this plan. Run the gather script to attach schema details (tables, indexes, column stats).
         </p>
         <button
           type="button"
           onClick={() => setShowGatherModal(true)}
-          className="w-full text-[11px] font-bold py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors uppercase tracking-wider"
+          className={`w-full text-[11px] font-bold py-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-slate-700/70 transition-colors uppercase tracking-wider ${FOCUS_RING}`}
         >
           {planSqlId ? 'Generate gather script' : 'Manual gather script'}
         </button>
@@ -881,8 +951,8 @@ function MetadataSection({
         {coverage ? (
           <div className="p-2 text-[10px] rounded-lg border bg-amber-500/5 dark:bg-amber-950/20 border-amber-500/20 text-amber-700 dark:text-amber-400 leading-snug">
             <div className="font-bold uppercase tracking-tight mb-1">Stats not captured</div>
-            <div className="font-mono break-all">
-              {coverage.object}: {coverage.reason}
+            <div className="break-all">
+              <span className="font-mono font-semibold">{coverage.object}</span>: {coverage.reason}
             </div>
           </div>
         ) : (
@@ -969,10 +1039,10 @@ function ColumnsBlock({
   return (
     <div className="mt-4">
       <div className="flex items-center justify-between mb-3">
-        <h5 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+        <h5 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
           Columns
           {hasResolvedPredicateColumns && (
-            <span className="ml-1.5 font-mono text-[9px] text-blue-500 lowercase">
+            <span className="ml-1.5 font-mono text-[10px] text-blue-500 lowercase">
               ({resolvedPredicateColumns.length} refs{showAll && allButPredicate > 0 ? ` + ${allButPredicate} more` : ''})
             </span>
           )}
@@ -981,7 +1051,7 @@ function ColumnsBlock({
           <button
             type="button"
             onClick={() => setShowAll((v) => !v)}
-            className="text-[9px] font-bold px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 uppercase tracking-tighter transition-colors"
+            className={`text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 uppercase tracking-tighter transition-colors ${FOCUS_RING}`}
           >
             {showAll ? 'Refs Only' : `All (${tableColumnNames.length})`}
           </button>
@@ -1023,21 +1093,21 @@ function ColumnRow({
         <code className="font-mono font-bold text-slate-800 dark:text-slate-200">{name}</code>
         <div className="flex items-center gap-1.5">
           {fromPredicate && (
-            <span className="px-1.5 py-0.5 text-[8px] rounded font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 uppercase">
+            <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 uppercase">
               ref
             </span>
           )}
-          <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tighter">
+          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tighter">
             {stats.data_type}
             {stats.nullable ? '' : ' • REQ'}
           </span>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-slate-600 dark:text-slate-300">
-        <span><span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase tracking-tighter font-sans font-bold">Distinct:</span> {formatNumberShort(stats.num_distinct ?? undefined) ?? '—'}</span>
-        <span><span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase tracking-tighter font-sans font-bold">Nulls:</span> {formatNumberShort(stats.num_nulls ?? undefined) ?? '—'}</span>
-        <span><span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase tracking-tighter font-sans font-bold">Density:</span> {stats.density != null ? stats.density.toPrecision(2) : '—'}</span>
-        <span className="truncate"><span className="text-slate-400 dark:text-slate-500 text-[9px] uppercase tracking-tighter font-sans font-bold">Hist:</span> {histogramLabel}</span>
+        <span><span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-tighter font-sans font-bold">Distinct:</span> {formatNumberShort(stats.num_distinct ?? undefined) ?? '—'}</span>
+        <span><span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-tighter font-sans font-bold">Nulls:</span> {formatNumberShort(stats.num_nulls ?? undefined) ?? '—'}</span>
+        <span><span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-tighter font-sans font-bold">Density:</span> {stats.density != null ? stats.density.toPrecision(2) : '—'}</span>
+        <span className="truncate"><span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-tighter font-sans font-bold">Hist:</span> {histogramLabel}</span>
       </div>
     </div>
   );
@@ -1050,7 +1120,7 @@ function ObjectBlock({ objectKey, stats }: { objectKey: string; stats: TableStat
       <div className="flex items-center justify-between mb-3">
         <code className="text-[13px] font-mono font-bold text-blue-600 dark:text-blue-400 break-all">{objectKey}</code>
         {isStale && (
-          <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-amber-500 text-white border border-amber-600 shadow-sm animate-pulse">
+          <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-500 text-white border border-amber-600 shadow-sm animate-pulse">
             STALE
           </span>
         )}
@@ -1063,7 +1133,7 @@ function ObjectBlock({ objectKey, stats }: { objectKey: string; stats: TableStat
       </div>
       {stats.partitioned && stats.partition_type && (
         <div className="mt-2 text-[10px] rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 p-2">
-          <div className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter mb-1">
+          <div className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-tighter mb-1">
             Partitioning
           </div>
           <div className="font-mono text-slate-700 dark:text-slate-300">
@@ -1094,7 +1164,7 @@ function IndexObjectBlock({ objectKey, index }: { objectKey: string; index: impo
     <div className="mb-4">
       <div className="flex items-center justify-between mb-3">
         <code className="text-[13px] font-mono font-bold text-blue-600 dark:text-blue-400 break-all">{objectKey}</code>
-        <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-indigo-500 text-white border border-indigo-600 shadow-sm uppercase">
+        <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-500 text-white border border-indigo-600 shadow-sm uppercase">
           INDEX
         </span>
       </div>
@@ -1107,7 +1177,7 @@ function IndexObjectBlock({ objectKey, index }: { objectKey: string; index: impo
       <div className="grid grid-cols-2 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden [&>*:last-child:nth-child(odd)]:col-span-2">
         <StatItem label="Type" value={stats.index_type} />
         <StatItem label="Uniqueness" value={stats.uniqueness} />
-        <StatItem label="Status" value={stats.status} highlight={stats.status === 'VALID' ? undefined : 'orange'} />
+        <StatItem label="Status" value={stats.status} highlight={stats.status === 'VALID' ? undefined : 'warn'} />
         <StatItem label="Visibility" value={stats.visibility} />
         <StatItem label="C-Factor" value={formatNumberShort(stats.clustering_factor ?? undefined)} />
         <StatItem label="B-Level" value={stats.blevel?.toString()} />
@@ -1120,7 +1190,7 @@ function IndexObjectBlock({ objectKey, index }: { objectKey: string; index: impo
       </div>
       {stats.partitioned && stats.partition_key && stats.partition_key.length > 0 && (
         <div className="mt-2 text-[10px] rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 p-2">
-          <span className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter mr-1.5">
+          <span className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-tighter mr-1.5">
             Partition Key:
           </span>
           <code className="font-mono text-slate-700 dark:text-slate-300">
@@ -1156,9 +1226,9 @@ function IndexesBlock({
 
   return (
     <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-      <h5 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3">
+      <h5 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
         {heading}
-        <span className="ml-1.5 font-mono text-[9px] text-blue-500 lowercase font-normal">
+        <span className="ml-1.5 font-mono text-[10px] text-blue-500 lowercase font-normal">
           ({indexes.length})
         </span>
       </h5>
@@ -1181,38 +1251,38 @@ function IndexRow({ index, usedHere }: { index: ResolvedIndex; usedHere: boolean
         <code className="font-mono font-bold text-slate-800 dark:text-slate-200 truncate">{index.key}</code>
         <div className="flex items-center gap-1.5 shrink-0">
           {usedHere && (
-            <span className="px-1.5 py-0.5 text-[8px] rounded font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 uppercase">
+            <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 uppercase">
               active
             </span>
           )}
           {stats.partitioned && stats.locality && (
-            <span className="px-1.5 py-0.5 text-[8px] rounded font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 uppercase">
+            <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 uppercase">
               {stats.locality}
             </span>
           )}
           {isUnusable && (
-            <span className="px-1.5 py-0.5 text-[8px] rounded font-bold bg-red-500/10 text-red-600 dark:text-red-400 uppercase">
+            <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-red-500/10 text-red-600 dark:text-red-400 uppercase">
               {stats.status}
             </span>
           )}
           {isInvisible && (
-            <span className="px-1.5 py-0.5 text-[8px] rounded font-bold bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase">
+            <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase">
               HIDDEN
             </span>
           )}
         </div>
       </div>
       <div className="mb-1.5 text-[10px]">
-        <span className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter mr-1.5">Cols:</span>
+        <span className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-tighter mr-1.5">Cols:</span>
         <code className="font-mono text-slate-700 dark:text-slate-300 font-semibold italic">
           {index.object.columns.length > 0 ? index.object.columns.join(', ') : '—'}
         </code>
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-slate-600 dark:text-slate-300">
-        <span><span className="text-slate-400 dark:text-slate-500 text-[8px] uppercase font-sans font-bold">Type:</span> {stats.index_type}</span>
-        <span><span className="text-slate-400 dark:text-slate-500 text-[8px] uppercase font-sans font-bold">Uniq:</span> {stats.uniqueness}</span>
-        <span><span className="text-slate-400 dark:text-slate-500 text-[8px] uppercase font-sans font-bold">CF:</span> {formatNumberShort(stats.clustering_factor ?? undefined) ?? '—'}</span>
-        <span><span className="text-slate-400 dark:text-slate-500 text-[8px] uppercase font-sans font-bold">Level:</span> {stats.blevel ?? '0'}</span>
+        <span><span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-tighter font-sans font-bold">Type:</span> {stats.index_type}</span>
+        <span><span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-tighter font-sans font-bold">Uniq:</span> {stats.uniqueness}</span>
+        <span><span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-tighter font-sans font-bold">CF:</span> {formatNumberShort(stats.clustering_factor ?? undefined) ?? '—'}</span>
+        <span><span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-tighter font-sans font-bold">Level:</span> {stats.blevel ?? '0'}</span>
       </div>
     </div>
   );

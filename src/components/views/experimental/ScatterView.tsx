@@ -311,7 +311,7 @@ export function ScatterView() {
                 const isSearchMatch = searchText.trim() !== '' && matchesSearch(node, searchText);
                 const severity = cardinalityRatioSeverity(computeCardinalityRatio(node.rows, node.actualRows));
 
-                const fill = inScope ? SEVERITY_FILL[severity] : isDark ? '#4b5563' : '#9ca3af';
+                const fill = inScope ? SEVERITY_FILL[severity] : isDark ? '#475569' : '#94a3b8';
                 const fillOpacity = inScope ? 0.8 : 0.28;
 
                 let stroke = isDark ? '#0f172a' : '#ffffff';
@@ -354,7 +354,7 @@ export function ScatterView() {
 
         {tooltip && (
           <div
-            className="absolute z-10 pointer-events-none bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg px-3 py-2 text-xs text-gray-800 dark:text-gray-100"
+            className="absolute z-10 pointer-events-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-lg px-3 py-2 text-xs text-slate-800 dark:text-slate-100"
             style={{ left: `${tooltip.x + 12}px`, top: `${tooltip.y + 12}px`, maxWidth: '260px' }}
           >
             <div className="font-semibold mb-1">{tooltip.title}</div>

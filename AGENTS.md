@@ -8,8 +8,9 @@ A client-side web application that parses Oracle execution plan output and rende
 - **Build Tool**: Vite
 - **Graph Visualization**: React Flow (@xyflow/react)
 - **Sankey Diagram**: D3-sankey
+- **Syntax Highlighting**: highlight.js (SQL)
 - **Layout Algorithm**: Custom tree layout (with Dagre fallback)
-- **Styling**: Tailwind CSS (slate color palette, compact layout)
+- **Styling**: Tailwind CSS (selectable app palettes — slate default, compact layout)
 
 ## Project Structure
 
@@ -20,41 +21,84 @@ src/
 │   ├── settings.ts      # User settings persistence (localStorage)
 │   ├── filtering.ts     # Node filtering logic (search, predicates, cost/rows/time/cardinality ranges)
 │   ├── format.ts        # Number/time/bytes formatting + cardinality ratio utilities
+│   ├── analysis.ts      # Plan tree walking + hotspot/hottest-node detection helpers
+│   ├── planSignals.ts   # Plan-level signal detection (partition pruning, parallelism, spills)
+│   ├── density.ts       # Layout density presets (Minimal / Compact / Detailed node-display levels)
+│   ├── clipboard.ts     # Clipboard copy helper (async API + fallback)
+│   ├── baselineScript.ts # SQL Plan Baseline script builder (DBMS_SPM; cursor cache / AWR / STS)
+│   ├── clientReport.ts  # Client report builder (self-contained HTML doc: plan, notes, findings)
+│   ├── severityStyles.ts # Shared severity color/badge styles (advisor findings)
+│   ├── flameLayout.ts   # Flame graph layout (metric rollup, self-value, zoom)
+│   ├── url.ts           # Shareable-URL encode/decode (gzip) for plan state
 │   ├── annotations.ts   # Annotation system (notes, highlights, groups, export/import)
 │   ├── compare.ts       # Plan comparison engine (node matching, delta calculations)
+│   ├── ash.ts           # ASH wait-class colors + per-line/per-bucket activity aggregation
+│   ├── rowFlow.ts       # Wasted-work row-flow computation (rows read vs returned per node)
 │   ├── parser.ts        # Legacy parser (kept for compatibility)
+│   ├── advisor/         # Plan advisor: runAdvisor engine + 10 heuristic rules (findings)
+│   ├── metadata/        # Schema-metadata bundles, indexes, gather-script, pairing/lookup helpers
 │   └── parser/          # Modular parser system
-│       ├── index.ts           # Parser orchestration, format detection
+│       ├── index.ts           # Parser orchestration, format detection (json/xml/text/xbi/dbms_xplan)
 │       ├── types.ts           # Parser interfaces
 │       ├── dbmsXplanParser.ts # DBMS_XPLAN text parser
 │       ├── sqlMonitorParser.ts # SQL Monitor text/XML parsers
+│       ├── jsonPlanParser.ts  # JSON plan parser (V$SQL_PLAN_STATISTICS_ALL / Datadog / xdd.sql)
+│       ├── xbiParser.ts       # Tanel Poder xbi.sql (eXplain Better) output parser
+│       ├── noteSection.ts     # DBMS_XPLAN "Note" section parser
 │       └── __tests__/         # Parser unit tests (vitest + jsdom)
-│           ├── sqlMonitorXml.test.ts
-│           └── compare.test.ts
 ├── examples/            # Sample plan files loaded via Vite glob import
 │   ├── index.ts              # Auto-loader using NN-category-Name.txt convention
 │   └── *.txt                 # Example plan files (DBMS_XPLAN and SQL Monitor)
 ├── hooks/
 │   └── usePlanContext.tsx   # Global state management (React Context, multi-plan support)
 ├── components/
-│   ├── Header.tsx           # App header with theme toggle, annotation save/load
+│   ├── Header.tsx           # Single top bar: brand, SQL ID, plan/view tabs, Load Example, all actions (collapse into a menu at narrow widths)
+│   ├── NavRibbon.tsx        # View tab ribbon (Tree/Compare/Tabular/Sankey/Flame/Text/SQL/Metadata/Monitor/Experimental) + maximize; labels degrade to icons → overflow menu
+│   ├── FocusOverlay.tsx     # Focus-mode floating instruments (search/filters/findings pill + selection inspector card)
+│   ├── PanelEdgeTab.tsx     # Seam-attached tabs that collapse the side panels (panels reopen via their slim rails)
+│   ├── viewIcons.tsx        # Icons for the view tabs
 │   ├── InputPanel.tsx       # Collapsible input with example loader
 │   ├── FilterPanel.tsx      # Filter by operation type, cost, search, predicates, cardinality mismatch
 │   ├── NodeDetailPanel.tsx  # Node details, hotspots, annotations, cardinality analysis
-│   ├── VisualizationTabs.tsx # Tab switcher for views (hierarchical, sankey, plan text, compare)
+│   ├── FindingsPanel.tsx    # Plan advisor findings (per-node + full list, togglable)
+│   ├── VisualizationTabs.tsx # View switcher (hierarchical, compare, sankey, flame, tabular, text, sql, metadata, monitor, experimental)
 │   ├── PlanTabs.tsx         # Plan A/B tab bar with compare button
+│   ├── ComparePlanPicker.tsx # Picker for choosing which two plans to compare
+│   ├── CommandPalette.tsx   # Cmd/Ctrl-K command palette (views, color schemes, actions)
+│   ├── ShortcutsOverlay.tsx # Keyboard shortcuts help overlay
+│   ├── ShareResultDialog.tsx # Share-via-URL dialog (encoded plan link)
+│   ├── PopoutWindow.tsx     # Detachable pop-out window (e.g. Metadata Explorer)
+│   ├── GatherScriptModal.tsx # Generates a schema-metadata gather SQL script
+│   ├── BaselineScriptModal.tsx # Generates a SQL Plan Baseline creation script (DBMS_SPM)
+│   ├── ClientReportModal.tsx # Client report export dialog (title/client/author, sections, preview)
+│   ├── MetadataChip.tsx     # Inline schema-metadata badge/chip
+│   ├── FormattedPredicate.tsx # Predicate rendering with column formatting
 │   ├── Legend.tsx           # Hideable color legend
 │   ├── HighlightText.tsx    # Search text highlighting component
 │   ├── CustomizeViewMenu.tsx # Node display options popover
 │   ├── AnnotationEditor.tsx # Per-node annotation text + color highlight picker
 │   ├── GroupAnnotationDialog.tsx # Modal for creating/editing annotation groups
 │   ├── CompareMetricSelector.tsx # Metric toggle pills for compare view
+│   ├── metadata/            # Schema Metadata explorer (view, sidebar, table/index/columns detail, bundle overview)
 │   ├── nodes/
 │   │   └── PlanNode.tsx     # Custom React Flow node (badges, hot node ring, tooltips, highlights)
 │   └── views/
 │       ├── HierarchicalView.tsx   # Tree layout (React Flow + custom algorithm + keyboard nav)
+│       ├── TreeCompareView.tsx    # Side-by-side dual tree panes (two plans)
+│       ├── CompareView.tsx        # Side-by-side plan comparison dashboard
+│       ├── TabularView.tsx        # Sortable/resizable plan table (persisted column widths)
+│       ├── TabularCompareView.tsx # Side-by-side dual tabular panes (two plans)
 │       ├── SankeyView.tsx         # Sankey diagram (D3)
-│       └── CompareView.tsx        # Side-by-side plan comparison dashboard
+│       ├── FlameView.tsx          # Flame graph (metric toggle cost/A-Time/A-Rows, click-to-zoom)
+│       ├── SqlTextView.tsx        # Full SQL text with syntax highlighting + copy
+│       ├── MonitorDetailsView.tsx # SQL Monitor XML details (activity, session, resources, binds)
+│       └── experimental/          # Experimental tab: 5 sub-views behind a segmented switcher
+│           ├── ExperimentalView.tsx  # Shell (sub-view switcher, persisted via settings)
+│           ├── ScatterView.tsx       # E-Rows vs A-Rows log-log calibration scatter
+│           ├── TimelineView.tsx      # Execution Gantt (first/last active + ASH wait-class cells)
+│           ├── WaterfallView.tsx     # Wasted-work row flow (rows read vs returned)
+│           ├── MorphView.tsx         # Estimate→actual animated icicle morph
+│           └── WaitsView.tsx         # Per-line wait-class composition (ASH samples)
 ├── App.tsx
 ├── main.tsx
 └── index.css            # Tailwind imports + dark mode styles
@@ -95,11 +139,12 @@ npx vitest run --environment jsdom src/lib/parser/__tests__/sqlMonitorXml.test.t
 
 ```
 src/
-└── lib/
-    └── parser/
-        └── __tests__/
-            ├── sqlMonitorXml.test.ts   # SQL Monitor XML parser tests (real Oracle format + legacy)
-            └── compare.test.ts         # Plan comparison tests (node matching, summaries, metrics)
+├── lib/
+│   ├── __tests__/            # Core lib tests (analysis, filtering, format, url, flame layout, plan signals, ...)
+│   ├── advisor/__tests__/    # Advisor engine + per-rule tests
+│   ├── metadata/__tests__/   # Schema-metadata tests (bundle, indexes, gather script, pairing, ...)
+│   └── parser/__tests__/     # Parser tests (DBMS_XPLAN, SQL Monitor XML, JSON, xbi, note section, compare)
+└── examples/__tests__/       # Example loader / sidecar-metadata tests
 ```
 
 Tests are excluded from the production build via `tsconfig.app.json` exclude patterns. Test files use the `*.test.ts` convention and live in `__tests__/` directories alongside the code they test.
@@ -107,8 +152,14 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 ## Features
 
 ### Visualization
-- **Four Visualization Modes**: Hierarchical tree, Sankey diagram, raw Plan Text, and Compare view
-- **Multiple Input Formats**: DBMS_XPLAN, SQL Monitor text, SQL Monitor XML
+- **Visualization Modes**: Hierarchical tree, Tabular table, Sankey diagram, Flame graph, raw Plan Text, SQL text, Metadata explorer, Monitor details, Compare, and Experimental tabs (available tabs depend on the loaded plan's format)
+- **Flame Graph**: Rolled-up flame bars sized by self value, with a metric toggle (Cost / A-Time / A-Rows) and click-to-zoom into any subtree
+- **Tabular View**: Sortable, resizable plan table (column widths persisted to localStorage), respects the active filters and highlights the hottest node
+- **SQL Text View**: Full SQL statement with SQL syntax highlighting and copy-to-clipboard
+- **Monitor Details View**: SQL Monitor XML report detail — activity breakdown (CPU / I/O Wait / PL/SQL / Other) plus Execution Summary, Session & Environment, SQL Text, Bind Variables, Resource Consumption, and Optimizer Environment sections
+- **Tree / Tabular Compare**: When two plans are loaded, the Tree and Tabular tabs switch to side-by-side dual-pane variants with an active-plan accent
+- **Experimental Tab**: five research views behind one tab — optimizer calibration scatter (E-Rows vs A-Rows, log-log), execution timeline Gantt (per-op first/last active + ASH wait-class cells), wasted-work waterfall (rows read vs returned), estimate→actual icicle morph, and per-line wait-class composition. SQL Monitor XML parser extracts `<activity_detail>` bucketed ASH samples and per-op `first_active`/`last_active` offsets to power them
+- **Multiple Input Formats**: DBMS_XPLAN, SQL Monitor text, SQL Monitor XML, JSON plan (V$SQL_PLAN_STATISTICS_ALL), and Tanel Poder xbi.sql output
 - **Runtime Statistics**: Display A-Rows, E-Rows, A-Time, and Starts from SQL Monitor
 - **Node Indicator Metrics**: Configurable node badges showing cost, A-Rows, A-Time, starts, or activity %
 - **Hot Node Detection**: Automatically highlights the node with highest A-Time (red ring + "Hotspot" badge)
@@ -116,11 +167,23 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Sankey Metric Toggle**: Switch between Rows, Cost, A-Rows, or A-Time
 
 ### Analysis
-- **Plan Comparison**: Load two plans side-by-side with node matching (exact ID + heuristic), delta calculations, and improvement/regression indicators across 8 metrics (cost, rows, bytes, A-Rows, A-Time, starts, temp space, memory)
+- **Plan Comparison**: Load two plans side-by-side with node matching (exact ID + heuristic), delta calculations, and improvement/regression indicators across 9 metrics (cost, rows, bytes, A-Rows, A-Time, self time, starts, temp space, memory)
+- **Plan Advisor**: Heuristic findings engine (`runAdvisor`) with 10 rules — cardinality mismatch, implicit conversion, cartesian merge join, nested-loop volume, parallel signals, partition pruning, selective full scan, spill-to-disk, stats issues, and unused index — surfaced per-node and as a ranked list; suggestion hints are togglable (off by default)
 - **Cardinality Mismatch Analysis**: Detects E-Rows vs A-Rows divergence with severity badges (warn at 3x, bad at 10x)
 - **Cardinality Mismatch Filter**: Slider in filter panel to show only nodes exceeding a mismatch threshold
 - **Spill-to-Disk Warnings**: Badge on nodes that use temp space, with details in node panel
-- **Operation Tooltips**: ~50 Oracle operations with expert descriptions shown on hover and in detail panel
+- **Operation Tooltips**: ~55 Oracle operations with expert descriptions shown on hover and in detail panel
+
+### Schema Metadata
+- **Metadata Explorer**: Dedicated tab (and detachable pop-out window) that browses schema objects referenced by the plan — tables, indexes, and columns — with per-object detail panels and a bundle overview
+- **Metadata Bundles**: Attach schema-metadata bundles to a plan; objects with metadata show inline badges/chips in the plan
+- **Gather Script**: Generates a SQL script to collect the schema metadata needed for a bundle from the database
+
+### Plan Baselines
+- **Baseline Script Generator**: Generates a ready-to-run SQL*Plus script that creates a SQL Plan Baseline (via `DBMS_SPM`) for the loaded plan's SQL ID + plan hash value — from the cursor cache, AWR directly (19c+), or AWR via a temporary SQL Tuning Set (11.2+), with FIXED/ENABLED options, pre-check and verification queries, and a management crib sheet. Opened from the input-panel header or command palette; fully offline — the user runs the script themselves
+
+### Client Report
+- **Client Report Export**: Packages the loaded plan, the consultant's annotations, and all derived analysis into a single self-contained HTML document for handing to a client — header metadata (title, client, prepared by, date, SQL ID, plan hash), free-text executive summary with headline stat cards and optimizer-note tags, SQL statement, full plan table (with hotspot marker, highlight chips, inline notes, estimate-quality column), consultant notes/groups/highlights, advisor findings with recommendations, top self-time hotspots, worst cardinality mismatches, predicates, execution environment + bind variables, and a raw-plan appendix. Section toggles, live preview iframe, download as `.html` or open a print view for save-as-PDF. Client/author names persist to localStorage. Opened from the top-bar document icon or the command palette (`clientReport.ts` + `ClientReportModal.tsx`); fully offline, nothing is uploaded
 
 ### Annotations
 - **Node Annotations**: Add text notes to individual nodes with timestamps
@@ -138,11 +201,19 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Node Details**: Click any node to see full attributes, predicates, cardinality analysis, and spill warnings
 
 ### UI/UX
+- **Single-Bar Chrome**: One top bar holds brand, SQL ID, plan tabs, view tabs, Load Example, and all actions; view tab labels degrade to icons and then an overflow menu, actions collapse into a menu at narrow widths. Metadata/format chips live in the input drawer
 - **Plan Tabs**: Tab bar for switching between Plan A / Plan B when comparing
 - **Example Plans**: Auto-loaded sample plans from `src/examples/` (add .txt files, no code changes needed)
 - **Plan Metadata**: SQL ID, Plan Hash, A-Rows, and A-Time shown in input panel header
-- **Collapsible Input Panel**: More space for visualization when collapsed
-- **Color Schemes**: Muted (default), vibrant, professional, and monochrome options
+- **Collapsible Panels**: Input drawer collapses; side panels collapse via seam-attached edge tabs into slim clickable rails (with live filter count)
+- **Maximize Visualization**: Toggle a fullscreen visualization mode (F) that hides the surrounding panels, keeping a slim tabs-only bar
+- **Focus Mode**: Toggle (Z, persisted) that hides both side panels for a full-width canvas, replaced by a floating search/filters/findings pill and a selection-driven inspector card; composes with maximize, skipped in the compare workspace
+- **Density Presets**: Minimal / Compact / Detailed node density. Minimal reduces nodes to operation, object, one mono metric line, and an amber warning dot for collapsed signals; hovering (250ms) opens a portal card with the full Est/Act grid, badges, and predicates
+- **Command Palette**: Cmd/Ctrl-K palette for switching views, color schemes, palettes, and running actions
+- **Keyboard Shortcuts Overlay**: Help overlay listing available shortcuts
+- **Share via URL**: Encode the current plan into a shareable link (gzip-compressed) via the share dialog
+- **Color Schemes**: 8 data-paint options — High Contrast, Semantic (default), Est ⇄ Act, Icon Rail, Ticker, plus three node-identity schemes that restyle the node card itself: Stripe (category spine), Tinted (card carries a quiet category tint), and Terminal (square corners, mono titles, hard offset shadow)
+- **App Palettes**: Slate (default), Graphite, Teal, Violet, and Paper — a third appearance axis next to theme and color scheme that re-skins neutral surfaces and accent via CSS variable overrides (`html[data-palette=…]` in `index.css`); data colors (category, severity) are untouched
 - **Settings Persistence**: View preferences saved to localStorage
 - **Theme Toggle**: Light/dark mode with localStorage persistence
 - **Hideable Legend**: Color coding reference that can be hidden
@@ -207,6 +278,20 @@ The comparison system (`compare.ts`) uses a 3-pass node matching algorithm:
 
 ### Annotation System
 Annotations (`annotations.ts`) are an in-memory overlay, not persisted to localStorage. They include per-node notes/highlights and named groups. Export produces a versioned JSON (v1) with plan metadata for validation on re-import.
+
+### DB-Connect Agent (optional feature)
+`src/lib/agent/client.ts` is the app's **only** HTTP module — a typed fetch
+wrapper for the local [`oraplanviz-agent`](https://github.com/davidbudac/oraplanviz-agent)
+companion (adjacent repo `../oraplanviz-agent`). The whole feature is
+build-time gated on `VITE_ENABLE_DB_AGENT=1` (`isDbAgentEnabled()`); the
+GitHub Pages build never sets it. `ConnectPanel.tsx` renders inside
+`InputPanel` (open state lives in the plan context as `connectPanelOpen`, so
+the command palette can open it). Plans load via
+`fetchPlanWithMetadata()` → `loadAndParsePlan(text, metadataText)`; the
+metadata bundle is the same `ora-plan-metadata` contract as
+`scripts/gather_plan_metadata.sql`, and a failed gather degrades to a plain
+plan load with a notice — never a blocked load. Privacy invariant to
+preserve: credentials/plan text only ever flow browser ↔ local agent.
 
 ## Code Conventions
 

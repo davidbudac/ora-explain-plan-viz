@@ -2,6 +2,13 @@ import { useState, useRef, useEffect } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { ComparePlanPicker } from './ComparePlanPicker';
 
+const FOCUS_RING =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
+// The plan-tab strip scrolls horizontally, so an outset ring on the first/last
+// tab would be clipped — keep the tab's own ring inside its border box.
+const FOCUS_RING_INSET =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
+
 function InlineRenameLabel({
   slot,
   index,
@@ -46,8 +53,8 @@ function InlineRenameLabel({
         className={`
           w-24 px-1 py-0 text-xs font-semibold bg-transparent border-b outline-none
           ${isActive
-            ? 'text-white border-white/50 placeholder-blue-200'
-            : 'text-neutral-700 dark:text-neutral-300 border-neutral-400 dark:border-neutral-500 placeholder-neutral-400'
+            ? 'text-slate-900 dark:text-slate-100 border-slate-500 dark:border-slate-400 placeholder-slate-400'
+            : 'text-slate-700 dark:text-slate-300 border-slate-400 dark:border-slate-500 placeholder-slate-400'
           }
         `}
         placeholder={slot.label}
@@ -76,8 +83,9 @@ function InlineRenameLabel({
           setEditing(true);
         }}
         className={`
-          p-0.5 rounded opacity-0 group-hover/tab:opacity-60 hover:!opacity-100 transition-opacity
-          ${isActive ? 'hover:bg-blue-500' : 'hover:bg-neutral-200 dark:hover:bg-neutral-700'}
+          p-0.5 rounded opacity-0 group-hover/tab:opacity-60 hover:!opacity-100 focus-visible:opacity-100 transition-opacity
+          ${FOCUS_RING}
+          ${isActive ? 'hover:bg-slate-300 dark:hover:bg-slate-600' : 'hover:bg-slate-200 dark:hover:bg-slate-700'}
         `}
         title="Rename plan"
       >
@@ -98,7 +106,7 @@ export function PlanTabs() {
   if (parsedPlanCount === 0 && plans.length <= 1) return null;
 
   return (
-    <div className="flex items-center gap-1 overflow-x-auto">
+    <div className="flex items-center gap-1 shrink-0">
       {plans.map((slot, index) => {
         const isActive = index === activePlanIndex && viewMode !== 'compare';
         const phv = slot.parsedPlan?.planHashValue;
@@ -125,9 +133,10 @@ export function PlanTabs() {
             }}
             className={`
               group/tab shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border cursor-pointer
+              ${FOCUS_RING_INSET}
               ${isActive
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800'
+                ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600'
+                : 'text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
               }
             `}
           >
@@ -139,7 +148,7 @@ export function PlanTabs() {
                 onRename={renamePlanSlot}
               />
               {phv && (
-                <span className={`font-mono text-[10px] ${isActive ? 'text-blue-200' : 'text-neutral-400 dark:text-neutral-500'}`}>
+                <span className={`font-mono text-[10px] ${isActive ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500'}`}>
                   PHV: {phv}
                 </span>
               )}
@@ -151,11 +160,10 @@ export function PlanTabs() {
                     setBaselineDialogOpen(true);
                   }}
                   className={`
-                    px-1 py-px text-[9px] font-semibold rounded border transition-colors
-                    ${isActive
-                      ? 'border-blue-400 text-blue-200 hover:bg-blue-500 hover:text-white'
-                      : 'border-neutral-300 dark:border-neutral-600 text-neutral-400 dark:text-neutral-500 hover:bg-neutral-200 dark:hover:bg-neutral-700 hover:text-neutral-600 dark:hover:text-neutral-300'
-                    }
+                    px-1 py-px text-[10px] font-semibold rounded border bg-transparent transition-colors
+                    border-slate-300/70 dark:border-slate-600/70 text-slate-500 dark:text-slate-400
+                    hover:border-slate-400 dark:hover:border-slate-500 hover:text-slate-700 dark:hover:text-slate-200
+                    ${FOCUS_RING}
                   `}
                   title="Generate SQL Plan Baseline script (DBMS_SPM)"
                 >
@@ -163,7 +171,7 @@ export function PlanTabs() {
                 </button>
               )}
               {!slot.parsedPlan && (
-                <span className={`text-[10px] italic ${isActive ? 'text-blue-200' : 'text-neutral-400 dark:text-neutral-500'}`}>
+                <span className={`text-[10px] italic ${isActive ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500'}`}>
                   (empty)
                 </span>
               )}
@@ -176,9 +184,10 @@ export function PlanTabs() {
                 }}
                 className={`
                   ml-1 p-0.5 rounded transition-colors
+                  ${FOCUS_RING}
                   ${isActive
-                    ? 'hover:bg-blue-500 text-blue-200'
-                    : 'hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-400 dark:text-neutral-500'
+                    ? 'hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400'
+                    : 'hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500'
                   }
                 `}
                 title={`Remove ${slot.customLabel || slot.label}`}
@@ -196,7 +205,7 @@ export function PlanTabs() {
         <button
           type="button"
           onClick={addPlanSlot}
-          className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-md border border-dashed border-neutral-300 dark:border-neutral-600 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 hover:text-neutral-700 dark:hover:text-neutral-200 hover:border-neutral-400 dark:hover:border-neutral-500 transition-colors"
+          className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-md border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-400 dark:hover:border-slate-500 transition-colors ${FOCUS_RING_INSET}`}
           title="Add another plan to compare"
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -208,19 +217,19 @@ export function PlanTabs() {
 
       {parsedPlanCount >= 2 && (viewMode === 'hierarchical' || viewMode === 'tabular') && (
         <>
-          <div className="w-px h-5 bg-neutral-200 dark:bg-neutral-700 mx-1 shrink-0" />
-          <div className="flex bg-neutral-100 dark:bg-neutral-800 rounded-md p-0.5 border border-neutral-200 dark:border-neutral-700 shrink-0">
+          <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1 shrink-0" />
+          <div className="flex bg-slate-100 dark:bg-slate-800 rounded-md p-0.5 border border-slate-200 dark:border-slate-700 shrink-0">
             <button
               type="button"
               onClick={() => setTreeCompareEnabled(false)}
-              className={`px-2.5 py-1 text-xs rounded-md transition-colors font-medium ${!treeCompareEnabled ? 'bg-blue-600 text-white shadow-sm' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700'}`}
+              className={`px-2.5 py-1 text-xs rounded-md transition-colors font-medium ${FOCUS_RING_INSET} ${!treeCompareEnabled ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
             >
               Single
             </button>
             <button
               type="button"
               onClick={() => setTreeCompareEnabled(true)}
-              className={`px-2.5 py-1 text-xs rounded-md transition-colors font-medium ${treeCompareEnabled ? 'bg-blue-600 text-white shadow-sm' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700'}`}
+              className={`px-2.5 py-1 text-xs rounded-md transition-colors font-medium ${FOCUS_RING_INSET} ${treeCompareEnabled ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
             >
               Side-by-side
             </button>
