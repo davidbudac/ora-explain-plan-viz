@@ -147,7 +147,7 @@ export function BundleOverview({ bundle }: { bundle: MetadataBundle }) {
 function SqlManagementGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
-      <div className="text-[10px] font-bold uppercase tracking-tighter text-slate-400 dark:text-slate-500 mb-1">{title}</div>
+      <div className="text-[10px] font-bold uppercase tracking-tighter text-slate-500 dark:text-slate-400 mb-1">{title}</div>
       <div className="space-y-1">{children}</div>
     </div>
   );

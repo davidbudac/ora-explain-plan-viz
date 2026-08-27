@@ -38,7 +38,7 @@ export function MetadataChip({ bundle, warning, planSqlId, onDetach }: MetadataC
         <button
           type="button"
           onClick={() => setShowModal(true)}
-          title="Attempt to gather schema metadata (tables, indexes, column stats, histograms) so you can analyze this plan with more context. Coverage depends on your database privileges."
+          title="Generate a SQL script that gathers schema metadata (tables, indexes, column stats, histograms) for this plan. Coverage depends on your database privileges."
           className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded border border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 bg-indigo-50/60 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors"
         >
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -70,7 +70,7 @@ export function MetadataChip({ bundle, warning, planSqlId, onDetach }: MetadataC
           type="button"
           onClick={() => setShowPopover((v) => !v)}
           title="Schema metadata is attached to this plan"
-          className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded bg-indigo-600 dark:bg-indigo-500 text-white hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"
+          className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded border border-indigo-300/70 dark:border-indigo-500/40 text-indigo-700 dark:text-indigo-300 bg-transparent hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
         >
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H6a2 2 0 00-2 2z" />
@@ -83,35 +83,35 @@ export function MetadataChip({ bundle, warning, planSqlId, onDetach }: MetadataC
           )}
         </button>
         {showPopover && (
-          <div className="absolute left-0 top-full mt-1 w-80 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg z-50 p-3 text-xs">
+          <div className="absolute left-0 top-full mt-1 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50 p-3 text-xs">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Metadata bundle</h3>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Metadata bundle</h3>
               <button
                 type="button"
                 onClick={() => setShowPopover(false)}
                 aria-label="Close"
-                className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-neutral-700 dark:text-neutral-300">
-              <dt className="text-neutral-500 dark:text-neutral-400">Source</dt>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-slate-700 dark:text-slate-300">
+              <dt className="text-slate-500 dark:text-slate-400">Source</dt>
               <dd className="font-mono truncate">{bundle.source.db_name} · {bundle.source.oracle_version} · {bundle.source.container_name}</dd>
-              <dt className="text-neutral-500 dark:text-neutral-400">Captured</dt>
+              <dt className="text-slate-500 dark:text-slate-400">Captured</dt>
               <dd>{capturedAt}</dd>
-              <dt className="text-neutral-500 dark:text-neutral-400">Plan ref</dt>
+              <dt className="text-slate-500 dark:text-slate-400">Plan ref</dt>
               <dd className="font-mono truncate">
                 {bundle.plan_ref.sql_id ?? '—'}
                 {bundle.plan_ref.plan_hash_value !== null && <> · PHV {bundle.plan_ref.plan_hash_value}</>}
               </dd>
-              <dt className="text-neutral-500 dark:text-neutral-400">Objects</dt>
+              <dt className="text-slate-500 dark:text-slate-400">Objects</dt>
               <dd>{tableCount} tables, {indexCount} indexes</dd>
               {bundle.system_params && (
                 <>
-                  <dt className="text-neutral-500 dark:text-neutral-400">System params</dt>
+                  <dt className="text-slate-500 dark:text-slate-400">System params</dt>
                   <dd className="font-mono truncate" title={`block size ${bundle.system_params.db_block_size}, optimizer_features_enable ${bundle.system_params.optimizer_features_enable}`}>
                     block {bundle.system_params.db_block_size}B · features {bundle.system_params.optimizer_features_enable}
                   </dd>
@@ -125,10 +125,10 @@ export function MetadataChip({ bundle, warning, planSqlId, onDetach }: MetadataC
             )}
             {bundle.coverage_warnings.length > 0 && (
               <details className="mt-2 group">
-                <summary className="cursor-pointer text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200">
+                <summary className="cursor-pointer text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200">
                   {bundle.coverage_warnings.length} coverage warning{bundle.coverage_warnings.length === 1 ? '' : 's'}
                 </summary>
-                <ul className="mt-1 pl-4 list-disc space-y-0.5 text-neutral-600 dark:text-neutral-400 max-h-32 overflow-y-auto">
+                <ul className="mt-1 pl-4 list-disc space-y-0.5 text-slate-600 dark:text-slate-400 max-h-32 overflow-y-auto">
                   {bundle.coverage_warnings.map((w, i) => (
                     <li key={i}><span className="font-mono">{w.object}</span>: {w.reason}</li>
                   ))}
@@ -142,7 +142,7 @@ export function MetadataChip({ bundle, warning, planSqlId, onDetach }: MetadataC
                   setShowPopover(false);
                   setShowModal(true);
                 }}
-                className="h-7 px-2 text-xs border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                className="h-7 px-2 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
               >
                 Replace…
               </button>
@@ -152,7 +152,7 @@ export function MetadataChip({ bundle, warning, planSqlId, onDetach }: MetadataC
                   onDetach();
                   setShowPopover(false);
                 }}
-                className="h-7 px-2 text-xs border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 bg-white dark:bg-neutral-800 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                className="h-7 px-2 text-xs border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 bg-white dark:bg-slate-800 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
               >
                 Detach
               </button>

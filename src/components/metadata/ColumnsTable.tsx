@@ -70,12 +70,12 @@ export function ColumnsTable({ columns, highlightColumns }: ColumnsTableProps) {
               <td className="px-2 py-1 font-mono font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">
                 {name}
                 {col.virtual && (
-                  <span className="ml-1 px-1 py-px text-[8px] font-bold rounded bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 uppercase">
+                  <span className="ml-1 px-1 py-px text-[10px] font-bold rounded bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 uppercase">
                     Virtual
                   </span>
                 )}
                 {col.hidden && (
-                  <span className="ml-1 px-1 py-px text-[8px] font-bold rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase">
+                  <span className="ml-1 px-1 py-px text-[10px] font-bold rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase">
                     Hidden
                   </span>
                 )}

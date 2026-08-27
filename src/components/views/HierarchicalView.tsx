@@ -46,7 +46,7 @@ const QueryBlockGroupNode = memo(({ data }: { data: QueryBlockGroupData }) => {
       className="border border-dashed border-slate-400/80 dark:border-slate-600/50 rounded-lg bg-slate-500/[0.06] dark:bg-slate-400/[0.03] pointer-events-none"
       style={{ width: data.width, height: data.height }}
     >
-      <div className="query-block-drag-handle absolute -top-3 left-3 px-2 py-0.5 bg-white dark:bg-gray-900 text-slate-500 dark:text-slate-500 text-xs font-mono cursor-grab active:cursor-grabbing select-none pointer-events-auto">
+      <div className="query-block-drag-handle absolute -top-3 left-3 px-2 py-0.5 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-500 text-xs font-mono cursor-grab active:cursor-grabbing select-none pointer-events-auto">
         ⠿ {data.label}
       </div>
     </div>
@@ -69,11 +69,11 @@ const AnnotationGroupNode = memo(({ data }: { data: AnnotationGroupData }) => {
       className={`border-2 border-dashed rounded-lg ${data.borderClass} ${data.bgClass}`}
       style={{ width: data.width, height: data.height }}
     >
-      <div className={`absolute -top-3 left-3 px-2 bg-white dark:bg-gray-900 text-xs font-medium`}>
-        <span className="text-neutral-700 dark:text-neutral-300">{data.label}</span>
+      <div className={`absolute -top-3 left-3 px-2 bg-white dark:bg-slate-900 text-xs font-medium`}>
+        <span className="text-slate-700 dark:text-slate-300">{data.label}</span>
       </div>
       {data.note && (
-        <div className="absolute -bottom-2.5 left-3 px-2 bg-white dark:bg-gray-900 text-[10px] text-neutral-500 dark:text-neutral-400 italic truncate max-w-[200px]">
+        <div className="absolute -bottom-2.5 left-3 px-2 bg-white dark:bg-slate-900 text-[10px] text-slate-500 dark:text-slate-400 italic truncate max-w-[200px]">
           {data.note}
         </div>
       )}
@@ -88,8 +88,13 @@ const nodeTypes: NodeTypes = {
   annotationGroup: AnnotationGroupNode as unknown as NodeTypes['annotationGroup'],
 };
 
+// Canvas backdrop — a solid surface from a CSS variable (index.css) so theme
+// *and* app palette can restyle it.
+const CANVAS_BACKDROP = 'var(--canvas-bg)';
+
 // Layout dimensions for dagre algorithm
 const NODE_WIDTH = 260;
+const COMPACT_NODE_WIDTH = 200; // Minimal density card (mirrors PlanNode)
 const NODE_BASE_HEIGHT = 60; // Base: operation name + ID badge + cost bar
 
 // Calculate dynamic node height based on display options and node content
@@ -103,6 +108,15 @@ function calculateNodeHeight(
   isTicker?: boolean,
   hasAdvisorBadge?: boolean,
 ): number {
+  // Minimal density: operation name + optional object row + one metric line
+  if (displayOptions.compactStats) {
+    let compactHeight = NODE_BASE_HEIGHT;
+    if (displayOptions.showObjectName && node.objectName) compactHeight += 20;
+    compactHeight += 18; // single mono metric line (+ warning dot)
+    if (hasAnnotation) compactHeight += 20;
+    return compactHeight;
+  }
+
   let height = NODE_BASE_HEIGHT;
 
   // Warning badges row (hotspot, spill, cardinality mismatch, advisor)
@@ -490,7 +504,12 @@ function HierarchicalViewContent({
         const viewportEl = containerRef.current?.querySelector('.react-flow__viewport') as HTMLElement | null;
         if (!viewportEl) return;
 
-        const bgColor = theme === 'dark' ? '#171717' : '#ffffff';
+        // Matches the canvas backdrop, read live so the export follows the
+        // active theme *and* app palette.
+        const canvasBg = getComputedStyle(document.documentElement)
+          .getPropertyValue('--canvas-bg')
+          .trim();
+        const bgColor = canvasBg || (theme === 'dark' ? '#0e1526' : '#ffffff');
         const dataUrl = await toPng(viewportEl, {
           backgroundColor: bgColor,
           width: imageWidth,
@@ -595,8 +614,10 @@ function HierarchicalViewContent({
     const isRail = colorScheme === 'rail';
     const isTicker = colorScheme === 'ticker';
     // Schemes that render stats as the Est ⇄ Act comparison grid (mirrors PlanNode)
-    const usesGrid = ['estact', 'rail', 'contrast', 'semantic'].includes(colorScheme);
-    const effectiveNodeWidth = isTicker ? 240 : NODE_WIDTH;
+    const usesGrid = ['estact', 'rail', 'contrast', 'semantic', 'stripe', 'tinted', 'terminal'].includes(colorScheme);
+    // Minimal density narrows the card; tree spacing keeps the wider gaps (extra air is fine)
+    const isCompactNode = effectiveDisplayOptions.compactStats;
+    const effectiveNodeWidth = isCompactNode ? COMPACT_NODE_WIDTH : isTicker ? 240 : NODE_WIDTH;
 
     const planNodes: Node[] = [];
     const edges: Edge[] = [];
@@ -886,10 +907,21 @@ function HierarchicalViewContent({
     setEdges(layoutData.edges);
   }, [layoutData, setNodes, setEdges]);
 
+  // React Flow paints edges a frame or two before the nodes have positions, so
+  // the first mount flashes a ghost frame of stray edges. Stay invisible until
+  // the initial layout has been fitted, then fade in. Only the first fit gates
+  // opacity — later re-layouts never hide the canvas again.
+  const [layoutReady, setLayoutReady] = useState(false);
+  const layoutReadyRef = useRef(false);
+
   // Re-fit viewport when layout changes (e.g. enabling predicate details expands nodes).
   useEffect(() => {
     const timer = setTimeout(() => {
       fitView({ padding: 0.2 });
+      if (!layoutReadyRef.current) {
+        layoutReadyRef.current = true;
+        requestAnimationFrame(() => setLayoutReady(true));
+      }
     }, 50);
     return () => clearTimeout(timer);
   }, [layoutData, fitView]);
@@ -1039,7 +1071,10 @@ function HierarchicalViewContent({
         }
 
         const labelFill = theme === 'dark' ? '#a3a3a3' : '#737373';
-        const labelBgFill = theme === 'dark' ? '#171717' : 'white';
+        // Tuned to the staged canvas backdrop so edge labels don't read as chips.
+        // A CSS variable, so it tracks both the theme and the active app palette
+        // (a fixed navy would clash with the warm graphite/paper canvases).
+        const labelBgFill = 'var(--canvas-label-bg)';
         const labelStyle = { fill: labelFill, fontSize: 10, fontWeight: 500 };
         const labelBgStyle = { fill: labelBgFill, fillOpacity: 0.9 };
 
@@ -1192,15 +1227,29 @@ function HierarchicalViewContent({
 
   if (!parsedPlan?.rootNode) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
-        No execution plan to display. Parse a plan to see the visualization.
+      <div className="flex items-center justify-center h-full text-slate-500 dark:text-slate-400">
+        No plan loaded yet. Paste an execution plan in the input panel and press Parse.
       </div>
     );
   }
 
   return (
-    <div ref={containerRef} className="w-full h-full min-h-[320px] min-w-0">
+    <div
+      ref={containerRef}
+      className={`relative w-full h-full min-h-[320px] min-w-0 overflow-hidden transition-opacity duration-150 ${
+        layoutReady ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
+      {/* Staged canvas backdrop: the tree sits in a soft pool of light.
+          One layer — the gradient stops are CSS variables that follow the
+          .dark root class and the active app palette. */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: CANVAS_BACKDROP }}
+      />
       <ReactFlow
+        className="!bg-transparent"
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
@@ -1214,18 +1263,21 @@ function HierarchicalViewContent({
         maxZoom={2}
         onlyRenderVisibleElements={!isExporting}
       >
+        {/* Transparent so the staged gradient behind the flow shows through
+            (index.css paints .react-flow__background flat in dark mode). */}
         <Background
           variant={BackgroundVariant.Dots}
           gap={20}
           size={1}
-          color={theme === 'dark' ? '#374151' : '#e5e7eb'}
+          className="!bg-transparent"
+          color={theme === 'dark' ? 'rgba(148,163,184,0.16)' : 'rgba(100,116,139,0.16)'}
         />
-        <Controls className="!bg-white dark:!bg-gray-800 !border-gray-200 dark:!border-gray-700" />
+        <Controls className="!bg-transparent !border-none !shadow-none [&_button]:!bg-white/80 [&_button]:!border-slate-200/80 [&_button]:!text-slate-600 [&_button]:backdrop-blur-sm dark:[&_button]:!bg-slate-800/70 dark:[&_button]:!border-slate-700/70 dark:[&_button]:!text-slate-300 [&_button:hover]:!bg-white dark:[&_button:hover]:!bg-slate-700/80" />
         <Panel position="top-right">
           <button
             type="button"
             onClick={resetLayout}
-            className="p-1.5 rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-sm"
+            className="p-1.5 rounded-md bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm border border-slate-200/80 dark:border-slate-700/70 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700/80 transition-colors shadow-sm"
             title="Redraw layout"
             aria-label="Redraw layout"
           >

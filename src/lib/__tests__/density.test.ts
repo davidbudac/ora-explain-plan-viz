@@ -8,8 +8,16 @@ describe('density presets', () => {
   });
 
   it('each preset table maps back to itself', () => {
+    expect(matchDensityPreset(DENSITY_PRESETS.minimal)).toBe('minimal');
     expect(matchDensityPreset(DENSITY_PRESETS.compact)).toBe('compact');
     expect(matchDensityPreset(DENSITY_PRESETS.detailed)).toBe('detailed');
+  });
+
+  it('only the minimal preset collapses the node body', () => {
+    expect(DENSITY_PRESETS.minimal.compactStats).toBe(true);
+    expect(DENSITY_PRESETS.compact.compactStats).toBe(false);
+    expect(DENSITY_PRESETS.detailed.compactStats).toBe(false);
+    expect(defaultNodeDisplayOptions.compactStats).toBe(false);
   });
 
   it('any manual toggle derives custom', () => {

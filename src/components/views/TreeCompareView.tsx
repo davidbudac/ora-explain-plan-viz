@@ -18,7 +18,7 @@ function CompareTreePane({
 
   if (!slot || !parsedPlan) {
     return (
-      <div className="flex h-full min-h-[280px] items-center justify-center rounded-xl border border-dashed border-neutral-300 dark:border-neutral-700 bg-white/70 dark:bg-neutral-900/60 text-sm text-neutral-500 dark:text-neutral-400">
+      <div className="flex h-full min-h-[280px] items-center justify-center rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/60 text-sm text-slate-500 dark:text-slate-400">
         Plan not available.
       </div>
     );
@@ -27,18 +27,18 @@ function CompareTreePane({
   const isActive = activePlanIndex === index;
 
   return (
-    <div className={`flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border bg-white dark:bg-neutral-950 ${isActive ? accentClassName : 'border-neutral-200 dark:border-neutral-800'}`}>
-      <div className="flex items-center justify-between gap-3 border-b border-neutral-200 dark:border-neutral-800 px-4 py-2.5">
+    <div className={`flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border bg-white dark:bg-slate-950 ${isActive ? accentClassName : 'border-slate-200 dark:border-slate-800'}`}>
+      <div className="flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 px-4 py-2.5">
         <div className="min-w-0">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500 dark:text-neutral-400">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
             {slot.customLabel || slot.label}
           </div>
-          <div className="truncate text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+          <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
             {parsedPlan.planHashValue ? `PHV ${parsedPlan.planHashValue}` : 'No plan hash value'}
           </div>
         </div>
         {parsedPlan.sqlId && (
-          <div className="rounded-full border border-neutral-200 dark:border-neutral-700 px-2.5 py-1 text-[11px] font-mono text-neutral-500 dark:text-neutral-400">
+          <div className="rounded-full border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-[11px] font-mono text-slate-500 dark:text-slate-400">
             SQL {parsedPlan.sqlId}
           </div>
         )}
@@ -62,14 +62,14 @@ export function TreeCompareView() {
   const comparablePlanCount = plans.filter((slot) => slot.parsedPlan).length;
   if (comparablePlanCount < 2) {
     return (
-      <div className="flex-1 flex items-center justify-center text-neutral-500 dark:text-neutral-400 p-8">
+      <div className="flex-1 flex items-center justify-center text-slate-500 dark:text-slate-400 p-8">
         <p>Load at least two plans to compare them side by side.</p>
       </div>
     );
   }
 
   return (
-    <div className="h-full min-h-0 bg-neutral-100 dark:bg-neutral-950 p-3">
+    <div className="h-full min-h-0 bg-slate-100 dark:bg-slate-950 p-3">
       <div className="grid h-full min-h-0 grid-cols-1 gap-3 xl:grid-cols-2">
         <CompareTreePane index={leftIndex} accentClassName="border-blue-300 dark:border-blue-700" />
         <CompareTreePane index={rightIndex} accentClassName="border-violet-300 dark:border-violet-700" />

@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useReducer, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, FlameMetric, ExperimentalSubView, NodeIndicatorMetric, Theme, ColorScheme } from '../lib/types';
+import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, FlameMetric, ExperimentalSubView, NodeIndicatorMetric, Theme, ColorScheme, AppPalette } from '../lib/types';
 import type { PlanSlot, CompareMetric } from '../lib/compare';
 import { createEmptySlot, DEFAULT_COMPARE_METRICS, getPlanSlotLabel } from '../lib/compare';
 import { parseExplainPlan, splitDbmsXplanPlanBatches } from '../lib/parser';
@@ -45,6 +45,7 @@ interface PlanState {
   experimentalSubView: ExperimentalSubView;
   nodeIndicatorMetric: NodeIndicatorMetric;
   colorScheme: ColorScheme;
+  palette: AppPalette;
   theme: Theme;
   filters: FilterState;
   // UI panel states (persisted)
@@ -54,6 +55,7 @@ interface PlanState {
   inputPanelCollapsed: boolean;
   filterPanelCollapsed: boolean;
   detailPanelCollapsed: boolean;
+  focusMode: boolean;
   visualizationMaximized: boolean;
   _preMaxPanelState: { filter: boolean; detail: boolean } | null;
   // Highlight style
@@ -73,6 +75,7 @@ type PlanAction =
   | { type: 'SET_EXPERIMENTAL_SUB_VIEW'; payload: ExperimentalSubView }
   | { type: 'SET_NODE_INDICATOR_METRIC'; payload: NodeIndicatorMetric }
   | { type: 'SET_COLOR_SCHEME'; payload: ColorScheme }
+  | { type: 'SET_PALETTE'; payload: AppPalette }
   | { type: 'SET_THEME'; payload: Theme }
   | { type: 'SET_FILTERS'; payload: Partial<FilterState> }
   | { type: 'SET_ERROR'; payload: string | null }
@@ -83,6 +86,7 @@ type PlanAction =
   | { type: 'SET_INPUT_PANEL_COLLAPSED'; payload: boolean }
   | { type: 'SET_FILTER_PANEL_COLLAPSED'; payload: boolean }
   | { type: 'SET_DETAIL_PANEL_COLLAPSED'; payload: boolean }
+  | { type: 'SET_FOCUS_MODE'; payload: boolean }
   | { type: 'SET_VISUALIZATION_MAXIMIZED'; payload: boolean }
   | { type: 'ADD_PLAN_SLOT' }
   | { type: 'REMOVE_PLAN_SLOT'; payload: number }
@@ -293,6 +297,7 @@ const getInitialState = (): PlanState => {
     experimentalSubView: settings.experimentalSubView ?? 'scatter',
     nodeIndicatorMetric: settings.nodeIndicatorMetric,
     colorScheme: settings.colorScheme ?? 'semantic',
+    palette: settings.palette ?? 'slate',
     theme: getInitialTheme(),
     filters: applySettingsToFilters(initialFilters, settings),
     highlightStyle: settings.highlightStyle ?? 'circle',
@@ -302,6 +307,7 @@ const getInitialState = (): PlanState => {
     inputPanelCollapsed: initialPlans.some((slot) => slot.parsedPlan) ? settings.inputPanelCollapsed : false,
     filterPanelCollapsed: settings.filterPanelCollapsed,
     detailPanelCollapsed: false,
+    focusMode: settings.focusMode ?? false,
     visualizationMaximized: false,
     _preMaxPanelState: null,
   };
@@ -433,6 +439,9 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
     case 'SET_COLOR_SCHEME':
       return { ...state, colorScheme: action.payload };
 
+    case 'SET_PALETTE':
+      return { ...state, palette: action.payload };
+
     case 'SET_THEME':
       return { ...state, theme: action.payload };
 
@@ -488,6 +497,9 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
 
     case 'SET_DETAIL_PANEL_COLLAPSED':
       return { ...state, detailPanelCollapsed: action.payload };
+
+    case 'SET_FOCUS_MODE':
+      return { ...state, focusMode: action.payload };
 
     case 'SET_VISUALIZATION_MAXIMIZED': {
       if (action.payload) {
@@ -708,12 +720,14 @@ interface PlanContextValue {
   experimentalSubView: ExperimentalSubView;
   nodeIndicatorMetric: NodeIndicatorMetric;
   colorScheme: ColorScheme;
+  palette: AppPalette;
   theme: Theme;
   filters: FilterState;
   legendVisible: boolean;
   inputPanelCollapsed: boolean;
   filterPanelCollapsed: boolean;
   detailPanelCollapsed: boolean;
+  focusMode: boolean;
   treeCompareEnabled: boolean;
   visualizationMaximized: boolean;
 
@@ -742,6 +756,7 @@ interface PlanContextValue {
   setExperimentalSubView: (view: ExperimentalSubView) => void;
   setNodeIndicatorMetric: (metric: NodeIndicatorMetric) => void;
   setColorScheme: (scheme: ColorScheme) => void;
+  setPalette: (palette: AppPalette) => void;
   setTheme: (theme: Theme) => void;
   setFilters: (filters: Partial<FilterState>) => void;
   clearPlan: () => void;
@@ -773,11 +788,14 @@ interface PlanContextValue {
   setMetadataPopoutOpen: (open: boolean) => void;
   baselineDialogOpen: boolean;
   setBaselineDialogOpen: (open: boolean) => void;
+  reportDialogOpen: boolean;
+  setReportDialogOpen: (open: boolean) => void;
   connectPanelOpen: boolean;
   setConnectPanelOpen: (open: boolean) => void;
   setInputPanelCollapsed: (collapsed: boolean) => void;
   setFilterPanelCollapsed: (collapsed: boolean) => void;
   setDetailPanelCollapsed: (collapsed: boolean) => void;
+  setFocusMode: (enabled: boolean) => void;
   setVisualizationMaximized: (maximized: boolean) => void;
 
   // Annotations
@@ -828,6 +846,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
   const [metadataPopoutOpen, setMetadataPopoutOpen] = useState(false);
   const [baselineDialogOpen, setBaselineDialogOpen] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [connectPanelOpen, setConnectPanelOpen] = useState(false);
   const [prevMetadataBundle, setPrevMetadataBundle] = useState<MetadataBundle | null>(null);
   const [shareNotice, setShareNotice] = useState<ShareNotice | null>(null);
@@ -841,7 +860,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         ...slot,
         rawInput: input,
         parsedPlan: parsed.rootNode ? parsed : null,
-        error: parsed.rootNode ? null : 'Could not parse the execution plan. Please check the format.',
+        error: parsed.rootNode ? null : 'Could not parse this as an execution plan. Supported formats: DBMS_XPLAN, SQL Monitor text/XML, and V$SQL_PLAN JSON.',
       };
     } catch (err) {
       return {
@@ -900,7 +919,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       if (parsedPlanCount === 0) {
         dispatch({
           type: 'SET_ERROR',
-          payload: 'Could not parse any execution plans from the input. Please check the format.',
+          payload: 'Could not find an execution plan in the pasted text. Supported formats: DBMS_XPLAN, SQL Monitor text/XML, and V$SQL_PLAN JSON.',
         });
       }
       return;
@@ -912,7 +931,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     if (!slot?.parsedPlan) {
       dispatch({
         type: 'SET_ERROR',
-        payload: slot?.error ?? 'Could not parse the execution plan. Please check the format.',
+        payload: slot?.error ?? 'Could not parse this as an execution plan. Supported formats: DBMS_XPLAN, SQL Monitor text/XML, and V$SQL_PLAN JSON.',
       });
       return;
     }
@@ -1090,7 +1109,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     [parsedPlan, metadataBundle]
   );
 
-  // Apply theme to document
+  // Apply theme + app palette to document
   useEffect(() => {
     const root = document.documentElement;
     if (state.theme === 'dark') {
@@ -1098,8 +1117,14 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     } else {
       root.classList.remove('dark');
     }
+    // 'slate' is the built-in look: drop the attribute so no palette block matches.
+    if (state.palette === 'slate') {
+      delete root.dataset.palette;
+    } else {
+      root.dataset.palette = state.palette;
+    }
     localStorage.setItem('theme', state.theme);
-  }, [state.theme]);
+  }, [state.theme, state.palette]);
 
   // Load plan from URL param or default example on first mount
   const hasLoadedDefaultRef = useRef(false);
@@ -1205,12 +1230,14 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         experimentalSubView: state.experimentalSubView,
         nodeIndicatorMetric: state.nodeIndicatorMetric,
         colorScheme: state.colorScheme,
+        palette: state.palette,
         highlightStyle: state.highlightStyle,
         hotspotsEnabled: state.hotspotsEnabled,
         showAdvisorSuggestions: state.showAdvisorSuggestions,
         legendVisible: state.legendVisible,
         inputPanelCollapsed: state.inputPanelCollapsed,
         filterPanelCollapsed: state.filterPanelCollapsed,
+        focusMode: state.focusMode,
         compareMetrics: state.compareMetrics,
         ...extractFilterSettings(state.filters),
       });
@@ -1228,12 +1255,14 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     state.experimentalSubView,
     state.nodeIndicatorMetric,
     state.colorScheme,
+    state.palette,
     state.highlightStyle,
     state.hotspotsEnabled,
     state.showAdvisorSuggestions,
     state.legendVisible,
     state.inputPanelCollapsed,
     state.filterPanelCollapsed,
+    state.focusMode,
     state.compareMetrics,
     state.filters,
   ]);
@@ -1286,6 +1315,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_COLOR_SCHEME', payload: scheme });
   }, []);
 
+  const setPalette = useCallback((palette: AppPalette) => {
+    dispatch({ type: 'SET_PALETTE', payload: palette });
+  }, []);
+
   const setTheme = useCallback((theme: Theme) => {
     dispatch({ type: 'SET_THEME', payload: theme });
   }, []);
@@ -1333,6 +1366,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   const setDetailPanelCollapsed = useCallback((collapsed: boolean) => {
     dispatch({ type: 'SET_DETAIL_PANEL_COLLAPSED', payload: collapsed });
+  }, []);
+
+  const setFocusMode = useCallback((enabled: boolean) => {
+    dispatch({ type: 'SET_FOCUS_MODE', payload: enabled });
   }, []);
 
   const setVisualizationMaximized = useCallback((maximized: boolean) => {
@@ -1425,7 +1462,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       const text = await file.text();
       const data = JSON.parse(text);
       if (!validateExport(data)) {
-        dispatch({ type: 'SET_ERROR', payload: 'Invalid annotated plan file. Please check the format.' });
+        dispatch({ type: 'SET_ERROR', payload: 'Not a valid annotated-plan file. Expected the JSON exported via "Save annotated plan".' });
         return;
       }
       // Parse the plan text from the file
@@ -1565,12 +1602,14 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     experimentalSubView: state.experimentalSubView,
     nodeIndicatorMetric: state.nodeIndicatorMetric,
     colorScheme: state.colorScheme,
+    palette: state.palette,
     theme: state.theme,
     filters: state.filters,
     legendVisible: state.legendVisible,
     inputPanelCollapsed: state.inputPanelCollapsed,
     filterPanelCollapsed: state.filterPanelCollapsed,
     detailPanelCollapsed: state.detailPanelCollapsed,
+    focusMode: state.focusMode,
     treeCompareEnabled: state.treeCompareEnabled,
     visualizationMaximized: state.visualizationMaximized,
 
@@ -1598,6 +1637,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setExperimentalSubView,
     setNodeIndicatorMetric,
     setColorScheme,
+    setPalette,
     setTheme,
     setFilters,
     clearPlan,
@@ -1627,11 +1667,14 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setMetadataPopoutOpen,
     baselineDialogOpen,
     setBaselineDialogOpen,
+    reportDialogOpen,
+    setReportDialogOpen,
     connectPanelOpen,
     setConnectPanelOpen,
     setInputPanelCollapsed,
     setFilterPanelCollapsed,
     setDetailPanelCollapsed,
+    setFocusMode,
     setVisualizationMaximized,
 
     // Annotations (derived from active plan slot)
