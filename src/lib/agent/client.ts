@@ -88,7 +88,7 @@ export interface FetchMetadataResult {
  * Oldest agent version whose API this client fully supports (`/api/metadata`
  * was added in 0.1.0, the first published version). Used to warn on skew.
  */
-export const MIN_AGENT_VERSION = '0.1.0';
+export const MIN_AGENT_VERSION = '0.2.0';
 
 /** Compares dotted numeric versions; returns negative/zero/positive like a comparator. Non-numeric parts compare as 0. */
 export function compareAgentVersions(a: string, b: string): number {
