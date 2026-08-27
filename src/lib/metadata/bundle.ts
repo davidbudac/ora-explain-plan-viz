@@ -201,6 +201,16 @@ export interface ColumnStats {
 export interface HistogramInfo {
   type: 'NONE' | 'FREQUENCY' | 'HEIGHT BALANCED' | 'HYBRID' | 'TOP-FREQUENCY';
   buckets: number;
+  /** v3: histogram endpoints from DBA_TAB_HISTOGRAMS (capped at 254); absent when type is NONE. */
+  endpoints?: HistogramEndpoint[];
+}
+
+export interface HistogramEndpoint {
+  /** Endpoint value: number for numeric columns, string otherwise (already decoded by the gather script). */
+  value: string | number;
+  endpoint_number: number;
+  /** HYBRID histograms: endpoint_repeat_count; omitted elsewhere. */
+  repeat_count?: number;
 }
 
 export interface IndexStats {
@@ -298,7 +308,7 @@ export function emptyBundleWarning(bundle: MetadataBundle): string | null {
     : 'Bundle contains no objects — the SQL_ID may have aged out of the cursor cache and AWR when the script ran.';
 }
 
-export const SUPPORTED_BUNDLE_VERSIONS = [1, 2];
+export const SUPPORTED_BUNDLE_VERSIONS = [1, 2, 3];
 
 export function parseBundle(input: string): MetadataBundle {
   let parsed: unknown;

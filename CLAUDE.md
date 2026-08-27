@@ -34,6 +34,7 @@ src/
 │   ├── compare.ts       # Plan comparison engine (node matching, delta calculations)
 │   ├── ash.ts           # ASH wait-class colors + per-line/per-bucket activity aggregation
 │   ├── rowFlow.ts       # Wasted-work row-flow computation (rows read vs returned per node)
+│   ├── ai/              # AI plan analysis: types, plan/context serialization, prompts, findings parser, secrets (sessionStorage keys), provider layer (anthropic / openaiCompat / agent / hosted / sse), chat follow-up support (streamChat), testCase.ts (deterministic test-case script builder), experiments.ts (SQL Patch script + advisor-driven experiment candidates)
 │   ├── parser.ts        # Legacy parser (kept for compatibility)
 │   ├── advisor/         # Plan advisor: runAdvisor engine + 10 heuristic rules (findings)
 │   ├── metadata/        # Schema-metadata bundles, indexes, gather-script, pairing/lookup helpers
@@ -50,7 +51,8 @@ src/
 │   ├── index.ts              # Auto-loader using NN-category-Name.txt convention
 │   └── *.txt                 # Example plan files (DBMS_XPLAN and SQL Monitor)
 ├── hooks/
-│   └── usePlanContext.tsx   # Global state management (React Context, multi-plan support)
+│   ├── usePlanContext.tsx   # Global state management (React Context, multi-plan support)
+│   └── useAiAnalysis.tsx    # AI analysis state (React Context: dialog, run/stream/cancel, report)
 ├── components/
 │   ├── Header.tsx           # Single top bar: brand, SQL ID, plan/view tabs, Load Example, all actions (collapse into a menu at narrow widths)
 │   ├── NavRibbon.tsx        # View tab ribbon (Tree/Compare/Tabular/Sankey/Flame/Text/SQL/Metadata/Monitor/Experimental) + maximize; labels degrade to icons → overflow menu
@@ -70,6 +72,7 @@ src/
 │   ├── PopoutWindow.tsx     # Detachable pop-out window (e.g. Metadata Explorer)
 │   ├── GatherScriptModal.tsx # Generates a schema-metadata gather SQL script
 │   ├── BaselineScriptModal.tsx # Generates a SQL Plan Baseline creation script (DBMS_SPM)
+│   ├── AiAnalysisDialog.tsx # AI analysis setup dialog (provider, model, key, run analyze/compare)
 │   ├── ClientReportModal.tsx # Client report export dialog (title/client/author, sections, preview)
 │   ├── MetadataChip.tsx     # Inline schema-metadata badge/chip
 │   ├── FormattedPredicate.tsx # Predicate rendering with column formatting
@@ -91,6 +94,7 @@ src/
 │       ├── SankeyView.tsx         # Sankey diagram (D3)
 │       ├── FlameView.tsx          # Flame graph (metric toggle cost/A-Time/A-Rows, click-to-zoom)
 │       ├── SqlTextView.tsx        # Full SQL text with syntax highlighting + copy
+│       ├── AiReportView.tsx       # AI analysis report tab (streamed markdown + findings)
 │       ├── MonitorDetailsView.tsx # SQL Monitor XML details (activity, session, resources, binds)
 │       └── experimental/          # Experimental tab: 5 sub-views behind a segmented switcher
 │           ├── ExperimentalView.tsx  # Shell (sub-view switcher, persisted via settings)
@@ -102,6 +106,13 @@ src/
 ├── App.tsx
 ├── main.tsx
 └── index.css            # Tailwind imports + dark mode styles
+
+evals/                   # AI eval harness (Node + tsx + oracledb thin; NOT part of the Vite build)
+├── run.ts               # Repro-fidelity backtest (plan shape match in a scratch schema)
+├── analyze.ts           # Analysis-quality backtest (findings vs known injected faults)
+├── scenarios/           # Scenario corpus (setup.sql + query.sql + expect.json per scenario)
+├── lib/                 # DB exec, metadata gather, plan capture/compare helpers
+└── results/             # Timestamped run-result JSON (gitignored)
 ```
 
 ## Development
@@ -169,6 +180,10 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 ### Analysis
 - **Plan Comparison**: Load two plans side-by-side with node matching (exact ID + heuristic), delta calculations, and improvement/regression indicators across 9 metrics (cost, rows, bytes, A-Rows, A-Time, self time, starts, temp space, memory)
 - **Plan Advisor**: Heuristic findings engine (`runAdvisor`) with 10 rules — cardinality mismatch, implicit conversion, cartesian merge join, nested-loop volume, parallel signals, partition pruning, selective full scan, spill-to-disk, stats issues, and unused index — surfaced per-node and as a ranked list; suggestion hints are togglable (off by default)
+- **AI Plan Analysis**: Optional LLM-powered analysis (single plan or A/B compare) via an Anthropic, OpenAI-compatible, local-agent, or hosted (oraplanviz cloud account token) provider — streamed markdown report in an AI tab with findings linked to plan nodes. Privacy: nothing leaves the browser until the user clicks Run, and only to the provider they chose; API keys live in sessionStorage only (`src/lib/ai/secrets.ts`), never in localStorage settings or share URLs
+- **AI Test Case Builder**: With a plan + attached metadata bundle, builds a deterministic synthetic-repro skeleton (`src/lib/ai/testCase.ts` — empty DDL, DBMS_STATS stats/histograms, optimizer env, binds, EXPLAIN PLAN verification) that the AI amends into a runnable scratch-schema script with realistic binds, an optional data generator, and alternative-plan experiments (`src/lib/ai/experiments.ts` — SQL Patch script + advisor-driven experiment candidates); SQL fences in the report get per-block copy/download
+- **AI Follow-up Chat**: After a completed AI report, a chat section in the AI tab lets the user ask follow-up questions (multi-turn via `streamChat`); when the DB agent feature is enabled, SQL blocks in test-case reports and chat replies get a "Run via agent" button that executes against the agent's scratch test connection only after explicit per-script user approval (script preview + destructive-statement warning) — nothing ever auto-runs or auto-sends
+- **AI Eval Harness**: `evals/` backtesting harness (Node + tsx + oracledb thin, outside the Vite build) measuring repro fidelity (does the generated test case reproduce the plan shape?) and analysis quality (does the AI find a known injected fault?) against a real Oracle scratch schema via `ORA_EVAL_*` env vars — see `evals/README.md`
 - **Cardinality Mismatch Analysis**: Detects E-Rows vs A-Rows divergence with severity badges (warn at 3x, bad at 10x)
 - **Cardinality Mismatch Filter**: Slider in filter panel to show only nodes exceeding a mismatch threshold
 - **Spill-to-Disk Warnings**: Badge on nodes that use temp space, with details in node panel

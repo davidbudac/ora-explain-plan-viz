@@ -449,7 +449,12 @@ plain Node + TypeScript via `tsx`, DB access via `node-oracledb` thin mode — n
 Instant Client needed):
 
 - **Database**: `gvenzl/oracle-free:23` in Docker (`evals/docker-compose.yml`); works
-  locally and as a GitHub Actions service container. Each scenario gets its own
+  locally and as a GitHub Actions service container.
+  - **Implemented notes**: the shipped harness targets an *existing* Oracle database
+    (a dedicated scratch schema) configured via `ORA_EVAL_*` env vars
+    (`ORA_EVAL_CONNECT` / `ORA_EVAL_USER` / `ORA_EVAL_PASSWORD`) instead of
+    Docker — see `evals/README.md`. The Docker setup above remains a future option
+    for CI. Each scenario gets its own
   schema (`EVAL_S01` …), dropped and recreated per run — no cross-contamination.
 - **Scenario corpus** — `evals/scenarios/NN-name/` with three files:
   - `setup.sql` — schema + data + the deliberate condition (e.g. skewed column with a

@@ -1,0 +1,168 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildTestCaseScript > matches the full-script snapshot for the main fixture 1`] = `
+"-- Synthetic test case script, stamped by the Oracle Plan Visualizer.
+--
+-- What this does: recreates the tables and indexes referenced by the plan
+-- (EMPTY - no data) and sets their optimizer statistics from a gathered
+-- metadata bundle, so the optimizer can reproduce the original plan in a
+-- scratch schema without touching production data.
+--
+-- Source database : X (Oracle 19.0, container C)
+-- SQL_ID          : abc123def4567
+-- Plan hash value : 987654321
+--
+-- SAFETY: run this ONLY in an empty scratch schema. It creates objects
+-- and overwrites their dictionary statistics; never run it in a schema
+-- that holds real objects of the same names.
+
+SET SERVEROUTPUT ON SIZE UNLIMITED
+SET LINESIZE 200
+SET VERIFY OFF
+
+PROMPT === Object DDL (empty tables + indexes) ===
+
+-- No DDL in the bundle for DEPT; synthesized from column metadata.
+CREATE TABLE DEPT (
+  DEPTNO NUMBER NOT NULL
+);
+
+-- No DDL in the bundle for EMP; synthesized from column metadata.
+CREATE TABLE EMP (
+  EMPNO NUMBER NOT NULL,
+  DEPTNO NUMBER NOT NULL,
+  ENAME VARCHAR2(50)
+);
+
+ALTER TABLE DEPT ADD CONSTRAINT DEPT_PK_CON PRIMARY KEY (DEPTNO);
+
+-- Skipped FK DEPT_FK_REGION on DEPT: references REGIONS, which is not part of this test case.
+
+-- No DDL in the bundle for DEPT_PK; synthesized from index columns.
+CREATE UNIQUE INDEX DEPT_PK ON DEPT (DEPTNO);
+
+-- No DDL in the bundle for EMP_IDX; synthesized from index columns.
+CREATE INDEX EMP_IDX ON EMP (DEPTNO);
+
+PROMPT === Optimizer statistics ===
+
+BEGIN
+  DBMS_STATS.SET_TABLE_STATS(ownname => USER, tabname => 'DEPT',
+    numrows => 4, numblks => 1, avgrlen => 20);
+END;
+/
+
+BEGIN
+  DBMS_STATS.SET_COLUMN_STATS(ownname => USER, tabname => 'DEPT', colname => 'DEPTNO',
+    distcnt => 4, nullcnt => 0, density => 0.01);
+END;
+/
+
+BEGIN
+  DBMS_STATS.SET_TABLE_STATS(ownname => USER, tabname => 'EMP',
+    numrows => 14, numblks => 4, avgrlen => 40);
+END;
+/
+
+BEGIN
+  DBMS_STATS.SET_COLUMN_STATS(ownname => USER, tabname => 'EMP', colname => 'EMPNO',
+    distcnt => 14, nullcnt => 0, density => 0.0714);
+END;
+/
+
+BEGIN
+  DBMS_STATS.SET_COLUMN_STATS(ownname => USER, tabname => 'EMP', colname => 'DEPTNO',
+    distcnt => 3, nullcnt => 0, density => 0.01);
+END;
+/
+
+-- Histogram for EMP.DEPTNO: FREQUENCY (3 buckets)
+DECLARE
+  l_srec    DBMS_STATS.STATREC;
+  l_distcnt NUMBER;
+  l_density NUMBER;
+  l_nullcnt NUMBER;
+  l_avgclen NUMBER;
+BEGIN
+  DBMS_STATS.GET_COLUMN_STATS(ownname => USER, tabname => 'EMP', colname => 'DEPTNO',
+    distcnt => l_distcnt, density => l_density, nullcnt => l_nullcnt, srec => l_srec, avgclen => l_avgclen);
+  l_srec.bkvals := DBMS_STATS.NUMARRAY(3, 5, 6);
+  l_srec.epc    := 3;
+  DBMS_STATS.PREPARE_COLUMN_VALUES(l_srec,
+    DBMS_STATS.NUMARRAY(10, 20, 30));
+  DBMS_STATS.SET_COLUMN_STATS(ownname => USER, tabname => 'EMP', colname => 'DEPTNO',
+    distcnt => l_distcnt, density => l_density, nullcnt => l_nullcnt, srec => l_srec, avgclen => l_avgclen);
+END;
+/
+
+BEGIN
+  DBMS_STATS.SET_COLUMN_STATS(ownname => USER, tabname => 'EMP', colname => 'ENAME',
+    distcnt => 100, nullcnt => 0, density => 0.01);
+END;
+/
+
+-- Histogram for EMP.ENAME: HYBRID (2 buckets)
+-- HYBRID endpoint repeat counts: 2, 1
+DECLARE
+  l_srec    DBMS_STATS.STATREC;
+  l_distcnt NUMBER;
+  l_density NUMBER;
+  l_nullcnt NUMBER;
+  l_avgclen NUMBER;
+BEGIN
+  DBMS_STATS.GET_COLUMN_STATS(ownname => USER, tabname => 'EMP', colname => 'ENAME',
+    distcnt => l_distcnt, density => l_density, nullcnt => l_nullcnt, srec => l_srec, avgclen => l_avgclen);
+  l_srec.bkvals := DBMS_STATS.NUMARRAY(5, 9);
+  l_srec.epc    := 2;
+  DBMS_STATS.PREPARE_COLUMN_VALUES(l_srec,
+    DBMS_STATS.CHARARRAY('A_VERY_LONG_STRING_VALUE_THAT_GO', 'ZED'));
+  DBMS_STATS.SET_COLUMN_STATS(ownname => USER, tabname => 'EMP', colname => 'ENAME',
+    distcnt => l_distcnt, density => l_density, nullcnt => l_nullcnt, srec => l_srec, avgclen => l_avgclen);
+END;
+/
+
+BEGIN
+  DBMS_STATS.SET_INDEX_STATS(ownname => USER, indname => 'DEPT_PK',
+    numrows => NULL, numlblks => 10, numdist => 50,
+    clstfct => 100, indlevel => 1);
+END;
+/
+
+BEGIN
+  DBMS_STATS.SET_INDEX_STATS(ownname => USER, indname => 'EMP_IDX',
+    numrows => 14, numlblks => 2, numdist => 3,
+    clstfct => 7, indlevel => 1);
+END;
+/
+
+PROMPT === Optimizer environment (non-default parameters) ===
+
+-- optimizer_index_cost_adj = 50
+ALTER SESSION SET "optimizer_index_cost_adj" = 50;
+
+-- optimizer_mode = FIRST_ROWS_10
+ALTER SESSION SET "optimizer_mode" = 'FIRST_ROWS_10';
+
+-- Underscore (hidden) parameter - review before enabling; left commented out.
+-- ALTER SESSION SET "_optimizer_use_feedback" = FALSE;
+
+PROMPT === The SQL statement ===
+
+VARIABLE min_sal NUMBER
+EXEC :min_sal := 5000;
+VARIABLE name VARCHAR2(4000)
+-- EXEC :name := ...;  (no captured value - fill in a representative one)
+
+SELECT * FROM emp e JOIN dept d ON e.deptno = d.deptno WHERE e.sal > :min_sal;
+
+PROMPT === Verification: does the optimizer reproduce the plan? ===
+
+EXPLAIN PLAN FOR
+SELECT * FROM emp e JOIN dept d ON e.deptno = d.deptno WHERE e.sal > :min_sal;
+
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY(FORMAT => 'ALL'));
+
+-- Compare against the original plan hash value: 987654321
+-- Plan hash values can differ across environments even for the same plan
+-- shape - compare operations, join order and access paths, not just the hash."
+`;

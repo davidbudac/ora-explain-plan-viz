@@ -1,0 +1,5 @@
+{
+  "tags": ["missing-index", "foreign-key"],
+  "rootCause": "The foreign key EVAL_CHILD.PARENT_ID is unindexed, so fetching the children of a single parent requires a full scan of EVAL_CHILD instead of an index range scan",
+  "planFeatures": ["TABLE ACCESS FULL"]
+}

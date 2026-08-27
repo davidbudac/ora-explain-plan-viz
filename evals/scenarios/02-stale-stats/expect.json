@@ -1,0 +1,5 @@
+{
+  "tags": ["stale-stats", "cardinality"],
+  "rootCause": "Statistics on EVAL_EVENTS are stale: gathered at 100 rows before the table grew to 50100 rows with a wider EVENT_TYPE range, so the optimizer massively underestimates cardinality",
+  "planFeatures": ["INDEX RANGE SCAN"]
+}

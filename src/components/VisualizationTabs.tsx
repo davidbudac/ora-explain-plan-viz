@@ -12,6 +12,8 @@ import { TreeCompareView } from './views/TreeCompareView';
 import { Legend } from './Legend';
 import { MetadataView } from './metadata/MetadataView';
 import { ExperimentalView } from './views/experimental/ExperimentalView';
+import { AiReportView } from './views/AiReportView';
+import { AiReportPrototypeView } from './views/prototype/AiReportPrototypeView';
 
 export function VisualizationTabs() {
   const {
@@ -51,6 +53,8 @@ export function VisualizationTabs() {
         {viewMode === 'metadata' && <MetadataView />}
         {viewMode === 'monitor' && <MonitorDetailsView />}
         {viewMode === 'experimental' && <ExperimentalView />}
+        {viewMode === 'ai' && <AiReportView />}
+        {viewMode === 'ai-report' && <AiReportPrototypeView />}
         {(viewMode === 'hierarchical' || viewMode === 'sankey' || viewMode === 'flame' || viewMode === 'tabular') && <Legend />}
       </div>
     </div>

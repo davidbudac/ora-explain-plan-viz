@@ -86,8 +86,8 @@ describe('buildGatherScript', () => {
     expect(template).toContain('DEFINE arg1 = "&1"');
   });
 
-  it('emits bundle format version 2', () => {
-    expect(template).toContain('"version":2');
+  it('emits bundle format version 3', () => {
+    expect(template).toContain('"version":3');
   });
 });
 
