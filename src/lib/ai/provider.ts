@@ -16,6 +16,17 @@ import { streamHosted } from './providers/hosted';
 /** Default base URL for the hosted oraplanviz cloud backend. */
 export const DEFAULT_HOSTED_BASE_URL = 'https://api.oraplanviz.com';
 
+/**
+ * Returns true when the hosted (oraplanviz cloud) provider was enabled at
+ * build time via `VITE_ENABLE_HOSTED=1`. The public GitHub Pages build leaves
+ * it off so the BYO-key / OpenAI-compat / agent options are the only ones
+ * shown; the private pro build turns it on. Mirrors `isDbAgentEnabled()`.
+ */
+export function isHostedAiEnabled(): boolean {
+  const flag = (import.meta.env?.VITE_ENABLE_HOSTED ?? '') as string;
+  return flag === '1' || flag === 'true';
+}
+
 /** Resolved, ready-to-run configuration for one analysis request. */
 export interface AiRunConfig {
   provider: AiProviderId;
