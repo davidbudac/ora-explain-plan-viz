@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { PlanProvider, usePlan } from './hooks/usePlanContext';
+import { AiProvider, useAi } from './hooks/useAiAnalysis';
+import { AiAnalysisDialog } from './components/AiAnalysisDialog';
 import { InputPanel } from './components/InputPanel';
 import { MaximizedTopBar } from './components/NavRibbon';
 import { FilterPanel } from './components/FilterPanel';
@@ -242,6 +244,7 @@ function AppContent() {
     detailPanelCollapsed, setDetailPanelCollapsed,
     focusMode, setFocusMode,
   } = usePlan();
+  const { aiDialogOpen, closeAiDialog } = useAi();
   const activeSlot = plans[activePlanIndex];
   const activeParsedPlan = activeSlot?.parsedPlan ?? null;
   const anyPlanParsed = plans.some(p => p.parsedPlan);
@@ -370,6 +373,7 @@ function AppContent() {
           onClose={() => setBaselineDialogOpen(false)}
         />
       )}
+      {aiDialogOpen && <AiAnalysisDialog onClose={closeAiDialog} />}
       {reportDialogOpen && activeParsedPlan && (
         <ClientReportModal onClose={() => setReportDialogOpen(false)} />
       )}
@@ -523,7 +527,9 @@ function AppContent() {
 function App() {
   return (
     <PlanProvider>
-      <AppContent />
+      <AiProvider>
+        <AppContent />
+      </AiProvider>
     </PlanProvider>
   );
 }

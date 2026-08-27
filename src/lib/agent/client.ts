@@ -106,6 +106,28 @@ export interface AgentConfig {
   token: string;
 }
 
+/** Where ConnectPanel persists the agent base URL (localStorage — not a secret). */
+export const AGENT_URL_STORAGE_KEY = 'oraplanviz.agentUrl';
+/** Where ConnectPanel persists the agent bearer token (sessionStorage only). */
+export const AGENT_TOKEN_STORAGE_KEY = 'oraplanviz.agentToken';
+
+/** Reads the agent config ConnectPanel last stored (default base URL, empty token when unset). */
+export function loadStoredAgentConfig(): AgentConfig {
+  let baseUrl = DEFAULT_AGENT_BASE_URL;
+  let token = '';
+  try {
+    baseUrl = localStorage.getItem(AGENT_URL_STORAGE_KEY) || DEFAULT_AGENT_BASE_URL;
+  } catch {
+    // localStorage may be unavailable (private browsing); use the default.
+  }
+  try {
+    token = sessionStorage.getItem(AGENT_TOKEN_STORAGE_KEY) || '';
+  } catch {
+    // sessionStorage may be unavailable; leave the token empty.
+  }
+  return { baseUrl: normalizeBaseUrl(baseUrl), token };
+}
+
 /** Error raised for any failed agent request; carries the HTTP status (when known) and server message. */
 export class AgentError extends Error {
   status: number | null;
@@ -253,6 +275,64 @@ export async function fetchMetadata(
   });
 }
 
+// --- Test-connection API (Phase 3 — approval-gated script execution) ---
+//
+// The agent keeps a SEPARATE "test" connection, distinct from the read-only
+// source connection: the source connection never executes AI/user SQL, and
+// every exec is triggered by an explicit per-call user approval in the UI.
+
+/** Result of executing a user-approved script on the agent's test connection. */
+export interface TestExecResult {
+  ok: boolean;
+  output: string;
+  errors: string[];
+}
+
+/** Result of EXPLAIN PLAN + DBMS_XPLAN.DISPLAY on the test connection. */
+export interface TestExplainResult {
+  dbmsXplanText: string;
+}
+
+// Scripts can create tables, gather stats, etc. — allow them time.
+const TEST_EXEC_TIMEOUT_MS = 120_000;
+
+/** Opens the agent's separate test-DB connection (never the read-only source connection). */
+export async function testConnect(config: AgentConfig, creds: ConnectCredentials): Promise<ConnectResult> {
+  return request<ConnectResult>(config.baseUrl, '/api/test/connect', {
+    method: 'POST',
+    token: config.token,
+    body: creds,
+  });
+}
+
+/** Executes a user-approved script on the test connection. Callers MUST have shown the script for approval first. */
+export async function testExec(config: AgentConfig, params: { script: string }): Promise<TestExecResult> {
+  return request<TestExecResult>(config.baseUrl, '/api/test/exec', {
+    method: 'POST',
+    token: config.token,
+    timeoutMs: TEST_EXEC_TIMEOUT_MS,
+    body: { script: params.script },
+  });
+}
+
+/** Runs EXPLAIN PLAN for a statement on the test connection and returns the DBMS_XPLAN text. */
+export async function testExplain(config: AgentConfig, params: { sql: string }): Promise<TestExplainResult> {
+  return request<TestExplainResult>(config.baseUrl, '/api/test/explain', {
+    method: 'POST',
+    token: config.token,
+    timeoutMs: PLAN_TIMEOUT_MS,
+    body: { sql: params.sql },
+  });
+}
+
+/** Closes the agent's test-DB connection. */
+export async function testDisconnect(config: AgentConfig): Promise<{ ok: true }> {
+  return request<{ ok: true }>(config.baseUrl, '/api/test/disconnect', {
+    method: 'POST',
+    token: config.token,
+  });
+}
+
 export interface PlanWithMetadata {
   source: PlanSource;
   text: string;
@@ -314,5 +394,21 @@ export class AgentClient {
 
   fetchMetadata(params: FetchMetadataParams): Promise<FetchMetadataResult> {
     return fetchMetadata(this.config, params);
+  }
+
+  testConnect(creds: ConnectCredentials): Promise<ConnectResult> {
+    return testConnect(this.config, creds);
+  }
+
+  testExec(params: { script: string }): Promise<TestExecResult> {
+    return testExec(this.config, params);
+  }
+
+  testExplain(params: { sql: string }): Promise<TestExplainResult> {
+    return testExplain(this.config, params);
+  }
+
+  testDisconnect(): Promise<{ ok: true }> {
+    return testDisconnect(this.config);
   }
 }

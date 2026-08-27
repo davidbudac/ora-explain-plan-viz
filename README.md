@@ -38,6 +38,12 @@ Notes and colour highlights on nodes, exported as JSON or baked into a shareable
 
 ![Annotate nodes and share via URL](site/assets/annotate.gif)
 
+### AI plan analysis
+
+Optional AI-assisted review of the loaded plan (or a plan-A vs plan-B comparison): pick a provider (Anthropic, an OpenAI-compatible endpoint, or the local DB agent build), click Run, and get a streamed report with findings linked back to plan nodes. With a schema-metadata bundle attached, it can also build a runnable synthetic test case — a scratch-schema script (empty DDL + statistics + binds) that reproduces the plan without production data, plus alternative-plan experiments to try.
+
+**Privacy note**: everything stays in your browser until you click Run — only then is the plan (and optional schema metadata) sent to the provider you chose. API keys are kept in sessionStorage only and are never baked into URLs or saved settings.
+
 ### And more
 
 | | |
@@ -58,7 +64,9 @@ cd ora-explain-plan-viz && npm install && npm run dev      # http://localhost:51
 
 Docker: `npm run docker:build && npm run docker:run` (port 8080). Set `APP_BASE_PATH=/sub/path/` at build time for sub-path deployments.
 
-Optional: fetch plans directly from your database with the local [`oraplanviz-agent`](https://github.com/davidbudac/oraplanviz-agent) companion (`VITE_ENABLE_DB_AGENT=1 npm run dev`; credentials never leave your machine).
+For contributors: an evaluation harness for the AI analysis / test-case features lives in [`evals/`](evals/README.md). It backtests plan-repro fidelity and analysis quality against your own Oracle **scratch schema** (no Docker required) configured via `ORA_EVAL_*` environment variables — see [`evals/README.md`](evals/README.md) for setup and safety notes.
+
+Optional: fetch plans directly from your database with the local [`oraplanviz-agent`](https://github.com/davidbudac/oraplanviz-agent) companion (`VITE_ENABLE_DB_AGENT=1 npm run dev`; credentials never leave your machine). The hosted-cloud AI provider is likewise behind `VITE_ENABLE_HOSTED=1` (off in the public build).
 
 ## License
 

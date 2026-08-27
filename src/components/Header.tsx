@@ -1,5 +1,6 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
+import { useAi } from '../hooks/useAiAnalysis';
 import type { ColorScheme, AppPalette } from '../lib/types';
 import { APP_PALETTE_LABELS, APP_PALETTE_ORDER } from '../lib/types';
 import { hasAnnotations } from '../lib/annotations';
@@ -98,6 +99,8 @@ export function HeaderActions() {
     focusMode,
     setFocusMode,
   } = usePlan();
+  const { openAiDialog } = useAi();
+  const aiCompare = treeCompareEnabled && viewMode === 'compare';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
@@ -213,6 +216,19 @@ export function HeaderActions() {
           </svg>
         </button>
       )}
+
+      {/* AI analysis */}
+      <button
+        onClick={() => openAiDialog(aiCompare ? 'compare' : 'analyze')}
+        disabled={parsedPlan === null}
+        className={`${ICON_BTN} disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500 dark:disabled:hover:text-slate-400`}
+        title={aiCompare ? 'AI compare plans…' : 'AI plan analysis…'}
+        aria-label="AI plan analysis"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+        </svg>
+      </button>
 
       {/* Export client report */}
       <button

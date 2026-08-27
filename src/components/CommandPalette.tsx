@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } fro
 import { createPortal } from 'react-dom';
 import { OutlineIcon, ViewIcon } from './viewIcons';
 import { usePlan } from '../hooks/usePlanContext';
+import { useAi } from '../hooks/useAiAnalysis';
 import type { ViewMode, SankeyMetric, NodeIndicatorMetric, ColorScheme, NodeDisplayOptions } from '../lib/types';
 import type { HighlightStyle } from '../lib/annotations';
 import { hasAnnotations } from '../lib/annotations';
@@ -20,7 +21,8 @@ type CommandCategory =
   | 'Export & Share'
   | 'Panels'
   | 'Metrics'
-  | 'Annotations';
+  | 'Annotations'
+  | 'AI';
 
 /**
  * Fallback glyph per category, so every row carries an icon rather than a
@@ -38,6 +40,7 @@ const CATEGORY_ICON_PATHS: Record<CommandCategory, string> = {
   'Panels': 'M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2h-6a2 2 0 00-2 2',
   'Metrics': 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
   'Annotations': 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
+  'AI': 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z',
 };
 
 interface Command {
@@ -83,6 +86,8 @@ const VIEW_MODE_LABELS: Record<ViewMode, string> = {
   compare: 'Compare',
   monitor: 'Monitor',
   experimental: 'Experimental',
+  ai: 'AI Analysis',
+  'ai-report': 'AI (proto)',
 };
 
 const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
@@ -156,7 +161,9 @@ function useCommands(onExportPng: () => void): Command[] {
     setBaselineDialogOpen,
     setReportDialogOpen,
     setConnectPanelOpen,
+    metadataBundle,
   } = usePlan();
+  const { report: aiReport, openAiDialog } = useAi();
 
   const anyPlanParsed = plans.some(p => p.parsedPlan);
   const hasActualStats = parsedPlan?.hasActualStats ?? false;
@@ -213,6 +220,8 @@ function useCommands(onExportPng: () => void): Command[] {
         isAvailable: () => {
           if (mode === 'compare') return multipleParsedPlans;
           if (mode === 'sql') return anyPlanParsed;
+          // Throwaway design prototype (wayfinder ticket 08) — dev builds only.
+          if (mode === 'ai-report') return import.meta.env.DEV && anyPlanParsed;
           return anyPlanParsed;
         },
       });
@@ -599,6 +608,43 @@ function useCommands(onExportPng: () => void): Command[] {
       });
     }
 
+    // --- AI ---
+    commands.push({
+      id: 'ai-analyze-plan',
+      label: 'AI: Analyze plan…',
+      category: 'AI',
+      keywords: ['ai', 'analyze', 'analysis', 'llm', 'claude', 'anthropic', 'assistant'],
+      execute: () => openAiDialog('analyze'),
+      isAvailable: () => anyPlanParsed,
+    });
+
+    commands.push({
+      id: 'ai-compare-plans',
+      label: 'AI: Compare plans…',
+      category: 'AI',
+      keywords: ['ai', 'compare', 'diff', 'plans', 'llm', 'analysis'],
+      execute: () => openAiDialog('compare'),
+      isAvailable: () => multipleParsedPlans,
+    });
+
+    commands.push({
+      id: 'ai-build-testcase',
+      label: 'AI: Build test case…',
+      category: 'AI',
+      keywords: ['ai', 'test', 'case', 'testcase', 'repro', 'reproduce', 'script', 'build'],
+      execute: () => openAiDialog('testcase'),
+      isAvailable: () => parsedPlan !== null && metadataBundle !== null,
+    });
+
+    commands.push({
+      id: 'ai-open-report',
+      label: 'AI: Open report',
+      category: 'AI',
+      keywords: ['ai', 'report', 'open', 'view', 'analysis', 'result'],
+      execute: () => setViewMode('ai'),
+      isAvailable: () => aiReport !== null,
+    });
+
     return commands;
   }, [
     viewMode, theme, colorScheme, palette, filters, sankeyMetric, nodeIndicatorMetric,
@@ -613,6 +659,7 @@ function useCommands(onExportPng: () => void): Command[] {
     setInputPanelCollapsed, setFilterPanelCollapsed,
     setDetailPanelCollapsed, setFocusMode, setHotspotsEnabled, setTreeCompareEnabled,
     exportAnnotatedPlan, clearAnnotations, share, onExportPng, setBaselineDialogOpen, setReportDialogOpen, setConnectPanelOpen,
+    aiReport, openAiDialog, metadataBundle,
     toggleNodeDisplayOption, enableAllDisplayOptions, disableAllDisplayOptions,
   ]);
 }
@@ -628,6 +675,7 @@ const CATEGORY_ORDER: CommandCategory[] = [
   'Panels',
   'Metrics',
   'Annotations',
+  'AI',
 ];
 
 export function CommandPalette() {

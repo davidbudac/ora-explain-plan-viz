@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
+import { useAi } from '../hooks/useAiAnalysis';
 import { PlanTabs } from './PlanTabs';
 import type { ViewMode } from '../lib/types';
 import { ViewIcon } from './viewIcons';
@@ -15,6 +16,8 @@ const tabs: { id: ViewMode; label: string }[] = [
   { id: 'metadata', label: 'Metadata' },
   { id: 'monitor', label: 'Monitor' },
   { id: 'experimental', label: 'Experimental' },
+  { id: 'ai', label: 'AI' },
+  { id: 'ai-report', label: 'AI (proto)' },
 ];
 
 // Keyboard focus ring. Inset inside the tab strip, whose `overflow-x-auto`
@@ -46,6 +49,7 @@ const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
  */
 export function ViewTabStrip() {
   const { viewMode, setViewMode, parsedPlan, plans } = usePlan();
+  const { report: aiReport } = useAi();
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -58,6 +62,9 @@ export function ViewTabStrip() {
   const availableTabs = tabs.filter((tab) => {
     if (tab.id === 'sql') return Boolean(parsedPlan?.sqlText);
     if (tab.id === 'monitor') return parsedPlan?.source === 'sql_monitor_xml';
+    if (tab.id === 'ai') return Boolean(parsedPlan) || aiReport !== null;
+    // Throwaway design prototype (wayfinder ticket 08) — dev builds only.
+    if (tab.id === 'ai-report') return import.meta.env.DEV;
     return true;
   });
 

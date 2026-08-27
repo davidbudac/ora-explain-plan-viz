@@ -2,6 +2,8 @@ import type { FilterState, ViewMode, SankeyMetric, FlameMetric, ExperimentalSubV
 import { APP_PALETTE_ORDER } from './types';
 import type { CompareMetric } from './compare';
 import type { HighlightStyle } from './annotations';
+import type { AiProviderId, AiSectionId } from './ai/types';
+import { DEFAULT_ANTHROPIC_MODEL } from './ai/prompts';
 
 const SETTINGS_KEY = 'ora-explain-viz-settings';
 const SETTINGS_VERSION = 1;
@@ -48,6 +50,13 @@ export interface UserSettings {
 
   // Highlight style
   highlightStyle: HighlightStyle;
+
+  // AI analysis (non-secret preferences; keys live in sessionStorage — see lib/ai/secrets.ts)
+  aiProvider: AiProviderId;
+  aiAnthropicModel: string;
+  aiOpenAiBaseUrl: string;
+  aiOpenAiModel: string;
+  aiSections: Record<AiSectionId, boolean>;
 }
 
 export const defaultNodeDisplayOptions: NodeDisplayOptions = {
@@ -72,6 +81,18 @@ export const defaultNodeDisplayOptions: NodeDisplayOptions = {
   showMismatchNoHistogramBadge: true,
   showAnnotations: true,
   compactStats: false,
+};
+
+export const defaultAiSections: Record<AiSectionId, boolean> = {
+  sql: true,
+  predicates: true,
+  notes: true,
+  binds: true,
+  monitorMeta: true,
+  ash: true,
+  signals: true,
+  advisor: true,
+  metadata: true,
 };
 
 const VALID_COLOR_SCHEMES: ColorScheme[] = ['contrast', 'semantic', 'estact', 'rail', 'ticker', 'stripe', 'tinted', 'terminal'];
@@ -99,6 +120,11 @@ const defaultSettings: UserSettings = {
   nodeDisplayOptions: defaultNodeDisplayOptions,
   compareMetrics: ['cost', 'actualRows', 'actualTime'],
   highlightStyle: 'circle',
+  aiProvider: 'anthropic',
+  aiAnthropicModel: DEFAULT_ANTHROPIC_MODEL,
+  aiOpenAiBaseUrl: '',
+  aiOpenAiModel: '',
+  aiSections: defaultAiSections,
 };
 
 /**
@@ -146,6 +172,10 @@ export function loadSettings(): UserSettings {
         ...defaultNodeDisplayOptions,
         ...parsed.nodeDisplayOptions,
       },
+      aiSections: {
+        ...defaultAiSections,
+        ...parsed.aiSections,
+      },
     };
   } catch {
     console.warn('Failed to load settings from localStorage');
@@ -170,6 +200,9 @@ export function saveSettings(settings: Partial<UserSettings>): void {
       nodeDisplayOptions: settings.nodeDisplayOptions
         ? { ...current.nodeDisplayOptions, ...settings.nodeDisplayOptions }
         : current.nodeDisplayOptions,
+      aiSections: settings.aiSections
+        ? { ...current.aiSections, ...settings.aiSections }
+        : current.aiSections,
     };
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
   } catch {
