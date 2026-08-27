@@ -21,7 +21,7 @@ Decision (2026-08-26): ship two versions of the product.
 | `davidbudac/ora-explain-plan-viz` | public (exists) | Core app + BYO-key AI + evals harness + Docker deployment. Upstream of the fork. |
 | `davidbudac/oraplanviz-pro` | private (created 2026-08-26) | Downstream fork tracking this repo as `upstream`. Delta only: hosted provider as default, SaaS branding/billing UI, future paid-only features. |
 | `davidbudac/oraplanviz-cloud` | private (created 2026-08-26) | Hosted backend: streaming Anthropic proxy, token auth, metering. Contract: `docs/plans/ai-plan-analysis.md` Phase 1.5. |
-| `davidbudac/oraplanviz-agent` | public (**local only — no remote yet**) | Local DB-connect companion. Needs the `/api/test/*` endpoints (Phase 3 contract). |
+| `davidbudac/oraplanviz-agent` | public (created 2026-08-27) | Local DB-connect companion. Needs the `/api/test/*` endpoints (Phase 3 contract). |
 
 ## Status
 
@@ -53,15 +53,27 @@ Decision (2026-08-26): ship two versions of the product.
   (`vitest.config.ts` + Web Storage shim); PR #95 opened
   `claude/ai-integration-changes-ynb1ak` -> `main`.
 
+### Done (2026-08-27)
+
+- PR #95 merged into `main` (merge commit `a6257da`); working branch deleted.
+  Included a merge with main's single-bar chrome redesign (AI tab via
+  `viewIcons`, AI launch button now in `HeaderActions`).
+- `VITE_ENABLE_HOSTED` flag implemented (`isHostedAiEnabled()` in
+  `src/lib/ai/provider.ts`, Dockerfile ARG, README). Public build hides the
+  hosted radio; pro sets `VITE_ENABLE_HOSTED=1` via a committed `.env`.
+- `oraplanviz-pro` merged `upstream/main` (hosted default preserved), builds.
+- `oraplanviz-agent` repo created (**public**) and pushed; `/api/test/connect|
+  exec|explain|disconnect` (+ `GET /api/test/log`) implemented on a separate
+  `TestDb` session with statement log; agent v0.2.0; frontend
+  `MIN_AGENT_VERSION` bumped to `0.2.0`.
+
 ### Open
 
-- Merge PR #95 (owner's call — publishes AI UI to GitHub Pages), then in the
-  pro fork `git fetch upstream && git merge upstream/main`.
-- `oraplanviz-agent` has **no GitHub remote yet** (the table above was wrong:
-  the repo does not exist under `davidbudac`); create + push before the
-  `/api/test/*` work.
-- Step 5 follow-ups below (agent test endpoints, cloud deploy, optional
-  `VITE_ENABLE_HOSTED` flag) are not started.
+- `oraplanviz-cloud` deploy: no hosting platform CLI/credentials on this
+  machine (no flyctl/railway) — needs a human to pick a host, set
+  `ANTHROPIC_API_KEY` / `OPV_TOKENS` / `OPV_ALLOWED_ORIGINS`, and point
+  `api.oraplanviz.com` at it.
+- Agent `/api/test/*` verified by unit tests only; dbmint live e2e not run.
 
 ## Remaining steps (in order)
 
