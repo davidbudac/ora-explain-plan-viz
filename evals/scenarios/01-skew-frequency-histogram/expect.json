@@ -1,5 +1,0 @@
-{
-  "tags": ["skew", "histogram"],
-  "rootCause": "STATUS column is heavily skewed; the FREQUENCY histogram tells the optimizer that 'PROCESSED' matches most rows, so it chooses a full table scan over the index",
-  "planFeatures": ["TABLE ACCESS FULL"]
-}

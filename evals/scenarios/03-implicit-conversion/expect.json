@@ -1,5 +1,0 @@
-{
-  "tags": ["implicit-conversion", "index"],
-  "rootCause": "CUSTOMER_REF is VARCHAR2 but compared to a NUMBER literal; the implicit TO_NUMBER on the column disables the unique index EVAL_CUSTOMERS_REF_UX and forces a full table scan",
-  "planFeatures": ["TABLE ACCESS FULL"]
-}

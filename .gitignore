@@ -26,3 +26,6 @@ dist-ssr
 # Claude Code local state
 .claude/worktrees/
 .claude/settings.local.json
+
+# Eval scenario corpus is private (oraplanviz-pro); only the README is tracked here.
+evals/scenarios/*/
