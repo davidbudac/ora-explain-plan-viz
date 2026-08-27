@@ -21,7 +21,7 @@ Decision (2026-08-26): ship two versions of the product.
 | `davidbudac/ora-explain-plan-viz` | public (exists) | Core app + BYO-key AI + evals harness + Docker deployment. Upstream of the fork. |
 | `davidbudac/oraplanviz-pro` | private (created 2026-08-26) | Downstream fork tracking this repo as `upstream`. Delta only: hosted provider as default, SaaS branding/billing UI, future paid-only features. |
 | `davidbudac/oraplanviz-cloud` | private (created 2026-08-26) | Hosted backend: streaming Anthropic proxy, token auth, metering. Contract: `docs/plans/ai-plan-analysis.md` Phase 1.5. |
-| `davidbudac/oraplanviz-agent` | public (created 2026-08-27) | Local DB-connect companion. Needs the `/api/test/*` endpoints (Phase 3 contract). |
+| `davidbudac/oraplanviz-db-connector` (renamed from `oraplanviz-agent` 2026-08-27) | public | Local DB-connect companion. Needs the `/api/test/*` endpoints (Phase 3 contract). |
 
 ## Status
 

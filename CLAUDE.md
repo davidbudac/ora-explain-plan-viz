@@ -296,8 +296,8 @@ Annotations (`annotations.ts`) are an in-memory overlay, not persisted to localS
 
 ### DB-Connect Agent (optional feature)
 `src/lib/agent/client.ts` is the app's **only** HTTP module — a typed fetch
-wrapper for the local [`oraplanviz-agent`](https://github.com/davidbudac/oraplanviz-agent)
-companion (adjacent repo `../oraplanviz-agent`). The whole feature is
+wrapper for the local [`oraplanviz-db-connector`](https://github.com/davidbudac/oraplanviz-db-connector)
+companion (adjacent repo `../oraplanviz-db-connector`). The whole feature is
 build-time gated on `VITE_ENABLE_DB_AGENT=1` (`isDbAgentEnabled()`); the
 GitHub Pages build never sets it. `ConnectPanel.tsx` renders inside
 `InputPanel` (open state lives in the plan context as `connectPanelOpen`, so
