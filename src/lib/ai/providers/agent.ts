@@ -1,5 +1,5 @@
 /**
- * AI streaming via the local oraplanviz-agent companion proxy.
+ * AI streaming via the local oraplanviz-db-connector companion proxy.
  *
  * The agent holds the model credentials (e.g. a Claude subscription profile)
  * on the user's own machine; the browser only ever talks to localhost. Wire

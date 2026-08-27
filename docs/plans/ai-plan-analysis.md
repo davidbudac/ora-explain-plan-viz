@@ -541,7 +541,7 @@ Instant Client needed):
   - `run_script(sql, purpose)` / `explain(sql)` — available only when the local agent
     is connected; **every call renders an approval card in the UI** (AI proposes →
     user clicks Run → agent executes → result returned to the model).
-- **Agent extension** (contract only; implementation in `../oraplanviz-agent`):
+- **Agent extension** (contract only; implementation in `../oraplanviz-db-connector`):
   ```
   POST /api/test/connect     { dsn, user, password }      # separate TEST connection
   POST /api/test/exec        { script }  → { ok, output, errors[] }
