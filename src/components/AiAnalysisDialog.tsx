@@ -66,7 +66,7 @@ const PROVIDER_OPTIONS: { value: AiProviderId; label: string; description: strin
   },
   {
     value: 'agent',
-    label: 'Local oraplanviz-agent',
+    label: 'Local DB connector (oraplanviz-agent)',
     description: 'The companion agent on this machine holds the credentials and proxies the request.',
     gate: 'agent',
   },
