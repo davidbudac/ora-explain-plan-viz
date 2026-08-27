@@ -1,4 +1,4 @@
-import type { FilterState, ViewMode, SankeyMetric, FlameMetric, ExperimentalSubView, NodeIndicatorMetric, NodeDisplayOptions, ColorScheme, AppPalette } from './types';
+import type { FilterState, ViewMode, SankeyMetric, FlameMetric, ExperimentalSubView, NodeIndicatorMetric, NodeDisplayOptions, ColorScheme, AppPalette, Theme } from './types';
 import { APP_PALETTE_ORDER } from './types';
 import type { CompareMetric } from './compare';
 import type { HighlightStyle } from './annotations';
@@ -128,17 +128,30 @@ const defaultSettings: UserSettings = {
 };
 
 /**
- * Load user settings from localStorage, falling back to defaults.
+ * Default app palette for a given theme. Dark theme defaults to Graphite;
+ * light theme keeps the built-in Slate look. Only applies when the user
+ * hasn't already saved a palette choice.
  */
-export function loadSettings(): UserSettings {
+function getDefaultPalette(theme?: Theme): AppPalette {
+  return theme === 'dark' ? 'graphite' : 'slate';
+}
+
+/**
+ * Load user settings from localStorage, falling back to defaults.
+ * Pass the current theme so an unset palette defaults appropriately
+ * (Graphite for dark, Slate for light).
+ */
+export function loadSettings(theme?: Theme): UserSettings {
+  const themedDefaults: UserSettings = { ...defaultSettings, palette: getDefaultPalette(theme) };
+
   if (typeof window === 'undefined') {
-    return defaultSettings;
+    return themedDefaults;
   }
 
   try {
     const stored = localStorage.getItem(SETTINGS_KEY);
     if (!stored) {
-      return defaultSettings;
+      return themedDefaults;
     }
 
     const parsed = JSON.parse(stored) as Partial<UserSettings>;
@@ -161,12 +174,12 @@ export function loadSettings(): UserSettings {
     // Handle version migrations in the future
     if (parsed.version !== SETTINGS_VERSION) {
       // For now, just merge with defaults
-      return { ...defaultSettings, ...parsed, version: SETTINGS_VERSION };
+      return { ...themedDefaults, ...parsed, version: SETTINGS_VERSION };
     }
 
     // Merge with defaults to handle any missing keys
     return {
-      ...defaultSettings,
+      ...themedDefaults,
       ...parsed,
       nodeDisplayOptions: {
         ...defaultNodeDisplayOptions,
@@ -179,7 +192,7 @@ export function loadSettings(): UserSettings {
     };
   } catch {
     console.warn('Failed to load settings from localStorage');
-    return defaultSettings;
+    return themedDefaults;
   }
 }
 
