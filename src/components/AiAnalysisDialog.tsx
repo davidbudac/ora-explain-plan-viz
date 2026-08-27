@@ -8,7 +8,7 @@ import { assembleContext, buildAnalyzeSections, buildCompareSections, buildTestC
 import { MODEL_PRESETS } from '../lib/ai/prompts';
 import { getAiSecret, setAiSecret } from '../lib/ai/secrets';
 import type { AiRunConfig } from '../lib/ai/provider';
-import { DEFAULT_HOSTED_BASE_URL } from '../lib/ai/provider';
+import { DEFAULT_HOSTED_BASE_URL, isHostedAiEnabled } from '../lib/ai/provider';
 import type { AiProviderId, AiSectionId } from '../lib/ai/types';
 
 interface AiAnalysisDialogProps {
@@ -47,11 +47,12 @@ function hostOf(url: string): string {
   }
 }
 
-const PROVIDER_OPTIONS: { value: AiProviderId; label: string; description: string; gated?: boolean }[] = [
+const PROVIDER_OPTIONS: { value: AiProviderId; label: string; description: string; gate?: 'hosted' | 'agent' }[] = [
   {
     value: 'hosted',
     label: 'oraplanviz cloud (hosted)',
     description: 'The hosted service holds the model credentials; you authenticate with an account token.',
+    gate: 'hosted',
   },
   {
     value: 'anthropic',
@@ -67,7 +68,7 @@ const PROVIDER_OPTIONS: { value: AiProviderId; label: string; description: strin
     value: 'agent',
     label: 'Local oraplanviz-agent',
     description: 'The companion agent on this machine holds the credentials and proxies the request.',
-    gated: true,
+    gate: 'agent',
   },
 ];
 
@@ -80,8 +81,11 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
   const [settings] = useState(loadSettings);
 
   const agentAvailable = isDbAgentEnabled();
+  const hostedAvailable = isHostedAiEnabled();
+  const providerAvailable = (id: AiProviderId) =>
+    id === 'agent' ? agentAvailable : id === 'hosted' ? hostedAvailable : true;
   const [provider, setProvider] = useState<AiProviderId>(() =>
-    settings.aiProvider === 'agent' && !agentAvailable ? 'anthropic' : settings.aiProvider,
+    providerAvailable(settings.aiProvider) ? settings.aiProvider : 'anthropic',
   );
 
   // Anthropic model: preset select + free-text override.
@@ -278,7 +282,7 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
           <div>
             <span className={labelClass}>Provider</span>
             <div className="flex flex-col gap-1.5">
-              {PROVIDER_OPTIONS.filter((opt) => !opt.gated || agentAvailable).map((opt) => (
+              {PROVIDER_OPTIONS.filter((opt) => !opt.gate || providerAvailable(opt.value)).map((opt) => (
                 <label
                   key={opt.value}
                   className={`flex items-start gap-2 p-2 rounded-md border cursor-pointer transition-colors ${

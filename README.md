@@ -66,7 +66,7 @@ Docker: `npm run docker:build && npm run docker:run` (port 8080). Set `APP_BASE_
 
 For contributors: an evaluation harness for the AI analysis / test-case features lives in [`evals/`](evals/README.md). It backtests plan-repro fidelity and analysis quality against your own Oracle **scratch schema** (no Docker required) configured via `ORA_EVAL_*` environment variables — see [`evals/README.md`](evals/README.md) for setup and safety notes.
 
-Optional: fetch plans directly from your database with the local [`oraplanviz-agent`](https://github.com/davidbudac/oraplanviz-agent) companion (`VITE_ENABLE_DB_AGENT=1 npm run dev`; credentials never leave your machine).
+Optional: fetch plans directly from your database with the local [`oraplanviz-agent`](https://github.com/davidbudac/oraplanviz-agent) companion (`VITE_ENABLE_DB_AGENT=1 npm run dev`; credentials never leave your machine). The hosted-cloud AI provider is likewise behind `VITE_ENABLE_HOSTED=1` (off in the public build).
 
 ## License
 
