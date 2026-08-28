@@ -28,7 +28,6 @@ const INPUT_CLASS =
 export function ClientReportModal({ onClose }: ClientReportModalProps) {
   const { parsedPlan, rawInput, annotations, advisorReport, hottestNodeId } = usePlan();
   const [title, setTitle] = useState('');
-  const [summaryText, setSummaryText] = useState('');
   const [sections, setSections] = useState<ClientReportSections>({ ...DEFAULT_REPORT_SECTIONS });
   const [showPreview, setShowPreview] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -48,7 +47,6 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
   const sectionToggles = useMemo<SectionToggleDef[]>(() => {
     if (!parsedPlan) return [];
     const defs: SectionToggleDef[] = [
-      { key: 'summary', label: 'Executive summary', description: 'Your summary text plus headline statistics' },
       { key: 'planTable', label: 'Execution plan table', description: 'Full plan with estimates, actuals, and note markers' },
     ];
     if (parsedPlan.sqlText) {
@@ -58,7 +56,7 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
       defs.push({ key: 'annotations', label: 'Consultant notes', description: 'Your node notes, highlights, and groups' });
     }
     if (advisorReport && advisorReport.findings.length > 0) {
-      defs.push({ key: 'findings', label: 'Automated findings', description: 'Plan advisor findings with recommendations' });
+      defs.push({ key: 'findings', label: 'Automated findings', description: 'Plan advisor findings' });
     }
     if (parsedPlan.hasActualStats) {
       defs.push(
@@ -90,11 +88,10 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
       },
       {
         title: title.trim() || 'Query Performance Documentation',
-        summaryText,
         sections,
       }
     );
-  }, [parsedPlan, rawInput, annotations, advisorReport, hottestNodeId, title, summaryText, sections]);
+  }, [parsedPlan, rawInput, annotations, advisorReport, hottestNodeId, title, sections]);
 
   const download = () => {
     if (!parsedPlan || !html) return;
@@ -171,18 +168,6 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Query Performance Documentation"
                 className={INPUT_CLASS}
-              />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
-                Executive summary
-              </label>
-              <textarea
-                value={summaryText}
-                onChange={(e) => setSummaryText(e.target.value)}
-                rows={4}
-                placeholder={'What did you investigate, what did you find, and what do you recommend?\nBlank lines start new paragraphs.'}
-                className={`${INPUT_CLASS} resize-y`}
               />
             </div>
           </div>

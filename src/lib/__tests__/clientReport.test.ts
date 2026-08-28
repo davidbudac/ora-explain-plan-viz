@@ -93,7 +93,6 @@ describe('buildClientReport', () => {
     const html = buildClientReport(makeInput(), makeOptions());
     expect(html).toContain('<!DOCTYPE html>');
     expect(html).toContain('<title>Order Query Documentation</title>');
-    expect(html).toContain('Executive Summary');
     expect(html).toContain('Execution Plan');
     expect(html).toContain('TABLE ACCESS FULL');
     expect(html).toContain('ORDERS');
@@ -108,13 +107,9 @@ describe('buildClientReport', () => {
     expect(html).toContain('2026-08-26');
   });
 
-  it('renders the consultant summary text as paragraphs', () => {
-    const html = buildClientReport(
-      makeInput(),
-      makeOptions({ summaryText: 'First paragraph.\n\nSecond paragraph.' })
-    );
-    expect(html).toContain('<p>First paragraph.</p>');
-    expect(html).toContain('<p>Second paragraph.</p>');
+  it('has no executive summary section', () => {
+    const html = buildClientReport(makeInput(), makeOptions());
+    expect(html).not.toContain('Executive Summary');
   });
 
   it('includes node annotations, highlights and groups', () => {
@@ -176,8 +171,10 @@ describe('buildClientReport', () => {
     const html = buildClientReport(makeInput({ advisorReport }), makeOptions());
     expect(html).toContain('Automated Findings');
     expect(html).toContain('Large cardinality misestimate');
-    expect(html).toContain('Gather fresh statistics on ORDERS.');
     expect(html).toContain('Critical');
+    // findings state facts only — suggestions/recommendations are not included
+    expect(html).not.toContain('Gather fresh statistics on ORDERS.');
+    expect(html).not.toContain('Recommendation');
   });
 
   it('marks the hottest node and reports hotspots and cardinality mismatches', () => {
@@ -235,7 +232,7 @@ describe('buildClientReport', () => {
     expect(html).toContain('OPEN');
   });
 
-  it('renders plan-note tags in the summary', () => {
+  it('renders plan-note tags in the execution details', () => {
     const plan = makePlan({
       notes: {
         rawLines: [],

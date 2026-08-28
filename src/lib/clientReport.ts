@@ -21,7 +21,6 @@ import {
  */
 
 export interface ClientReportSections {
-  summary: boolean;
   sqlText: boolean;
   planTable: boolean;
   annotations: boolean;
@@ -34,7 +33,6 @@ export interface ClientReportSections {
 }
 
 export const DEFAULT_REPORT_SECTIONS: ClientReportSections = {
-  summary: true,
   sqlText: true,
   planTable: true,
   annotations: true,
@@ -49,8 +47,6 @@ export const DEFAULT_REPORT_SECTIONS: ClientReportSections = {
 export interface ClientReportOptions {
   /** Document title, e.g. "Order Search Query — Performance Review". */
   title: string;
-  /** Free-text executive summary written by the consultant. */
-  summaryText?: string;
   sections: ClientReportSections;
 }
 
@@ -100,67 +96,11 @@ function colorChip(hex: string): string {
   return `<span class="chip" style="background:${hex}"></span>`;
 }
 
-function statCard(label: string, value: string): string {
-  return `<div class="stat"><div class="stat-value">${escapeHtml(value)}</div><div class="stat-label">${escapeHtml(label)}</div></div>`;
-}
-
 function metaRow(label: string, value: string, mono = false): string {
   return `<tr><th>${escapeHtml(label)}</th><td${mono ? ' class="mono"' : ''}>${escapeHtml(value)}</td></tr>`;
 }
 
 // --- sections ---
-
-function buildSummarySection(input: ClientReportInput, options: ClientReportOptions): string {
-  const { plan, advisorReport } = input;
-  const parts: string[] = [];
-
-  if (options.summaryText?.trim()) {
-    const paragraphs = options.summaryText
-      .trim()
-      .split(/\n{2,}/)
-      .map((p) => `<p>${escapeHtml(p.trim()).replace(/\n/g, '<br>')}</p>`)
-      .join('');
-    parts.push(`<div class="summary-text">${paragraphs}</div>`);
-  }
-
-  const stats: string[] = [];
-  if (plan.totalElapsedTime !== undefined) {
-    stats.push(statCard('Total elapsed time', formatTimeCompact(plan.totalElapsedTime) ?? '—'));
-  }
-  if (plan.rootNode?.cost !== undefined) {
-    stats.push(statCard('Optimizer cost', formatNumberShort(plan.rootNode.cost) ?? '—'));
-  }
-  stats.push(statCard('Plan operations', String(plan.allNodes.length)));
-  if (plan.rootNode?.actualRows !== undefined) {
-    stats.push(statCard('Rows returned', formatNumberShort(plan.rootNode.actualRows) ?? '—'));
-  }
-  if (advisorReport && advisorReport.findings.length > 0) {
-    const { critical, warning } = advisorReport.counts;
-    stats.push(statCard('Findings', `${critical} critical / ${warning} warning`));
-  }
-  if (plan.monitorMetadata?.status) {
-    stats.push(statCard('Execution status', plan.monitorMetadata.status));
-  }
-  parts.push(`<div class="stat-grid">${stats.join('')}</div>`);
-
-  const noteTags: string[] = [];
-  const notes = plan.notes;
-  if (notes?.dynamicSampling) noteTags.push(`Dynamic sampling${notes.dynamicSamplingLevel ? ` (level ${notes.dynamicSamplingLevel})` : ''}`);
-  if (notes?.planDirectives) noteTags.push('SQL plan directives used');
-  if (notes?.cardinalityFeedback) noteTags.push('Cardinality feedback');
-  if (notes?.statisticsFeedback) noteTags.push('Statistics feedback');
-  if (notes?.adaptivePlan) noteTags.push('Adaptive plan');
-  if (notes?.sqlProfile) noteTags.push(`SQL profile "${notes.sqlProfile}"`);
-  if (notes?.sqlPlanBaseline) noteTags.push(`SQL plan baseline "${notes.sqlPlanBaseline}"`);
-  if (notes?.outline) noteTags.push(`Outline "${notes.outline}"`);
-  if (noteTags.length > 0) {
-    parts.push(
-      `<div class="note-tags">${noteTags.map((t) => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>`
-    );
-  }
-
-  return parts.join('\n');
-}
 
 function buildSqlTextSection(plan: ParsedPlan): string {
   if (!plan.sqlText?.trim()) return '';
@@ -291,7 +231,6 @@ function buildFindingHtml(finding: Finding, plan: ParsedPlan): string {
   <div class="card-title">${severityBadge(finding.severity)}${escapeHtml(finding.title)}</div>
   ${nodes ? `<div class="card-meta mono">${nodes}</div>` : ''}
   <p>${escapeHtml(finding.explanation)}</p>
-  ${finding.suggestion ? `<p class="suggestion"><strong>Recommendation:</strong> ${escapeHtml(finding.suggestion)}</p>` : ''}
 </div>`;
 }
 
@@ -349,7 +288,7 @@ function buildCardinalitySection(input: ClientReportInput): string {
     })
     .join('');
   return `<div class="table-wrap"><table><thead><tr><th>Operation</th><th>Estimated rows</th><th>Actual rows</th><th>Deviation</th></tr></thead><tbody>${rows}</tbody></table></div>
-<p class="caption">Where the optimizer's row estimates diverge from reality (3&times; or more), it may have chosen a suboptimal join method or access path. Often addressed with fresh or extended statistics.</p>`;
+<p class="caption">Operations where the optimizer's row estimate deviates from the actual row count by 3&times; or more.</p>`;
 }
 
 function buildPredicatesSection(plan: ParsedPlan): string {
@@ -413,6 +352,22 @@ function buildEnvironmentSection(plan: ParsedPlan): string {
     }
   }
 
+  const noteTags: string[] = [];
+  const notes = plan.notes;
+  if (notes?.dynamicSampling) noteTags.push(`Dynamic sampling${notes.dynamicSamplingLevel ? ` (level ${notes.dynamicSamplingLevel})` : ''}`);
+  if (notes?.planDirectives) noteTags.push('SQL plan directives used');
+  if (notes?.cardinalityFeedback) noteTags.push('Cardinality feedback');
+  if (notes?.statisticsFeedback) noteTags.push('Statistics feedback');
+  if (notes?.adaptivePlan) noteTags.push('Adaptive plan');
+  if (notes?.sqlProfile) noteTags.push(`SQL profile "${notes.sqlProfile}"`);
+  if (notes?.sqlPlanBaseline) noteTags.push(`SQL plan baseline "${notes.sqlPlanBaseline}"`);
+  if (notes?.outline) noteTags.push(`Outline "${notes.outline}"`);
+  if (noteTags.length > 0) {
+    parts.push(
+      `<h3>Optimizer notes</h3>\n<div class="note-tags">${noteTags.map((t) => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>`
+    );
+  }
+
   if (plan.bindVariables && plan.bindVariables.length > 0) {
     const rows = plan.bindVariables
       .map(
@@ -459,11 +414,6 @@ section > h2 { font-size: 17px; border-bottom: 1px solid #cbd5e1; padding-bottom
 section h3 { font-size: 14px; margin: 18px 0 8px; }
 .mono, code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 code { font-size: 12px; background: #f1f5f9; padding: 1px 4px; border-radius: 3px; }
-.summary-text p { margin: 0 0 10px; }
-.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 14px 0; }
-.stat { border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 12px; background: #f8fafc; }
-.stat-value { font-size: 18px; font-weight: 700; }
-.stat-label { font-size: 11px; color: #64748b; }
 .note-tags { margin-top: 8px; }
 .tag { display: inline-block; font-size: 11px; padding: 2px 8px; margin: 0 6px 6px 0; border: 1px solid #fcd34d; background: #fffbeb; color: #92400e; border-radius: 999px; }
 .table-wrap { overflow-x: auto; }
@@ -484,7 +434,6 @@ tr.note-row td { background: #fefce8; font-size: 12px; color: #52525b; border-to
 .card-title { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
 .card-meta { font-size: 11px; color: #64748b; margin-bottom: 6px; }
 .card p { margin: 4px 0; font-size: 13px; }
-.suggestion { color: #334155; }
 ul.plain { list-style: none; padding: 0; margin: 6px 0; }
 ul.plain li { padding: 1px 0; font-size: 12px; }
 .pred-kind { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; color: #64748b; width: 42px; }
@@ -518,7 +467,6 @@ export function buildClientReport(input: ClientReportInput, options: ClientRepor
     if (enabled && html.trim()) sections.push({ id, title, html });
   };
 
-  add(options.sections.summary, 'summary', 'Executive Summary', buildSummarySection(input, options));
   add(options.sections.sqlText, 'sql', 'SQL Statement', buildSqlTextSection(plan));
   add(options.sections.planTable, 'plan', 'Execution Plan', buildPlanTableSection(input));
   add(options.sections.annotations, 'notes', 'Consultant Notes', buildAnnotationsSection(input));
