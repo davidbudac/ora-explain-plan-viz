@@ -13,6 +13,17 @@ const FOCUS_RING =
 const ICON_BTN =
   `h-8 w-8 flex items-center justify-center rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`;
 
+const MENU_TRIGGER =
+  `h-8 px-2.5 flex items-center gap-1.5 rounded-md text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`;
+
+const MENU_ITEM =
+  'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed';
+
+const MENU_SECTION_HEADER =
+  'px-2.5 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400';
+
+const MENU_SEPARATOR = 'border-t border-slate-200 dark:border-slate-700 my-1';
+
 const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
   contrast: 'High Contrast',
   semantic: 'Semantic',
@@ -39,6 +50,30 @@ function useCompactActions(): boolean {
     return () => query.removeEventListener('change', update);
   }, []);
   return compact;
+}
+
+/**
+ * Closes a panel on an outside mousedown or Escape. Shared by every menu
+ * (File, Appearance, the compact "⋯" popover) so they all behave the same.
+ */
+function useOutsideDismiss(open: boolean, ref: React.RefObject<HTMLElement | null>, onClose: () => void) {
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open, ref, onClose]);
 }
 
 /**
@@ -70,6 +105,88 @@ export function BrandMark() {
   );
 }
 
+interface HeaderMenuProps {
+  label: string;
+  icon: React.ReactNode;
+  title?: string;
+  align?: 'left' | 'right';
+  children: (close: () => void) => React.ReactNode;
+}
+
+/**
+ * A small dropdown menu trigger + popover panel, used for the File and
+ * Appearance groups. Closes itself on an outside click, Escape, or after an
+ * item inside calls the `close` callback it hands to `children`.
+ */
+function HeaderMenu({ label, icon, title, align = 'right', children }: HeaderMenuProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useOutsideDismiss(open, ref, close);
+
+  return (
+    <div className="relative shrink-0" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={title ?? label}
+        className={open ? `${MENU_TRIGGER} bg-slate-100 dark:bg-slate-800` : MENU_TRIGGER}
+      >
+        {icon}
+        <span>{label}</span>
+        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-1 min-w-[15rem] p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50`}
+        >
+          {children(close)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MenuSectionHeader({ children }: { children: React.ReactNode }) {
+  return <div className={MENU_SECTION_HEADER}>{children}</div>;
+}
+
+function MenuSeparator() {
+  return <div className={MENU_SEPARATOR} aria-hidden="true" />;
+}
+
+interface RadioRowProps {
+  label: string;
+  checked: boolean;
+  onSelect: () => void;
+}
+
+function MenuRadioRow({ label, checked, onSelect }: RadioRowProps) {
+  return (
+    <button
+      type="button"
+      role="menuitemradio"
+      aria-checked={checked}
+      onClick={onSelect}
+      className={MENU_ITEM}
+    >
+      <span className="w-3.5 shrink-0 flex items-center justify-center">
+        {checked && (
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        )}
+      </span>
+      <span>{label}</span>
+    </button>
+  );
+}
+
 /**
  * The former app-header action cluster (import/export, PNG, share, command
  * palette, color scheme, theme, GitHub). Rendered inside the input panel's
@@ -96,6 +213,8 @@ export function HeaderActions() {
     treeCompareEnabled,
     setCommandPaletteOpen,
     setReportDialogOpen,
+    setShortcutsOverlayOpen,
+    setBaselineDialogOpen,
     focusMode,
     setFocusMode,
   } = usePlan();
@@ -110,10 +229,6 @@ export function HeaderActions() {
   // button itself only needs to reflect the current outcome at a glance.
   const shareKind = shareNotice?.kind ?? null;
   const shareCopied = shareKind === 'copied' || shareKind === 'warning';
-
-  const toggleTheme = () => {
-    setTheme(theme === 'light' ? 'dark' : 'light');
-  };
 
   const handleExportPng = useCallback(async () => {
     const fn = exportPngFnRef.current;
@@ -131,23 +246,8 @@ export function HeaderActions() {
   const handleShare = useCallback(() => { void share(); }, [share]);
 
   // Close the compact popover on an outside click or Escape.
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onPointerDown = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMenuOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [menuOpen]);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+  useOutsideDismiss(menuOpen, menuRef, closeMenu);
 
   useEffect(() => {
     if (!compact) setMenuOpen(false);
@@ -180,17 +280,108 @@ export function HeaderActions() {
 
   const actions = (
     <>
-      {/* Load annotated plan */}
-      <button
-        onClick={handleLoad}
-        className={ICON_BTN}
-        title="Load annotated plan (.json)"
-        aria-label="Load annotated plan"
+      {/* File menu: import/export actions */}
+      <HeaderMenu
+        label="File"
+        title="Import / export"
+        icon={
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        }
       >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-        </svg>
-      </button>
+        {(close) => (
+          <>
+            <MenuSectionHeader>Import</MenuSectionHeader>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                close();
+                handleLoad();
+              }}
+              className={MENU_ITEM}
+            >
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              <span>Load annotated plan (.json)</span>
+            </button>
+
+            <MenuSectionHeader>Export</MenuSectionHeader>
+            {showSave && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  close();
+                  exportAnnotatedPlan();
+                }}
+                className={`${MENU_ITEM} relative`}
+              >
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span>Save annotated plan (.json)</span>
+                {hasSomethingToSave && (
+                  <span
+                    aria-hidden="true"
+                    title="Unsaved changes"
+                    className="ml-auto h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0"
+                  />
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              role="menuitem"
+              disabled={!canExportPng || exporting}
+              onClick={() => {
+                close();
+                void handleExportPng();
+              }}
+              className={MENU_ITEM}
+            >
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>Plan as PNG</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={parsedPlan === null}
+              onClick={() => {
+                close();
+                setReportDialogOpen(true);
+              }}
+              className={MENU_ITEM}
+            >
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>Client report (.html / PDF)</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={parsedPlan === null}
+              onClick={() => {
+                close();
+                setBaselineDialogOpen(true);
+              }}
+              className={MENU_ITEM}
+            >
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M4 8h16M5 8h14a1 1 0 011 1v10a2 2 0 01-2 2H6a2 2 0 01-2-2V9a1 1 0 011-1z" />
+              </svg>
+              <span>SQL Plan Baseline script…</span>
+            </button>
+          </>
+        )}
+      </HeaderMenu>
+
       <input
         ref={fileInputRef}
         type="file"
@@ -199,66 +390,18 @@ export function HeaderActions() {
         className="hidden"
       />
 
-      {/* Save annotated plan */}
-      {showSave && (
-        <button
-          onClick={exportAnnotatedPlan}
-          className={
-            hasSomethingToSave
-              ? `h-8 w-8 flex items-center justify-center rounded-md text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 ring-1 ring-slate-300 dark:ring-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ${FOCUS_RING}`
-              : ICON_BTN
-          }
-          title="Save annotated plan (.json)"
-          aria-label="Save annotated plan"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-        </button>
-      )}
-
       {/* AI analysis */}
       <button
         onClick={() => openAiDialog(aiCompare ? 'compare' : 'analyze')}
         disabled={parsedPlan === null}
-        className={`${ICON_BTN} relative disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500 dark:disabled:hover:text-slate-400`}
+        className={`h-8 px-3 flex items-center gap-1.5 rounded-md text-xs font-semibold bg-slate-800 text-slate-100 hover:bg-slate-700 dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS_RING}`}
         title={aiCompare ? 'AI compare plans (Beta)…' : 'AI plan analysis (Beta)…'}
         aria-label="AI plan analysis (Beta)"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
         </svg>
-        <span
-          aria-hidden="true"
-          className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-blue-500 ring-1 ring-white dark:ring-slate-900"
-        />
-      </button>
-
-      {/* Export client report */}
-      <button
-        onClick={() => setReportDialogOpen(true)}
-        disabled={parsedPlan === null}
-        className={`${ICON_BTN} disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500 dark:disabled:hover:text-slate-400`}
-        title="Export client report (.html / PDF)"
-        aria-label="Export client report"
-      >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      </button>
-
-      {/* Export as PNG */}
-      <button
-        onClick={handleExportPng}
-        disabled={!canExportPng || exporting}
-        className={`${ICON_BTN} disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500 dark:disabled:hover:text-slate-400`}
-        title="Export plan as PNG"
-        aria-label="Export plan as PNG"
-      >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
+        <span>Analyze</span>
       </button>
 
       {/* Share plan via URL */}
@@ -335,77 +478,89 @@ export function HeaderActions() {
         <kbd className="text-[10px] font-semibold">{navigator.platform?.includes('Mac') ? '⌘K' : 'Ctrl+K'}</kbd>
       </button>
 
-      <select
-        value={colorScheme}
-        onChange={(e) => setColorScheme(e.target.value as ColorScheme)}
-        className={`h-8 px-2 rounded-md border border-transparent bg-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium cursor-pointer transition-colors ${FOCUS_RING}`}
-        title="Graph color palette"
-        aria-label="Graph color palette"
-      >
-        {Object.entries(COLOR_SCHEME_LABELS).map(([value, label]) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-      </select>
+      <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" aria-hidden="true" />
 
-      <select
-        value={palette}
-        onChange={(e) => setPalette(e.target.value as AppPalette)}
-        className={`h-8 px-2 rounded-md border border-transparent bg-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium cursor-pointer transition-colors ${FOCUS_RING}`}
-        title="App palette"
-        aria-label="App palette"
+      {/* Appearance menu: theme, graph colors, app palette */}
+      <HeaderMenu
+        label="Appearance"
+        title="Appearance"
+        icon={
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+          </svg>
+        }
       >
-        {APP_PALETTE_ORDER.map((value) => (
-          <option key={value} value={value}>
-            {APP_PALETTE_LABELS[value]}
-          </option>
-        ))}
-      </select>
+        {(close) => (
+          <>
+            <MenuSectionHeader>Theme</MenuSectionHeader>
+            <MenuRadioRow
+              label="Light"
+              checked={theme === 'light'}
+              onSelect={() => {
+                setTheme('light');
+                close();
+              }}
+            />
+            <MenuRadioRow
+              label="Dark"
+              checked={theme === 'dark'}
+              onSelect={() => {
+                setTheme('dark');
+                close();
+              }}
+            />
 
-      <button
-        onClick={toggleTheme}
-        className={ICON_BTN}
-        title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-        aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-      >
-        {theme === 'light' ? (
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-            />
-          </svg>
-        ) : (
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-            />
-          </svg>
+            <MenuSectionHeader>Graph Colors</MenuSectionHeader>
+            {Object.entries(COLOR_SCHEME_LABELS).map(([value, label]) => (
+              <MenuRadioRow
+                key={value}
+                label={label}
+                checked={colorScheme === value}
+                onSelect={() => {
+                  setColorScheme(value as ColorScheme);
+                  close();
+                }}
+              />
+            ))}
+
+            <MenuSectionHeader>App Palette</MenuSectionHeader>
+            {APP_PALETTE_ORDER.map((value) => (
+              <MenuRadioRow
+                key={value}
+                label={APP_PALETTE_LABELS[value]}
+                checked={palette === value}
+                onSelect={() => {
+                  setPalette(value as AppPalette);
+                  close();
+                }}
+              />
+            ))}
+
+            <MenuSeparator />
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                close();
+                setShortcutsOverlayOpen(true);
+              }}
+              className={MENU_ITEM}
+            >
+              <span>Keyboard shortcuts</span>
+            </button>
+            <a
+              href="https://github.com/davidbudac/ora-explain-plan-viz"
+              target="_blank"
+              rel="noopener noreferrer"
+              role="menuitem"
+              onClick={close}
+              className={MENU_ITEM}
+            >
+              <span>View on GitHub ↗</span>
+            </a>
+          </>
         )}
-      </button>
-
-      <a
-        href="https://github.com/davidbudac/ora-explain-plan-viz"
-        target="_blank"
-        rel="noopener noreferrer"
-        className={ICON_BTN}
-        title="View on GitHub"
-        aria-label="View on GitHub"
-      >
-        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-          <path
-            fillRule="evenodd"
-            clipRule="evenodd"
-            d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.341-3.369-1.341-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"
-          />
-        </svg>
-      </a>
+      </HeaderMenu>
     </>
   );
 
