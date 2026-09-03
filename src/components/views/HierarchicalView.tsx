@@ -914,7 +914,15 @@ function HierarchicalViewContent({
   const [layoutReady, setLayoutReady] = useState(false);
   const layoutReadyRef = useRef(false);
 
-  // Re-fit viewport when layout changes (e.g. enabling predicate details expands nodes).
+  // Re-fit viewport when the layout changes for a structural reason (new plan,
+  // display options / color scheme, metadata or advisor badges). Annotations are
+  // deliberately NOT a trigger: typing a note re-runs the layout memo on every
+  // keystroke, and re-fitting there would yank the user's zoom out from under
+  // them. The layout itself still updates (see the setNodes sync above).
+  const fitKey = useMemo(
+    () => ({ parsedPlan, effectiveDisplayOptions, colorScheme, bundle: slot?.metadataBundle, advisorReport }),
+    [parsedPlan, effectiveDisplayOptions, colorScheme, slot?.metadataBundle, advisorReport]
+  );
   useEffect(() => {
     const timer = setTimeout(() => {
       fitView({ padding: 0.2 });
@@ -924,7 +932,7 @@ function HierarchicalViewContent({
       }
     }, 50);
     return () => clearTimeout(timer);
-  }, [layoutData, fitView]);
+  }, [fitKey, fitView]);
 
   // Pan the viewport to a newly selected node when it's off-screen. Keyboard
   // navigation and hotspot-list clicks select nodes the user can't see;
