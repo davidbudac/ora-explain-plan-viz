@@ -221,13 +221,17 @@ export function HeaderActions() {
       <button
         onClick={() => openAiDialog(aiCompare ? 'compare' : 'analyze')}
         disabled={parsedPlan === null}
-        className={`${ICON_BTN} disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500 dark:disabled:hover:text-slate-400`}
-        title={aiCompare ? 'AI compare plans…' : 'AI plan analysis…'}
-        aria-label="AI plan analysis"
+        className={`${ICON_BTN} relative disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500 dark:disabled:hover:text-slate-400`}
+        title={aiCompare ? 'AI compare plans (Beta)…' : 'AI plan analysis (Beta)…'}
+        aria-label="AI plan analysis (Beta)"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
         </svg>
+        <span
+          aria-hidden="true"
+          className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-blue-500 ring-1 ring-white dark:ring-slate-900"
+        />
       </button>
 
       {/* Export client report */}

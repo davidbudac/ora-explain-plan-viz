@@ -611,16 +611,16 @@ function useCommands(onExportPng: () => void): Command[] {
     // --- AI ---
     commands.push({
       id: 'ai-analyze-plan',
-      label: 'AI: Analyze plan…',
+      label: 'AI (Beta): Analyze plan…',
       category: 'AI',
-      keywords: ['ai', 'analyze', 'analysis', 'llm', 'claude', 'anthropic', 'assistant'],
+      keywords: ['ai', 'beta', 'analyze', 'analysis', 'llm', 'claude', 'anthropic', 'assistant'],
       execute: () => openAiDialog('analyze'),
       isAvailable: () => anyPlanParsed,
     });
 
     commands.push({
       id: 'ai-compare-plans',
-      label: 'AI: Compare plans…',
+      label: 'AI (Beta): Compare plans…',
       category: 'AI',
       keywords: ['ai', 'compare', 'diff', 'plans', 'llm', 'analysis'],
       execute: () => openAiDialog('compare'),
@@ -629,7 +629,7 @@ function useCommands(onExportPng: () => void): Command[] {
 
     commands.push({
       id: 'ai-build-testcase',
-      label: 'AI: Build test case…',
+      label: 'AI (Beta): Build test case…',
       category: 'AI',
       keywords: ['ai', 'test', 'case', 'testcase', 'repro', 'reproduce', 'script', 'build'],
       execute: () => openAiDialog('testcase'),
@@ -638,7 +638,7 @@ function useCommands(onExportPng: () => void): Command[] {
 
     commands.push({
       id: 'ai-open-report',
-      label: 'AI: Open report',
+      label: 'AI (Beta): Open report',
       category: 'AI',
       keywords: ['ai', 'report', 'open', 'view', 'analysis', 'result'],
       execute: () => setViewMode('ai'),

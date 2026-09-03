@@ -8,6 +8,9 @@ import type { AiChatMessage, AiError, AiFinding, AiProviderId } from '../../lib/
 import { SEVERITY_STYLES } from '../../lib/severityStyles';
 import { copyToClipboard } from '../../lib/clipboard';
 import { testCaseScriptFilename } from '../../lib/ai/testCase';
+import { getAiSecret } from '../../lib/ai/secrets';
+import { isHostedAiEnabled } from '../../lib/ai/provider';
+import { loadSettings } from '../../lib/settings';
 import {
   AgentError,
   health as agentHealth,
@@ -22,6 +25,28 @@ const PROVIDER_LABELS: Record<AiProviderId, string> = {
   'openai-compat': 'OpenAI-compatible',
   agent: 'Local agent',
 };
+
+/** Whether the provider the dialog will initially select has enough configuration to run. */
+function hasConfiguredAiProvider(): boolean {
+  const settings = loadSettings();
+  let provider = settings.aiProvider;
+
+  // Mirror the dialog's fallback when a build-gated provider is unavailable.
+  if ((provider === 'hosted' && !isHostedAiEnabled()) || (provider === 'agent' && !isDbAgentEnabled())) {
+    provider = 'anthropic';
+  }
+
+  switch (provider) {
+    case 'hosted':
+      return Boolean(getAiSecret('hosted')?.trim());
+    case 'anthropic':
+      return Boolean(getAiSecret('anthropic')?.trim() && settings.aiAnthropicModel.trim());
+    case 'openai-compat':
+      return Boolean(settings.aiOpenAiBaseUrl.trim() && settings.aiOpenAiModel.trim());
+    case 'agent':
+      return Boolean(loadStoredAgentConfig().token.trim());
+  }
+}
 
 /**
  * Hand-rolled "prose" styling — the repo does not use @tailwindcss/typography,
@@ -319,6 +344,7 @@ export function AiReportView() {
     sendChatMessage,
   } = useAi();
   const [copied, setCopied] = useState(false);
+  const [providerConfigured] = useState(hasConfiguredAiProvider);
 
   // Follow-up chat input; exec results are appended here as quoted text for
   // the user to review and send — never sent automatically.
@@ -395,16 +421,27 @@ export function AiReportView() {
   if (status === 'idle' && !report) {
     return (
       <div className="h-full flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
-        <div className="text-center space-y-3">
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">
-            No AI analysis yet. Send the loaded plan to an AI provider for an expert report.
+        <div className="max-w-md px-6 text-center">
+          <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
+            Beta
+          </span>
+          <h2 className="mt-3 text-base font-semibold text-neutral-900 dark:text-neutral-100">
+            AI analysis is in beta
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
+            Connect your own Anthropic or OpenAI-compatible provider to generate an expert report for the loaded plan.
           </p>
+          {!isHostedAiEnabled() && (
+            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-500">
+              One-click hosted analysis is coming soon.
+            </p>
+          )}
           <button
             type="button"
             onClick={() => openAiDialog('analyze')}
-            className="px-4 py-2 text-sm font-medium rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+            className="mt-4 px-4 py-2 text-sm font-medium rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950"
           >
-            Analyze plan
+            {providerConfigured ? 'Analyze plan' : 'Configure AI provider'}
           </button>
         </div>
       </div>

@@ -244,9 +244,14 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-800">
-          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-            {mode === 'compare' ? 'AI Compare Plans' : mode === 'testcase' ? 'AI Build Test Case' : 'AI Analyze Plan'}
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+              {mode === 'compare' ? 'AI Compare Plans' : mode === 'testcase' ? 'AI Build Test Case' : 'AI Analyze Plan'}
+            </h3>
+            <span className="rounded-full border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
+              Beta
+            </span>
+          </div>
           <button
             type="button"
             onClick={onClose}
