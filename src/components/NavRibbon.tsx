@@ -16,7 +16,7 @@ const tabs: { id: ViewMode; label: string }[] = [
   { id: 'metadata', label: 'Metadata' },
   { id: 'monitor', label: 'Monitor' },
   { id: 'experimental', label: 'Experimental' },
-  { id: 'ai', label: 'AI' },
+  { id: 'ai', label: 'AI (Beta)' },
   { id: 'ai-report', label: 'AI (proto)' },
 ];
 
