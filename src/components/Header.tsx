@@ -3,7 +3,6 @@ import { usePlan } from '../hooks/usePlanContext';
 import type { ColorScheme, AppPalette } from '../lib/types';
 import { APP_PALETTE_LABELS, APP_PALETTE_ORDER } from '../lib/types';
 import { hasAnnotations } from '../lib/annotations';
-import { AI_COMING_SOON_LABEL } from '../lib/ai/availability';
 
 // Shared focus token for the header chrome. `focus-visible` only, so mouse
 // clicks stay quiet and keyboard tabbing gets a clear ring.
@@ -387,21 +386,6 @@ export function HeaderActions() {
         onChange={handleFileChange}
         className="hidden"
       />
-
-      {/* AI analysis */}
-      <span title={AI_COMING_SOON_LABEL} className="inline-flex shrink-0">
-        <button
-          type="button"
-          disabled
-          className={`h-8 px-3 flex items-center gap-1.5 rounded-md text-xs font-semibold bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-500 opacity-70 cursor-not-allowed ${FOCUS_RING}`}
-          aria-label={`AI plan analysis — ${AI_COMING_SOON_LABEL}`}
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-          </svg>
-          <span>Analyze</span>
-        </button>
-      </span>
 
       {/* Share plan via URL */}
       <button
