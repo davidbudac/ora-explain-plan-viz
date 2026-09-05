@@ -1,0 +1,929 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Documentation — Oracle Plan Visualizer</title>
+<meta name="description" content="Getting started, installation (source, Docker, Docker Compose, static hosting), input formats, every view and analysis feature, sharing, customization, keyboard shortcuts and troubleshooting for the Oracle Execution Plan Visualizer." />
+<meta property="og:title" content="Oracle Plan Visualizer — Documentation" />
+<meta property="og:description" content="Walkthrough documentation: getting started, self-hosting with Docker, input formats, views, analysis, comparison, annotations, sharing and more." />
+<meta property="og:image" content="assets/hero.png" />
+<meta property="og:type" content="website" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
+          sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  body { background: #0b0f17; }
+  ::selection { background: rgba(245,158,11,0.3); }
+  html { scroll-padding-top: 5.5rem; }
+
+  /* ---- Prose ---- */
+  .doc h2 { font-size: 1.5rem; line-height: 1.25; font-weight: 600; letter-spacing: -0.01em; color: #f8fafc; margin-top: 0; }
+  .doc h3 { font-size: 1.0625rem; font-weight: 600; color: #f1f5f9; margin-top: 2rem; margin-bottom: 0.5rem; }
+  .doc h4 { font-size: 0.9375rem; font-weight: 600; color: #e2e8f0; margin-top: 1.5rem; margin-bottom: 0.375rem; }
+  .doc p { color: #94a3b8; line-height: 1.7; margin: 0.75rem 0; }
+  .doc a:not(.btn) { color: #f59e0b; text-decoration: none; }
+  .doc a:not(.btn):hover { color: #fbbf24; text-decoration: underline; text-underline-offset: 3px; }
+  .doc ul, .doc ol { color: #94a3b8; line-height: 1.7; margin: 0.75rem 0; padding-left: 1.5rem; }
+  .doc ul { list-style: disc; } .doc ol { list-style: decimal; }
+  .doc li { margin: 0.3rem 0; } .doc li::marker { color: #475569; }
+  .doc strong { color: #e2e8f0; font-weight: 600; }
+  .doc code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.8125rem; color: #e2e8f0; background: rgba(148,163,184,0.12); border: 1px solid rgba(148,163,184,0.15); border-radius: 4px; padding: 0.1rem 0.35rem; }
+  .doc pre { position: relative; margin: 1rem 0; padding: 1rem 1.25rem; background: #0f172a; border: 1px solid #1e293b; border-radius: 0.5rem; overflow-x: auto; font-size: 0.8125rem; line-height: 1.6; }
+  .doc pre code { background: none; border: none; padding: 0; color: #cbd5e1; font-size: inherit; }
+  .doc pre .copy { position: absolute; top: 0.5rem; right: 0.5rem; font-family: Inter, sans-serif; font-size: 11px; color: #64748b; background: #0b0f17; border: 1px solid #1e293b; border-radius: 4px; padding: 2px 8px; cursor: pointer; opacity: 0; transition: opacity .15s, color .15s; }
+  .doc pre:hover .copy, .doc pre .copy:focus { opacity: 1; }
+  .doc pre .copy:hover { color: #f1f5f9; }
+  .doc table { width: 100%; border-collapse: collapse; font-size: 0.875rem; margin: 1rem 0; }
+  .doc th { text-align: left; font-weight: 600; color: #e2e8f0; padding: 0.5rem 0.75rem; border-bottom: 1px solid #334155; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .doc td { color: #94a3b8; padding: 0.55rem 0.75rem; border-bottom: 1px solid #1e293b; vertical-align: top; line-height: 1.55; }
+  .doc td code { white-space: nowrap; }
+  .doc .table-wrap { overflow-x: auto; }
+  .doc kbd { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #e2e8f0; background: #1e293b; border: 1px solid #334155; border-bottom-width: 2px; border-radius: 4px; padding: 0.05rem 0.4rem; }
+  .doc .note { border-left: 3px solid #f59e0b; background: rgba(245,158,11,0.06); border-radius: 0 0.5rem 0.5rem 0; padding: 0.75rem 1rem; margin: 1rem 0; }
+  .doc .note p { margin: 0.25rem 0; color: #cbd5e1; }
+  .doc .note.info { border-color: #38bdf8; background: rgba(56,189,248,0.06); }
+  .doc .note.warn { border-color: #f87171; background: rgba(248,113,113,0.06); }
+  .doc .note .lbl { display: block; font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: #f59e0b; margin-bottom: 0.2rem; }
+  .doc .note.info .lbl { color: #38bdf8; } .doc .note.warn .lbl { color: #f87171; }
+  .doc section { scroll-margin-top: 5.5rem; padding-bottom: 3rem; margin-bottom: 3rem; border-bottom: 1px solid rgba(30,41,59,0.8); }
+  .doc section:last-child { border-bottom: none; }
+  .doc .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #f59e0b; margin-bottom: 0.5rem; }
+  .doc .shot { border: 1px solid #1e293b; border-radius: 0.5rem; overflow: hidden; background: #0f172a; margin: 1.25rem 0; }
+  .doc .shot img { width: 100%; display: block; }
+  .doc .cards { display: grid; gap: 0.75rem; margin: 1rem 0; }
+  @media (min-width: 640px) { .doc .cards { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  .doc .card { border: 1px solid #1e293b; background: rgba(15,23,42,0.5); border-radius: 0.5rem; padding: 0.875rem 1rem; }
+  .doc .card h4 { margin: 0 0 0.25rem; font-size: 0.875rem; }
+  .doc .card p { margin: 0; font-size: 0.8125rem; line-height: 1.55; }
+  .doc .card .k { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #64748b; display: block; margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.1em; }
+  .doc .btn { display: inline-flex; align-items: center; gap: 0.4rem; border-radius: 0.375rem; padding: 0.5rem 1rem; font-size: 0.875rem; font-weight: 500; }
+  .doc h2 a.anchor, .doc h3 a.anchor { color: #334155; margin-left: 0.4rem; font-weight: 400; opacity: 0; text-decoration: none; }
+  .doc h2:hover a.anchor, .doc h3:hover a.anchor { opacity: 1; }
+
+  /* ---- Sidebar ---- */
+  .toc a { display: block; padding: 0.3rem 0.75rem; border-left: 1px solid #1e293b; color: #64748b; font-size: 0.8125rem; line-height: 1.4; transition: color .12s, border-color .12s; }
+  .toc a:hover { color: #e2e8f0; }
+  .toc a.active { color: #f59e0b; border-left-color: #f59e0b; }
+  .toc .grp { font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: #475569; padding: 1rem 0.75rem 0.35rem; }
+  .toc .grp:first-child { padding-top: 0; }
+</style>
+</head>
+<body class="text-slate-300 font-sans antialiased">
+
+<!-- ================= HEADER ================= -->
+<header class="sticky top-0 z-50 border-b border-slate-800/80 bg-[#0b0f17]/90 backdrop-blur">
+  <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+    <a href="index.html" class="flex items-center gap-2.5 shrink-0">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+        <circle cx="13" cy="4" r="2.6" fill="#f59e0b"/>
+        <circle cx="5" cy="13" r="2.2" fill="#94a3b8"/><circle cx="21" cy="13" r="2.2" fill="#94a3b8"/>
+        <circle cx="5" cy="22" r="1.8" fill="#475569"/><circle cx="13" cy="22" r="1.8" fill="#475569"/><circle cx="21" cy="22" r="1.8" fill="#475569"/>
+        <path d="M13 6.6V11M13 11L5 11V13M13 11L21 11V13M5 15V20M13 15V20M21 15V20" stroke="#64748b" stroke-width="1.4"/>
+      </svg>
+      <span class="font-semibold tracking-tight text-slate-100">Oracle Plan Visualizer</span>
+      <span class="hidden sm:inline-block ml-1 rounded border border-slate-700 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">docs</span>
+    </a>
+
+    <nav class="hidden md:flex items-center gap-7 text-sm text-slate-400">
+      <a href="index.html#features" class="hover:text-slate-100 transition-colors">Features</a>
+      <a href="docs.html" class="text-slate-100">Docs</a>
+      <a href="https://github.com/davidbudac/ora-explain-plan-viz" class="hover:text-slate-100 transition-colors flex items-center gap-1.5">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </nav>
+
+    <a data-app-link data-app-query="" href="https://github.com/davidbudac/ora-explain-plan-viz"
+       class="inline-flex items-center gap-1.5 rounded-md bg-amber-500 px-3.5 py-1.5 text-sm font-medium text-slate-950 hover:bg-amber-400 transition-colors shrink-0">
+      Open the app
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M7 5l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </div>
+</header>
+
+<!-- Mobile TOC -->
+<div class="lg:hidden sticky top-16 z-40 border-b border-slate-800/80 bg-[#0b0f17]/95 backdrop-blur">
+  <div class="max-w-7xl mx-auto px-6 py-2.5">
+    <select id="mobile-toc" class="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200" aria-label="Jump to section"></select>
+  </div>
+</div>
+
+<div class="max-w-7xl mx-auto px-6 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-12">
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="hidden lg:block">
+    <nav id="toc" class="toc sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto py-10 pr-2" aria-label="Documentation sections">
+      <div class="grp">Start here</div>
+      <a href="#introduction">Introduction</a>
+      <a href="#getting-started">Getting started</a>
+      <a href="#installation">Installation &amp; self-hosting</a>
+      <a href="#input-formats">Getting a plan out of Oracle</a>
+
+      <div class="grp">Using the app</div>
+      <a href="#workspace">The workspace</a>
+      <a href="#views">Views</a>
+      <a href="#analysis">Analysis &amp; findings</a>
+      <a href="#filtering">Filtering &amp; search</a>
+      <a href="#compare">Comparing two plans</a>
+      <a href="#annotations">Annotations</a>
+      <a href="#sharing">Sharing &amp; export</a>
+
+      <div class="grp">Going deeper</div>
+      <a href="#metadata">Schema metadata</a>
+      <a href="#baseline">SQL Plan Baseline script</a>
+      <a href="#client-report">Client report</a>
+      <a href="#db-connector">Database connector</a>
+      <a href="#ai">AI analysis</a>
+
+      <div class="grp">Reference</div>
+      <a href="#customization">Appearance &amp; density</a>
+      <a href="#shortcuts">Keyboard shortcuts &amp; palette</a>
+      <a href="#url-parameters">URL parameters</a>
+      <a href="#privacy">Privacy &amp; data handling</a>
+      <a href="#troubleshooting">Troubleshooting &amp; FAQ</a>
+      <a href="#contributing">Contributing</a>
+    </nav>
+  </aside>
+
+  <!-- ================= CONTENT ================= -->
+  <main class="doc min-w-0 py-10 lg:py-14 max-w-3xl">
+
+    <!-- ---------- Intro ---------- -->
+    <section id="introduction">
+      <p class="eyebrow">Documentation</p>
+      <h1 class="text-3xl sm:text-4xl font-semibold tracking-[-0.02em] text-slate-50 leading-tight">Oracle Plan Visualizer</h1>
+      <p class="text-lg">
+        A client-side web application that turns Oracle execution plan output into an interactive,
+        annotated picture. Paste DBMS_XPLAN, SQL Monitor (text or XML), JSON or xbi.sql output and
+        get a plan tree with hotspots, cardinality analysis, advisor findings, a flame graph, a
+        Sankey diagram, side-by-side plan comparison, and more.
+      </p>
+      <p>
+        Everything runs in your browser tab. There is no backend, no account, and nothing is uploaded.
+        The hosted build on GitHub Pages is a static site, and you can serve the same static build
+        yourself with Docker or any web server (see <a href="#installation">Installation</a>).
+      </p>
+
+      <div class="cards">
+        <div class="card"><span class="k">Who it's for</span><h4>DBAs, developers, consultants</h4><p>Anyone who reads Oracle plans and would rather see the shape of the problem than scroll through ASCII pipes.</p></div>
+        <div class="card"><span class="k">What you need</span><h4>A plan and a browser</h4><p>Any modern browser. For runtime statistics (A-Rows, A-Time) you need SQL Monitor output or DBMS_XPLAN with <code>ALLSTATS</code>.</p></div>
+        <div class="card"><span class="k">Cost</span><h4>Free, open source, MIT</h4><p>Source on <a href="https://github.com/davidbudac/ora-explain-plan-viz">GitHub</a>. Self-host it, fork it, embed it in your internal tooling.</p></div>
+        <div class="card"><span class="k">Privacy</span><h4>Plans stay local</h4><p>Parsing, layout and analysis all happen client-side. Settings live in your browser's localStorage. See <a href="#privacy">Privacy</a>.</p></div>
+      </div>
+
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a data-app-link data-app-query="?example=22" href="#" class="btn bg-amber-500 text-slate-950 hover:bg-amber-400">Open with an example plan <span aria-hidden="true">→</span></a>
+        <a href="#getting-started" class="btn border border-slate-700 text-slate-200 hover:border-slate-500">Read the walkthrough</a>
+      </div>
+    </section>
+
+    <!-- ---------- Getting started ---------- -->
+    <section id="getting-started">
+      <p class="eyebrow">Start here</p>
+      <h2>Getting started<a class="anchor" href="#getting-started">#</a></h2>
+      <p>Thirty seconds from a plan in SQL*Plus to a picture. No install needed for the hosted app.</p>
+
+      <h3>1. Open the app</h3>
+      <p>
+        Go to the <a data-app-link data-app-query="" href="#">hosted app</a> (or your own deployment). The input
+        drawer at the top is open on first load with an empty text area.
+      </p>
+
+      <h3>2. Load a plan</h3>
+      <p>Three ways in:</p>
+      <ul>
+        <li><strong>Paste</strong> plan output into the text area and press <kbd>Cmd</kbd>+<kbd>Enter</kbd> (<kbd>Ctrl</kbd>+<kbd>Enter</kbd> on Windows/Linux) or click <em>Visualize</em>.</li>
+        <li><strong>Drop a file</strong> (.txt, .xml, .json) onto the input area.</li>
+        <li><strong>Load Example</strong> in the top bar opens a menu of bundled sample plans, grouped by format. Good for a first look; the <em>Cardinality Trap (NL)</em> example shows most analysis features at once.</li>
+      </ul>
+      <p>
+        The format is detected automatically (see <a href="#input-formats">Getting a plan out of Oracle</a> for how to
+        produce each one). If parsing fails, an error explains what was expected; see <a href="#troubleshooting">Troubleshooting</a>.
+      </p>
+
+      <h3>3. Explore the tree</h3>
+      <div class="shot"><img src="assets/tree.png" alt="Tree view of an Oracle execution plan with color-coded operation nodes" loading="lazy" /></div>
+      <ul>
+        <li><strong>Click a node</strong> to open its details in the right panel: estimates, actuals, predicates, cardinality analysis, warnings, and attached metadata.</li>
+        <li><strong>Arrow keys</strong> walk the tree: <kbd>↑</kbd> parent, <kbd>↓</kbd> first child, <kbd>←</kbd>/<kbd>→</kbd> siblings, <kbd>Esc</kbd> deselects.</li>
+        <li><strong>Cmd/Ctrl-click</strong> several nodes for a multi-selection with aggregated statistics.</li>
+        <li><strong>Hover</strong> an operation name for an expert description of what that Oracle operation does.</li>
+        <li>With nothing selected, the right panel shows a <strong>Hotspots</strong> summary and the <strong>Findings</strong> list. Click any entry to jump to that node.</li>
+      </ul>
+
+      <h3>4. Switch views</h3>
+      <p>
+        The view tabs in the top bar switch between Tree, Tabular, Sankey, Flame, Plan Text, SQL, and
+        (depending on the loaded format) Metadata, Monitor and Experimental. Switching never re-parses
+        the plan, so it is instant. Details in <a href="#views">Views</a>.
+      </p>
+
+      <h3>5. Find the problem</h3>
+      <p>
+        Hotspots, cardinality mismatches, spills to disk, and the advisor's findings are flagged automatically.
+        See <a href="#analysis">Analysis &amp; findings</a> for what each signal means.
+      </p>
+
+      <div class="note info"><span class="lbl">Tip</span><p>Press <kbd>Cmd</kbd>+<kbd>K</kbd> at any time for the command palette. Every view, action, and appearance option is reachable from there by typing a few letters.</p></div>
+    </section>
+
+    <!-- ---------- Installation ---------- -->
+    <section id="installation">
+      <p class="eyebrow">Start here</p>
+      <h2>Installation &amp; self-hosting<a class="anchor" href="#installation">#</a></h2>
+      <p>
+        You don't have to install anything to use the hosted app. Run it yourself when you want it
+        on an internal network, want to pin a version, or want to enable the optional build-time
+        features (database connector).
+      </p>
+      <p>The app is a static single-page application: the build produces a <code>dist/</code> directory of HTML, JS and CSS that any web server can serve.</p>
+
+      <h3>Option A — Docker (recommended for self-hosting)</h3>
+      <p>The repository ships a multi-stage <code>Dockerfile</code> (Node 20 build → nginx 1.27 runtime) and an <code>nginx.conf</code> with the SPA fallback already configured.</p>
+<pre><code>git clone https://github.com/davidbudac/ora-explain-plan-viz.git
+cd ora-explain-plan-viz
+
+docker build -t ora-explain-plan-viz .
+docker run --rm -p 8080:80 ora-explain-plan-viz
+# → http://localhost:8080</code></pre>
+      <p>The same two steps are wrapped as npm scripts: <code>npm run docker:build</code> and <code>npm run docker:run</code>.</p>
+
+      <h4>Build arguments</h4>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Argument</th><th>Default</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>APP_BASE_PATH</code></td><td><code>/</code></td><td>Serve the app under a sub-path, e.g. <code>/planviz/</code>. Leading/trailing slashes are normalized.</td></tr>
+          <tr><td><code>VITE_ENABLE_DB_AGENT</code></td><td>unset</td><td>Set to <code>1</code> to compile in the "Connect to database" panel for the <a href="#db-connector">local database connector</a>.</td></tr>
+          <tr><td><code>VITE_ENABLE_HOSTED</code></td><td>unset</td><td>Shows the hosted (oraplanviz cloud) AI provider option. Off in the public build; only relevant if you run that backend.</td></tr>
+        </tbody>
+      </table></div>
+<pre><code>docker build \
+  --build-arg APP_BASE_PATH=/planviz/ \
+  --build-arg VITE_ENABLE_DB_AGENT=1 \
+  -t ora-explain-plan-viz .</code></pre>
+
+      <h3>Option B — Docker Compose</h3>
+      <p>A <code>docker-compose.yml</code> is included with two services:</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Service</th><th>Port</th><th>When it runs</th></tr></thead>
+        <tbody>
+          <tr><td><code>app</code></td><td>8080</td><td>Always. The standard build.</td></tr>
+          <tr><td><code>app-with-agent</code></td><td>8081</td><td>Only with <code>--profile agent</code>. Same app built with <code>VITE_ENABLE_DB_AGENT=1</code>.</td></tr>
+        </tbody>
+      </table></div>
+<pre><code># standard build on http://localhost:8080
+docker compose up --build
+
+# additionally build the connector-enabled UI on http://localhost:8081
+docker compose --profile agent up --build
+
+# stop and remove
+docker compose down</code></pre>
+      <p>Both containers restart automatically (<code>restart: unless-stopped</code>). Edit the <code>ports</code> mapping in the compose file to change the host port.</p>
+      <div class="note"><span class="lbl">Note</span><p>The database connector itself is <strong>not</strong> composed as a shared service on purpose. It holds database credentials and binds to <code>127.0.0.1</code>, so it is designed to run on each user's own machine. The <code>agent</code> profile only builds a UI that knows how to talk to it.</p></div>
+
+      <h3>Option C — From source (development)</h3>
+      <p>Requires Node.js 20 or newer and npm.</p>
+<pre><code>git clone https://github.com/davidbudac/ora-explain-plan-viz.git
+cd ora-explain-plan-viz
+npm install
+npm run dev          # Vite dev server with hot reload → http://localhost:5173</code></pre>
+      <p>Useful scripts:</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>npm run dev</code></td><td>Dev server on port 5173 (set <code>PORT</code> to override).</td></tr>
+          <tr><td><code>npm run build</code></td><td>Type-check and build the production bundle into <code>dist/</code>.</td></tr>
+          <tr><td><code>npm run preview</code></td><td>Serve the production build locally to check it.</td></tr>
+          <tr><td><code>npm run build:pages</code></td><td>Build with <code>APP_BASE_PATH=/ora-explain-plan-viz/</code> (the GitHub Pages layout).</td></tr>
+          <tr><td><code>npm run lint</code></td><td>ESLint.</td></tr>
+          <tr><td><code>npx vitest run --environment jsdom</code></td><td>Run the unit tests (parsers, advisor, analysis, metadata, URL codec).</td></tr>
+        </tbody>
+      </table></div>
+      <p>Build-time flags are plain environment variables during the build, for example <code>VITE_ENABLE_DB_AGENT=1 npm run dev</code>. A commented <code>.env.example</code> is in the repo root.</p>
+
+      <h3>Option D — Static hosting (any web server, S3, GitHub Pages…)</h3>
+      <p>Run <code>npm run build</code> (with <code>APP_BASE_PATH</code> set if you serve from a sub-path) and publish the contents of <code>dist/</code>. Two things to get right:</p>
+      <ol>
+        <li><strong>SPA fallback.</strong> Unknown paths must serve <code>index.html</code>. The bundled nginx config does this with <code>try_files $uri $uri/ /index.html;</code>. Shared-plan links carry the plan in the query string, so they resolve to the root page anyway, but the fallback keeps deep links robust.</li>
+        <li><strong>Cache headers.</strong> Files under <code>dist/assets/</code> are content-hashed and safe to cache forever; <code>index.html</code> should not be cached aggressively.</li>
+      </ol>
+<pre><code># the nginx.conf shipped in the repo
+server {
+  listen 80;
+  root /usr/share/nginx/html;
+  index index.html;
+
+  location /assets/ {
+    try_files $uri =404;
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+  }
+
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+}</code></pre>
+      <p>The public deployment is built exactly this way by the <code>.github/workflows/deploy.yml</code> GitHub Actions workflow, which also stages this documentation site under <code>/welcome/</code>.</p>
+
+      <div class="note info"><span class="lbl">Self-hosting and the plan_to_url.sql script</span><p>If you generate share links from inside the database (see <a href="#sharing">Sharing</a>), edit the <code>DEFINE base_url</code> line near the top of <code>scripts/plan_to_url.sql</code> so links point at your deployment instead of the public one.</p></div>
+    </section>
+
+    <!-- ---------- Input formats ---------- -->
+    <section id="input-formats">
+      <p class="eyebrow">Start here</p>
+      <h2>Getting a plan out of Oracle<a class="anchor" href="#input-formats">#</a></h2>
+      <p>Five input formats are accepted and auto-detected. Which one to use depends on what you need and what you're licensed for.</p>
+
+      <div class="table-wrap"><table>
+        <thead><tr><th>Format</th><th>Quick command</th><th>Runtime stats</th><th>Predicates</th></tr></thead>
+        <tbody>
+          <tr><td><strong>DBMS_XPLAN</strong></td><td><code>DBMS_XPLAN.DISPLAY_CURSOR('&amp;sql_id', NULL, 'ALLSTATS LAST')</code></td><td>With hint / STATISTICS_LEVEL</td><td>Yes</td></tr>
+          <tr><td><strong>SQL Monitor (text)</strong></td><td><code>DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id=&gt;'…', type=&gt;'TEXT')</code></td><td>Yes</td><td>No</td></tr>
+          <tr><td><strong>SQL Monitor (XML)</strong></td><td><code>… type=&gt;'XML', report_level=&gt;'ALL'</code></td><td>Yes, plus ASH activity</td><td>Yes</td></tr>
+          <tr><td><strong>JSON</strong></td><td><code>JSON_ARRAYAGG</code> over <code>V$SQL_PLAN_STATISTICS_ALL</code></td><td>Optional</td><td>Yes</td></tr>
+          <tr><td><strong>xbi.sql</strong></td><td><code>@xbi &amp;sql_id</code> (Tanel Poder's TPT toolkit)</td><td>Yes</td><td>No</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>DBMS_XPLAN</h3>
+      <p>The standard plan output. From the cursor cache:</p>
+<pre><code>SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('&amp;sql_id', NULL, 'ALLSTATS LAST'));</code></pre>
+      <p>From AWR when the cursor has aged out, or from a plan table after <code>EXPLAIN PLAN FOR</code>:</p>
+<pre><code>SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_AWR('&amp;sql_id', &amp;plan_hash_value, NULL, 'ALL'));
+
+EXPLAIN PLAN FOR &lt;your statement&gt;;
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY(NULL, NULL, 'ALL'));</code></pre>
+      <p><code>ALLSTATS LAST</code> includes A-Rows, Starts and Buffers only if the statement ran with <code>STATISTICS_LEVEL=ALL</code> or the <code>/*+ GATHER_PLAN_STATISTICS */</code> hint. The "Note" section (dynamic sampling, adaptive plans, SQL profiles, baselines…) is parsed and shown as tags.</p>
+
+      <h3>SQL Monitor (text and XML)</h3>
+      <p>Available for monitored statements: anything that ran longer than 5 seconds, ran in parallel, or carried the <code>/*+ MONITOR */</code> hint. Requires the Diagnostics and Tuning Pack license.</p>
+<pre><code>SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(
+  sql_id       =&gt; '&amp;sql_id',
+  type         =&gt; 'XML',          -- or 'TEXT'
+  report_level =&gt; 'ALL'
+) FROM dual;</code></pre>
+      <p>
+        <strong>XML is the recommended format.</strong> It is the only SQL Monitor output that includes access/filter
+        predicates, and it also carries the full SQL text, bind values, per-operation first/last active
+        times and bucketed ASH samples, which power the Monitor tab and the Experimental timeline views.
+        On 11g use <code>DBMS_SQLTUNE.REPORT_SQL_MONITOR</code> with the same parameters.
+      </p>
+      <p>Large XML reports get truncated in SQL*Plus unless you raise the limits and spool to a file:</p>
+<pre><code>SET LONG 10000000 LONGCHUNKSIZE 10000000 LINESIZE 32767 PAGESIZE 0 TRIMSPOOL ON
+SPOOL /tmp/sql_monitor.xml
+SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id =&gt; '&amp;sql_id', type =&gt; 'XML', report_level =&gt; 'ALL') FROM dual;
+SPOOL OFF</code></pre>
+
+      <h3>JSON and xbi.sql</h3>
+      <p>
+        JSON input is an array of rows from <code>V$SQL_PLAN_STATISTICS_ALL</code> (as produced by xdd.sql, Datadog's explain
+        tool, or your own <code>JSON_ARRAYAGG</code> query). xbi.sql input is the raw SQL*Plus output of Tanel Poder's
+        <a href="https://github.com/tanelpoder/tpt-oracle/blob/master/xbi.sql">eXplain Better</a> script.
+        The full query for the JSON export is in the repo's
+        <a href="https://github.com/davidbudac/ora-explain-plan-viz/blob/main/docs/input-formats.md">docs/input-formats.md</a>.
+      </p>
+
+      <div class="note info"><span class="lbl">Skip the copy/paste</span><p>Run <code>@plan_to_url.sql &lt;sql_id&gt;</code> in SQL*Plus and it prints a ready-to-click visualizer link with the plan already embedded. See <a href="#sharing">Sharing &amp; export</a>.</p></div>
+    </section>
+
+    <!-- ---------- Workspace ---------- -->
+    <section id="workspace">
+      <p class="eyebrow">Using the app</p>
+      <h2>The workspace<a class="anchor" href="#workspace">#</a></h2>
+      <p>The layout is one top bar plus three collapsible regions around the visualization.</p>
+      <div class="shot"><img src="assets/hero.png" alt="Full application window: top bar, input drawer, tree visualization, filter panel on the left, detail panel on the right" loading="lazy" /></div>
+      <ul>
+        <li><strong>Top bar.</strong> Brand, SQL ID, Plan A/B tabs, view tabs, <em>Load Example</em>, and all actions (theme, share, export, baseline script, client report, shortcuts). At narrow widths the view labels degrade to icons and then an overflow menu; actions collapse into a menu.</li>
+        <li><strong>Input drawer.</strong> The text area, the parsed plan's metadata (SQL ID, plan hash, A-Rows, A-Time), format and metadata-bundle chips, and the annotation import/export controls. Collapse it once the plan is loaded.</li>
+        <li><strong>Filter panel (left).</strong> Search, operation-type filters, numeric ranges, predicate filters, cardinality-mismatch slider, and the legend. See <a href="#filtering">Filtering</a>.</li>
+        <li><strong>Detail panel (right).</strong> Selected node details, or the Hotspots summary and Findings list when nothing is selected. Also hosts the annotation editor.</li>
+      </ul>
+      <p>Both side panels collapse via the tabs on their inner seam into slim rails that show a live filter count; click the rail to reopen. Two further modes give the visualization more room:</p>
+      <ul>
+        <li><strong>Maximize</strong> (<kbd>F</kbd>) hides everything except a slim tabs-only bar.</li>
+        <li><strong>Focus mode</strong> (<kbd>Z</kbd>, persisted) hides both side panels and replaces them with a floating search/filters/findings pill and a selection-driven inspector card. It composes with maximize.</li>
+      </ul>
+      <p>On narrow windows the side panels automatically switch to an overlay layout so the canvas keeps a usable width.</p>
+    </section>
+
+    <!-- ---------- Views ---------- -->
+    <section id="views">
+      <p class="eyebrow">Using the app</p>
+      <h2>Views<a class="anchor" href="#views">#</a></h2>
+      <p>All views render the same parsed plan and respect the active filters and selection. Tabs that need data the loaded format doesn't carry (for example Monitor without an XML report) are hidden.</p>
+
+      <h3>Tree</h3>
+      <p>
+        The default view: the plan as a real tree, laid out by a custom algorithm (Dagre as fallback) using React Flow.
+        Each node card shows the operation, object name, and configurable badges (cost, rows, bytes, A-Rows, A-Time, starts,
+        predicate and partition indicators, query-block badge). The hottest node gets a red ring. Pan with drag, zoom with
+        the wheel; the minimap and fit-to-view controls are in the corner. Edges can be animated, and the selection's
+        root-to-node path can be emphasized (both toggles in the customize menu).
+      </p>
+
+      <h3>Tabular</h3>
+      <p>A sortable, resizable table with every parsed column. Column widths persist. The hottest node is highlighted, and clicking a row selects it in every other view.</p>
+
+      <h3>Sankey</h3>
+      <div class="shot"><img src="assets/sankey.png" alt="Sankey diagram of an execution plan" loading="lazy" /></div>
+      <p>A D3 Sankey where band width encodes the volume flowing between operations. Toggle the metric between Rows (estimated), Cost, A-Rows and A-Time to see which step moves the most data or burns the most time.</p>
+
+      <h3>Flame</h3>
+      <div class="shot"><img src="assets/flame.png" alt="Flame graph of an execution plan" loading="lazy" /></div>
+      <p>The plan as a flame graph, bars sized by each operation's <em>self</em> value (the metric minus its children's). Metric toggle: Cost, A-Time, A-Rows. Click a bar to zoom into that subtree; click the root or press Esc to zoom out.</p>
+
+      <h3>Plan Text</h3>
+      <p>The raw input, kept verbatim, with the selected node's line highlighted. Handy for quoting in a ticket.</p>
+
+      <h3>SQL</h3>
+      <p>The full SQL statement with syntax highlighting and a copy button. Available when the input carries the SQL text (SQL Monitor XML, some JSON exports, metadata bundles).</p>
+
+      <h3>Metadata</h3>
+      <p>The Schema Metadata explorer: tables, indexes and columns referenced by the plan, with per-object detail and a bundle overview. It can pop out into its own window. See <a href="#metadata">Schema metadata</a>.</p>
+
+      <h3>Monitor</h3>
+      <p>SQL Monitor XML only. Activity breakdown (CPU / I/O wait / PL/SQL / other), execution summary, session and environment, SQL text, bind variables, resource consumption and optimizer environment sections, straight from the report.</p>
+
+      <h3>Compare</h3>
+      <p>Appears when two plans are loaded: the per-operation delta dashboard. See <a href="#compare">Comparing two plans</a>.</p>
+
+      <h3>Experimental</h3>
+      <div class="shot"><img src="assets/timeline.png" alt="Execution timeline Gantt with ASH wait-class cells" loading="lazy" /></div>
+      <p>Five research views behind a segmented switcher (the last one used is remembered):</p>
+      <ul>
+        <li><strong>Timeline.</strong> A Gantt of when each operation was actually active (from per-op first/last active offsets), with ASH wait-class cells per time bucket. SQL Monitor XML only.</li>
+        <li><strong>Scatter.</strong> E-Rows vs A-Rows on log-log axes. Points on the diagonal are well estimated; distance from it is the cardinality error.</li>
+        <li><strong>Waterfall.</strong> Wasted work: rows read vs rows returned per node, so a full scan that reads a million rows to return ten stands out.</li>
+        <li><strong>Morph.</strong> An animated icicle that morphs from the optimizer's estimated shape to the actual one.</li>
+        <li><strong>Waits.</strong> Per-line wait-class composition from ASH samples.</li>
+      </ul>
+    </section>
+
+    <!-- ---------- Analysis ---------- -->
+    <section id="analysis">
+      <p class="eyebrow">Using the app</p>
+      <h2>Analysis &amp; findings<a class="anchor" href="#analysis">#</a></h2>
+      <p>The app derives a set of signals from the plan as soon as it's parsed. None of them require a database connection.</p>
+
+      <h3>Hotspots</h3>
+      <div class="shot"><img src="assets/hotspot.png" alt="Node with a red hotspot ring next to the Hotspots summary panel" loading="lazy" /></div>
+      <p>
+        With runtime statistics present, the node with the highest self A-Time gets a red ring and a "Hotspot" badge.
+        The Hotspots panel (shown when nothing is selected) lists the top 5 nodes by A-Time, by cost, and the worst
+        cardinality mismatches. Hotspot detection can be toggled from the command palette.
+      </p>
+
+      <h3>Cardinality mismatch</h3>
+      <div class="shot"><img src="assets/cardinality.png" alt="Node detail panel showing E-Rows vs A-Rows with a severity badge" loading="lazy" /></div>
+      <p>
+        For every node with both E-Rows and A-Rows, the ratio between them is computed (per start, so nested-loop
+        inner sides are compared fairly). Badges are shown at <strong>3×</strong> (warn) and <strong>10×</strong> (bad), in
+        either direction. The detail panel explains the ratio and, if a metadata bundle is attached, whether the
+        relevant column lacks a histogram or the table's stats are stale.
+      </p>
+
+      <h3>Plan advisor</h3>
+      <p>A heuristic rules engine surfaces findings per node (badge on the card, section in the detail panel) and as a ranked list in the Findings panel. Ten rules:</p>
+      <div class="cards">
+        <div class="card"><h4>Cardinality mismatch</h4><p>Large E-Rows / A-Rows divergence, with the likely cause when metadata is attached.</p></div>
+        <div class="card"><h4>Implicit conversion</h4><p><code>TO_NUMBER</code>/<code>INTERNAL_FUNCTION</code> wrapped around a column in a predicate, defeating indexes.</p></div>
+        <div class="card"><h4>Cartesian merge join</h4><p>A <code>MERGE JOIN CARTESIAN</code> that is not trivially small.</p></div>
+        <div class="card"><h4>Nested-loop volume</h4><p>A nested loop whose inner side starts very many times.</p></div>
+        <div class="card"><h4>Parallel signals</h4><p>Parallel execution downgrades, skew, or serial sections in a parallel plan.</p></div>
+        <div class="card"><h4>Partition pruning</h4><p>Partitioned access that scans all partitions (<code>Pstart/Pstop</code> = 1..N or KEY without pruning).</p></div>
+        <div class="card"><h4>Selective full scan</h4><p>A full table scan that returns a tiny fraction of the rows it read.</p></div>
+        <div class="card"><h4>Spill to disk</h4><p>Sorts, hash joins or group-bys that used temp space.</p></div>
+        <div class="card"><h4>Stats issues</h4><p>Dynamic sampling, missing or stale statistics (from the Note section or a metadata bundle).</p></div>
+        <div class="card"><h4>Unused index</h4><p>An index on the filtered column exists in the metadata bundle but the plan does a full scan.</p></div>
+      </div>
+      <p>Each finding has a severity, an explanation, and an optional suggestion. Suggestion hints are off by default and can be enabled in the Findings panel.</p>
+
+      <h3>Other signals</h3>
+      <ul>
+        <li><strong>Spill-to-disk badge</strong> on any node with temp-space usage, with details in the node panel.</li>
+        <li><strong>Plan-level signals</strong> in the input-drawer header: partition pruning present, parallelism, spills, adaptive plan, dynamic sampling, SQL profile/baseline in use.</li>
+        <li><strong>Operation tooltips</strong>: around 55 Oracle operations have an expert description shown on hover and in the detail panel.</li>
+        <li><strong>Multi-select aggregates</strong>: with several nodes selected, the detail panel sums cost, rows, time and starts across them.</li>
+      </ul>
+    </section>
+
+    <!-- ---------- Filtering ---------- -->
+    <section id="filtering">
+      <p class="eyebrow">Using the app</p>
+      <h2>Filtering &amp; search<a class="anchor" href="#filtering">#</a></h2>
+      <p>The filter panel narrows what is drawn in every view. Nodes that don't match are dimmed (tree) or hidden (table). The active filter count shows on the collapsed rail.</p>
+      <ul>
+        <li><strong>Search</strong> across operation, object name and predicates. Matches are highlighted inside node cards.</li>
+        <li><strong>Operation type</strong> checkboxes by category (table access, index access, joins, sorts, aggregations, parallel, partition, …).</li>
+        <li><strong>Cost threshold</strong>, and with runtime stats, <strong>A-Rows</strong>, <strong>A-Time</strong> and <strong>Starts</strong> ranges.</li>
+        <li><strong>Predicates</strong>: only nodes with access predicates, filter predicates, or both.</li>
+        <li><strong>Cardinality mismatch</strong> slider: show only nodes whose E/A ratio exceeds the threshold you set.</li>
+      </ul>
+      <p>The <strong>Legend</strong> at the bottom of the panel explains the current color scheme and can be hidden.</p>
+    </section>
+
+    <!-- ---------- Compare ---------- -->
+    <section id="compare">
+      <p class="eyebrow">Using the app</p>
+      <h2>Comparing two plans<a class="anchor" href="#compare">#</a></h2>
+      <div class="shot"><img src="assets/compare.png" alt="Side-by-side comparison of two plans with per-node deltas" loading="lazy" /></div>
+      <p>Typical use: before and after an index, a hint, a statistics refresh, or a version upgrade.</p>
+      <ol>
+        <li>Load the first plan as usual.</li>
+        <li>Click <strong>+</strong> next to the Plan A tab in the top bar to add Plan B, and load the second plan into it. Each plan tab keeps its own input, selection and error state.</li>
+        <li>The <strong>Tree</strong> and <strong>Tabular</strong> tabs now render both plans side by side in dual panes, with an accent on the active plan. Use <em>Split compare</em> in the command palette to toggle this.</li>
+        <li>Open the <strong>Compare</strong> tab for the delta dashboard.</li>
+      </ol>
+      <h3>How nodes are matched</h3>
+      <p>A three-pass matcher lines up equivalent steps:</p>
+      <ol>
+        <li><strong>Exact ID</strong>: same node ID with a similar operation.</li>
+        <li><strong>Heuristic</strong>: same operation + object signature, closest depth wins.</li>
+        <li><strong>Unmatched</strong>: leftovers from either side are listed as added or removed.</li>
+      </ol>
+      <p>Deltas are computed across nine metrics: cost, rows, bytes, A-Rows, A-Time, self time, starts, temp space and memory. Each is flagged as an improvement or a regression, and the metric pills at the top of the dashboard choose which ones are shown.</p>
+    </section>
+
+    <!-- ---------- Annotations ---------- -->
+    <section id="annotations">
+      <p class="eyebrow">Using the app</p>
+      <h2>Annotations<a class="anchor" href="#annotations">#</a></h2>
+      <div class="shot"><img src="assets/annotations.png" alt="Node with a colored highlight ring and an attached note" loading="lazy" /></div>
+      <p>Annotations are a layer on top of the plan for your own notes. They are kept in memory for the session and travel with the plan when you export it or share it.</p>
+      <ul>
+        <li><strong>Notes.</strong> Select a node and type in the annotation editor in the detail panel. Notes are timestamped and shown as an overlay on the node card.</li>
+        <li><strong>Highlights.</strong> Seven colors (red, orange, yellow, green, blue, purple, pink) drawn as a ring around the node. The highlight style (ring, fill, or both) is configurable.</li>
+        <li><strong>Bulk highlight.</strong> Multi-select several nodes and apply one color to all of them.</li>
+        <li><strong>Groups.</strong> Name a set of nodes, give the group a color and an optional note. Groups are listed in the detail panel.</li>
+        <li><strong>Overlays toggle.</strong> Hide all annotation overlays without deleting them (command palette).</li>
+      </ul>
+      <h3>Save and load</h3>
+      <p>
+        <em>Save annotated plan</em> (input drawer or command palette) downloads a JSON file containing the raw plan and all annotations.
+        Loading it back restores everything; the file carries the plan hash and SQL ID so it is validated against the plan it was made for.
+        <em>Clear all annotations</em> wipes the layer.
+      </p>
+    </section>
+
+    <!-- ---------- Sharing ---------- -->
+    <section id="sharing">
+      <p class="eyebrow">Using the app</p>
+      <h2>Sharing &amp; export<a class="anchor" href="#sharing">#</a></h2>
+
+      <h3>Share via URL</h3>
+      <p>
+        <em>Share plan via URL</em> compresses the raw plan (gzip, base64url) into the <code>?plan=</code> query parameter and
+        shows the link in a dialog. Whoever opens it gets the plan loaded in their own browser; nothing is stored anywhere.
+        Attached annotations are included. Very large plans (big SQL Monitor XML reports) can exceed what browsers accept
+        in a URL; the dialog warns when that happens, and a saved JSON or the raw file is the fallback.
+      </p>
+
+      <h3>Share links straight from the database</h3>
+      <p><code>scripts/plan_to_url.sql</code> builds the same link inside Oracle, so no plan text ever passes through a clipboard:</p>
+<pre><code>SQL&gt; @plan_to_url.sql an05rsj1up1k5             -- cursor cache, child 0
+SQL&gt; @plan_to_url.sql an05rsj1up1k5 1           -- specific child cursor
+SQL&gt; @plan_to_url.sql an05rsj1up1k5 "" MONITOR  -- SQL Monitor TEXT report (Tuning Pack)</code></pre>
+      <p>
+        The script is read-only, 19c+, and works in session-private temporary LOBs. It defaults to the public deployment;
+        change <code>DEFINE base_url</code> at the top for a self-hosted one. Full argument and privilege reference in
+        <a href="https://github.com/davidbudac/ora-explain-plan-viz/blob/main/scripts/README.md">scripts/README.md</a>.
+      </p>
+
+      <h3>Export as PNG</h3>
+      <p>Renders the current tree view to a PNG image (command palette or top-bar menu). Useful for slides and tickets.</p>
+
+      <h3>Client report</h3>
+      <p>A self-contained HTML document with the plan, your notes and all findings. See <a href="#client-report">Client report</a>.</p>
+    </section>
+
+    <!-- ---------- Metadata ---------- -->
+    <section id="metadata">
+      <p class="eyebrow">Going deeper</p>
+      <h2>Schema metadata<a class="anchor" href="#metadata">#</a></h2>
+      <p>
+        A plan alone doesn't tell you whether the stats were stale, whether a column had a histogram, or which indexes existed.
+        A <strong>metadata bundle</strong> is a JSON document with table, column and index statistics (plus partitioning,
+        constraints, simplified DDL, optimizer environment, and any baselines, profiles, patches or directives affecting the SQL)
+        for the objects a plan touches. Attach one and the app annotates the plan with it.
+      </p>
+
+      <h3>1. Gather the bundle</h3>
+      <p>Use the generated script. Either click <em>Gather script</em> in the app (it pre-fills the SQL ID) or take <code>scripts/gather_plan_metadata.sql</code> from the repo and run it in SQL*Plus or SQLcl (Oracle 12.2+):</p>
+<pre><code>SQL&gt; @gather_plan_metadata.sql &lt;sql_id&gt; [&lt;plan_hash_value&gt;] [&lt;spool_file&gt;]
+SQL&gt; @gather_plan_metadata.sql LIST "HR.EMPLOYEES,HR.DEPARTMENTS"</code></pre>
+      <p>
+        It writes <code>bundle.json</code> (or the spool file you name). It reads <code>DBA_*</code> views first and degrades
+        to <code>ALL_*</code>; objects it couldn't read land in a <code>coverage_warnings</code> list instead of failing the run.
+        The script is read-only against the data dictionary.
+      </p>
+
+      <h3>2. Attach it</h3>
+      <p>Drop the JSON onto the input area or use <em>Attach metadata</em> in the input drawer. A chip shows the bundle is paired with the plan (the pairing checks the SQL ID and plan hash, and warns on a mismatch).</p>
+
+      <h3>3. What changes</h3>
+      <ul>
+        <li>Nodes with metadata get an inline <strong>badge</strong>; extra badges flag stale stats, missing stats, and "cardinality mismatch on a column with no histogram".</li>
+        <li>The node detail panel shows table/index/column stats next to the predicates, with column formatting in predicate text.</li>
+        <li>The <strong>Metadata</strong> tab opens the explorer (sidebar of objects, detail pages for tables, indexes and columns, bundle overview with coverage warnings). It can be popped out into a separate window to sit next to the plan.</li>
+        <li>Advisor rules that need schema knowledge (unused index, stats issues) become active.</li>
+      </ul>
+      <p>A sample bundle ships with the <em>Cardinality Trap (NL)</em> and <em>Partition Range Iterator</em> examples so you can see the effect without a database.</p>
+    </section>
+
+    <!-- ---------- Baseline ---------- -->
+    <section id="baseline">
+      <p class="eyebrow">Going deeper</p>
+      <h2>SQL Plan Baseline script<a class="anchor" href="#baseline">#</a></h2>
+      <p>
+        Once you've found a good plan, you may want to pin it. <em>Create SQL Plan Baseline script</em> (top-bar menu or
+        command palette) generates a ready-to-run SQL*Plus script that creates a baseline via <code>DBMS_SPM</code> for the
+        loaded plan's SQL ID and plan hash value.
+      </p>
+      <ul>
+        <li><strong>Source</strong>: cursor cache, AWR directly (19c+), or AWR via a temporary SQL Tuning Set (11.2+).</li>
+        <li><strong>Options</strong>: FIXED and ENABLED flags.</li>
+        <li>The script includes a pre-check query, the load call, verification queries, and a management crib sheet (disable, drop, evolve).</li>
+      </ul>
+      <p>Nothing runs from the browser: you copy or download the script and run it yourself with the appropriate privileges.</p>
+    </section>
+
+    <!-- ---------- Client report ---------- -->
+    <section id="client-report">
+      <p class="eyebrow">Going deeper</p>
+      <h2>Client report<a class="anchor" href="#client-report">#</a></h2>
+      <p>
+        For consultants handing results to a client. <em>Export client report</em> packages the plan, your annotations, and all
+        derived analysis into one self-contained HTML file. Fill in title, client and prepared-by (the last two are remembered),
+        write an executive summary, toggle sections, and check the live preview.
+      </p>
+      <p>Sections available:</p>
+      <ul>
+        <li>Header metadata, headline stat cards and optimizer-note tags</li>
+        <li>SQL statement</li>
+        <li>Full plan table with hotspot marker, highlight chips, inline notes and an estimate-quality column</li>
+        <li>Consultant notes, groups and highlights</li>
+        <li>Advisor findings with recommendations</li>
+        <li>Top self-time hotspots and worst cardinality mismatches</li>
+        <li>Predicates, execution environment and bind variables</li>
+        <li>Raw plan appendix</li>
+      </ul>
+      <p>Download as <code>.html</code> or open the print view and save as PDF. Fully offline.</p>
+    </section>
+
+    <!-- ---------- DB connector ---------- -->
+    <section id="db-connector">
+      <p class="eyebrow">Going deeper</p>
+      <h2>Database connector (optional)<a class="anchor" href="#db-connector">#</a></h2>
+      <p>
+        Instead of copying plans out of SQL*Plus, you can fetch them straight from a database with the
+        <a href="https://github.com/davidbudac/oraplanviz-db-connector">oraplanviz-db-connector</a> companion. It is a small
+        Python program that runs <strong>on your own machine</strong>, connects to Oracle with python-oracledb in thin mode
+        (no Instant Client), and exposes a localhost JSON API that the app's <em>Connect to database</em> panel talks to.
+      </p>
+      <div class="note"><span class="lbl">Privacy model</span><p>Credentials and plan text only ever flow between your browser and the connector on <code>127.0.0.1</code>. The connector binds to localhost only, requires a random bearer token on every request, and only answers allow-listed origins. The hosted app never sees your database.</p></div>
+
+      <h3>Setup</h3>
+      <ol>
+        <li>Build the app with the panel enabled: <code>VITE_ENABLE_DB_AGENT=1 npm run dev</code>, or the Docker <code>agent</code> profile (port 8081). The public GitHub Pages build does <strong>not</strong> include it.</li>
+        <li>Install and start the connector:</li>
+      </ol>
+<pre><code>pipx install oraplanviz-agent
+
+oraplanviz-agent \
+  --allow-origin http://localhost:5173 \
+  --dsn dbhost.example.com:1521/pdb1 \
+  --user planviz            # password is prompted, never a CLI argument</code></pre>
+      <ol start="3">
+        <li>It prints its URL (default <code>http://127.0.0.1:8521</code>) and a bearer token. Paste both into the Connect panel in the input drawer (or open it from the command palette).</li>
+        <li>Enter a SQL ID. The plan is fetched along with a metadata bundle when possible; if the metadata gather fails you still get the plan, with a notice.</li>
+      </ol>
+      <p>Flags: <code>--port</code>, <code>--host</code> (keep it at 127.0.0.1), <code>--allow-origin</code> (repeatable), <code>--token</code>. Add your self-hosted app's origin to <code>--allow-origin</code> when not using the dev server.</p>
+    </section>
+
+    <!-- ---------- AI ---------- -->
+    <section id="ai">
+      <p class="eyebrow">Going deeper</p>
+      <h2>AI analysis<a class="anchor" href="#ai">#</a></h2>
+      <div class="note"><span class="lbl">Coming soon</span><p>The AI entry points are present in the app but currently disabled and labelled "Coming soon" while the feature is finalized. The description below is what the feature does when enabled.</p></div>
+      <p>
+        An optional LLM-assisted review of the loaded plan, or of a Plan A vs Plan B comparison. You pick a provider
+        (Anthropic, any OpenAI-compatible endpoint, the local connector's agent, or a hosted account), enter a key, and click
+        Run. The report streams into an AI tab as markdown, with findings linked back to plan nodes, and a follow-up chat lets
+        you ask questions about it.
+      </p>
+      <p>
+        With a metadata bundle attached it can also build a <strong>synthetic test case</strong>: a scratch-schema script with
+        empty DDL, statistics and histograms set via <code>DBMS_STATS</code>, the optimizer environment, and binds, so the plan
+        can be reproduced without production data, plus alternative-plan experiments (SQL Patch scripts).
+      </p>
+      <p>
+        <strong>Privacy:</strong> nothing leaves the browser until you click Run, and then only to the provider you chose.
+        API keys are kept in sessionStorage for the tab's lifetime; they are never written to saved settings or share URLs.
+      </p>
+    </section>
+
+    <!-- ---------- Customization ---------- -->
+    <section id="customization">
+      <p class="eyebrow">Reference</p>
+      <h2>Appearance &amp; density<a class="anchor" href="#customization">#</a></h2>
+      <p>Three independent appearance axes, all persisted to localStorage and all reachable from the command palette.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Axis</th><th>Options</th><th>What it changes</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Theme</strong></td><td>Light, Dark (follows the OS by default)</td><td>Everything.</td></tr>
+          <tr><td><strong>App palette</strong></td><td>Slate (default), Graphite, Teal, Violet, Paper</td><td>Neutral surfaces and the accent color. Data colors are untouched.</td></tr>
+          <tr><td><strong>Color scheme</strong></td><td>High Contrast, Semantic (default), Est ⇄ Act, Icon Rail, Ticker, Stripe, Tinted, Terminal</td><td>How plan data is painted on nodes. The last three restyle the node card itself (category spine, quiet tint, square mono "terminal" look).</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>Density presets</h3>
+      <ul>
+        <li><strong>Minimal</strong>: operation, object, one mono metric line, and an amber dot for collapsed warnings. Hovering a node for a moment opens a card with the full Est/Act grid, badges and predicates.</li>
+        <li><strong>Compact</strong> (default): badges and key metrics on the card.</li>
+        <li><strong>Detailed</strong>: everything, including predicate text.</li>
+      </ul>
+
+      <h3>Node display options</h3>
+      <p>The <em>Customize view</em> menu (and "Toggle …" palette commands) switch individual elements on the node cards: object name, Rows/E-Rows, Cost, Bytes, A-Rows, A-Time, Starts, predicate indicators and details, partition pruning, query-block badge and grouping, hotspot / spill / cardinality / advisor badges, metadata badges, edge animation, focus selection path, annotation overlays. <em>Enable all</em> and <em>Disable all</em> reset the lot.</p>
+      <p><strong>Node indicator metric</strong> picks the single number shown on the badge in Minimal density: cost, A-Rows, A-Time, starts, or activity percent.</p>
+    </section>
+
+    <!-- ---------- Shortcuts ---------- -->
+    <section id="shortcuts">
+      <p class="eyebrow">Reference</p>
+      <h2>Keyboard shortcuts &amp; command palette<a class="anchor" href="#shortcuts">#</a></h2>
+      <p>Press <kbd>?</kbd> in the app for the same list.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td><kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>Open the command palette</td></tr>
+          <tr><td><kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Parse the plan in the input panel</td></tr>
+          <tr><td><kbd>?</kbd></td><td>Keyboard shortcuts overlay</td></tr>
+          <tr><td><kbd>F</kbd></td><td>Maximize / restore the visualization</td></tr>
+          <tr><td><kbd>Z</kbd></td><td>Toggle focus mode</td></tr>
+          <tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td>Select parent / first child</td></tr>
+          <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Select previous / next sibling</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Deselect, close dialogs, zoom out of a flame subtree</td></tr>
+          <tr><td><kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+Click</td><td>Add or remove a node from the multi-selection</td></tr>
+        </tbody>
+      </table></div>
+      <h3>Command palette</h3>
+      <p>Fuzzy search over every action. Groups include: switch view, split compare, legend, maximize, density preset, node display toggles, theme, color scheme, palette, highlight style, share via URL, export PNG, client report, baseline script, save/clear annotations, show/hide each panel, connect to database (when built in), focus mode, hotspot detection, node indicator metric, Sankey metric.</p>
+    </section>
+
+    <!-- ---------- URL params ---------- -->
+    <section id="url-parameters">
+      <p class="eyebrow">Reference</p>
+      <h2>URL parameters<a class="anchor" href="#url-parameters">#</a></h2>
+      <p>Useful for deep links from wikis, runbooks and this site.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Parameter</th><th>Value</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td><code>plan</code></td><td>compressed payload</td><td>A shared plan. Produced by <em>Share via URL</em> or <code>plan_to_url.sql</code>. Takes precedence over the two below.</td></tr>
+          <tr><td><code>example</code></td><td>display name or two-digit number</td><td>Loads a bundled example, e.g. <code>?example=22</code> or <code>?example=Cardinality%20Trap%20(NL)</code>. Unknown values are ignored.</td></tr>
+          <tr><td><code>view</code></td><td><code>tree</code>, <code>tabular</code>, <code>sankey</code>, <code>flame</code>, <code>text</code>, <code>sql</code>, <code>monitor</code>, <code>experimental</code></td><td>Opens that tab. <code>compare</code> is not supported because it needs two plans.</td></tr>
+        </tbody>
+      </table></div>
+      <p>Examples: <a data-app-link data-app-query="?example=18&amp;view=flame" href="#">?example=18&amp;view=flame</a>, <a data-app-link data-app-query="?example=23&amp;view=experimental" href="#">?example=23&amp;view=experimental</a>.</p>
+    </section>
+
+    <!-- ---------- Privacy ---------- -->
+    <section id="privacy">
+      <p class="eyebrow">Reference</p>
+      <h2>Privacy &amp; data handling<a class="anchor" href="#privacy">#</a></h2>
+      <ul>
+        <li><strong>No backend.</strong> The app is static files. Parsing, layout, analysis, comparison and report generation all run in the browser tab. The public deployment makes no network requests with your data.</li>
+        <li><strong>localStorage</strong> holds view preferences (theme, palette, color scheme, density, panel states, column widths, client/author names for reports). It never holds plans or keys.</li>
+        <li><strong>Share URLs</strong> contain the plan itself, compressed. Treat a share link like the plan text: anyone with the link has the plan. Nothing is stored server-side.</li>
+        <li><strong>Annotations</strong> are in memory only until you export them.</li>
+        <li><strong>Database connector</strong> traffic stays on your machine (browser ↔ 127.0.0.1). Credentials are never sent to the app's host.</li>
+        <li><strong>AI analysis</strong> (when enabled) sends the plan and optional metadata to the provider you chose, only when you click Run. Keys live in sessionStorage for the tab's lifetime.</li>
+      </ul>
+      <p>Plans often contain object names and literal values from predicates. If that is sensitive, self-host the app on your own network; the behavior is identical.</p>
+    </section>
+
+    <!-- ---------- Troubleshooting ---------- -->
+    <section id="troubleshooting">
+      <p class="eyebrow">Reference</p>
+      <h2>Troubleshooting &amp; FAQ<a class="anchor" href="#troubleshooting">#</a></h2>
+
+      <h4>"Could not detect the plan format"</h4>
+      <p>The parser looks for the DBMS_XPLAN table header (<code>| Id | Operation |</code>), the SQL Monitor "SQL Plan Monitoring Details" header, an XML <code>&lt;report&gt;</code> root, a JSON array, or the xbi.sql header. Make sure the whole table is pasted including the header row and the dashed separator lines, and that line wrapping hasn't broken rows (set <code>LINESIZE 300</code> or more in SQL*Plus).</p>
+
+      <h4>The XML report is truncated or the tree is incomplete</h4>
+      <p>SQL*Plus cuts long CLOB output at <code>LONG</code>. Use the spool recipe in <a href="#input-formats">Getting a plan out of Oracle</a> with <code>SET LONG 10000000</code>.</p>
+
+      <h4>No A-Rows / A-Time, only estimates</h4>
+      <p>Your input has no runtime statistics. Use SQL Monitor output, or run the statement with <code>/*+ GATHER_PLAN_STATISTICS */</code> (or <code>STATISTICS_LEVEL=ALL</code>) and then <code>DISPLAY_CURSOR</code> with <code>ALLSTATS LAST</code>. Hotspots, cardinality analysis, flame A-Time and the Experimental views need actuals.</p>
+
+      <h4>No predicates in the detail panel</h4>
+      <p>SQL Monitor text reports and xbi.sql output don't carry predicates. Use SQL Monitor XML, or DBMS_XPLAN for the same SQL ID.</p>
+
+      <h4>The Monitor or Experimental tab is missing</h4>
+      <p>They need a SQL Monitor XML report. The timeline additionally needs the report's activity detail, which is present with <code>report_level =&gt; 'ALL'</code>.</p>
+
+      <h4>Share link doesn't open / "corrupt or truncated"</h4>
+      <p>The URL was cut by a chat client or email. Send the link as plain text, or fall back to the saved-JSON export. Very large reports may not fit a URL at all.</p>
+
+      <h4>Self-hosted app shows a blank page under a sub-path</h4>
+      <p>Rebuild with <code>APP_BASE_PATH=/your/path/</code> so asset URLs are prefixed correctly, and make sure the server falls back to <code>index.html</code>.</p>
+
+      <h4>Large plans are slow</h4>
+      <p>Switch to Minimal density, collapse the side panels, or use the Tabular view. Filters reduce what's drawn in every view.</p>
+
+      <h4>Do I need the Tuning Pack?</h4>
+      <p>Only for SQL Monitor output and the <code>MONITOR</code> source of <code>plan_to_url.sql</code>. DBMS_XPLAN, JSON from <code>V$SQL_PLAN_STATISTICS_ALL</code> and xbi.sql need no extra license.</p>
+    </section>
+
+    <!-- ---------- Contributing ---------- -->
+    <section id="contributing">
+      <p class="eyebrow">Reference</p>
+      <h2>Contributing<a class="anchor" href="#contributing">#</a></h2>
+      <p>Issues and pull requests are welcome on <a href="https://github.com/davidbudac/ora-explain-plan-viz">GitHub</a>.</p>
+      <ul>
+        <li><strong>Stack:</strong> React 18 + TypeScript (strict), Vite, React Flow, D3-sankey, Tailwind CSS.</li>
+        <li><strong>Tests:</strong> Vitest with jsdom. <code>npx vitest run --environment jsdom</code>. Parser tests live next to the parsers in <code>__tests__</code> directories.</li>
+        <li><strong>Adding an example plan:</strong> drop a file named <code>NN-category-Display Name.txt</code> into <code>src/examples/</code> (category <code>dbms_xplan</code>, <code>sql_monitor</code>, <code>json</code> or <code>xbi</code>). It appears in the Load Example menu with no code change. An optional <code>.meta.json</code> sidecar attaches a metadata bundle.</li>
+        <li><strong>Plan that doesn't parse?</strong> Open an issue with the (sanitized) plan text and the Oracle version. Real-world plan shapes are the most useful contribution.</li>
+        <li><strong>AI eval harness:</strong> <code>evals/</code> backtests the test-case builder and analysis quality against your own Oracle scratch schema. See <code>evals/README.md</code> and its safety notes before running it.</li>
+      </ul>
+      <p>The project's <code>CLAUDE.md</code> in the repo root doubles as an architecture overview of every module.</p>
+    </section>
+
+  </main>
+</div>
+
+<!-- ================= FOOTER ================= -->
+<footer>
+  <div class="max-w-7xl mx-auto px-6 py-10 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+    <p class="text-sm text-slate-500">Built for Oracle DBAs and developers · MIT license</p>
+    <div class="flex items-center gap-6">
+      <a href="index.html" class="font-mono text-xs text-slate-400 hover:text-slate-100 transition-colors">Home</a>
+      <a href="https://github.com/davidbudac/ora-explain-plan-viz" class="font-mono text-xs text-slate-400 hover:text-slate-100 transition-colors">github.com/davidbudac/ora-explain-plan-viz</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const APP_URL = "../";
+  document.addEventListener("DOMContentLoaded", () => {
+    // App deep links
+    document.querySelectorAll("[data-app-link]").forEach((el) => {
+      el.setAttribute("href", APP_URL + (el.getAttribute("data-app-query") || ""));
+    });
+
+    // Copy buttons on code blocks
+    document.querySelectorAll(".doc pre").forEach((pre) => {
+      const btn = document.createElement("button");
+      btn.className = "copy"; btn.type = "button"; btn.textContent = "Copy";
+      btn.addEventListener("click", async () => {
+        const text = pre.querySelector("code")?.innerText ?? pre.innerText;
+        try { await navigator.clipboard.writeText(text); btn.textContent = "Copied"; }
+        catch { btn.textContent = "Failed"; }
+        setTimeout(() => { btn.textContent = "Copy"; }, 1500);
+      });
+      pre.appendChild(btn);
+    });
+
+    // Sidebar scrollspy + mobile select
+    const links = Array.from(document.querySelectorAll("#toc a"));
+    const sections = links.map((a) => document.querySelector(a.getAttribute("href"))).filter(Boolean);
+    const select = document.getElementById("mobile-toc");
+    links.forEach((a) => {
+      const opt = document.createElement("option");
+      opt.value = a.getAttribute("href"); opt.textContent = a.textContent;
+      select.appendChild(opt);
+    });
+    select.addEventListener("change", () => { location.hash = select.value; });
+
+    const setActive = (id) => {
+      links.forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + id));
+      if (select.value !== "#" + id) select.value = "#" + id;
+    };
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      if (visible.length) setActive(visible[0].target.id);
+    }, { rootMargin: "-20% 0px -70% 0px", threshold: 0 });
+    sections.forEach((s) => observer.observe(s));
+    if (location.hash) setActive(location.hash.slice(1)); else if (sections[0]) setActive(sections[0].id);
+  });
+</script>
+</body>
+</html>
