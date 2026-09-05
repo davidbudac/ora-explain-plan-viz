@@ -22,88 +22,29 @@
           mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
           sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
         },
-        boxShadow: {
-          glow: '0 0 0 1px rgba(245,158,11,0.25), 0 30px 80px -20px rgba(245,158,11,0.25), 0 40px 120px -30px rgba(0,0,0,0.8)',
-          card: '0 1px 0 0 rgba(255,255,255,0.04) inset, 0 20px 50px -30px rgba(0,0,0,0.8)',
-        },
       },
     },
   };
 </script>
 
 <style>
-  :root { --amber: #f59e0b; }
-  body { background: #070a12; }
-  .dot-grid {
-    background-image: radial-gradient(circle, rgba(148,163,184,0.16) 1px, transparent 1px);
-    background-size: 22px 22px;
-  }
+  body { background: #0b0f17; }
   .aspect-16-10 { aspect-ratio: 16 / 10; }
-  ::selection { background: rgba(245,158,11,0.35); }
+  ::selection { background: rgba(245,158,11,0.3); }
 
-  /* Hero glow */
-  .hero-glow {
-    background:
-      radial-gradient(60% 50% at 50% 0%, rgba(245,158,11,0.16), transparent 70%),
-      radial-gradient(40% 40% at 20% 30%, rgba(99,102,241,0.12), transparent 70%),
-      radial-gradient(40% 40% at 80% 35%, rgba(14,165,233,0.10), transparent 70%);
-  }
-  .text-glow { text-shadow: 0 0 40px rgba(245,158,11,0.25); }
-  .grad-text {
-    background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 45%, #fb923c 100%);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-  }
-  /* Gradient hairline borders */
-  .hairline { position: relative; }
-  .hairline::before {
-    content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
-    background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.03));
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor; mask-composite: exclude;
-  }
-  .hairline-amber::before {
-    background: linear-gradient(180deg, rgba(245,158,11,0.5), rgba(245,158,11,0.08) 50%, rgba(255,255,255,0.04));
-  }
-  /* Section separators as faded lines instead of hard borders */
-  .sep { height: 1px; background: linear-gradient(90deg, transparent, rgba(148,163,184,0.25), transparent); }
+  /* Screenshot frames: zoomed crops so the UI is legible */
+  .shot { position: relative; overflow: hidden; background: #0b0f17; }
+  .shot img { width: 100%; height: 100%; object-fit: cover; }
+  .shot.zoom-c img { transform: scale(1.35); transform-origin: 50% 40%; }
+  .shot.zoom-r img { transform: scale(1.5); transform-origin: 100% 40%; }
 
-  /* Cards */
-  .card { transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
-  .card:hover { transform: translateY(-3px); border-color: rgba(245,158,11,0.35); }
-
-  /* Screenshot frames: zoomed crops so the UI is actually legible */
-  .shot { position: relative; overflow: hidden; }
-  .shot img { width: 100%; height: 100%; object-fit: cover; transition: transform .6s cubic-bezier(.2,.7,.2,1); }
-  .shot.zoom img { transform: scale(1.35); }
-  .shot.zoom-tl img { transform: scale(1.5); transform-origin: 0% 0%; }
-  .shot.zoom-tr img { transform: scale(1.5); transform-origin: 100% 0%; }
-  .shot.zoom-c  img { transform: scale(1.35); transform-origin: 50% 40%; }
-  .shot.zoom-r  img { transform: scale(1.5); transform-origin: 100% 40%; }
-  .shot::after {
-    content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06), inset 0 -60px 60px -40px rgba(7,10,18,0.9);
-  }
-
-  /* Reveal on scroll */
-  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s ease, transform .7s ease; }
-  .reveal.in { opacity: 1; transform: none; }
-  @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } }
-
-  /* Code sample syntax tint */
-  .code-k { color: #fbbf24; } .code-n { color: #7dd3fc; } .code-c { color: #64748b; }
-
-  /* Step connector */
-  .steps { position: relative; }
-  @media (min-width: 768px) {
-    .steps::before { content: ""; position: absolute; left: 12%; right: 12%; top: 34px; height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(245,158,11,0.45), transparent); }
-  }
+  .code-k { color: #e2e8f0; } .code-n { color: #93c5fd; } .code-c { color: #64748b; }
 </style>
 </head>
 <body class="text-slate-300 font-sans antialiased">
 
 <!-- ================= HEADER ================= -->
-<header class="sticky top-0 z-50 bg-[#070a12]/80 backdrop-blur-md">
+<header class="sticky top-0 z-50 border-b border-slate-800/80 bg-[#0b0f17]/90 backdrop-blur">
   <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
     <a href="#top" class="flex items-center gap-2.5 shrink-0">
       <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
@@ -115,43 +56,39 @@
       <span class="font-semibold tracking-tight text-slate-100">Oracle Plan Visualizer</span>
     </a>
 
-    <nav class="hidden md:flex items-center gap-1 text-sm text-slate-400 rounded-full border border-white/5 bg-white/[0.03] p-1">
-      <a href="#features" class="px-3.5 py-1.5 rounded-full hover:bg-white/5 hover:text-slate-100 transition-colors">Features</a>
-      <a href="#formats" class="px-3.5 py-1.5 rounded-full hover:bg-white/5 hover:text-slate-100 transition-colors">Formats</a>
-      <a href="https://github.com/davidbudac/ora-explain-plan-viz" class="px-3.5 py-1.5 rounded-full hover:bg-white/5 hover:text-slate-100 transition-colors flex items-center gap-1.5">
+    <nav class="hidden md:flex items-center gap-7 text-sm text-slate-400">
+      <a href="#features" class="hover:text-slate-100 transition-colors">Features</a>
+      <a href="#formats" class="hover:text-slate-100 transition-colors">Formats</a>
+      <a href="https://github.com/davidbudac/ora-explain-plan-viz" class="hover:text-slate-100 transition-colors flex items-center gap-1.5">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
         GitHub
       </a>
     </nav>
 
     <a data-app-link data-app-query="" href="https://github.com/davidbudac/ora-explain-plan-viz"
-       class="inline-flex items-center gap-1.5 rounded-full bg-amber-500 px-4 py-1.5 text-sm font-semibold text-slate-950 shadow-[0_0_24px_-4px_rgba(245,158,11,0.6)] hover:bg-amber-400 transition-colors">
+       class="inline-flex items-center gap-1.5 rounded-md bg-amber-500 px-3.5 py-1.5 text-sm font-medium text-slate-950 hover:bg-amber-400 transition-colors">
       Try it live
       <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M7 5l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </a>
   </div>
-  <div class="sep"></div>
 </header>
 
 <main id="top">
 
 <!-- ================= HERO ================= -->
-<section class="relative overflow-hidden">
-  <div class="absolute inset-0 hero-glow"></div>
-  <div class="absolute inset-0 dot-grid [mask-image:radial-gradient(ellipse_60%_55%_at_50%_0%,black,transparent)]"></div>
-
-  <div class="relative max-w-5xl mx-auto px-6 pt-24 pb-24 text-center">
-    <span class="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/5 px-3.5 py-1.5 text-xs font-mono text-emerald-300/90">
-      <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]"></span>
+<section>
+  <div class="max-w-5xl mx-auto px-6 pt-20 pb-20 text-center">
+    <span class="inline-flex items-center gap-2 rounded-full border border-slate-800 px-3.5 py-1.5 text-xs font-mono text-slate-400">
+      <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
       Fully client-side · your plans never leave the browser
     </span>
 
-    <h1 class="mt-8 text-5xl sm:text-6xl font-bold tracking-[-0.03em] leading-[1.05] text-slate-50 text-balance">
+    <h1 class="mt-8 text-4xl sm:text-5xl font-semibold tracking-[-0.02em] leading-[1.1] text-slate-50 text-balance">
       See your execution plans.<br class="hidden sm:block" />
-      <span class="grad-text text-glow">Don't read them.</span>
+      <span class="text-slate-400">Don't read them.</span>
     </h1>
 
-    <p class="mt-6 max-w-2xl mx-auto text-lg sm:text-xl text-slate-400 text-balance leading-relaxed">
+    <p class="mt-6 max-w-2xl mx-auto text-lg text-slate-400 text-balance leading-relaxed">
       Paste DBMS_XPLAN, SQL Monitor, JSON, or xbi.sql output and get an interactive
       diagram with hotspots, cardinality analysis, advisor findings, and plan
       comparison. No more scrolling through a wall of ASCII pipes.
@@ -159,12 +96,12 @@
 
     <div class="mt-9 flex items-center justify-center gap-3">
       <a data-app-link data-app-query="" href="https://github.com/davidbudac/ora-explain-plan-viz"
-         class="inline-flex items-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_40px_-8px_rgba(245,158,11,0.8)] hover:bg-amber-400 hover:shadow-[0_0_50px_-6px_rgba(245,158,11,0.9)] transition-all">
+         class="inline-flex items-center gap-2 rounded-md bg-amber-500 px-5 py-2.5 text-sm font-medium text-slate-950 hover:bg-amber-400 transition-colors">
         Try it live
         <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M7 5l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </a>
       <a href="https://github.com/davidbudac/ora-explain-plan-viz"
-         class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-6 py-3 text-sm font-medium text-slate-200 hover:bg-white/[0.07] hover:border-white/20 transition-colors">
+         class="inline-flex items-center gap-2 rounded-md border border-slate-700 px-5 py-2.5 text-sm font-medium text-slate-200 hover:border-slate-500 hover:text-slate-50 transition-colors">
         View on GitHub
       </a>
     </div>
@@ -174,15 +111,15 @@
     </p>
 
     <!-- Hero screenshot -->
-    <div class="mt-16 mx-auto max-w-5xl reveal in">
-      <div class="hairline hairline-amber rounded-2xl bg-slate-900/80 shadow-glow overflow-hidden">
-        <div class="flex items-center gap-1.5 bg-white/[0.03] px-4 py-2.5 border-b border-white/5">
-          <span class="h-2.5 w-2.5 rounded-full bg-[#ff5f57]"></span>
-          <span class="h-2.5 w-2.5 rounded-full bg-[#febc2e]"></span>
-          <span class="h-2.5 w-2.5 rounded-full bg-[#28c840]"></span>
-          <span class="ml-3 rounded-md bg-white/5 px-2 py-0.5 font-mono text-[11px] text-slate-500 truncate">ora-explain-plan-viz</span>
+    <div class="mt-16 mx-auto max-w-5xl">
+      <div class="rounded-xl border border-slate-800 bg-slate-900 shadow-2xl shadow-black/50 overflow-hidden">
+        <div class="flex items-center gap-1.5 px-4 py-2.5 border-b border-slate-800">
+          <span class="h-2.5 w-2.5 rounded-full bg-slate-700"></span>
+          <span class="h-2.5 w-2.5 rounded-full bg-slate-700"></span>
+          <span class="h-2.5 w-2.5 rounded-full bg-slate-700"></span>
+          <span class="ml-3 font-mono text-[11px] text-slate-500 truncate">ora-explain-plan-viz</span>
         </div>
-        <div class="aspect-16-10 bg-[#070a12] shot">
+        <div class="aspect-16-10 shot">
           <img src="assets/hero.png" alt="Screenshot of the Oracle Plan Visualizer showing an interactive execution plan tree with cost and row badges on each node" />
         </div>
       </div>
@@ -190,120 +127,120 @@
   </div>
 </section>
 
-<div class="sep"></div>
+<hr class="border-slate-800/80" />
 
 <!-- ================= QUICK START ================= -->
 <section class="relative">
-  <div class="max-w-5xl mx-auto px-6 py-24">
-    <p class="font-mono text-xs uppercase tracking-[0.2em] text-amber-400 text-center">Quick start</p>
-    <h2 class="mt-3 text-3xl font-bold tracking-tight text-slate-50 text-center">Thirty seconds to a picture</h2>
+  <div class="max-w-5xl mx-auto px-6 py-20">
+    <p class="font-mono text-xs uppercase tracking-widest text-amber-500 text-center">Quick start</p>
+    <h2 class="mt-3 text-2xl sm:text-3xl font-semibold tracking-tight text-slate-50 text-center">Thirty seconds to a picture</h2>
 
-    <div class="steps mt-14 grid gap-6 md:grid-cols-3">
-      <div class="card hairline rounded-2xl bg-white/[0.025] p-7 shadow-card reveal">
-        <span class="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/15 font-mono text-sm font-semibold text-amber-400 ring-1 ring-amber-400/40">1</span>
-        <h3 class="mt-5 text-lg font-semibold text-slate-100">Paste your plan</h3>
+    <div class="mt-12 grid gap-6 md:grid-cols-3">
+      <div class="rounded-lg border border-slate-800 bg-slate-900/40 p-6">
+        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 font-mono text-sm text-amber-500">1</span>
+        <h3 class="mt-4 font-medium text-slate-100">Paste your plan</h3>
         <p class="mt-2 text-sm text-slate-400 leading-relaxed">Any supported format: DBMS_XPLAN, SQL Monitor (text or XML), JSON plans, or xbi.sql output. Format is auto-detected.</p>
       </div>
-      <div class="card hairline rounded-2xl bg-white/[0.025] p-7 shadow-card reveal" style="transition-delay:.1s">
-        <span class="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/15 font-mono text-sm font-semibold text-amber-400 ring-1 ring-amber-400/40">2</span>
-        <h3 class="mt-5 text-lg font-semibold text-slate-100">Pick a view</h3>
+      <div class="rounded-lg border border-slate-800 bg-slate-900/40 p-6">
+        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 font-mono text-sm text-amber-500">2</span>
+        <h3 class="mt-4 font-medium text-slate-100">Pick a view</h3>
         <p class="mt-2 text-sm text-slate-400 leading-relaxed">Tree, table, Sankey, flame graph, raw plan text — plus experimental timeline and calibration views. Switch anytime without re-parsing.</p>
       </div>
-      <div class="card hairline rounded-2xl bg-white/[0.025] p-7 shadow-card reveal" style="transition-delay:.2s">
-        <span class="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/15 font-mono text-sm font-semibold text-amber-400 ring-1 ring-amber-400/40">3</span>
-        <h3 class="mt-5 text-lg font-semibold text-slate-100">Find the problem</h3>
+      <div class="rounded-lg border border-slate-800 bg-slate-900/40 p-6">
+        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 font-mono text-sm text-amber-500">3</span>
+        <h3 class="mt-4 font-medium text-slate-100">Find the problem</h3>
         <p class="mt-2 text-sm text-slate-400 leading-relaxed">Hotspots, cardinality mismatches, and advisor findings (spills, cartesian joins, stale stats&hellip;) are flagged automatically. No manual hunting.</p>
       </div>
     </div>
   </div>
 </section>
 
-<div class="sep"></div>
+<hr class="border-slate-800/80" />
 
 <!-- ================= FEATURE TOUR ================= -->
 <section id="features" class="relative">
-  <div class="max-w-6xl mx-auto px-6 py-24">
-    <p class="font-mono text-xs uppercase tracking-[0.2em] text-amber-400 text-center">Feature tour</p>
-    <h2 class="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-slate-50 text-center text-balance">Built around how you actually tune a plan</h2>
+  <div class="max-w-6xl mx-auto px-6 py-20">
+    <p class="font-mono text-xs uppercase tracking-widest text-amber-500 text-center">Feature tour</p>
+    <h2 class="mt-3 text-2xl sm:text-3xl font-semibold tracking-tight text-slate-50 text-center text-balance">Built around how you actually tune a plan</h2>
 
-    <div class="mt-20 space-y-28">
+    <div class="mt-16 space-y-24">
 
       <!-- 1 -->
-      <div class="grid gap-12 md:grid-cols-2 md:items-center reveal">
+      <div class="grid gap-10 md:grid-cols-2 md:items-center">
         <div>
-          <span class="font-mono text-xs text-amber-400/80">01</span>
-          <h3 class="mt-2 text-2xl font-semibold tracking-tight text-slate-50">Interactive plan tree</h3>
+          <span class="font-mono text-xs text-slate-500">01</span>
+          <h3 class="mt-2 text-xl font-semibold tracking-tight text-slate-50">Interactive plan tree</h3>
           <p class="mt-4 text-slate-400 leading-relaxed">
             The plan renders as a real tree, laid out with a custom algorithm (Dagre as fallback),
             not a scrollable text block. Click any node to see its full attributes, predicates,
             and cardinality analysis. Cmd/Ctrl-click for multi-select with aggregated stats.
             Arrow keys move between parent, child, and sibling nodes.
           </p>
-          <a data-app-link data-app-query="?example=22" href="#" class="mt-6 inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/5 px-4 py-1.5 text-sm font-medium text-amber-300 hover:bg-amber-400/15 transition-colors">Try this live <span aria-hidden="true">→</span></a>
+          <a data-app-link data-app-query="?example=22" href="#" class="mt-5 inline-flex items-center gap-1 text-sm font-medium text-amber-500 hover:text-amber-400">Try this live <span aria-hidden="true">→</span></a>
         </div>
-        <div class="hairline rounded-2xl bg-slate-900/60 shadow-card overflow-hidden">
+        <div class="rounded-lg border border-slate-800 bg-slate-900 overflow-hidden">
           <div class="aspect-16-10 shot zoom-c"><img src="assets/tree.png" alt="Interactive hierarchical tree view of an Oracle execution plan with color-coded operation nodes" /></div>
         </div>
       </div>
 
       <!-- 2 -->
-      <div class="grid gap-12 md:grid-cols-2 md:items-center reveal">
+      <div class="grid gap-10 md:grid-cols-2 md:items-center">
         <div class="md:order-2">
-          <span class="font-mono text-xs text-amber-400/80">02</span>
-          <h3 class="mt-2 text-2xl font-semibold tracking-tight text-slate-50">Hotspot detection &amp; runtime stats</h3>
+          <span class="font-mono text-xs text-slate-500">02</span>
+          <h3 class="mt-2 text-xl font-semibold tracking-tight text-slate-50">Hotspot detection &amp; runtime stats</h3>
           <p class="mt-4 text-slate-400 leading-relaxed">
             When SQL Monitor data is available, every node shows A-Rows, E-Rows, A-Time, and Starts.
             The node with the highest A-Time gets a red ring and a "Hotspot" badge automatically.
             When nothing is selected, a summary panel lists the top 5 nodes by A-Time, cost, and
             worst cardinality mismatch. Click any entry to jump straight to it.
           </p>
-          <a data-app-link data-app-query="?example=22" href="#" class="mt-6 inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/5 px-4 py-1.5 text-sm font-medium text-amber-300 hover:bg-amber-400/15 transition-colors">Try this live <span aria-hidden="true">→</span></a>
+          <a data-app-link data-app-query="?example=22" href="#" class="mt-5 inline-flex items-center gap-1 text-sm font-medium text-amber-500 hover:text-amber-400">Try this live <span aria-hidden="true">→</span></a>
         </div>
-        <div class="md:order-1 hairline rounded-2xl bg-slate-900/60 shadow-card overflow-hidden">
+        <div class="md:order-1 rounded-lg border border-slate-800 bg-slate-900 overflow-hidden">
           <div class="aspect-16-10 shot zoom-r"><img src="assets/hotspot.png" alt="Execution plan node highlighted with a red hotspot ring and A-Time badge, next to a top-5 hotspots summary panel" /></div>
         </div>
       </div>
 
       <!-- 3 -->
-      <div class="grid gap-12 md:grid-cols-2 md:items-center reveal">
+      <div class="grid gap-10 md:grid-cols-2 md:items-center">
         <div>
-          <span class="font-mono text-xs text-amber-400/80">03</span>
-          <h3 class="mt-2 text-2xl font-semibold tracking-tight text-slate-50">Cardinality mismatch analysis</h3>
+          <span class="font-mono text-xs text-slate-500">03</span>
+          <h3 class="mt-2 text-xl font-semibold tracking-tight text-slate-50">Cardinality mismatch analysis</h3>
           <p class="mt-4 text-slate-400 leading-relaxed">
             Compares the optimizer's E-Rows estimate against the actual A-Rows for every node and
             flags the divergence with severity badges (warn at 3x, bad at 10x). A dedicated filter
             slider hides everything except nodes that exceed a mismatch threshold you set, so
             stale statistics and bad selectivity guesses surface right away.
           </p>
-          <a data-app-link data-app-query="?example=22" href="#" class="mt-6 inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/5 px-4 py-1.5 text-sm font-medium text-amber-300 hover:bg-amber-400/15 transition-colors">Try this live <span aria-hidden="true">→</span></a>
+          <a data-app-link data-app-query="?example=22" href="#" class="mt-5 inline-flex items-center gap-1 text-sm font-medium text-amber-500 hover:text-amber-400">Try this live <span aria-hidden="true">→</span></a>
         </div>
-        <div class="hairline rounded-2xl bg-slate-900/60 shadow-card overflow-hidden">
+        <div class="rounded-lg border border-slate-800 bg-slate-900 overflow-hidden">
           <div class="aspect-16-10 shot zoom-r"><img src="assets/cardinality.png" alt="Node detail panel showing E-Rows vs A-Rows cardinality mismatch with a severity badge" /></div>
         </div>
       </div>
 
       <!-- 4 -->
-      <div class="grid gap-12 md:grid-cols-2 md:items-center reveal">
+      <div class="grid gap-10 md:grid-cols-2 md:items-center">
         <div class="md:order-2">
-          <span class="font-mono text-xs text-amber-400/80">04</span>
-          <h3 class="mt-2 text-2xl font-semibold tracking-tight text-slate-50">Sankey data-flow view</h3>
+          <span class="font-mono text-xs text-slate-500">04</span>
+          <h3 class="mt-2 text-xl font-semibold tracking-tight text-slate-50">Sankey data-flow view</h3>
           <p class="mt-4 text-slate-400 leading-relaxed">
             The same plan rendered as a D3 Sankey diagram, where band width encodes volume flowing
             between operations. Toggle the metric (rows, cost, A-Rows, or A-Time) to see which
             step is moving the most data or burning the most time.
           </p>
-          <a data-app-link data-app-query="?example=05&amp;view=sankey" href="#" class="mt-6 inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/5 px-4 py-1.5 text-sm font-medium text-amber-300 hover:bg-amber-400/15 transition-colors">Try this live <span aria-hidden="true">→</span></a>
+          <a data-app-link data-app-query="?example=05&amp;view=sankey" href="#" class="mt-5 inline-flex items-center gap-1 text-sm font-medium text-amber-500 hover:text-amber-400">Try this live <span aria-hidden="true">→</span></a>
         </div>
-        <div class="md:order-1 hairline rounded-2xl bg-slate-900/60 shadow-card overflow-hidden">
+        <div class="md:order-1 rounded-lg border border-slate-800 bg-slate-900 overflow-hidden">
           <div class="aspect-16-10 shot zoom-c"><img src="assets/sankey.png" alt="Sankey diagram of an Oracle execution plan showing data flow volume between operations" /></div>
         </div>
       </div>
 
       <!-- 5 -->
-      <div class="grid gap-12 md:grid-cols-2 md:items-center reveal">
+      <div class="grid gap-10 md:grid-cols-2 md:items-center">
         <div>
-          <span class="font-mono text-xs text-amber-400/80">05</span>
-          <h3 class="mt-2 text-2xl font-semibold tracking-tight text-slate-50">Plan comparison</h3>
+          <span class="font-mono text-xs text-slate-500">05</span>
+          <h3 class="mt-2 text-xl font-semibold tracking-tight text-slate-50">Plan comparison</h3>
           <p class="mt-4 text-slate-400 leading-relaxed">
             Load two plans side by side: before and after an index change, a hint, or a statistics
             refresh. A 3-pass node matcher lines up equivalent steps across both plans and computes
@@ -311,62 +248,62 @@
             space, and memory — with improvement or regression flagged on each. The Tree and Tabular
             tabs also switch to side-by-side dual-pane variants when two plans are loaded.
           </p>
-          <a data-app-link data-app-query="" href="#" class="mt-6 inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/5 px-4 py-1.5 text-sm font-medium text-amber-300 hover:bg-amber-400/15 transition-colors">Try this live <span aria-hidden="true">→</span></a>
+          <a data-app-link data-app-query="" href="#" class="mt-5 inline-flex items-center gap-1 text-sm font-medium text-amber-500 hover:text-amber-400">Try this live <span aria-hidden="true">→</span></a>
         </div>
-        <div class="hairline rounded-2xl bg-slate-900/60 shadow-card overflow-hidden">
+        <div class="rounded-lg border border-slate-800 bg-slate-900 overflow-hidden">
           <div class="aspect-16-10 shot zoom-c"><img src="assets/compare.png" alt="Side-by-side comparison of two execution plans with per-node metric deltas and regression indicators" /></div>
         </div>
       </div>
 
       <!-- 6 -->
-      <div class="grid gap-12 md:grid-cols-2 md:items-center reveal">
+      <div class="grid gap-10 md:grid-cols-2 md:items-center">
         <div class="md:order-2">
-          <span class="font-mono text-xs text-amber-400/80">06</span>
-          <h3 class="mt-2 text-2xl font-semibold tracking-tight text-slate-50">Annotations &amp; sharing</h3>
+          <span class="font-mono text-xs text-slate-500">06</span>
+          <h3 class="mt-2 text-xl font-semibold tracking-tight text-slate-50">Annotations &amp; sharing</h3>
           <p class="mt-4 text-slate-400 leading-relaxed">
             Attach timestamped notes to any node, mark it with one of 7 highlight colors, or group
             several nodes under a named label. Export the annotated plan as a JSON file, load it
             back later, or hand it to a teammate. Re-importing validates it against the original
             plan.
           </p>
-          <a data-app-link data-app-query="?example=02" href="#" class="mt-6 inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/5 px-4 py-1.5 text-sm font-medium text-amber-300 hover:bg-amber-400/15 transition-colors">Try this live <span aria-hidden="true">→</span></a>
+          <a data-app-link data-app-query="?example=02" href="#" class="mt-5 inline-flex items-center gap-1 text-sm font-medium text-amber-500 hover:text-amber-400">Try this live <span aria-hidden="true">→</span></a>
         </div>
-        <div class="md:order-1 hairline rounded-2xl bg-slate-900/60 shadow-card overflow-hidden">
+        <div class="md:order-1 rounded-lg border border-slate-800 bg-slate-900 overflow-hidden">
           <div class="aspect-16-10 shot zoom-c"><img src="assets/annotations.png" alt="Execution plan node with a colored highlight ring and an attached text annotation" /></div>
         </div>
       </div>
 
       <!-- 7 -->
-      <div class="grid gap-12 md:grid-cols-2 md:items-center reveal">
+      <div class="grid gap-10 md:grid-cols-2 md:items-center">
         <div>
-          <span class="font-mono text-xs text-amber-400/80">07</span>
-          <h3 class="mt-2 text-2xl font-semibold tracking-tight text-slate-50">Flame graph</h3>
+          <span class="font-mono text-xs text-slate-500">07</span>
+          <h3 class="mt-2 text-xl font-semibold tracking-tight text-slate-50">Flame graph</h3>
           <p class="mt-4 text-slate-400 leading-relaxed">
             Where does the time (or cost) actually go? The plan rendered as a flame graph, with
             bars sized by each operation's self value. Toggle the metric between Cost, A-Time,
             and A-Rows, and click any bar to zoom into that subtree.
           </p>
-          <a data-app-link data-app-query="?example=18&amp;view=flame" href="#" class="mt-6 inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/5 px-4 py-1.5 text-sm font-medium text-amber-300 hover:bg-amber-400/15 transition-colors">Try this live <span aria-hidden="true">→</span></a>
+          <a data-app-link data-app-query="?example=18&amp;view=flame" href="#" class="mt-5 inline-flex items-center gap-1 text-sm font-medium text-amber-500 hover:text-amber-400">Try this live <span aria-hidden="true">→</span></a>
         </div>
-        <div class="hairline rounded-2xl bg-slate-900/60 shadow-card overflow-hidden">
+        <div class="rounded-lg border border-slate-800 bg-slate-900 overflow-hidden">
           <div class="aspect-16-10 shot zoom-c"><img src="assets/flame.png" alt="Flame graph of an Oracle execution plan with bars sized by self time" /></div>
         </div>
       </div>
 
       <!-- 8 -->
-      <div class="grid gap-12 md:grid-cols-2 md:items-center reveal">
+      <div class="grid gap-10 md:grid-cols-2 md:items-center">
         <div class="md:order-2">
-          <span class="font-mono text-xs text-amber-400/80">08</span>
-          <h3 class="mt-2 text-2xl font-semibold tracking-tight text-slate-50">Execution timeline &amp; experimental views</h3>
+          <span class="font-mono text-xs text-slate-500">08</span>
+          <h3 class="mt-2 text-xl font-semibold tracking-tight text-slate-50">Execution timeline &amp; experimental views</h3>
           <p class="mt-4 text-slate-400 leading-relaxed">
             From a SQL Monitor XML report, a Gantt of when each operation was actually active,
             colored by ASH wait class. The Experimental tab also holds an E-Rows vs A-Rows
             calibration scatter, a wasted-work waterfall (rows read vs returned), an
             estimate&rarr;actual icicle morph, and per-line wait-class composition.
           </p>
-          <a data-app-link data-app-query="?example=23&amp;view=experimental" href="#" class="mt-6 inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/5 px-4 py-1.5 text-sm font-medium text-amber-300 hover:bg-amber-400/15 transition-colors">Try this live <span aria-hidden="true">→</span></a>
+          <a data-app-link data-app-query="?example=23&amp;view=experimental" href="#" class="mt-5 inline-flex items-center gap-1 text-sm font-medium text-amber-500 hover:text-amber-400">Try this live <span aria-hidden="true">→</span></a>
         </div>
-        <div class="md:order-1 hairline rounded-2xl bg-slate-900/60 shadow-card overflow-hidden">
+        <div class="md:order-1 rounded-lg border border-slate-800 bg-slate-900 overflow-hidden">
           <div class="aspect-16-10 shot zoom-c"><img src="assets/timeline.png" alt="Execution timeline Gantt chart with per-operation activity bars colored by ASH wait class" /></div>
         </div>
       </div>
@@ -375,69 +312,69 @@
   </div>
 </section>
 
-<div class="sep"></div>
+<hr class="border-slate-800/80" />
 
 <!-- ================= AND MORE ================= -->
 <section class="relative">
-  <div class="max-w-6xl mx-auto px-6 py-24">
-    <p class="font-mono text-xs uppercase tracking-[0.2em] text-amber-400 text-center">And more</p>
-    <h2 class="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-slate-50 text-center">The rest of the toolbox</h2>
+  <div class="max-w-6xl mx-auto px-6 py-20">
+    <p class="font-mono text-xs uppercase tracking-widest text-amber-500 text-center">And more</p>
+    <h2 class="mt-3 text-2xl sm:text-3xl font-semibold tracking-tight text-slate-50 text-center">The rest of the toolbox</h2>
 
-    <div class="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-      <div class="card hairline rounded-2xl bg-white/[0.025] p-6 shadow-card reveal">
-        <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400 ring-1 ring-amber-400/20"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.8 5.4L19 9l-5.2 1.6L12 16l-1.8-5.4L5 9l5.2-1.6z"/><path d="M5 19l.8 2.2L8 22l-2.2.8L5 25"/></svg></div>
-        <h3 class="mt-4 font-semibold text-slate-100">Plan advisor</h3>
+    <div class="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div class="rounded-lg border border-slate-800 bg-slate-900/40 p-6">
+        <div class="flex h-8 w-8 items-center justify-center rounded-md border border-slate-800 text-slate-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.8 5.4L19 9l-5.2 1.6L12 16l-1.8-5.4L5 9l5.2-1.6z"/><path d="M5 19l.8 2.2L8 22l-2.2.8L5 25"/></svg></div>
+        <h3 class="mt-4 font-medium text-slate-100">Plan advisor</h3>
         <p class="mt-2 text-sm text-slate-400 leading-relaxed">Ten heuristic rules — cardinality mismatch, implicit conversion, cartesian joins, spills to disk, missed partition pruning, stale stats, and more — surfaced per node and as a ranked list.</p>
       </div>
-      <div class="card hairline rounded-2xl bg-white/[0.025] p-6 shadow-card reveal">
-        <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400 ring-1 ring-sky-400/20"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></div>
-        <h3 class="mt-4 font-semibold text-slate-100">Schema metadata</h3>
+      <div class="rounded-lg border border-slate-800 bg-slate-900/40 p-6">
+        <div class="flex h-8 w-8 items-center justify-center rounded-md border border-slate-800 text-slate-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></div>
+        <h3 class="mt-4 font-medium text-slate-100">Schema metadata</h3>
         <p class="mt-2 text-sm text-slate-400 leading-relaxed">Attach table, index, and column stats gathered by a generated SQL script. Objects show inline badges in the plan, and a dedicated Metadata explorer browses the whole bundle.</p>
       </div>
-      <div class="card hairline rounded-2xl bg-white/[0.025] p-6 shadow-card reveal">
-        <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-400/20"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
-        <h3 class="mt-4 font-semibold text-slate-100">SQL Plan Baseline script</h3>
+      <div class="rounded-lg border border-slate-800 bg-slate-900/40 p-6">
+        <div class="flex h-8 w-8 items-center justify-center rounded-md border border-slate-800 text-slate-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
+        <h3 class="mt-4 font-medium text-slate-100">SQL Plan Baseline script</h3>
         <p class="mt-2 text-sm text-slate-400 leading-relaxed">Generates a ready-to-run DBMS_SPM script that pins the loaded plan — from the cursor cache, AWR, or a SQL Tuning Set — with pre-checks and verification queries.</p>
       </div>
-      <div class="card hairline rounded-2xl bg-white/[0.025] p-6 shadow-card reveal">
-        <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/10 text-violet-400 ring-1 ring-violet-400/20"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></div>
-        <h3 class="mt-4 font-semibold text-slate-100">Client report export</h3>
+      <div class="rounded-lg border border-slate-800 bg-slate-900/40 p-6">
+        <div class="flex h-8 w-8 items-center justify-center rounded-md border border-slate-800 text-slate-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></div>
+        <h3 class="mt-4 font-medium text-slate-100">Client report export</h3>
         <p class="mt-2 text-sm text-slate-400 leading-relaxed">Package the plan, your notes and highlights, and all derived findings into one self-contained HTML document to hand to a client — or print it to PDF.</p>
       </div>
-      <div class="card hairline rounded-2xl bg-white/[0.025] p-6 shadow-card reveal">
-        <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-pink-500/10 text-pink-400 ring-1 ring-pink-400/20"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.5 1.5"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.5-1.5"/></svg></div>
-        <h3 class="mt-4 font-semibold text-slate-100">Share via URL</h3>
-        <p class="mt-2 text-sm text-slate-400 leading-relaxed">Bake the whole plan into a gzip-compressed link — from the app, or straight from the database with the bundled <code class="font-mono text-xs text-slate-300 bg-white/5 px-1 py-0.5 rounded">plan_to_url.sql</code> script.</p>
+      <div class="rounded-lg border border-slate-800 bg-slate-900/40 p-6">
+        <div class="flex h-8 w-8 items-center justify-center rounded-md border border-slate-800 text-slate-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.5 1.5"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.5-1.5"/></svg></div>
+        <h3 class="mt-4 font-medium text-slate-100">Share via URL</h3>
+        <p class="mt-2 text-sm text-slate-400 leading-relaxed">Bake the whole plan into a gzip-compressed link — from the app, or straight from the database with the bundled <code class="font-mono text-xs text-slate-300">plan_to_url.sql</code> script.</p>
       </div>
-      <div class="card hairline rounded-2xl bg-white/[0.025] p-6 shadow-card reveal">
-        <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-500/10 text-orange-400 ring-1 ring-orange-400/20"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18M8 9h.01M12 6h.01M16 9h.01"/></svg></div>
-        <h3 class="mt-4 font-semibold text-slate-100">Make it yours</h3>
+      <div class="rounded-lg border border-slate-800 bg-slate-900/40 p-6">
+        <div class="flex h-8 w-8 items-center justify-center rounded-md border border-slate-800 text-slate-400"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18M8 9h.01M12 6h.01M16 9h.01"/></svg></div>
+        <h3 class="mt-4 font-medium text-slate-100">Make it yours</h3>
         <p class="mt-2 text-sm text-slate-400 leading-relaxed">Light and dark themes, five app palettes, eight node color schemes, Minimal-to-Detailed density presets, a focus mode, and a Cmd/Ctrl-K command palette for all of it.</p>
       </div>
     </div>
   </div>
 </section>
 
-<div class="sep"></div>
+<hr class="border-slate-800/80" />
 
 <!-- ================= SUPPORTED FORMATS ================= -->
 <section id="formats" class="relative">
-  <div class="max-w-6xl mx-auto px-6 py-24">
-    <p class="font-mono text-xs uppercase tracking-[0.2em] text-amber-400 text-center">Input formats</p>
-    <h2 class="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-slate-50 text-center">Paste what you already have</h2>
+  <div class="max-w-6xl mx-auto px-6 py-20">
+    <p class="font-mono text-xs uppercase tracking-widest text-amber-500 text-center">Input formats</p>
+    <h2 class="mt-3 text-2xl sm:text-3xl font-semibold tracking-tight text-slate-50 text-center">Paste what you already have</h2>
     <p class="mt-4 text-slate-400 text-center max-w-2xl mx-auto leading-relaxed">
       No conversion step. Copy the output straight from SQL*Plus or SQL Developer, paste it in,
       and the format is detected automatically.
     </p>
 
-    <div class="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+    <div class="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 
-      <div class="card hairline rounded-2xl bg-white/[0.025] shadow-card overflow-hidden reveal">
+      <div class="rounded-lg border border-slate-800 bg-slate-900/40 overflow-hidden">
         <div class="px-5 py-4 flex items-start justify-between gap-3">
-          <div><h3 class="font-semibold text-slate-100">DBMS_XPLAN</h3><p class="mt-1 text-xs text-slate-500">Standard optimizer plan: rows, bytes, cost, predicates.</p></div>
-          <span class="shrink-0 rounded-full bg-amber-400/10 px-2 py-0.5 font-mono text-[10px] text-amber-300 ring-1 ring-amber-400/20">text</span>
+          <div><h3 class="font-medium text-slate-100">DBMS_XPLAN</h3><p class="mt-1 text-xs text-slate-500">Standard optimizer plan: rows, bytes, cost, predicates.</p></div>
+          <span class="shrink-0 rounded border border-slate-700 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">text</span>
         </div>
-        <pre class="m-0 px-5 py-4 bg-black/30 border-t border-white/5 text-[11px] leading-5 font-mono text-slate-400 overflow-x-auto"><code><span class="code-c">Plan hash value: 3456789012</span>
+        <pre class="m-0 px-5 py-4 border-t border-slate-800 text-[11px] leading-5 font-mono text-slate-400 overflow-x-auto"><code><span class="code-c">Plan hash value: 3456789012</span>
 
 --------------------------------------------------
 | Id | <span class="code-k">Operation</span>           | Name  | Rows | Cost |
@@ -447,12 +384,12 @@
 |* 2 |   <span class="code-n">HASH JOIN</span>         |       | 1000 |15210 |</code></pre>
       </div>
 
-      <div class="card hairline rounded-2xl bg-white/[0.025] shadow-card overflow-hidden reveal">
+      <div class="rounded-lg border border-slate-800 bg-slate-900/40 overflow-hidden">
         <div class="px-5 py-4 flex items-start justify-between gap-3">
-          <div><h3 class="font-semibold text-slate-100">SQL Monitor (text)</h3><p class="mt-1 text-xs text-slate-500">Runtime stats from V$SQL_PLAN_MONITOR: A-Rows, A-Time, Starts.</p></div>
-          <span class="shrink-0 rounded-full bg-amber-400/10 px-2 py-0.5 font-mono text-[10px] text-amber-300 ring-1 ring-amber-400/20">text</span>
+          <div><h3 class="font-medium text-slate-100">SQL Monitor (text)</h3><p class="mt-1 text-xs text-slate-500">Runtime stats from V$SQL_PLAN_MONITOR: A-Rows, A-Time, Starts.</p></div>
+          <span class="shrink-0 rounded border border-slate-700 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">text</span>
         </div>
-        <pre class="m-0 px-5 py-4 bg-black/30 border-t border-white/5 text-[11px] leading-5 font-mono text-slate-400 overflow-x-auto"><code><span class="code-c">SQL Plan Monitoring Details (Plan Hash Value=2058068615)</span>
+        <pre class="m-0 px-5 py-4 border-t border-slate-800 text-[11px] leading-5 font-mono text-slate-400 overflow-x-auto"><code><span class="code-c">SQL Plan Monitoring Details (Plan Hash Value=2058068615)</span>
 ================================================================
 | Id | <span class="code-k">Operation</span>         | Name | E-Rows | A-Rows | A-Time   |
 ================================================================
@@ -460,12 +397,12 @@
 |  1 |  <span class="code-n">HASH GROUP BY</span>    |      |      1 |      1 | 00:00:01 |</code></pre>
       </div>
 
-      <div class="card hairline rounded-2xl bg-white/[0.025] shadow-card overflow-hidden reveal">
+      <div class="rounded-lg border border-slate-800 bg-slate-900/40 overflow-hidden">
         <div class="px-5 py-4 flex items-start justify-between gap-3">
-          <div><h3 class="font-semibold text-slate-100">SQL Monitor (XML)</h3><p class="mt-1 text-xs text-slate-500">Full detail from DBMS_SQL_MONITOR.REPORT_SQL_MONITOR, type=&#39;XML&#39;.</p></div>
-          <span class="shrink-0 rounded-full bg-sky-400/10 px-2 py-0.5 font-mono text-[10px] text-sky-300 ring-1 ring-sky-400/20">xml</span>
+          <div><h3 class="font-medium text-slate-100">SQL Monitor (XML)</h3><p class="mt-1 text-xs text-slate-500">Full detail from DBMS_SQL_MONITOR.REPORT_SQL_MONITOR, type=&#39;XML&#39;.</p></div>
+          <span class="shrink-0 rounded border border-slate-700 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">xml</span>
         </div>
-        <pre class="m-0 px-5 py-4 bg-black/30 border-t border-white/5 text-[11px] leading-5 font-mono text-slate-400 overflow-x-auto"><code>&lt;<span class="code-k">report</span> db_version="19.0.0.0.0"&gt;
+        <pre class="m-0 px-5 py-4 border-t border-slate-800 text-[11px] leading-5 font-mono text-slate-400 overflow-x-auto"><code>&lt;<span class="code-k">report</span> db_version="19.0.0.0.0"&gt;
   &lt;<span class="code-k">sql_monitor_report</span> version="4.0"&gt;
     &lt;<span class="code-k">report_parameters</span>&gt;
       &lt;<span class="code-k">sql_id</span>&gt;<span class="code-n">96d05a34rtfqx</span>&lt;/<span class="code-k">sql_id</span>&gt;
@@ -473,12 +410,12 @@
     &lt;<span class="code-k">plan_monitor</span>&gt;...&lt;/<span class="code-k">plan_monitor</span>&gt;</code></pre>
       </div>
 
-      <div class="card hairline rounded-2xl bg-white/[0.025] shadow-card overflow-hidden reveal">
+      <div class="rounded-lg border border-slate-800 bg-slate-900/40 overflow-hidden">
         <div class="px-5 py-4 flex items-start justify-between gap-3">
-          <div><h3 class="font-semibold text-slate-100">JSON plan</h3><p class="mt-1 text-xs text-slate-500">Rows from V$SQL_PLAN_STATISTICS_ALL as JSON — e.g. xdd.sql or Datadog exports.</p></div>
-          <span class="shrink-0 rounded-full bg-emerald-400/10 px-2 py-0.5 font-mono text-[10px] text-emerald-300 ring-1 ring-emerald-400/20">json</span>
+          <div><h3 class="font-medium text-slate-100">JSON plan</h3><p class="mt-1 text-xs text-slate-500">Rows from V$SQL_PLAN_STATISTICS_ALL as JSON — e.g. xdd.sql or Datadog exports.</p></div>
+          <span class="shrink-0 rounded border border-slate-700 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">json</span>
         </div>
-        <pre class="m-0 px-5 py-4 bg-black/30 border-t border-white/5 text-[11px] leading-5 font-mono text-slate-400 overflow-x-auto"><code>[{<span class="code-k">"ID"</span>: 0,
+        <pre class="m-0 px-5 py-4 border-t border-slate-800 text-[11px] leading-5 font-mono text-slate-400 overflow-x-auto"><code>[{<span class="code-k">"ID"</span>: 0,
   <span class="code-k">"OPERATION"</span>: <span class="code-n">"SELECT STATEMENT"</span>,
   <span class="code-k">"COST"</span>: 15234, <span class="code-k">"CARDINALITY"</span>: 1000,
   <span class="code-k">"LAST_OUTPUT_ROWS"</span>: 4},
@@ -486,12 +423,12 @@
   <span class="code-k">"OPERATION"</span>: <span class="code-n">"HASH JOIN"</span>, ...}]</code></pre>
       </div>
 
-      <div class="card hairline rounded-2xl bg-white/[0.025] shadow-card overflow-hidden reveal">
+      <div class="rounded-lg border border-slate-800 bg-slate-900/40 overflow-hidden">
         <div class="px-5 py-4 flex items-start justify-between gap-3">
-          <div><h3 class="font-semibold text-slate-100">xbi.sql</h3><p class="mt-1 text-xs text-slate-500">Tanel Poder's "eXplain Better" script output, estimates vs actuals inline.</p></div>
-          <span class="shrink-0 rounded-full bg-amber-400/10 px-2 py-0.5 font-mono text-[10px] text-amber-300 ring-1 ring-amber-400/20">text</span>
+          <div><h3 class="font-medium text-slate-100">xbi.sql</h3><p class="mt-1 text-xs text-slate-500">Tanel Poder's "eXplain Better" script output, estimates vs actuals inline.</p></div>
+          <span class="shrink-0 rounded border border-slate-700 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">text</span>
         </div>
-        <pre class="m-0 px-5 py-4 bg-black/30 border-t border-white/5 text-[11px] leading-5 font-mono text-slate-400 overflow-x-auto"><code><span class="code-c">-- xbi.sql: eXplain Better v1.01</span>
+        <pre class="m-0 px-5 py-4 border-t border-slate-800 text-[11px] leading-5 font-mono text-slate-400 overflow-x-auto"><code><span class="code-c">-- xbi.sql: eXplain Better v1.01</span>
  Op   Par.
  ID     ID  <span class="code-k">Row Source</span>          ms spent
 ----- ----- ------------------- --------
@@ -499,12 +436,12 @@
     1     0  <span class="code-n">SORT ORDER BY</span>           .07</code></pre>
       </div>
 
-      <div class="hairline hairline-amber rounded-2xl bg-gradient-to-br from-amber-500/10 to-transparent p-6 flex flex-col justify-between reveal">
+      <div class="rounded-lg border border-dashed border-slate-700 p-6 flex flex-col justify-between">
         <div>
-          <h3 class="font-semibold text-slate-50 text-lg">Got a plan open right now?</h3>
+          <h3 class="font-medium text-slate-100">Got a plan open right now?</h3>
           <p class="mt-2 text-sm text-slate-400 leading-relaxed">Paste it in. Nothing is uploaded — parsing, layout and analysis all run in your browser tab.</p>
         </div>
-        <a data-app-link data-app-query="" href="#" class="mt-6 inline-flex w-fit items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-amber-400 transition-colors">Open the visualizer <span aria-hidden="true">→</span></a>
+        <a data-app-link data-app-query="" href="#" class="mt-6 inline-flex w-fit items-center gap-1 text-sm font-medium text-amber-500 hover:text-amber-400">Open the visualizer <span aria-hidden="true">→</span></a>
       </div>
 
     </div>
@@ -512,14 +449,13 @@
 </section>
 
 <!-- ================= FINAL CTA ================= -->
-<section class="relative overflow-hidden">
-  <div class="absolute inset-0 hero-glow opacity-80 [mask-image:radial-gradient(ellipse_70%_80%_at_50%_100%,black,transparent)]"></div>
-  <div class="relative max-w-3xl mx-auto px-6 py-28 text-center">
-    <h2 class="text-3xl sm:text-4xl font-bold tracking-tight text-slate-50 text-balance">Stop squinting at ASCII pipes.</h2>
-    <p class="mt-4 text-slate-400 text-lg">Free, open source, and nothing to install.</p>
+<section class="border-t border-slate-800/80">
+  <div class="max-w-3xl mx-auto px-6 py-20 text-center">
+    <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-50 text-balance">Stop squinting at ASCII pipes.</h2>
+    <p class="mt-3 text-slate-400">Free, open source, and nothing to install.</p>
     <div class="mt-8 flex items-center justify-center gap-3">
-      <a data-app-link data-app-query="" href="#" class="inline-flex items-center gap-2 rounded-full bg-amber-500 px-6 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_40px_-8px_rgba(245,158,11,0.8)] hover:bg-amber-400 transition-colors">Try it live <span aria-hidden="true">→</span></a>
-      <a href="https://github.com/davidbudac/ora-explain-plan-viz" class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-6 py-3 text-sm font-medium text-slate-200 hover:bg-white/[0.07] transition-colors">Star on GitHub</a>
+      <a data-app-link data-app-query="" href="#" class="inline-flex items-center gap-2 rounded-md bg-amber-500 px-5 py-2.5 text-sm font-medium text-slate-950 hover:bg-amber-400 transition-colors">Try it live <span aria-hidden="true">→</span></a>
+      <a href="https://github.com/davidbudac/ora-explain-plan-viz" class="inline-flex items-center gap-2 rounded-md border border-slate-700 px-5 py-2.5 text-sm font-medium text-slate-200 hover:border-slate-500 hover:text-slate-50 transition-colors">Star on GitHub</a>
     </div>
   </div>
 </section>
@@ -528,8 +464,7 @@
 
 <!-- ================= FOOTER ================= -->
 <footer>
-  <div class="sep"></div>
-  <div class="max-w-6xl mx-auto px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+  <div class="max-w-6xl mx-auto px-6 py-10 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4">
     <p class="text-sm text-slate-500">Built for Oracle DBAs and developers · MIT-style open source</p>
     <a href="https://github.com/davidbudac/ora-explain-plan-viz" class="inline-flex items-center gap-1.5 font-mono text-xs text-slate-400 hover:text-slate-100 transition-colors">
       github.com/davidbudac/ora-explain-plan-viz
@@ -543,10 +478,6 @@
     document.querySelectorAll("[data-app-link]").forEach((el) => {
       el.setAttribute("href", APP_URL + (el.getAttribute("data-app-query") || ""));
     });
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } });
-    }, { rootMargin: "0px 0px -10% 0px" });
-    document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
   });
 </script>
 </body>
