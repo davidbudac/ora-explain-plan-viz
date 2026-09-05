@@ -293,13 +293,14 @@ docker compose up --build
 # additionally build the connector-enabled UI on http://localhost:8081
 docker compose --profile agent up --build
 
-# stop and remove
-docker compose down</code></pre>
+# stop and remove (pass the profile too if you started it, otherwise app-with-agent is left running)
+docker compose down
+docker compose --profile agent down</code></pre>
       <p>Both containers restart automatically (<code>restart: unless-stopped</code>). Edit the <code>ports</code> mapping in the compose file to change the host port.</p>
       <div class="note"><span class="lbl">Note</span><p>The database connector itself is <strong>not</strong> composed as a shared service on purpose. It holds database credentials and binds to <code>127.0.0.1</code>, so it is designed to run on each user's own machine. The <code>agent</code> profile only builds a UI that knows how to talk to it.</p></div>
 
       <h3>Option C — From source (development)</h3>
-      <p>Requires Node.js 20 or newer and npm.</p>
+      <p>Requires Node.js <strong>20.19+</strong> or <strong>22.12+</strong> (Vite 7's supported range; Node 21 and older 20.x releases are refused) and npm.</p>
 <pre><code>git clone https://github.com/davidbudac/ora-explain-plan-viz.git
 cd ora-explain-plan-viz
 npm install
@@ -327,6 +328,8 @@ npm run dev          # Vite dev server with hot reload → http://localhost:5173
 <pre><code># the nginx.conf shipped in the repo
 server {
   listen 80;
+  server_name _;
+
   root /usr/share/nginx/html;
   index index.html;
 
