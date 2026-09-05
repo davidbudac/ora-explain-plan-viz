@@ -10,6 +10,7 @@ import { getAiSecret, setAiSecret } from '../lib/ai/secrets';
 import type { AiRunConfig } from '../lib/ai/provider';
 import { DEFAULT_HOSTED_BASE_URL, isHostedAiEnabled } from '../lib/ai/provider';
 import type { AiProviderId, AiSectionId } from '../lib/ai/types';
+import { AI_COMING_SOON_LABEL } from '../lib/ai/availability';
 
 interface AiAnalysisDialogProps {
   onClose: () => void;
@@ -244,14 +245,9 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-800">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-              {mode === 'compare' ? 'AI Compare Plans' : mode === 'testcase' ? 'AI Build Test Case' : 'AI Analyze Plan'}
-            </h3>
-            <span className="rounded-full border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
-              Beta
-            </span>
-          </div>
+          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+            {mode === 'compare' ? 'AI Compare Plans' : mode === 'testcase' ? 'AI Build Test Case' : 'AI Analyze Plan'}
+          </h3>
           <button
             type="button"
             onClick={onClose}
@@ -538,10 +534,11 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
             <button
               type="button"
               onClick={run}
-              disabled={!configValid}
+              disabled
+              title={AI_COMING_SOON_LABEL}
               className="text-xs px-4 py-1.5 font-semibold rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {status === 'streaming' ? 'Running…' : mode === 'testcase' ? 'Build test case' : 'Run analysis'}
+              {AI_COMING_SOON_LABEL}
             </button>
           )}
         </div>

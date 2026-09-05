@@ -29,3 +29,6 @@ dist-ssr
 
 # Eval scenario corpus is private (oraplanviz-pro); only the README is tracked here.
 evals/scenarios/*/
+
+# Playwright MCP scratch output
+.playwright-mcp/

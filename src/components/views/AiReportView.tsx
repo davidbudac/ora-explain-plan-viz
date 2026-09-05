@@ -8,9 +8,7 @@ import type { AiChatMessage, AiError, AiFinding, AiProviderId } from '../../lib/
 import { SEVERITY_STYLES } from '../../lib/severityStyles';
 import { copyToClipboard } from '../../lib/clipboard';
 import { testCaseScriptFilename } from '../../lib/ai/testCase';
-import { getAiSecret } from '../../lib/ai/secrets';
-import { isHostedAiEnabled } from '../../lib/ai/provider';
-import { loadSettings } from '../../lib/settings';
+import { AI_COMING_SOON_LABEL } from '../../lib/ai/availability';
 import {
   AgentError,
   health as agentHealth,
@@ -25,28 +23,6 @@ const PROVIDER_LABELS: Record<AiProviderId, string> = {
   'openai-compat': 'OpenAI-compatible',
   agent: 'Local agent',
 };
-
-/** Whether the provider the dialog will initially select has enough configuration to run. */
-function hasConfiguredAiProvider(): boolean {
-  const settings = loadSettings();
-  let provider = settings.aiProvider;
-
-  // Mirror the dialog's fallback when a build-gated provider is unavailable.
-  if ((provider === 'hosted' && !isHostedAiEnabled()) || (provider === 'agent' && !isDbAgentEnabled())) {
-    provider = 'anthropic';
-  }
-
-  switch (provider) {
-    case 'hosted':
-      return Boolean(getAiSecret('hosted')?.trim());
-    case 'anthropic':
-      return Boolean(getAiSecret('anthropic')?.trim() && settings.aiAnthropicModel.trim());
-    case 'openai-compat':
-      return Boolean(settings.aiOpenAiBaseUrl.trim() && settings.aiOpenAiModel.trim());
-    case 'agent':
-      return Boolean(loadStoredAgentConfig().token.trim());
-  }
-}
 
 /**
  * Hand-rolled "prose" styling — the repo does not use @tailwindcss/typography,
@@ -335,16 +311,13 @@ export function AiReportView() {
     status,
     streamText,
     error,
-    openAiDialog,
     cancel,
     chatMessages,
     chatStatus,
     chatStreamText,
     chatError,
-    sendChatMessage,
   } = useAi();
   const [copied, setCopied] = useState(false);
-  const [providerConfigured] = useState(hasConfiguredAiProvider);
 
   // Follow-up chat input; exec results are appended here as quoted text for
   // the user to review and send — never sent automatically.
@@ -374,13 +347,6 @@ export function AiReportView() {
     };
   }, [report]);
   const canRunViaAgent = isDbAgentEnabled() && agentReachable;
-
-  const handleSendChat = useCallback(() => {
-    const text = chatInput.trim();
-    if (!text || chatStatus === 'streaming') return;
-    setChatInput('');
-    void sendChatMessage(text);
-  }, [chatInput, chatStatus, sendChatMessage]);
 
   const markdown = report?.markdown ?? streamText;
   const { narrative } = useMemo(() => splitReport(markdown), [markdown]);
@@ -422,26 +388,19 @@ export function AiReportView() {
     return (
       <div className="h-full flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
         <div className="max-w-md px-6 text-center">
-          <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
-            Beta
-          </span>
-          <h2 className="mt-3 text-base font-semibold text-neutral-900 dark:text-neutral-100">
-            AI analysis is in beta
+          <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
+            AI analysis is coming soon
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
-            Connect your own Anthropic or OpenAI-compatible provider to generate an expert report for the loaded plan.
+            This feature is not available yet.
           </p>
-          {!isHostedAiEnabled() && (
-            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-500">
-              One-click hosted analysis is coming soon.
-            </p>
-          )}
           <button
             type="button"
-            onClick={() => openAiDialog('analyze')}
-            className="mt-4 px-4 py-2 text-sm font-medium rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950"
+            disabled
+            title={AI_COMING_SOON_LABEL}
+            className="mt-4 px-4 py-2 text-sm font-medium rounded-md bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-500 opacity-70 cursor-not-allowed"
           >
-            {providerConfigured ? 'Analyze plan' : 'Configure AI provider'}
+            {AI_COMING_SOON_LABEL}
           </button>
         </div>
       </div>
@@ -492,7 +451,7 @@ export function AiReportView() {
           </button>
         )}
         {status !== 'streaming' && (
-          <button type="button" onClick={() => openAiDialog(dialogMode)} className={smallButton}>
+          <button type="button" disabled title={AI_COMING_SOON_LABEL} className={`${smallButton} opacity-50 cursor-not-allowed`}>
             Regenerate
           </button>
         )}
@@ -528,16 +487,18 @@ export function AiReportView() {
                 {error.kind === 'auth' ? (
                   <button
                     type="button"
-                    onClick={() => openAiDialog(dialogMode)}
-                    className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-red-600 hover:bg-red-700 text-white transition-colors"
+                    disabled
+                    title={AI_COMING_SOON_LABEL}
+                    className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-500 opacity-70 cursor-not-allowed"
                   >
                     Update API key
                   </button>
                 ) : (
                   <button
                     type="button"
-                    onClick={() => openAiDialog(dialogMode)}
-                    className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-red-600 hover:bg-red-700 text-white transition-colors"
+                    disabled
+                    title={AI_COMING_SOON_LABEL}
+                    className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-500 opacity-70 cursor-not-allowed"
                   >
                     Retry
                   </button>
@@ -646,24 +607,20 @@ export function AiReportView() {
               {/* Input */}
               <div className="flex flex-col gap-1.5">
                 <textarea
+                  disabled
                   ref={chatInputRef}
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                      e.preventDefault();
-                      handleSendChat();
-                    }
-                  }}
                   rows={3}
-                  placeholder="Ask a follow-up question about this report… (Cmd/Ctrl-Enter to send)"
-                  className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/60 font-mono resize-y"
+                  placeholder={AI_COMING_SOON_LABEL}
+                  title={AI_COMING_SOON_LABEL}
+                  className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/60 font-mono resize-y disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={handleSendChat}
-                    disabled={!chatInput.trim() || chatStatus === 'streaming'}
+                    disabled
+                    title={AI_COMING_SOON_LABEL}
                     className="px-3 py-1.5 text-xs font-semibold rounded-md bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
                   >
                     Send

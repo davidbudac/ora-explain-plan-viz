@@ -9,6 +9,7 @@ import { hasAnnotations } from '../lib/annotations';
 import { APP_PALETTE_LABELS, APP_PALETTE_ORDER } from '../lib/types';
 import { DENSITY_PRESET_LABELS, DENSITY_PRESET_ORDER } from '../lib/density';
 import { isDbAgentEnabled } from '../lib/agent/client';
+import { AI_COMING_SOON_LABEL } from '../lib/ai/availability';
 
 type CommandCategory =
   | 'View'
@@ -56,6 +57,9 @@ interface Command {
   isActive?: () => boolean;
   /** If present, command is only available when this returns true */
   isAvailable?: () => boolean;
+  /** Present-but-unavailable command shown as a muted, non-interactive row. */
+  disabled?: boolean;
+  disabledReason?: string;
   /** Right-side hint text (e.g. current value) */
   hint?: () => string;
 }
@@ -209,6 +213,7 @@ function useCommands(onExportPng: () => void): Command[] {
 
     // --- View modes ---
     for (const [mode, label] of Object.entries(VIEW_MODE_LABELS) as [ViewMode, string][]) {
+      const aiView = mode === 'ai' || mode === 'ai-report';
       commands.push({
         id: `view-${mode}`,
         label: `Switch to ${label} view`,
@@ -217,6 +222,9 @@ function useCommands(onExportPng: () => void): Command[] {
         icon: <ViewIcon mode={mode} />,
         execute: () => setViewMode(mode),
         isActive: () => viewMode === mode,
+        disabled: aiView,
+        disabledReason: aiView ? AI_COMING_SOON_LABEL : undefined,
+        ...(aiView ? { hint: () => AI_COMING_SOON_LABEL } : {}),
         isAvailable: () => {
           if (mode === 'compare') return multipleParsedPlans;
           if (mode === 'sql') return anyPlanParsed;
@@ -611,38 +619,50 @@ function useCommands(onExportPng: () => void): Command[] {
     // --- AI ---
     commands.push({
       id: 'ai-analyze-plan',
-      label: 'AI (Beta): Analyze plan…',
+      label: 'AI: Analyze plan…',
       category: 'AI',
-      keywords: ['ai', 'beta', 'analyze', 'analysis', 'llm', 'claude', 'anthropic', 'assistant'],
+      keywords: ['ai', 'analyze', 'analysis', 'llm', 'claude', 'anthropic', 'assistant'],
       execute: () => openAiDialog('analyze'),
       isAvailable: () => anyPlanParsed,
+      disabled: true,
+      disabledReason: AI_COMING_SOON_LABEL,
+      hint: () => AI_COMING_SOON_LABEL,
     });
 
     commands.push({
       id: 'ai-compare-plans',
-      label: 'AI (Beta): Compare plans…',
+      label: 'AI: Compare plans…',
       category: 'AI',
       keywords: ['ai', 'compare', 'diff', 'plans', 'llm', 'analysis'],
       execute: () => openAiDialog('compare'),
       isAvailable: () => multipleParsedPlans,
+      disabled: true,
+      disabledReason: AI_COMING_SOON_LABEL,
+      hint: () => AI_COMING_SOON_LABEL,
     });
 
     commands.push({
       id: 'ai-build-testcase',
-      label: 'AI (Beta): Build test case…',
+      label: 'AI: Build test case…',
       category: 'AI',
       keywords: ['ai', 'test', 'case', 'testcase', 'repro', 'reproduce', 'script', 'build'],
       execute: () => openAiDialog('testcase'),
       isAvailable: () => parsedPlan !== null && metadataBundle !== null,
+      disabled: true,
+      disabledReason: AI_COMING_SOON_LABEL,
+      hint: () => AI_COMING_SOON_LABEL,
     });
 
     commands.push({
       id: 'ai-open-report',
-      label: 'AI (Beta): Open report',
+      label: 'AI: Open report',
       category: 'AI',
       keywords: ['ai', 'report', 'open', 'view', 'analysis', 'result'],
       execute: () => setViewMode('ai'),
       isAvailable: () => aiReport !== null,
+      disabled: true,
+      disabledReason: AI_COMING_SOON_LABEL,
+      hint: () => AI_COMING_SOON_LABEL,
     });
 
     return commands;
@@ -758,6 +778,7 @@ export function CommandPalette() {
   }, [open]);
 
   const executeAndClose = useCallback((cmd: Command) => {
+    if (cmd.disabled) return;
     cmd.execute();
     // Keep palette open for toggles, close for actions
     if (!cmd.isActive) {
@@ -847,10 +868,14 @@ export function CommandPalette() {
                     else itemRefs.current.delete(thisIndex);
                   }}
                   type="button"
+                  disabled={cmd.disabled}
+                  title={cmd.disabledReason}
                   onClick={() => executeAndClose(cmd)}
                   onMouseEnter={() => setSelectedIndex(thisIndex)}
                   className={`w-full flex items-center gap-3 px-4 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60 ${
-                    isSelected
+                    cmd.disabled
+                      ? 'text-slate-400 dark:text-slate-600 cursor-not-allowed'
+                      : isSelected
                       ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
                       : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                   }`}
