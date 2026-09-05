@@ -2,14 +2,12 @@ import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } fro
 import { createPortal } from 'react-dom';
 import { OutlineIcon, ViewIcon } from './viewIcons';
 import { usePlan } from '../hooks/usePlanContext';
-import { useAi } from '../hooks/useAiAnalysis';
 import type { ViewMode, SankeyMetric, NodeIndicatorMetric, ColorScheme, NodeDisplayOptions } from '../lib/types';
 import type { HighlightStyle } from '../lib/annotations';
 import { hasAnnotations } from '../lib/annotations';
 import { APP_PALETTE_LABELS, APP_PALETTE_ORDER } from '../lib/types';
 import { DENSITY_PRESET_LABELS, DENSITY_PRESET_ORDER } from '../lib/density';
 import { isDbAgentEnabled } from '../lib/agent/client';
-import { AI_COMING_SOON_LABEL } from '../lib/ai/availability';
 
 type CommandCategory =
   | 'View'
@@ -22,8 +20,7 @@ type CommandCategory =
   | 'Export & Share'
   | 'Panels'
   | 'Metrics'
-  | 'Annotations'
-  | 'AI';
+  | 'Annotations';
 
 /**
  * Fallback glyph per category, so every row carries an icon rather than a
@@ -41,7 +38,6 @@ const CATEGORY_ICON_PATHS: Record<CommandCategory, string> = {
   'Panels': 'M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2h-6a2 2 0 00-2 2',
   'Metrics': 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
   'Annotations': 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
-  'AI': 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z',
 };
 
 interface Command {
@@ -57,9 +53,6 @@ interface Command {
   isActive?: () => boolean;
   /** If present, command is only available when this returns true */
   isAvailable?: () => boolean;
-  /** Present-but-unavailable command shown as a muted, non-interactive row. */
-  disabled?: boolean;
-  disabledReason?: string;
   /** Right-side hint text (e.g. current value) */
   hint?: () => string;
 }
@@ -79,7 +72,7 @@ const SANKEY_METRIC_LABELS: Record<SankeyMetric, string> = {
   actualTime: 'A-Time',
 };
 
-const VIEW_MODE_LABELS: Record<ViewMode, string> = {
+const VIEW_MODE_LABELS: Record<Exclude<ViewMode, 'ai' | 'ai-report'>, string> = {
   hierarchical: 'Tree',
   sankey: 'Sankey',
   flame: 'Flame',
@@ -90,8 +83,6 @@ const VIEW_MODE_LABELS: Record<ViewMode, string> = {
   compare: 'Compare',
   monitor: 'Monitor',
   experimental: 'Experimental',
-  ai: 'AI Analysis',
-  'ai-report': 'AI (proto)',
 };
 
 const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
@@ -165,9 +156,7 @@ function useCommands(onExportPng: () => void): Command[] {
     setBaselineDialogOpen,
     setReportDialogOpen,
     setConnectPanelOpen,
-    metadataBundle,
   } = usePlan();
-  const { report: aiReport, openAiDialog } = useAi();
 
   const anyPlanParsed = plans.some(p => p.parsedPlan);
   const hasActualStats = parsedPlan?.hasActualStats ?? false;
@@ -213,7 +202,6 @@ function useCommands(onExportPng: () => void): Command[] {
 
     // --- View modes ---
     for (const [mode, label] of Object.entries(VIEW_MODE_LABELS) as [ViewMode, string][]) {
-      const aiView = mode === 'ai' || mode === 'ai-report';
       commands.push({
         id: `view-${mode}`,
         label: `Switch to ${label} view`,
@@ -222,14 +210,9 @@ function useCommands(onExportPng: () => void): Command[] {
         icon: <ViewIcon mode={mode} />,
         execute: () => setViewMode(mode),
         isActive: () => viewMode === mode,
-        disabled: aiView,
-        disabledReason: aiView ? AI_COMING_SOON_LABEL : undefined,
-        ...(aiView ? { hint: () => AI_COMING_SOON_LABEL } : {}),
         isAvailable: () => {
           if (mode === 'compare') return multipleParsedPlans;
           if (mode === 'sql') return anyPlanParsed;
-          // Throwaway design prototype (wayfinder ticket 08) — dev builds only.
-          if (mode === 'ai-report') return import.meta.env.DEV && anyPlanParsed;
           return anyPlanParsed;
         },
       });
@@ -616,55 +599,6 @@ function useCommands(onExportPng: () => void): Command[] {
       });
     }
 
-    // --- AI ---
-    commands.push({
-      id: 'ai-analyze-plan',
-      label: 'AI: Analyze plan…',
-      category: 'AI',
-      keywords: ['ai', 'analyze', 'analysis', 'llm', 'claude', 'anthropic', 'assistant'],
-      execute: () => openAiDialog('analyze'),
-      isAvailable: () => anyPlanParsed,
-      disabled: true,
-      disabledReason: AI_COMING_SOON_LABEL,
-      hint: () => AI_COMING_SOON_LABEL,
-    });
-
-    commands.push({
-      id: 'ai-compare-plans',
-      label: 'AI: Compare plans…',
-      category: 'AI',
-      keywords: ['ai', 'compare', 'diff', 'plans', 'llm', 'analysis'],
-      execute: () => openAiDialog('compare'),
-      isAvailable: () => multipleParsedPlans,
-      disabled: true,
-      disabledReason: AI_COMING_SOON_LABEL,
-      hint: () => AI_COMING_SOON_LABEL,
-    });
-
-    commands.push({
-      id: 'ai-build-testcase',
-      label: 'AI: Build test case…',
-      category: 'AI',
-      keywords: ['ai', 'test', 'case', 'testcase', 'repro', 'reproduce', 'script', 'build'],
-      execute: () => openAiDialog('testcase'),
-      isAvailable: () => parsedPlan !== null && metadataBundle !== null,
-      disabled: true,
-      disabledReason: AI_COMING_SOON_LABEL,
-      hint: () => AI_COMING_SOON_LABEL,
-    });
-
-    commands.push({
-      id: 'ai-open-report',
-      label: 'AI: Open report',
-      category: 'AI',
-      keywords: ['ai', 'report', 'open', 'view', 'analysis', 'result'],
-      execute: () => setViewMode('ai'),
-      isAvailable: () => aiReport !== null,
-      disabled: true,
-      disabledReason: AI_COMING_SOON_LABEL,
-      hint: () => AI_COMING_SOON_LABEL,
-    });
-
     return commands;
   }, [
     viewMode, theme, colorScheme, palette, filters, sankeyMetric, nodeIndicatorMetric,
@@ -679,7 +613,6 @@ function useCommands(onExportPng: () => void): Command[] {
     setInputPanelCollapsed, setFilterPanelCollapsed,
     setDetailPanelCollapsed, setFocusMode, setHotspotsEnabled, setTreeCompareEnabled,
     exportAnnotatedPlan, clearAnnotations, share, onExportPng, setBaselineDialogOpen, setReportDialogOpen, setConnectPanelOpen,
-    aiReport, openAiDialog, metadataBundle,
     toggleNodeDisplayOption, enableAllDisplayOptions, disableAllDisplayOptions,
   ]);
 }
@@ -695,7 +628,6 @@ const CATEGORY_ORDER: CommandCategory[] = [
   'Panels',
   'Metrics',
   'Annotations',
-  'AI',
 ];
 
 export function CommandPalette() {
@@ -778,7 +710,6 @@ export function CommandPalette() {
   }, [open]);
 
   const executeAndClose = useCallback((cmd: Command) => {
-    if (cmd.disabled) return;
     cmd.execute();
     // Keep palette open for toggles, close for actions
     if (!cmd.isActive) {
@@ -868,14 +799,10 @@ export function CommandPalette() {
                     else itemRefs.current.delete(thisIndex);
                   }}
                   type="button"
-                  disabled={cmd.disabled}
-                  title={cmd.disabledReason}
                   onClick={() => executeAndClose(cmd)}
                   onMouseEnter={() => setSelectedIndex(thisIndex)}
                   className={`w-full flex items-center gap-3 px-4 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60 ${
-                    cmd.disabled
-                      ? 'text-slate-400 dark:text-slate-600 cursor-not-allowed'
-                      : isSelected
+                    isSelected
                       ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
                       : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                   }`}
