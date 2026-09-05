@@ -4,7 +4,7 @@
 
 [![Tree view with hotspots](site/assets/hero.png)](https://davidbudac.github.io/ora-explain-plan-viz/?example=21)
 
-Try it with the **Load Example** menu, or see [how to get a plan out of Oracle](docs/input-formats.md).
+Try it with the **Load Example** menu, read the **[documentation](https://davidbudac.github.io/ora-explain-plan-viz/welcome/docs.html)** (getting started, self-hosting with Docker, every feature), or see [how to get a plan out of Oracle](docs/input-formats.md).
 
 ## What it does
 
