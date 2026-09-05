@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
-import { useAi } from '../hooks/useAiAnalysis';
 import { PlanTabs } from './PlanTabs';
 import type { ViewMode } from '../lib/types';
 import { ViewIcon } from './viewIcons';
-import { AI_COMING_SOON_LABEL } from '../lib/ai/availability';
 
 const tabs: { id: ViewMode; label: string }[] = [
   { id: 'hierarchical', label: 'Tree' },
@@ -17,8 +15,6 @@ const tabs: { id: ViewMode; label: string }[] = [
   { id: 'metadata', label: 'Metadata' },
   { id: 'monitor', label: 'Monitor' },
   { id: 'experimental', label: 'Experimental' },
-  { id: 'ai', label: 'AI' },
-  { id: 'ai-report', label: 'AI (proto)' },
 ];
 
 // Keyboard focus ring. Inset inside the tab strip, whose `overflow-x-auto`
@@ -41,7 +37,6 @@ interface TabLayout {
 }
 
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
-const isAiView = (id: ViewMode) => id === 'ai' || id === 'ai-report';
 
 /**
  * The view-tab cluster of the single top bar. It is the bar's only flexible
@@ -51,7 +46,6 @@ const isAiView = (id: ViewMode) => id === 'ai' || id === 'ai-report';
  */
 export function ViewTabStrip() {
   const { viewMode, setViewMode, parsedPlan, plans } = usePlan();
-  const { report: aiReport } = useAi();
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -64,9 +58,6 @@ export function ViewTabStrip() {
   const availableTabs = tabs.filter((tab) => {
     if (tab.id === 'sql') return Boolean(parsedPlan?.sqlText);
     if (tab.id === 'monitor') return parsedPlan?.source === 'sql_monitor_xml';
-    if (tab.id === 'ai') return Boolean(parsedPlan) || aiReport !== null;
-    // Throwaway design prototype (wayfinder ticket 08) — dev builds only.
-    if (tab.id === 'ai-report') return import.meta.env.DEV;
     return true;
   });
 
@@ -80,10 +71,10 @@ export function ViewTabStrip() {
   // fall back to the tree view instead of showing an empty hidden view.
   const viewModeAvailable = availableTabs.some((tab) => tab.id === viewMode);
   useEffect(() => {
-    if (parsedPlan && (!viewModeAvailable || isAiView(viewMode))) {
+    if (parsedPlan && !viewModeAvailable) {
       setViewMode('hierarchical');
     }
-  }, [parsedPlan, viewMode, viewModeAvailable, setViewMode]);
+  }, [parsedPlan, viewModeAvailable, setViewMode]);
 
   // Re-measure both the labelled and the icon-only width of every tab on each
   // pass (by briefly normalising the classes in place) so the decision never
@@ -184,11 +175,8 @@ export function ViewTabStrip() {
       <div className="flex items-center max-w-full bg-slate-200/50 dark:bg-slate-800/80 rounded-lg p-1 border border-slate-300/40 dark:border-slate-700/50">
         <div ref={listRef} className="flex min-w-0 overflow-x-auto scrollbar-none">
           {availableTabs.map((tab, index) => {
-            const isDisabled = (tab.id === 'compare' && !compareEnabled) || isAiView(tab.id);
+            const isDisabled = tab.id === 'compare' && !compareEnabled;
             const isActive = viewMode === tab.id;
-            const disabledTitle = isAiView(tab.id)
-              ? AI_COMING_SOON_LABEL
-              : 'Load a second plan (+ Add Plan) to enable comparison';
             return (
               <button
                 key={tab.id}
@@ -196,7 +184,7 @@ export function ViewTabStrip() {
                 data-view-tab
                 onClick={() => selectTab(tab.id, isDisabled)}
                 disabled={isDisabled}
-                title={isDisabled ? disabledTitle : tab.label}
+                title={isDisabled ? 'Load a second plan (+ Add Plan) to enable comparison' : tab.label}
                 className={`
                   shrink-0 flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md motion-safe:transition-all
                   ${index >= layout.visibleCount ? 'hidden' : ''}
@@ -242,11 +230,8 @@ export function ViewTabStrip() {
                 className="absolute right-0 top-full mt-1 w-44 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50"
               >
                 {overflowTabs.map((tab) => {
-                  const isDisabled = (tab.id === 'compare' && !compareEnabled) || isAiView(tab.id);
+                  const isDisabled = tab.id === 'compare' && !compareEnabled;
                   const isActive = viewMode === tab.id;
-                  const disabledTitle = isAiView(tab.id)
-                    ? AI_COMING_SOON_LABEL
-                    : 'Load a second plan (+ Add Plan) to enable comparison';
                   return (
                     <button
                       key={tab.id}
@@ -254,7 +239,7 @@ export function ViewTabStrip() {
                       role="menuitem"
                       onClick={() => selectTab(tab.id, isDisabled)}
                       disabled={isDisabled}
-                      title={isDisabled ? disabledTitle : tab.label}
+                      title={isDisabled ? 'Load a second plan (+ Add Plan) to enable comparison' : tab.label}
                       className={`
                         w-full px-3 py-2 flex items-center gap-2 text-left text-sm motion-safe:transition-colors
                         ${FOCUS_RING_INSET}
