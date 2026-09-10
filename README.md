@@ -44,6 +44,8 @@ Optional AI-assisted review of the loaded plan (or a plan-A vs plan-B comparison
 
 **Privacy note**: everything stays in your browser until you click Run — only then is the plan (and optional schema metadata) sent to the provider you chose. API keys are kept in sessionStorage only and are never baked into URLs or saved settings.
 
+**Repro-fidelity backtest (2026-08-29, Oracle 19c):** the deterministic test-case builder reproduced the original plan shape on an empty schema for 5 of 5 seeded scenarios (skew/histogram, stale stats, implicit conversion, missing join index, unindexed FK), 0 script errors. Analysis layer: 25/25 root-cause hits across 5 runs; advisor-floor recall 1.0; LLM judge 9/10 at top score. Harness in `evals/`; the scenario corpus is private.
+
 ### And more
 
 | | |
