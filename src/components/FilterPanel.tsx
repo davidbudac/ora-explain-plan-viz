@@ -1,4 +1,4 @@
-import { useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useId, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { OPERATION_CATEGORIES, getOperationCategory } from '../lib/types';
 import type { NodeDisplayOptions, PredicateType } from '../lib/types';
@@ -164,6 +164,7 @@ export function FilterPanelBody() {
   } = usePlan();
   // null = no match navigated to yet (first "Next" selects the first match)
   const [activeMatchIndex, setActiveMatchIndex] = useState<number | null>(null);
+  const searchInputId = useId();
 
   const operationStats = useMemo(() => {
     if (!parsedPlan) return new Map<string, number>();
@@ -310,11 +311,7 @@ export function FilterPanelBody() {
       minCost: 0,
       maxCost: Infinity,
       searchText: '',
-      showPredicates: true,
       predicateTypes: [],
-      animateEdges: false,
-      focusSelection: false,
-      nodeDisplayOptions: { ...DEFAULT_NODE_DISPLAY_OPTIONS },
       minActualRows: 0,
       maxActualRows: Infinity,
       minActualTime: 0,
@@ -341,7 +338,7 @@ export function FilterPanelBody() {
                 onClick={clearFilters}
                 className={`px-2 py-1 text-[10px] font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md uppercase tracking-wider transition-colors ${FOCUS_RING}`}
               >
-                Reset
+                Reset filters
               </button>
             )}
           </div>
@@ -411,11 +408,12 @@ export function FilterPanelBody() {
 
       {/* Search */}
       <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
-        <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">
+        <label htmlFor={searchInputId} className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">
           Search
         </label>
         <div className="relative">
           <input
+            id={searchInputId}
             type="text"
             value={filters.searchText}
             onChange={(e) => setFilters({ searchText: e.target.value })}
@@ -552,6 +550,7 @@ export function FilterPanelBody() {
               type="range"
               min={0}
               max={maxCost}
+              aria-label="Minimum cost"
               value={filters.minCost}
               onChange={(e) => setFilters({ minCost: parseInt(e.target.value) })}
               className={`w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-blue-600 ${FOCUS_RING}`}
@@ -576,6 +575,7 @@ export function FilterPanelBody() {
                 type="range"
                 min={0}
                 max={maxActualRows}
+                aria-label="Minimum A-Rows"
                 value={filters.minActualRows === Infinity ? maxActualRows : filters.minActualRows}
                 onChange={(e) => setFilters({ minActualRows: parseInt(e.target.value) })}
                 className={`w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-blue-600 ${FOCUS_RING}`}
@@ -601,6 +601,7 @@ export function FilterPanelBody() {
                 type="range"
                 min={0}
                 max={maxActualTime}
+                aria-label="Minimum A-Time"
                 value={filters.minActualTime === Infinity ? maxActualTime : filters.minActualTime}
                 onChange={(e) => setFilters({ minActualTime: parseInt(e.target.value) })}
                 className={`w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-blue-600 ${FOCUS_RING}`}
@@ -627,6 +628,7 @@ export function FilterPanelBody() {
                 min={0}
                 max={100}
                 step={1}
+                aria-label="Minimum cardinality mismatch"
                 value={filters.minCardinalityMismatch}
                 onChange={(e) => setFilters({ minCardinalityMismatch: parseInt(e.target.value) })}
                 className={`w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-blue-600 ${FOCUS_RING}`}
