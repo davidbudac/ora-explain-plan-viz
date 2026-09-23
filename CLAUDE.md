@@ -52,12 +52,14 @@ src/
 │   └── *.txt                 # Example plan files (DBMS_XPLAN and SQL Monitor)
 ├── hooks/
 │   ├── usePlanContext.tsx   # Global state management (React Context, multi-plan support)
-│   └── useAiAnalysis.tsx    # AI analysis state (React Context: dialog, run/stream/cancel, report)
+│   ├── useAiAnalysis.tsx    # AI analysis state (React Context: dialog, run/stream/cancel, report)
+│   └── useNarrowWorkspace.ts # `(max-width: 1100px)` media query → responsive workspace (docked panels become sheets)
 ├── components/
 │   ├── Header.tsx           # Single top bar: brand, SQL ID, plan/view tabs, Load Example, all actions (collapse into a menu at narrow widths)
 │   ├── NavRibbon.tsx        # View tab ribbon (Tree/Compare/Tabular/Sankey/Flame/Text/SQL/Metadata/Monitor/Experimental) + maximize; labels degrade to icons → overflow menu
 │   ├── FocusOverlay.tsx     # Focus-mode floating instruments (search/filters/findings pill + selection inspector card)
 │   ├── PanelEdgeTab.tsx     # Seam-attached tabs that collapse the side panels (panels reopen via their slim rails)
+│   ├── WorkspaceTools.tsx   # Toolbar above the canvas: Filters (count), node density, Details; on narrow screens opens panels as non-modal sheets
 │   ├── viewIcons.tsx        # Icons for the view tabs
 │   ├── InputPanel.tsx       # Collapsible input with example loader
 │   ├── FilterPanel.tsx      # Filter by operation type, cost, search, predicates, cardinality mismatch
@@ -211,7 +213,7 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Multi-Node Selection**: Cmd/Ctrl-click for multi-select with aggregated statistics
 - **Keyboard Navigation**: Arrow keys to navigate parent/child/sibling nodes, Escape to deselect
 - **Copy-to-Clipboard**: Copy buttons on access and filter predicates in the detail panel
-- **Filter Panel**: Filter by operation type, cost threshold, search text, predicate type, actual stats ranges, and cardinality mismatch
+- **Filter Panel**: Filter by operation type, cost threshold, search text, predicate type, actual stats ranges, and cardinality mismatch; "Reset filters" clears only filter fields, never display settings (density, predicates, edge animation, focus selection)
 - **Search Highlighting**: Matching text highlighted in plan nodes
 - **Node Details**: Click any node to see full attributes, predicates, cardinality analysis, and spill warnings
 
@@ -220,10 +222,11 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Plan Tabs**: Tab bar for switching between Plan A / Plan B when comparing
 - **Example Plans**: Auto-loaded sample plans from `src/examples/` (add .txt files, no code changes needed)
 - **Plan Metadata**: SQL ID, Plan Hash, A-Rows, and A-Time shown in input panel header
-- **Collapsible Panels**: Input drawer collapses; side panels collapse via seam-attached edge tabs into slim clickable rails (with live filter count)
+- **Collapsible Panels**: Input drawer collapses; side panels collapse via seam-attached edge tabs into slim clickable rails (with live filter count). The filter panel starts collapsed for new users
+- **Workspace Toolbar**: A slim bar above the canvas (`WorkspaceTools.tsx`) with Filters (live n/m count), a node-density select (tree view only), and Details (shows the selected node id). On wide screens it toggles the docked panels; below 1100px (`useNarrowWorkspace`) the docked panels and edge tabs are hidden and the same buttons open Filters/Details as floating non-modal sheets (`role="dialog"`, `aria-modal="false"`) — selecting a node auto-opens the details sheet, Escape closes it without stealing focus from the graph. Focus mode is disabled in the narrow layout. The tree refits itself when the canvas is resized (ResizeObserver) and a "Focus selected" control recentres the current selection
 - **Maximize Visualization**: Toggle a fullscreen visualization mode (F) that hides the surrounding panels, keeping a slim tabs-only bar
 - **Focus Mode**: Toggle (Z, persisted) that hides both side panels for a full-width canvas, replaced by a floating search/filters/findings pill and a selection-driven inspector card; composes with maximize, skipped in the compare workspace
-- **Density Presets**: Minimal / Compact / Detailed node density. Minimal reduces nodes to operation, object, one mono metric line, and an amber warning dot for collapsed signals; hovering (250ms) opens a portal card with the full Est/Act grid, badges, and predicates
+- **Density Presets**: Minimal / Compact / Detailed node density (`src/lib/density.ts`). **Compact is the default** for new users: a readable overview card with operation, object, Est./Actual rows and cost (no predicate chips or partition info — those live in the details panel), rendered by a dedicated branch in `PlanNode.tsx` with matching node heights and tighter row spacing in `HierarchicalView.tsx`. `defaultNodeDisplayOptions` in `settings.ts` is derived from `DENSITY_PRESETS.compact`; saved preferences are preserved. Minimal reduces nodes to operation, object, one mono metric line, and an amber warning dot for collapsed signals; hovering (250ms) opens a portal card with the full Est/Act grid, badges, and predicates. Detailed shows everything including predicate text
 - **Command Palette**: Cmd/Ctrl-K palette for switching views, color schemes, palettes, and running actions
 - **Keyboard Shortcuts Overlay**: Help overlay listing available shortcuts
 - **Share via URL**: Encode the current plan into a shareable link (gzip-compressed) via the share dialog
