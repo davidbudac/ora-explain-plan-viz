@@ -9,6 +9,8 @@ import { VisualizationTabs } from './components/VisualizationTabs';
 import { NodeDetailPanel } from './components/NodeDetailPanel';
 import { PanelEdgeTab } from './components/PanelEdgeTab';
 import { FocusOverlay } from './components/FocusOverlay';
+import { WorkspaceTools } from './components/WorkspaceTools';
+import { useNarrowWorkspace } from './hooks/useNarrowWorkspace';
 import { CommandPalette } from './components/CommandPalette';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay';
 import { ShareResultDialog } from './components/ShareResultDialog';
@@ -235,6 +237,7 @@ function clampPanelWidths(widths: PanelWidths, viewportWidth: number): PanelWidt
 }
 
 function AppContent() {
+  const narrowWorkspace = useNarrowWorkspace();
   const {
     plans, activePlanIndex, viewMode, visualizationMaximized, setVisualizationMaximized, loadAndParsePlan,
     metadataBundle, metadataPopoutOpen, setMetadataPopoutOpen,
@@ -252,7 +255,7 @@ function AppContent() {
   const isComparisonWorkspace = viewMode === 'compare';
   // The comparison workspace has no docked side panels to hide, so focus mode
   // simply doesn't apply there.
-  const focusModeActive = focusMode && !isComparisonWorkspace;
+  const focusModeActive = focusMode && !isComparisonWorkspace && !narrowWorkspace;
   // A slot the user added with "+ Add Plan" but hasn't filled yet: the plan
   // views and the details rail have nothing to say about it.
   const activeSlotEmpty = anyPlanParsed && !activeParsedPlan && !isComparisonWorkspace;
@@ -389,13 +392,16 @@ function AppContent() {
 
       {anyPlanParsed && (
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          {!isComparisonWorkspace && !focusModeActive && (
+          {!isComparisonWorkspace && !focusModeActive && !narrowWorkspace && (
             <FilterPanel
               panelWidth={panelWidths.left}
               onResizeStart={startResize('left')}
             />
           )}
           <main className="flex-1 flex flex-col relative min-w-0 bg-slate-50 dark:bg-slate-900 border-r border-l border-slate-200 dark:border-slate-800 shadow-inner">
+            {!isComparisonWorkspace && !focusModeActive && !activeSlotEmpty && (
+              <WorkspaceTools narrow={narrowWorkspace} />
+            )}
             {activeSlotEmpty ? (
               <EmptySlotState
                 slotLabel={activeSlot?.customLabel || activeSlot?.label || 'This plan'}
@@ -407,14 +413,14 @@ function AppContent() {
               <VisualizationTabs />
             )}
             {focusModeActive && !activeSlotEmpty && <FocusOverlay />}
-            {!isComparisonWorkspace && !focusModeActive && !filterPanelCollapsed && (
+            {!isComparisonWorkspace && !focusModeActive && !narrowWorkspace && !filterPanelCollapsed && (
               <PanelEdgeTab
                 side="left"
                 label="Hide filters"
                 onClick={() => setFilterPanelCollapsed(true)}
               />
             )}
-            {!isComparisonWorkspace && !focusModeActive && !activeSlotEmpty && !detailPanelCollapsed && (
+            {!isComparisonWorkspace && !focusModeActive && !narrowWorkspace && !activeSlotEmpty && !detailPanelCollapsed && (
               <PanelEdgeTab
                 side="right"
                 label="Hide details"
@@ -422,7 +428,7 @@ function AppContent() {
               />
             )}
           </main>
-          {!isComparisonWorkspace && !focusModeActive && !activeSlotEmpty && (
+          {!isComparisonWorkspace && !focusModeActive && !narrowWorkspace && !activeSlotEmpty && (
             <NodeDetailPanel
               panelWidth={panelWidths.right}
               onResizeStart={startResize('right')}
