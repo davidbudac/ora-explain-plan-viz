@@ -130,7 +130,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 }
 
 /** Plan-wide summary shown in the docked details panel when nothing is selected. */
-function NoSelectionBody() {
+export function NoSelectionBody() {
   const {
     parsedPlan, selectNode, annotations,
     updateAnnotationGroup, removeAnnotationGroup,

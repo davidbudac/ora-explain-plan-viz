@@ -936,7 +936,7 @@ function HierarchicalViewContent({
   );
   useEffect(() => {
     const timer = setTimeout(() => {
-      fitView({ padding: 0.2 });
+      fitView({ padding: 0.12 });
       if (!layoutReadyRef.current) {
         layoutReadyRef.current = true;
         requestAnimationFrame(() => setLayoutReady(true));
@@ -944,6 +944,29 @@ function HierarchicalViewContent({
     }, 50);
     return () => clearTimeout(timer);
   }, [fitKey, fitView]);
+
+  // Panels and responsive breakpoints change the actual canvas size without
+  // changing the plan. Refit after resizing settles, rather than leaving the
+  // old viewport clipped. Notes and selection do not trigger this observer.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    let previousWidth = container.clientWidth;
+    let previousHeight = container.clientHeight;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      if (width === previousWidth && height === previousHeight) return;
+      previousWidth = width;
+      previousHeight = height;
+      clearTimeout(timer);
+      if (width > 0 && height > 0) {
+        timer = setTimeout(() => { void fitView({ padding: 0.12 }); }, 100);
+      }
+    });
+    observer.observe(container);
+    return () => { observer.disconnect(); clearTimeout(timer); };
+  }, [fitView]);
 
   // Pan the viewport to a newly selected node when it's off-screen. Keyboard
   // navigation and hotspot-list clicks select nodes the user can't see;
@@ -1292,7 +1315,12 @@ function HierarchicalViewContent({
           color={theme === 'dark' ? 'rgba(148,163,184,0.16)' : 'rgba(100,116,139,0.16)'}
         />
         <Controls className="!bg-transparent !border-none !shadow-none [&_button]:!bg-white/80 [&_button]:!border-slate-200/80 [&_button]:!text-slate-600 [&_button]:backdrop-blur-sm dark:[&_button]:!bg-slate-800/70 dark:[&_button]:!border-slate-700/70 dark:[&_button]:!text-slate-300 [&_button:hover]:!bg-white dark:[&_button:hover]:!bg-slate-700/80" />
-        <Panel position="top-right">
+        <Panel position="top-left" className="flex items-center gap-2">
+          {selectedNodeId !== null && <button type="button"
+            onClick={() => fitView({ nodes: [{ id: String(selectedNodeId) }], padding: 0.3, minZoom: 0.85, maxZoom: 1.2 })}
+            className="px-2.5 py-1.5 text-xs rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus-visible:ring-2 focus-visible:ring-blue-500">
+            Focus selected
+          </button>}
           <button
             type="button"
             onClick={resetLayout}
