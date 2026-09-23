@@ -175,6 +175,7 @@ export function NoSelectionBody() {
                <button
                  role="switch"
                  aria-checked={hotspotsEnabled}
+                 aria-label="Hotspots"
                  onClick={() => setHotspotsEnabled(!hotspotsEnabled)}
                  className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${FOCUS_RING} ${
                    hotspotsEnabled ? 'bg-red-500' : 'bg-slate-300 dark:bg-slate-700'
@@ -191,6 +192,7 @@ export function NoSelectionBody() {
             <button
               role="switch"
               aria-checked={showAdvisorSuggestions}
+              aria-label="Suggestions"
               onClick={() => setShowAdvisorSuggestions(!showAdvisorSuggestions)}
               className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${FOCUS_RING} ${
                 showAdvisorSuggestions ? 'bg-sky-500' : 'bg-slate-300 dark:bg-slate-700'
