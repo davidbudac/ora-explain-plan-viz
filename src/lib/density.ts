@@ -40,20 +40,20 @@ export const DENSITY_PRESETS: Record<DensityPreset, NodeDisplayOptions> = {
     showAnnotations: true,
     compactStats: true,
   },
-  // Triage mode: tree shape + where the time goes. Keeps the bottom
-  // icon/badge row (predicate chips, hotspot, spill) visible for orientation.
+  // Readable overview: estimates, actual rows and cost; full predicates,
+  // timing, query blocks and metadata remain in the selection inspector.
   compact: {
-    showRows: false,
-    showCost: false,
+    showRows: true,
+    showCost: true,
     showBytes: false,
     showObjectName: true,
-    showPredicateIndicators: true,
+    showPredicateIndicators: false,
     showPredicateDetails: false,
-    showPartitionInfo: true,
+    showPartitionInfo: false,
     showQueryBlockBadge: false,
     showQueryBlockGrouping: false,
-    showActualRows: false,
-    showActualTime: true,
+    showActualRows: true,
+    showActualTime: false,
     showStarts: false,
     showHotspotBadge: true,
     showSpillBadge: true,
