@@ -1,5 +1,6 @@
 import type { FilterState, ViewMode, SankeyMetric, FlameMetric, ExperimentalSubView, NodeIndicatorMetric, NodeDisplayOptions, ColorScheme, AppPalette, Theme } from './types';
 import { APP_PALETTE_ORDER } from './types';
+import { DENSITY_PRESETS } from './density';
 import type { CompareMetric } from './compare';
 import type { HighlightStyle } from './annotations';
 import type { AiProviderId, AiSectionId } from './ai/types';
@@ -59,29 +60,7 @@ export interface UserSettings {
   aiSections: Record<AiSectionId, boolean>;
 }
 
-export const defaultNodeDisplayOptions: NodeDisplayOptions = {
-  showRows: true,
-  showCost: true,
-  showBytes: true,
-  showObjectName: true,
-  showPredicateIndicators: true,
-  showPredicateDetails: true,
-  showPartitionInfo: true,
-  showQueryBlockBadge: true,
-  showQueryBlockGrouping: true,
-  showActualRows: true,
-  showActualTime: true,
-  showStarts: true,
-  showHotspotBadge: true,
-  showSpillBadge: true,
-  showCardinalityBadge: true,
-  showAdvisorBadge: true,
-  showStaleStatsBadge: true,
-  showMissingStatsBadge: true,
-  showMismatchNoHistogramBadge: true,
-  showAnnotations: true,
-  compactStats: false,
-};
+export const defaultNodeDisplayOptions: NodeDisplayOptions = { ...DENSITY_PRESETS.compact };
 
 export const defaultAiSections: Record<AiSectionId, boolean> = {
   sql: true,
@@ -112,7 +91,7 @@ const defaultSettings: UserSettings = {
   showAdvisorSuggestions: false,
   legendVisible: false,
   inputPanelCollapsed: false,
-  filterPanelCollapsed: false,
+  filterPanelCollapsed: true,
   focusMode: false,
   animateEdges: false,
   scaleEdgeWidth: true,

@@ -1,4 +1,5 @@
 import { Fragment } from 'react';
+import { matchDensityPreset } from '../../lib/density';
 import { Handle, Position } from '@xyflow/react';
 import { getOperationCategory, COLOR_SCHEMES, getMetricColor, getOperationTooltip } from '../../lib/types';
 import { formatNumberShort, formatBytes, formatTimeCompact, formatCardinalityRatio, cardinalityRatioSeverity, computeCardinalityRatio, formatPartitionRange } from '../../lib/format';
@@ -114,6 +115,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   // Minimal density: operation + object + one quiet metric line + warning dot.
   // Overrides the per-field toggles so the node body stays radically reduced.
   const isCompact = options.compactStats === true;
+  const isOverview = matchDensityPreset(options) === 'compact';
 
   // Minimal density trades detail for a hover/focus disclosure card
   const { anchorRef, anchorRect, hoverProps } = useNodeHoverCard(isCompact);
@@ -400,7 +402,15 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         )}
 
         {/* Stats - Estimated & Actual statistics (minimal density renders the single line above instead) */}
-        {isCompact ? null : isTicker ? (
+        {isCompact ? null : isOverview ? (
+          <div className="space-y-1 text-xs text-slate-600 dark:text-slate-300">
+            <div className="flex justify-between gap-2">
+              <span>{hasActualStats ? 'Est. rows' : 'Rows'} <strong className="font-mono text-slate-900 dark:text-slate-100">{formatNumberShort(node.rows, { empty: '—' })}</strong></span>
+              {hasActualStats && <span>Actual <strong className="font-mono text-slate-900 dark:text-slate-100">{formatNumberShort(node.actualRows, { empty: '—' })}</strong></span>}
+            </div>
+            <div>Cost <span className="font-mono">{formatNumberShort(node.cost, { empty: '—' })}</span></div>
+          </div>
+        ) : isTicker ? (
           /* Ticker mode: ultra-compact monospace ticker lines */
           (() => {
             const showRowsLine = (options.showRows && node.rows !== undefined) || (options.showActualRows && node.actualRows !== undefined);

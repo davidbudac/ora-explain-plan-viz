@@ -7,7 +7,7 @@ import type { DensityPreset } from '../lib/density';
 
 const DENSITY_PRESET_TITLES: Record<DensityPreset, string> = {
   minimal: 'Operation, object and one metric line — warnings collapse into a single dot',
-  compact: 'Operation + time only — triage mode',
+  compact: 'Operation, object, estimated/actual rows and cost',
   detailed: 'Everything, including predicate details',
 };
 

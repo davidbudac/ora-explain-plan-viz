@@ -18,6 +18,7 @@ import { toPng } from 'html-to-image';
 import '@xyflow/react/dist/style.css';
 
 import { usePlan } from '../../hooks/usePlanContext';
+import { matchDensityPreset } from '../../lib/density';
 import { PlanNodeMemo } from '../nodes/PlanNode';
 import { formatNumberShort, computeCardinalityRatio, cardinalityRatioSeverity, formatPartitionRange } from '../../lib/format';
 import type { PlanNode, NodeDisplayOptions } from '../../lib/types';
@@ -115,6 +116,15 @@ function calculateNodeHeight(
     compactHeight += 18; // single mono metric line (+ warning dot)
     if (hasAnnotation) compactHeight += 20;
     return compactHeight;
+  }
+
+  if (matchDensityPreset(displayOptions) === 'compact') {
+    // Match the compact card's two metric lines instead of budgeting a full
+    // Est/Act table. Keep room for wrapped operation names and signal badges.
+    return 84 + (node.operation.length > 28 ? 18 : 0)
+      + (node.objectName ? 24 : 0)
+      + (hasAdvisorBadge || (hasActualStats && node.actualTime !== undefined) || (node.tempUsed ?? 0) > 0 ? 24 : 0)
+      + (isRail ? 28 : 0) + (hasAnnotation ? 24 : 0);
   }
 
   let height = NODE_BASE_HEIGHT;
@@ -230,7 +240,8 @@ const EMPTY_SELECTED_NODE_IDS: number[] = [];
 function getLayoutedElements(
   nodes: Node[],
   edges: Edge[],
-  nodeDimensions: Map<string, { width: number; height: number }>
+  nodeDimensions: Map<string, { width: number; height: number }>,
+  verticalSpacing = NODE_V_SPACING,
 ): { nodes: Node[]; edges: Edge[] } {
   if (nodes.length === 0) {
     return { nodes: [], edges };
@@ -311,7 +322,7 @@ function getLayoutedElements(
   for (let depth = 1; depth <= maxDepth; depth++) {
     const prevY = levelYOffsets.get(depth - 1) || 0;
     const prevHeight = maxHeightByDepth.get(depth - 1) || NODE_BASE_HEIGHT;
-    levelYOffsets.set(depth, prevY + prevHeight + NODE_V_SPACING);
+    levelYOffsets.set(depth, prevY + prevHeight + verticalSpacing);
   }
 
   // Position nodes: each node is centered over its subtree
@@ -741,7 +752,7 @@ function HierarchicalViewContent({
     const rowFlowRange = maxRowFlow - minRowFlow;
 
     // Apply layout to plan nodes with dynamic dimensions
-    const layoutedResult = getLayoutedElements(planNodes, edges, nodeDimensions);
+    const layoutedResult = getLayoutedElements(planNodes, edges, nodeDimensions, matchDensityPreset(effectiveDisplayOptions) === 'compact' ? 32 : NODE_V_SPACING);
 
     // Edge thickness range
     const MIN_STROKE_WIDTH = 2;

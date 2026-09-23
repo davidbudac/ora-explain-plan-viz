@@ -3,8 +3,8 @@ import { DENSITY_PRESETS, matchDensityPreset } from '../density';
 import { defaultNodeDisplayOptions } from '../settings';
 
 describe('density presets', () => {
-  it('settings defaults derive the detailed preset', () => {
-    expect(matchDensityPreset(defaultNodeDisplayOptions)).toBe('detailed');
+  it('settings defaults derive the compact preset', () => {
+    expect(matchDensityPreset(defaultNodeDisplayOptions)).toBe('compact');
   });
 
   it('each preset table maps back to itself', () => {
