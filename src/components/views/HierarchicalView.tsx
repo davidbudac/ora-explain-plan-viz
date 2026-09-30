@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, memo } from 'react';
 import {
   ReactFlow,
   Background,
   Controls,
+  MiniMap,
   Panel,
   useNodesState,
   useEdgesState,
@@ -20,9 +21,13 @@ import '@xyflow/react/dist/style.css';
 import { usePlan } from '../../hooks/usePlanContext';
 import { matchDensityPreset } from '../../lib/density';
 import { PlanNodeMemo } from '../nodes/PlanNode';
+import type { PlanNodeData } from '../nodes/PlanNode';
+import { prefersReducedMotion, usePrefersReducedMotion } from '../nodes/usePrefersReducedMotion';
+import { TreeLayoutControls } from './TreeLayoutControls';
 import { formatNumberShort, computeCardinalityRatio, cardinalityRatioSeverity, formatPartitionRange } from '../../lib/format';
 import type { PlanNode, NodeDisplayOptions } from '../../lib/types';
 import { EDGE_SCHEME_COLORS } from '../../lib/types';
+import type { TreeLayoutDirection } from '../../lib/settings';
 import { createEmptyAnnotationState, getHighlightColorDef } from '../../lib/annotations';
 import { matchesFilters } from '../../lib/filtering';
 import { computeHottestNodeId } from '../../lib/analysis';
@@ -33,6 +38,20 @@ import { extractPredicateColumns } from '../../lib/metadata/predicateColumns';
 import { assessPartitionPruning, computeParallelSignals } from '../../lib/planSignals';
 import type { ParallelSignal } from '../../lib/planSignals';
 import { runAdvisor } from '../../lib/advisor';
+import {
+  EMPTY_COLLAPSED,
+  collapseAllIds,
+  computeHiddenNodeIds,
+  countDescendants,
+  countHiddenMatches,
+  expandAncestors,
+  getAncestorIds,
+  recallCollapsed,
+  rememberCollapsed,
+  setNodeCollapsed,
+} from '../../lib/treeCollapse';
+import type { TreeViewActions } from '../../lib/treeCollapse';
+import { planNodeAriaLabel } from '../../lib/nodeAriaLabel';
 
 // Query block group component
 interface QueryBlockGroupData extends Record<string, unknown> {
@@ -228,24 +247,66 @@ function calculateNodeHeight(
   return height;
 }
 
-
-// Horizontal and vertical spacing between nodes
-// Extra padding to ensure query block groups don't overlap
+// Spacing between nodes. "Breadth" runs across siblings (horizontal in the
+// top-down layout, vertical in left-to-right); "depth" runs from a parent to
+// its children. Extra padding keeps query block groups from overlapping.
 const NODE_H_SPACING = 80;
 const NODE_V_SPACING = 80;
+/** Compact density packs levels tighter in the top-down layout. */
+const COMPACT_TB_DEPTH_SPACING = 32;
+/** Left-to-right: sibling subtrees stack vertically, levels need room for edge labels. */
+const LR_BREADTH_SPACING = 28;
+const LR_DEPTH_SPACING = 72;
 const EMPTY_SELECTED_NODE_IDS: number[] = [];
 
-// Custom tree layout that ensures subtrees never overlap
-// Each subtree gets its own horizontal region based on its total width
+/** One padding for every whole-tree fit (initial, refit, resize, redraw). */
+const FIT_PADDING = 0.12;
+const RESIZE_REFIT_DEBOUNCE_MS = 120;
+/** Auto-centre on an external selection: below this zoom text is unreadable… */
+const READABLE_ZOOM_THRESHOLD = 0.6;
+/** …so zoom in to this level, centred on the node. */
+const READABLE_ZOOM = 0.9;
+/** "Focus selected" keeps the old fit-the-node zoom band. */
+const FOCUS_MIN_ZOOM = 0.85;
+const FOCUS_MAX_ZOOM = 1.2;
+const FOCUS_NODE_PADDING = 0.3;
+const VIEWPORT_MARGIN = 24;
+const CENTER_DURATION_MS = 300;
+/** 'auto' minimap appears once more than this many operations are on the canvas. */
+const MINIMAP_AUTO_THRESHOLD = 12;
+
+interface NodeBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface LayoutOptions {
+  direction: TreeLayoutDirection;
+  /** Gap between consecutive levels (parent → child). */
+  depthSpacing: number;
+  /** Gap between sibling subtrees. */
+  breadthSpacing: number;
+}
+
+// Custom tree layout that ensures subtrees never overlap: each subtree gets
+// its own band along the breadth axis sized to its total breadth, and every
+// level is offset by the tallest (TB) / widest (LR) node of the previous one.
 function getLayoutedElements(
   nodes: Node[],
   edges: Edge[],
   nodeDimensions: Map<string, { width: number; height: number }>,
-  verticalSpacing = NODE_V_SPACING,
+  { direction, depthSpacing, breadthSpacing }: LayoutOptions,
 ): { nodes: Node[]; edges: Edge[] } {
   if (nodes.length === 0) {
     return { nodes: [], edges };
   }
+
+  const isHorizontal = direction === 'LR';
+  const dimsOf = (id: string) => nodeDimensions.get(id) || { width: NODE_WIDTH, height: NODE_BASE_HEIGHT };
+  const breadthOf = (id: string) => (isHorizontal ? dimsOf(id).height : dimsOf(id).width);
+  const depthExtentOf = (id: string) => (isHorizontal ? dimsOf(id).width : dimsOf(id).height);
 
   // Build adjacency map: parent -> children
   const childrenMap = new Map<string, string[]>();
@@ -263,50 +324,45 @@ function getLayoutedElements(
   const rootId = nodes.find(n => !parentMap.has(n.id))?.id;
   if (!rootId) {
     // Fallback to dagre if we can't find root
-    return fallbackDagreLayout(nodes, edges, nodeDimensions);
+    return fallbackDagreLayout(nodes, edges, nodeDimensions, direction);
   }
 
-  // Calculate subtree width for each node (width needed to display all descendants)
-  const subtreeWidths = new Map<string, number>();
+  // Breadth each subtree needs to display all of its descendants
+  const subtreeBreadths = new Map<string, number>();
 
-  function calculateSubtreeWidth(nodeId: string): number {
-    const dims = nodeDimensions.get(nodeId) || { width: NODE_WIDTH, height: NODE_BASE_HEIGHT };
+  function calculateSubtreeBreadth(nodeId: string): number {
+    const own = breadthOf(nodeId);
     const children = childrenMap.get(nodeId) || [];
 
     if (children.length === 0) {
-      // Leaf node: width is just the node width
-      const width = dims.width;
-      subtreeWidths.set(nodeId, width);
-      return width;
+      subtreeBreadths.set(nodeId, own);
+      return own;
     }
 
-    // Sum of children subtree widths plus spacing between them
-    let totalChildrenWidth = 0;
+    let totalChildrenBreadth = 0;
     for (const childId of children) {
-      totalChildrenWidth += calculateSubtreeWidth(childId);
+      totalChildrenBreadth += calculateSubtreeBreadth(childId);
     }
-    totalChildrenWidth += (children.length - 1) * NODE_H_SPACING;
+    totalChildrenBreadth += (children.length - 1) * breadthSpacing;
 
-    // Subtree width is max of node width and total children width
-    const width = Math.max(dims.width, totalChildrenWidth);
-    subtreeWidths.set(nodeId, width);
-    return width;
+    const breadth = Math.max(own, totalChildrenBreadth);
+    subtreeBreadths.set(nodeId, breadth);
+    return breadth;
   }
 
-  calculateSubtreeWidth(rootId);
+  calculateSubtreeBreadth(rootId);
 
-  // Assign depth and compute max node height per depth to avoid row overlaps
-  // when dynamic node content (e.g. predicate details) expands.
+  // Assign depth and compute the largest depth-axis extent per level to avoid
+  // overlaps when dynamic node content (e.g. predicate details) expands.
   const depthByNodeId = new Map<string, number>();
-  const maxHeightByDepth = new Map<number, number>();
+  const maxExtentByDepth = new Map<number, number>();
 
   function assignDepth(nodeId: string, depth: number): void {
     const existingDepth = depthByNodeId.get(nodeId);
     if (existingDepth !== undefined && existingDepth <= depth) return;
 
     depthByNodeId.set(nodeId, depth);
-    const dims = nodeDimensions.get(nodeId) || { width: NODE_WIDTH, height: NODE_BASE_HEIGHT };
-    maxHeightByDepth.set(depth, Math.max(maxHeightByDepth.get(depth) || 0, dims.height));
+    maxExtentByDepth.set(depth, Math.max(maxExtentByDepth.get(depth) || 0, depthExtentOf(nodeId)));
 
     const children = childrenMap.get(nodeId) || [];
     for (const childId of children) {
@@ -316,76 +372,59 @@ function getLayoutedElements(
 
   assignDepth(rootId, 0);
 
-  const levelYOffsets = new Map<number, number>();
-  levelYOffsets.set(0, 0);
+  const levelOffsets = new Map<number, number>();
+  levelOffsets.set(0, 0);
   const maxDepth = Math.max(...depthByNodeId.values(), 0);
   for (let depth = 1; depth <= maxDepth; depth++) {
-    const prevY = levelYOffsets.get(depth - 1) || 0;
-    const prevHeight = maxHeightByDepth.get(depth - 1) || NODE_BASE_HEIGHT;
-    levelYOffsets.set(depth, prevY + prevHeight + verticalSpacing);
+    const prevOffset = levelOffsets.get(depth - 1) || 0;
+    const prevExtent = maxExtentByDepth.get(depth - 1) || (isHorizontal ? NODE_WIDTH : NODE_BASE_HEIGHT);
+    levelOffsets.set(depth, prevOffset + prevExtent + depthSpacing);
   }
 
-  // Position nodes: each node is centered over its subtree
+  // Position nodes: each node is centred within its subtree's band
   const positions = new Map<string, { x: number; y: number }>();
 
-  function positionNode(nodeId: string, xStart: number): void {
-    const dims = nodeDimensions.get(nodeId) || { width: NODE_WIDTH, height: NODE_BASE_HEIGHT };
-    const subtreeWidth = subtreeWidths.get(nodeId) || dims.width;
+  function positionNode(nodeId: string, bandStart: number): void {
+    const own = breadthOf(nodeId);
+    const subtreeBreadth = subtreeBreadths.get(nodeId) || own;
     const children = childrenMap.get(nodeId) || [];
-    const depth = depthByNodeId.get(nodeId) || 0;
-    const y = levelYOffsets.get(depth) || 0;
+    const depthOffset = levelOffsets.get(depthByNodeId.get(nodeId) || 0) || 0;
 
-    // Center the node within its allocated subtree width
-    const nodeX = xStart + (subtreeWidth - dims.width) / 2;
-    positions.set(nodeId, { x: nodeX, y });
+    const nodeStart = bandStart + (subtreeBreadth - own) / 2;
+    positions.set(nodeId, isHorizontal ? { x: depthOffset, y: nodeStart } : { x: nodeStart, y: depthOffset });
 
-    // Position children
-    if (children.length > 0) {
-      if (children.length === 1) {
-        // Single child: align directly under parent (same X position)
-        const childId = children[0];
-        const childDims = nodeDimensions.get(childId) || { width: NODE_WIDTH, height: NODE_BASE_HEIGHT };
-        // Calculate xStart such that child node ends up at same X as parent
-        // childNodeX = childXStart + (childSubtreeWidth - childWidth) / 2 = nodeX
-        // childXStart = nodeX - (childSubtreeWidth - childWidth) / 2
-        const childSubtreeWidth = subtreeWidths.get(childId) || NODE_WIDTH;
-        const childXStart = nodeX - (childSubtreeWidth - childDims.width) / 2;
-        positionNode(childId, childXStart);
-      } else {
-        // Multiple children: center the group under the parent
-        let totalChildrenWidth = 0;
-        for (const childId of children) {
-          totalChildrenWidth += subtreeWidths.get(childId) || NODE_WIDTH;
-        }
-        totalChildrenWidth += (children.length - 1) * NODE_H_SPACING;
+    if (children.length === 0) return;
 
-        // Calculate parent's center position
-        const parentCenterX = nodeX + dims.width / 2;
+    if (children.length === 1) {
+      // Single child: centre it on the parent (a straight edge). For equal
+      // widths in the top-down layout this is the same column as the parent.
+      const childId = children[0];
+      const childOwn = breadthOf(childId);
+      const childSubtreeBreadth = subtreeBreadths.get(childId) || childOwn;
+      const childStart = nodeStart + (own - childOwn) / 2;
+      positionNode(childId, childStart - (childSubtreeBreadth - childOwn) / 2);
+      return;
+    }
 
-        // Start children such that their combined center aligns with parent's center
-        let childX = parentCenterX - totalChildrenWidth / 2;
+    // Multiple children: centre the group on the parent
+    let totalChildrenBreadth = 0;
+    for (const childId of children) {
+      totalChildrenBreadth += subtreeBreadths.get(childId) || breadthOf(childId);
+    }
+    totalChildrenBreadth += (children.length - 1) * breadthSpacing;
 
-        for (const childId of children) {
-          const childSubtreeWidth = subtreeWidths.get(childId) || NODE_WIDTH;
-          positionNode(childId, childX);
-          childX += childSubtreeWidth + NODE_H_SPACING;
-        }
-      }
+    let childBand = nodeStart + own / 2 - totalChildrenBreadth / 2;
+    for (const childId of children) {
+      positionNode(childId, childBand);
+      childBand += (subtreeBreadths.get(childId) || breadthOf(childId)) + breadthSpacing;
     }
   }
 
   positionNode(rootId, 0);
 
-  // Apply positions to nodes
   const layoutedNodes = nodes.map((node) => {
     const pos = positions.get(node.id);
-    if (pos) {
-      return {
-        ...node,
-        position: { x: pos.x, y: pos.y },
-      };
-    }
-    return node;
+    return pos ? { ...node, position: { x: pos.x, y: pos.y } } : node;
   });
 
   return { nodes: layoutedNodes, edges };
@@ -395,10 +434,11 @@ function getLayoutedElements(
 function fallbackDagreLayout(
   nodes: Node[],
   edges: Edge[],
-  nodeDimensions: Map<string, { width: number; height: number }>
+  nodeDimensions: Map<string, { width: number; height: number }>,
+  direction: TreeLayoutDirection,
 ): { nodes: Node[]; edges: Edge[] } {
   const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: 'TB', nodesep: 120, ranksep: 120 });
+  g.setGraph({ rankdir: direction, nodesep: direction === 'LR' ? 60 : 120, ranksep: 120 });
   g.setDefaultEdgeLabel(() => ({}));
 
   nodes.forEach((node) => {
@@ -427,16 +467,62 @@ function fallbackDagreLayout(
   return { nodes: layoutedNodes, edges };
 }
 
+/** Rows flowing out of a child into its parent — drives edge thickness + label. */
+function rowFlowOf(child: PlanNode, hasActualStats: boolean): number {
+  if (hasActualStats && child.actualRows !== undefined) return child.actualRows;
+  return child.rows || 1;
+}
+
+type CollapseUpdater = (prev: ReadonlySet<number>) => ReadonlySet<number>;
+
 interface HierarchicalViewContentProps {
-  planIndex?: number;
-  registerExport?: boolean;
-  showAnnotations?: boolean;
+  planIndex: number;
+  registerExport: boolean;
+  showAnnotations: boolean;
+  layoutDirection: TreeLayoutDirection;
+  /** Nodes whose subtrees are collapsed (owned by the outer view, per plan). */
+  collapsedIds: ReadonlySet<number>;
+  updateCollapsed: (updater: CollapseUpdater) => void;
+  /**
+   * Set when the direction was switched from the in-canvas strip: the switch
+   * remounts this component, so the new instance hands focus back to the
+   * (now pressed) direction button. Lives outside the keyed subtree.
+   */
+  directionFocusRef: React.MutableRefObject<boolean>;
+}
+
+/** Where a selection came from: canvas clicks never move the viewport. */
+type SelectionSource = 'canvas' | 'keyboard';
+/**
+ * - `if-needed`: pan only when the node is not fully on screen (keyboard nav)
+ * - `if-needed-readable`: also zoom in to a readable level (external selection)
+ * - `focus`: always centre, at the "Focus selected" zoom band
+ */
+type RevealMode = 'if-needed' | 'if-needed-readable' | 'focus';
+
+const EMPTY_COUNTS: ReadonlyMap<number, number> = new Map();
+const EMPTY_BOXES: ReadonlyMap<string, NodeBox> = new Map();
+
+/** html-to-image filter: keep canvas chrome and node controls out of the PNG. */
+function includeInExport(domNode: HTMLElement): boolean {
+  if (!(domNode instanceof Element)) return true;
+  if (domNode.hasAttribute('data-export-exclude')) return false;
+  const { classList } = domNode;
+  return !(
+    classList.contains('react-flow__minimap') ||
+    classList.contains('react-flow__controls') ||
+    classList.contains('react-flow__panel')
+  );
 }
 
 function HierarchicalViewContent({
   planIndex,
-  registerExport = true,
-  showAnnotations = true,
+  registerExport,
+  showAnnotations,
+  layoutDirection,
+  collapsedIds,
+  updateCollapsed,
+  directionFocusRef,
 }: HierarchicalViewContentProps) {
   const {
     plans,
@@ -451,18 +537,27 @@ function HierarchicalViewContent({
     exportPngFnRef,
     hotspotsEnabled,
     highlightStyle,
+    treeMinimap,
+    setTreeMinimap,
+    setTreeLayoutDirection,
+    treeViewActionsRef,
+    setTreeViewState,
   } = usePlan();
-  const resolvedPlanIndex = planIndex ?? activePlanIndex;
+  const resolvedPlanIndex = planIndex;
   const slot = plans[resolvedPlanIndex];
   const parsedPlan = slot?.parsedPlan ?? null;
   const selectedNodeId = slot?.selectedNodeId ?? null;
   const selectedNodeIds = slot?.selectedNodeIds ?? EMPTY_SELECTED_NODE_IDS;
   const containerRef = useRef<HTMLDivElement>(null);
-  const { fitView, getNodes, setCenter, getViewport, getInternalNode } = useReactFlow();
+  const { fitView, getNodes, setCenter, setViewport, getViewport, getInternalNode } = useReactFlow();
+  const reducedMotion = usePrefersReducedMotion();
+  const isHorizontal = layoutDirection === 'LR';
+  const rootNode = parsedPlan?.rootNode ?? null;
   const nodeById = useMemo(() => {
     if (!parsedPlan) return new Map<number, PlanNode>();
     return new Map(parsedPlan.allNodes.map((node) => [node.id, node]));
   }, [parsedPlan]);
+  const parentOf = useCallback((id: number) => nodeById.get(id)?.parentId, [nodeById]);
   const filteredNodeIds = useMemo(() => {
     if (!parsedPlan) return new Set<number>();
     const hasActualStats = parsedPlan.hasActualStats ?? false;
@@ -485,6 +580,39 @@ function HierarchicalViewContent({
     () => (showAnnotations ? planAnnotations : createEmptyAnnotationState()),
     [planAnnotations, showAnnotations]
   );
+
+  // Collapsed subtrees: hidden descendants are dropped from layout and edges.
+  const hiddenNodeIds = useMemo(() => computeHiddenNodeIds(rootNode, collapsedIds), [rootNode, collapsedIds]);
+  const descendantCounts = useMemo(() => countDescendants(rootNode), [rootNode]);
+  const collapseAllTarget = useMemo(() => collapseAllIds(rootNode), [rootNode]);
+  const visibleNodeCount = (parsedPlan?.allNodes.length ?? 0) - hiddenNodeIds.size;
+
+  // Layout only needs to know *which* nodes carry a note (they get a taller
+  // card), not the text: key it on the id list so typing a note re-renders the
+  // preview (data effect below) without re-running the layout per keystroke.
+  const annotatedNodeKey = useMemo(
+    () => [...effectiveAnnotations.nodeAnnotations.keys()].sort((a, b) => a - b).join(','),
+    [effectiveAnnotations.nodeAnnotations]
+  );
+  const annotatedNodeIds = useMemo(
+    () => new Set(annotatedNodeKey ? annotatedNodeKey.split(',').map(Number) : []),
+    [annotatedNodeKey]
+  );
+
+  // Stable callback handed to every node (so it never invalidates the layout);
+  // the latest handler is swapped in via a ref after each commit.
+  const toggleCollapseRef = useRef<(nodeId: number) => void>(() => {});
+  const onToggleCollapse = useCallback((nodeId: number) => toggleCollapseRef.current(nodeId), []);
+
+  // Selection bookkeeping for auto-centring (see the selection effect below)
+  const selectionSourceRef = useRef<{ source: SelectionSource; id: number; at: number } | null>(null);
+  const markSelectionSource = useCallback((source: SelectionSource, id: number) => {
+    selectionSourceRef.current = { source, id, at: performance.now() };
+  }, []);
+  const pendingRevealRef = useRef<{ id: number; mode: RevealMode } | null>(null);
+  const pendingFitRef = useRef(false);
+  const pendingAnchorRef = useRef<{ id: number; screenX: number; screenY: number } | null>(null);
+  const layoutBoxesRef = useRef<ReadonlyMap<string, NodeBox>>(EMPTY_BOXES);
 
   // PNG export state: when true, onlyRenderVisibleElements is disabled so all nodes render
   const [isExporting, setIsExporting] = useState(false);
@@ -512,8 +640,10 @@ function HierarchicalViewContent({
         const imageHeight = nodesBounds.height + padding * 2;
         const viewport = getViewportForBounds(nodesBounds, imageWidth, imageHeight, 0.5, 2, padding);
 
-        const viewportEl = containerRef.current?.querySelector('.react-flow__viewport') as HTMLElement | null;
-        if (!viewportEl) return;
+        const viewportEl = containerRef.current?.querySelector<HTMLElement>('.react-flow__viewport') ?? null;
+        // Reject rather than resolve: the caller's "PNG downloaded" toast
+        // must never report an image that was not produced.
+        if (!viewportEl) throw new Error('The tree canvas is not on screen, so there is nothing to capture.');
 
         // Matches the canvas backdrop, read live so the export follows the
         // active theme *and* app palette.
@@ -525,6 +655,10 @@ function HierarchicalViewContent({
           backgroundColor: bgColor,
           width: imageWidth,
           height: imageHeight,
+          // The capture root is the flow viewport, so the minimap / controls /
+          // overlay panels are already outside it; the filter also drops the
+          // per-node collapse chevrons (and guards against a wider root later).
+          filter: includeInExport,
           style: {
             width: `${imageWidth}px`,
             height: `${imageHeight}px`,
@@ -579,6 +713,12 @@ function HierarchicalViewContent({
     ].join('::');
   }, [operationTypes, minCost, maxCost, searchText, predicateTypes, minActualRows, maxActualRows, minActualTime, maxActualTime]);
 
+  // Collapsed stubs flag how many hidden descendants match the active search
+  const hiddenMatchCounts = useMemo((): ReadonlyMap<number, number> => {
+    if (!searchText.trim() || collapsedIds.size === 0) return EMPTY_COUNTS;
+    return countHiddenMatches(rootNode, collapsedIds, (id) => filteredNodeIds.has(id));
+  }, [searchText, collapsedIds, rootNode, filteredNodeIds]);
+
   const selectionSets = useMemo(() => {
     const empty = {
       ancestorIds: new Set<number>(),
@@ -619,7 +759,7 @@ function HierarchicalViewContent({
 
   const layoutData = useMemo(() => {
     if (!parsedPlan?.rootNode) {
-      return { nodes: [] as Node[], edges: [] as Edge[] };
+      return { nodes: [] as Node[], edges: [] as Edge[], boxes: EMPTY_BOXES };
     }
 
     const isRail = colorScheme === 'rail';
@@ -629,6 +769,7 @@ function HierarchicalViewContent({
     // Minimal density narrows the card; tree spacing keeps the wider gaps (extra air is fine)
     const isCompactNode = effectiveDisplayOptions.compactStats;
     const effectiveNodeWidth = isCompactNode ? COMPACT_NODE_WIDTH : isTicker ? 240 : NODE_WIDTH;
+    const hasActualStats = parsedPlan.hasActualStats || false;
 
     const planNodes: Node[] = [];
     const edges: Edge[] = [];
@@ -652,8 +793,7 @@ function HierarchicalViewContent({
     }
 
     function traverse(node: PlanNode) {
-      const hasActualStats = parsedPlan!.hasActualStats || false;
-      const hasAnnotation = effectiveAnnotations.nodeAnnotations.has(node.id);
+      const hasAnnotation = annotatedNodeIds.has(node.id);
       const nodeFindings = advisorReport?.findingsByNodeId.get(node.id);
       const advisorSeverity = advisorReport?.maxSeverityByNodeId.get(node.id);
       const advisorTitles = nodeFindings?.map((f) => f.title);
@@ -662,7 +802,7 @@ function HierarchicalViewContent({
       const height = calculateNodeHeight(node, effectiveDisplayOptions, hasActualStats, hasAnnotation, usesGrid, isRail, isTicker, hasAdvisorBadge);
       nodeDimensions.set(node.id.toString(), { width: effectiveNodeWidth, height });
       const match = bundle ? findObjectInBundle(bundle, node.objectName) : null;
-      const cardSeverity = parsedPlan!.hasActualStats
+      const cardSeverity = hasActualStats
         ? cardinalityRatioSeverity(computeCardinalityRatio(node.rows, node.actualRows))
         : 'good';
       const predicateColumns = extractPredicateColumns(node.accessPredicates, node.filterPredicates);
@@ -676,6 +816,7 @@ function HierarchicalViewContent({
         : [];
       const partitionPruning = assessPartitionPruning(node);
       const nodeParallelSignals = parallelSignalsByNode.get(node.id);
+      const isCollapsed = node.children.length > 0 && collapsedIds.has(node.id);
 
       // Keep query block envelopes stable across predicate-detail toggles by
       // sizing groups against the expanded node-height baseline.
@@ -711,6 +852,10 @@ function HierarchicalViewContent({
           advisorSeverity,
           advisorCount: nodeFindings?.length,
           advisorTitles,
+          layoutDirection,
+          isCollapsed,
+          hiddenCount: isCollapsed ? descendantCounts.get(node.id) ?? 0 : 0,
+          onToggleCollapse,
         },
       });
 
@@ -718,22 +863,16 @@ function HierarchicalViewContent({
         nodeQueryBlocks.set(node.id.toString(), node.queryBlock);
       }
 
-      for (const child of node.children) {
-        // Calculate row flow for edge thickness
-        let rowFlow: number;
-        if (parsedPlan!.hasActualStats && child.actualRows !== undefined) {
-          rowFlow = child.actualRows;
-        } else {
-          // Fall back to estimated rows
-          rowFlow = child.rows || 1;
-        }
+      // A collapsed node keeps its card; its whole subtree leaves the canvas.
+      if (isCollapsed) return;
 
+      for (const child of node.children) {
         edges.push({
           id: `e${node.id}-${child.id}`,
           source: node.id.toString(),
           target: child.id.toString(),
           animated: false,
-          data: { rowFlow },
+          data: { rowFlow: rowFlowOf(child, hasActualStats) },
           style: {
             stroke: EDGE_SCHEME_COLORS[colorScheme].light.default,
             strokeWidth: 2,
@@ -745,14 +884,36 @@ function HierarchicalViewContent({
 
     traverse(parsedPlan.rootNode);
 
-    // Calculate min and max row flow for edge thickness normalization
-    const rowFlows = edges.map(e => (e.data as { rowFlow: number })?.rowFlow || 1);
-    const minRowFlow = Math.min(...rowFlows);
-    const maxRowFlow = Math.max(...rowFlows);
+    // Edge thickness is normalised across the *whole* plan so it stays stable
+    // while subtrees are collapsed and expanded.
+    const rowFlows = parsedPlan.allNodes
+      .filter((node) => node.parentId !== undefined)
+      .map((node) => rowFlowOf(node, hasActualStats));
+    const minRowFlow = rowFlows.length > 0 ? Math.min(...rowFlows) : 1;
+    const maxRowFlow = rowFlows.length > 0 ? Math.max(...rowFlows) : 1;
     const rowFlowRange = maxRowFlow - minRowFlow;
 
     // Apply layout to plan nodes with dynamic dimensions
-    const layoutedResult = getLayoutedElements(planNodes, edges, nodeDimensions, matchDensityPreset(effectiveDisplayOptions) === 'compact' ? 32 : NODE_V_SPACING);
+    const groupsQueryBlocks = effectiveDisplayOptions.showQueryBlockGrouping && nodeQueryBlocks.size > 0;
+    const layoutOptions: LayoutOptions = isHorizontal
+      ? {
+          direction: 'LR',
+          depthSpacing: LR_DEPTH_SPACING,
+          breadthSpacing: groupsQueryBlocks ? NODE_H_SPACING : LR_BREADTH_SPACING,
+        }
+      : {
+          direction: 'TB',
+          depthSpacing: matchDensityPreset(effectiveDisplayOptions) === 'compact' ? COMPACT_TB_DEPTH_SPACING : NODE_V_SPACING,
+          breadthSpacing: NODE_H_SPACING,
+        };
+    const layoutedResult = getLayoutedElements(planNodes, edges, nodeDimensions, layoutOptions);
+
+    // Absolute boxes of every visible plan node (before query-block re-parenting)
+    const boxes = new Map<string, NodeBox>();
+    for (const node of layoutedResult.nodes) {
+      const dims = nodeDimensions.get(node.id) || { width: NODE_WIDTH, height: NODE_BASE_HEIGHT };
+      boxes.set(node.id, { x: node.position.x, y: node.position.y, width: dims.width, height: dims.height });
+    }
 
     // Edge thickness range
     const MIN_STROKE_WIDTH = 2;
@@ -785,7 +946,7 @@ function HierarchicalViewContent({
     // Create query block groups if enabled
     const groupNodes: Node[] = [];
     const nodeParentInfo = new Map<string, { parentId: string; offsetX: number; offsetY: number }>();
-    if (effectiveDisplayOptions.showQueryBlockGrouping && nodeQueryBlocks.size > 0) {
+    if (groupsQueryBlocks) {
       // Group nodes by query block
       const queryBlockGroups = new Map<string, Node[]>();
       for (const node of layoutedResult.nodes) {
@@ -842,7 +1003,7 @@ function HierarchicalViewContent({
       });
     }
 
-    // Annotation group overlay nodes
+    // Annotation group overlay nodes (members hidden in a collapsed subtree drop out)
     const annotationGroupNodes: Node[] = [];
     if (effectiveAnnotations.groups.length > 0) {
       const padding = 20;
@@ -906,17 +1067,38 @@ function HierarchicalViewContent({
     return {
       nodes: [...groupNodes, ...annotationGroupNodes, ...adjustedPlanNodes],
       edges: edgesWithThickness,
+      boxes,
     };
-  }, [effectiveAnnotations.groups, effectiveAnnotations.nodeAnnotations, effectiveDisplayOptions, parsedPlan, colorScheme, filters.scaleEdgeWidth, slot?.metadataBundle, advisorReport?.findingsByNodeId, advisorReport?.maxSeverityByNodeId]);
+  }, [
+    effectiveAnnotations.groups,
+    annotatedNodeIds,
+    effectiveDisplayOptions,
+    parsedPlan,
+    colorScheme,
+    filters.scaleEdgeWidth,
+    slot?.metadataBundle,
+    advisorReport?.findingsByNodeId,
+    advisorReport?.maxSeverityByNodeId,
+    collapsedIds,
+    descendantCounts,
+    isHorizontal,
+    layoutDirection,
+    onToggleCollapse,
+  ]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutData.edges);
+  // "Redraw layout" bumps this to re-apply computed positions (dropping drags)
+  const [redrawEpoch, setRedrawEpoch] = useState(0);
 
-  // Sync nodes with layout when layout changes
+  // Sync nodes with layout when layout changes (or on redraw). The data / edge
+  // style effects below list the same triggers so decorations are re-applied
+  // on top of the fresh layout objects in the same commit.
   useEffect(() => {
+    layoutBoxesRef.current = layoutData.boxes;
     setNodes(layoutData.nodes);
     setEdges(layoutData.edges);
-  }, [layoutData, setNodes, setEdges]);
+  }, [layoutData, redrawEpoch, setNodes, setEdges]);
 
   // React Flow paints edges a frame or two before the nodes have positions, so
   // the first mount flashes a ghost frame of stray edges. Stay invisible until
@@ -925,29 +1107,91 @@ function HierarchicalViewContent({
   const [layoutReady, setLayoutReady] = useState(false);
   const layoutReadyRef = useRef(false);
 
+  /** Where a node is now: the live (possibly dragged) position, else the computed layout box. */
+  const getNodeBox = useCallback((id: number): NodeBox | null => {
+    const key = String(id);
+    const layoutBox = layoutBoxesRef.current.get(key);
+    if (!layoutBox) return null;
+    const internal = getInternalNode(key);
+    if (!internal) return layoutBox;
+    const abs = internal.internals.positionAbsolute;
+    return {
+      x: abs.x,
+      y: abs.y,
+      width: internal.measured?.width ?? layoutBox.width,
+      height: internal.measured?.height ?? layoutBox.height,
+    };
+  }, [getInternalNode]);
+
+  /** The single place that moves the viewport onto one node. */
+  const centerOnNode = useCallback((id: number, mode: RevealMode): boolean => {
+    const container = containerRef.current;
+    const box = getNodeBox(id);
+    if (!container || !box) return false;
+    const { width: canvasWidth, height: canvasHeight } = container.getBoundingClientRect();
+    if (canvasWidth === 0 || canvasHeight === 0) return false;
+    const { x: vx, y: vy, zoom } = getViewport();
+
+    let targetZoom = zoom;
+    if (mode === 'focus') {
+      const fitZoom = Math.min(
+        canvasWidth / (box.width * (1 + 2 * FOCUS_NODE_PADDING)),
+        canvasHeight / (box.height * (1 + 2 * FOCUS_NODE_PADDING)),
+      );
+      targetZoom = Math.min(FOCUS_MAX_ZOOM, Math.max(FOCUS_MIN_ZOOM, fitZoom));
+    } else if (mode === 'if-needed-readable' && zoom < READABLE_ZOOM_THRESHOLD) {
+      targetZoom = READABLE_ZOOM;
+    }
+
+    if (mode !== 'focus' && targetZoom === zoom) {
+      const sx = box.x * zoom + vx;
+      const sy = box.y * zoom + vy;
+      const fullyVisible =
+        sx >= VIEWPORT_MARGIN &&
+        sy >= VIEWPORT_MARGIN &&
+        sx + box.width * zoom <= canvasWidth - VIEWPORT_MARGIN &&
+        sy + box.height * zoom <= canvasHeight - VIEWPORT_MARGIN;
+      if (fullyVisible) return true;
+    }
+
+    void setCenter(box.x + box.width / 2, box.y + box.height / 2, {
+      zoom: targetZoom,
+      duration: prefersReducedMotion() ? 0 : CENTER_DURATION_MS,
+    });
+    return true;
+  }, [getNodeBox, getViewport, setCenter]);
+
   // Re-fit viewport when the layout changes for a structural reason (new plan,
   // display options / color scheme, metadata or advisor badges). Annotations are
-  // deliberately NOT a trigger: typing a note re-runs the layout memo on every
-  // keystroke, and re-fitting there would yank the user's zoom out from under
-  // them. The layout itself still updates (see the setNodes sync above).
+  // deliberately NOT a trigger: re-fitting while typing a note would yank the
+  // user's zoom out from under them. Collapse/expand is not a trigger either —
+  // single toggles keep the toggled node anchored, Expand/Collapse all refit
+  // explicitly. (Layout direction remounts the view, so it refits on mount.)
   const fitKey = useMemo(
     () => ({ parsedPlan, effectiveDisplayOptions, colorScheme, bundle: slot?.metadataBundle, advisorReport }),
     [parsedPlan, effectiveDisplayOptions, colorScheme, slot?.metadataBundle, advisorReport]
   );
   useEffect(() => {
     const timer = setTimeout(() => {
-      fitView({ padding: 0.12 });
-      if (!layoutReadyRef.current) {
+      void Promise.resolve(fitView({ padding: FIT_PADDING })).then(() => {
+        if (layoutReadyRef.current) return;
         layoutReadyRef.current = true;
         requestAnimationFrame(() => setLayoutReady(true));
-      }
+        // A selection made before the tree mounted (e.g. from the Tabular view)
+        // is revealed once the initial fit has settled.
+        const pending = pendingRevealRef.current;
+        if (pending && layoutBoxesRef.current.has(String(pending.id))) {
+          pendingRevealRef.current = null;
+          centerOnNode(pending.id, pending.mode);
+        }
+      });
     }, 50);
     return () => clearTimeout(timer);
-  }, [fitKey, fitView]);
+  }, [fitKey, fitView, centerOnNode]);
 
-  // Panels and responsive breakpoints change the actual canvas size without
-  // changing the plan. Refit after resizing settles, rather than leaving the
-  // old viewport clipped. Notes and selection do not trigger this observer.
+  // The one fit-on-resize observer. Panels opening/closing and responsive
+  // breakpoints change the canvas size without changing the plan: refit once
+  // resizing settles instead of leaving the old viewport clipped.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -961,48 +1205,154 @@ function HierarchicalViewContent({
       previousHeight = height;
       clearTimeout(timer);
       if (width > 0 && height > 0) {
-        timer = setTimeout(() => { void fitView({ padding: 0.12 }); }, 100);
+        timer = setTimeout(() => { void fitView({ padding: FIT_PADDING }); }, RESIZE_REFIT_DEBOUNCE_MS);
       }
     });
     observer.observe(container);
     return () => { observer.disconnect(); clearTimeout(timer); };
   }, [fitView]);
 
-  // Pan the viewport to a newly selected node when it's off-screen. Keyboard
-  // navigation and hotspot-list clicks select nodes the user can't see;
-  // click-selection is a no-op (the node is already visible), and the user's
-  // own pan is never fought while the selection is unchanged.
-  const prevSelectedRef = useRef<number | null>(null);
+  // After a collapse-driven re-layout: Expand/Collapse all refit the tree; a
+  // single toggle keeps the toggled node where it was on screen.
   useEffect(() => {
-    const prev = prevSelectedRef.current;
-    prevSelectedRef.current = selectedNodeId;
-    if (selectedNodeId === null || selectedNodeId === prev) return;
-    if (selectedNodeIds.length !== 1) return; // skip multi-select
-    const internal = getInternalNode(String(selectedNodeId));
-    if (!internal || !containerRef.current) return;
-    const { x: vx, y: vy, zoom } = getViewport();
-    const abs = internal.internals.positionAbsolute;
-    const w = internal.measured?.width ?? NODE_WIDTH;
-    const h = internal.measured?.height ?? NODE_BASE_HEIGHT;
-    const sx = abs.x * zoom + vx;
-    const sy = abs.y * zoom + vy;
-    const rect = containerRef.current.getBoundingClientRect();
-    const margin = 24;
-    const visible =
-      sx >= margin &&
-      sy >= margin &&
-      sx + w * zoom <= rect.width - margin &&
-      sy + h * zoom <= rect.height - margin;
-    if (visible) return;
-    setCenter(abs.x + w / 2, abs.y + h / 2, { zoom, duration: 300 });
-  }, [selectedNodeId, selectedNodeIds.length, getInternalNode, getViewport, setCenter]);
+    if (pendingFitRef.current) {
+      pendingFitRef.current = false;
+      pendingAnchorRef.current = null;
+      const timer = setTimeout(() => {
+        void fitView({ padding: FIT_PADDING, duration: prefersReducedMotion() ? 0 : 250 });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+    const anchor = pendingAnchorRef.current;
+    if (!anchor) return;
+    pendingAnchorRef.current = null;
+    const box = layoutData.boxes.get(String(anchor.id));
+    if (!box) return;
+    const { zoom } = getViewport();
+    void setViewport({ x: anchor.screenX - box.x * zoom, y: anchor.screenY - box.y * zoom, zoom });
+  }, [layoutData, fitView, getViewport, setViewport]);
 
-  // Reset all nodes/edges back to the computed layout positions
+  // Selection changes. Canvas clicks are left alone (the node is on screen);
+  // keyboard navigation pans only when the node is off-screen; anything else —
+  // details-panel lists, findings, tabular sync, search — is an external
+  // selection: its collapsed ancestors are expanded, then the viewport pans
+  // (and zooms in from an unreadable zoom) onto it.
+  const selectionKey = selectedNodeIds.join(',');
+  const prevSelectionKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (prevSelectionKeyRef.current === selectionKey) return;
+    prevSelectionKeyRef.current = selectionKey;
+    const mark = selectionSourceRef.current;
+    selectionSourceRef.current = null;
+    const source: SelectionSource | 'external' =
+      mark && mark.id === selectedNodeId && performance.now() - mark.at < 2000 ? mark.source : 'external';
+
+    const hiddenSelected = selectedNodeIds.filter((id) => hiddenNodeIds.has(id));
+    if (hiddenSelected.length > 0) {
+      updateCollapsed((prev) => expandAncestors(prev, hiddenSelected, parentOf));
+    }
+
+    if (selectedNodeId === null || selectedNodeIds.length !== 1 || source === 'canvas') {
+      pendingRevealRef.current = null;
+      return;
+    }
+    pendingRevealRef.current = {
+      id: selectedNodeId,
+      mode: source === 'keyboard' ? 'if-needed' : 'if-needed-readable',
+    };
+  }, [selectionKey, selectedNodeId, selectedNodeIds, hiddenNodeIds, parentOf, updateCollapsed]);
+
+  // Fulfil a pending reveal once the node is on the canvas (immediately, or
+  // after the re-layout that expanded its ancestors) and the first fit is done.
+  useEffect(() => {
+    const pending = pendingRevealRef.current;
+    if (!pending || !layoutReadyRef.current) return;
+    if (!layoutData.boxes.has(String(pending.id))) return;
+    pendingRevealRef.current = null;
+    centerOnNode(pending.id, pending.mode);
+  }, [layoutData, selectionKey, centerOnNode]);
+
+  const focusSelected = useCallback(() => {
+    if (selectedNodeId !== null) centerOnNode(selectedNodeId, 'focus');
+  }, [selectedNodeId, centerOnNode]);
+
+  const fitTree = useCallback(() => {
+    void fitView({ padding: FIT_PADDING, duration: prefersReducedMotion() ? 0 : 250 });
+  }, [fitView]);
+
+  // Reset all nodes/edges back to the computed layout positions, then refit
   const resetLayout = useCallback(() => {
-    setNodes(layoutData.nodes);
-    setEdges(layoutData.edges);
-    setTimeout(() => fitView({ padding: 0.2 }), 50);
-  }, [layoutData, setNodes, setEdges, fitView]);
+    setRedrawEpoch((epoch) => epoch + 1);
+    setTimeout(() => { void fitView({ padding: FIT_PADDING }); }, 50);
+  }, [fitView]);
+
+  const handleToggleCollapse = useCallback((nodeId: number) => {
+    const willCollapse = !collapsedIds.has(nodeId);
+    const box = getNodeBox(nodeId);
+    if (box) {
+      const { x: vx, y: vy, zoom } = getViewport();
+      pendingAnchorRef.current = { id: nodeId, screenX: box.x * zoom + vx, screenY: box.y * zoom + vy };
+    }
+    updateCollapsed((prev) => setNodeCollapsed(prev, nodeId, willCollapse));
+    // Collapsing over the selection moves it onto the collapsed stub, so the
+    // selected operation never silently disappears from the canvas.
+    if (
+      willCollapse &&
+      selectedNodeId !== null &&
+      selectedNodeId !== nodeId &&
+      getAncestorIds(selectedNodeId, parentOf).includes(nodeId)
+    ) {
+      markSelectionSource('canvas', nodeId);
+      selectNodeForPlan(resolvedPlanIndex, nodeId);
+    }
+  }, [collapsedIds, getNodeBox, getViewport, updateCollapsed, selectedNodeId, parentOf, markSelectionSource, selectNodeForPlan, resolvedPlanIndex]);
+
+  useLayoutEffect(() => {
+    toggleCollapseRef.current = handleToggleCollapse;
+  }, [handleToggleCollapse]);
+
+  const expandAll = useCallback(() => {
+    if (collapsedIds.size === 0) return;
+    pendingFitRef.current = true;
+    updateCollapsed(() => EMPTY_COLLAPSED);
+  }, [collapsedIds, updateCollapsed]);
+
+  // Collapse every subtree below the root, but keep the path to the selected
+  // operation open so the selection stays on the canvas.
+  const collapseAll = useCallback(() => {
+    const next = selectedNodeId !== null
+      ? expandAncestors(collapseAllTarget, [selectedNodeId], parentOf)
+      : collapseAllTarget;
+    if (next.size === collapsedIds.size && [...next].every((id) => collapsedIds.has(id))) return;
+    pendingFitRef.current = true;
+    updateCollapsed(() => next);
+  }, [collapseAllTarget, selectedNodeId, parentOf, collapsedIds, updateCollapsed]);
+
+  const changeDirection = useCallback((direction: TreeLayoutDirection) => {
+    if (direction === layoutDirection) return;
+    directionFocusRef.current = !!containerRef.current?.contains(document.activeElement);
+    setTreeLayoutDirection(direction);
+  }, [layoutDirection, directionFocusRef, setTreeLayoutDirection]);
+
+  // After a direction switch remounted the canvas, return keyboard focus to
+  // the direction control instead of dropping it on <body>.
+  useEffect(() => {
+    if (!directionFocusRef.current) return;
+    directionFocusRef.current = false;
+    containerRef.current
+      ?.querySelector<HTMLButtonElement>('[data-tree-direction][aria-pressed="true"]')
+      ?.focus({ preventScroll: true });
+  }, [directionFocusRef]);
+
+  // Let chrome outside the canvas (toolbar, command palette) drive the tree
+  useEffect(() => {
+    if (!registerExport) return;
+    const actions: TreeViewActions = { expandAll, collapseAll, fitView: fitTree, focusSelected, resetLayout };
+    treeViewActionsRef.current = actions;
+    return () => {
+      if (treeViewActionsRef.current === actions) treeViewActionsRef.current = null;
+    };
+  }, [registerExport, treeViewActionsRef, expandAll, collapseAll, fitTree, focusSelected, resetLayout]);
 
   // Update node data properties separately (selection, filtering, display options).
   // Must use the React state setter (not useReactFlow's setNodes): the store-based
@@ -1010,27 +1360,37 @@ function HierarchicalViewContent({
   // the layout sync above, clobbering freshly computed positions (e.g. on density
   // preset changes) until a manual redraw.
   useEffect(() => {
+    const focusEnabled = filters.focusSelection && selectedNodeId !== null && selectedNodeIds.length === 1;
     setNodes((currentNodes) =>
       currentNodes.map((node) => {
         if (node.type === 'queryBlockGroup' || node.type === 'annotationGroup') {
           return node;
         }
-        const focusEnabled = filters.focusSelection && selectedNodeId !== null && selectedNodeIds.length === 1;
+        const id = parseInt(node.id);
+        const data = node.data as PlanNodeData;
+        const isHotNode = hottestNodeId !== null && id === hottestNodeId;
 
         return {
           ...node,
+          // Accessible name on the focusable React Flow node wrapper
+          ariaLabel: planNodeAriaLabel(data.node, {
+            hasActualStats: parsedPlan?.hasActualStats,
+            isHotspot: isHotNode && effectiveDisplayOptions.showHotspotBadge,
+            findingCount: effectiveDisplayOptions.showAdvisorBadge ? data.advisorCount : undefined,
+            hiddenCount: data.hiddenCount,
+          }),
           data: {
             ...node.data,
-            isSelected: selectedNodeIdSet.has(parseInt(node.id)),
-            isFiltered: filteredNodeIds.has(parseInt(node.id)),
+            isSelected: selectedNodeIdSet.has(id),
+            isFiltered: filteredNodeIds.has(id),
             isInFocusPath:
               focusEnabled &&
-              (selectionSets.ancestorIds.has(parseInt(node.id)) ||
-                selectionSets.descendantIds.has(parseInt(node.id))),
+              (selectionSets.ancestorIds.has(id) ||
+                selectionSets.descendantIds.has(id)),
             isFocusDimmed:
               focusEnabled &&
-              !selectionSets.ancestorIds.has(parseInt(node.id)) &&
-              !selectionSets.descendantIds.has(parseInt(node.id)),
+              !selectionSets.ancestorIds.has(id) &&
+              !selectionSets.descendantIds.has(id),
             displayOptions: effectiveDisplayOptions,
             hasActualStats: parsedPlan?.hasActualStats,
             colorScheme,
@@ -1040,15 +1400,18 @@ function HierarchicalViewContent({
             totalElapsedTime: parsedPlan?.totalElapsedTime,
             searchText,
             filterKey, // Include filterKey to force React Flow to detect changes
-            isHotNode: hottestNodeId !== null && parseInt(node.id) === hottestNodeId,
-            annotationText: effectiveAnnotations.nodeAnnotations.get(parseInt(node.id))?.text,
-            highlightColor: effectiveAnnotations.nodeHighlights.get(parseInt(node.id))?.color,
+            isHotNode,
+            annotationText: effectiveAnnotations.nodeAnnotations.get(id)?.text,
+            highlightColor: effectiveAnnotations.nodeHighlights.get(id)?.color,
             highlightStyle,
+            hiddenMatchCount: hiddenMatchCounts.get(id) ?? 0,
           },
         };
       })
     );
   }, [
+    layoutData,
+    redrawEpoch,
     selectedNodeId,
     selectedNodeIds.length,
     selectedNodeIdSet,
@@ -1070,10 +1433,13 @@ function HierarchicalViewContent({
     effectiveAnnotations.nodeAnnotations,
     effectiveAnnotations.nodeHighlights,
     highlightStyle,
+    hiddenMatchCounts,
   ]);
 
   // Update edge styles separately - only create new objects when values change
   useEffect(() => {
+    // Marching-ants edges are motion: off under prefers-reduced-motion
+    const animated = filters.animateEdges && !reducedMotion;
     setEdges((currentEdges) =>
       currentEdges.map((edge) => {
         const edgeColors = EDGE_SCHEME_COLORS[colorScheme][theme === 'dark' ? 'dark' : 'light'];
@@ -1123,7 +1489,7 @@ function HierarchicalViewContent({
         // Only create new edge object if something changed
         if (
           currentStroke === stroke &&
-          currentAnimated === filters.animateEdges &&
+          currentAnimated === animated &&
           currentStrokeWidth === strokeWidth &&
           currentStrokeOpacity === strokeOpacity &&
           currentLabelStyle?.fill === labelStyle.fill &&
@@ -1137,7 +1503,7 @@ function HierarchicalViewContent({
 
         return {
           ...edge,
-          animated: filters.animateEdges,
+          animated,
           labelStyle,
           labelBgStyle,
           style: {
@@ -1149,7 +1515,7 @@ function HierarchicalViewContent({
         };
       })
     );
-  }, [filteredNodeIds, filters.animateEdges, filters.focusSelection, selectedNodeId, selectedNodeIds.length, selectionSets.ancestorIds, selectionSets.descendantIds, theme, colorScheme, setEdges]);
+  }, [layoutData, redrawEpoch, filteredNodeIds, filters.animateEdges, reducedMotion, filters.focusSelection, selectedNodeId, selectedNodeIds.length, selectionSets.ancestorIds, selectionSets.descendantIds, theme, colorScheme, setEdges]);
 
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -1159,113 +1525,124 @@ function HierarchicalViewContent({
         return;
       }
       const additive = event.metaKey || event.ctrlKey;
+      const id = parseInt(node.id);
+      markSelectionSource('canvas', id);
       setActivePlan(resolvedPlanIndex);
-      selectNodeForPlan(resolvedPlanIndex, parseInt(node.id), { additive });
+      selectNodeForPlan(resolvedPlanIndex, id, { additive });
     },
-    [resolvedPlanIndex, selectNodeForPlan, setActivePlan]
+    [resolvedPlanIndex, selectNodeForPlan, setActivePlan, markSelectionSource]
   );
 
   const onPaneClick = useCallback(() => {
     selectNodeForPlan(resolvedPlanIndex, null);
   }, [resolvedPlanIndex, selectNodeForPlan]);
 
-  // Keyboard navigation: arrow keys to move between nodes
+  // Keyboard navigation. Top-down: Up = parent, Down = first child, Left/Right
+  // = previous/next operation at the same depth. Left-to-right rotates the
+  // mapping (Left = parent, Right = first child, Up/Down = same depth).
+  // Stepping into a collapsed subtree expands it (via the selection effect).
   useEffect(() => {
     if (resolvedPlanIndex !== activePlanIndex) {
       return undefined;
     }
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-        // Don't hijack keys while the user is typing in an input (search box,
-        // annotation editor, command palette, rename field, ...)
-        const target = e.target as HTMLElement | null;
-        const tag = target?.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) {
-          return;
-        }
+    const parentKey = isHorizontal ? 'ArrowLeft' : 'ArrowUp';
+    const childKey = isHorizontal ? 'ArrowRight' : 'ArrowDown';
+    const previousKey = isHorizontal ? 'ArrowUp' : 'ArrowLeft';
+    const nextKey = isHorizontal ? 'ArrowDown' : 'ArrowRight';
 
-        if (!parsedPlan || selectedNodeId === null) {
-          // Escape clears selection regardless
-          if (e.key === 'Escape') {
-            selectNodeForPlan(resolvedPlanIndex, null);
-            return;
-          }
-          // With nothing selected, an arrow key starts navigation at the root
-          if (
-            parsedPlan?.rootNode &&
-            (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')
-          ) {
-            e.preventDefault();
-            selectNodeForPlan(resolvedPlanIndex, parsedPlan.rootNode.id);
-          }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't hijack keys while the user is typing in an input (search box,
+      // annotation editor, command palette, rename field, ...)
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) {
+        return;
+      }
+      const isArrow = e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight';
+
+      if (!parsedPlan || selectedNodeId === null) {
+        // Escape clears selection regardless
+        if (e.key === 'Escape') {
+          selectNodeForPlan(resolvedPlanIndex, null);
           return;
         }
+        // With nothing selected, an arrow key starts navigation at the root
+        if (parsedPlan?.rootNode && isArrow) {
+          e.preventDefault();
+          markSelectionSource('keyboard', parsedPlan.rootNode.id);
+          selectNodeForPlan(resolvedPlanIndex, parsedPlan.rootNode.id);
+        }
+        return;
+      }
 
       const node = nodeById.get(selectedNodeId);
       if (!node) return;
 
       let targetId: number | null = null;
 
-      switch (e.key) {
-        case 'Escape':
-          selectNodeForPlan(resolvedPlanIndex, null);
-          return;
-        case 'ArrowUp': {
-          // Go to parent
-          if (node.parentId !== undefined) {
-            targetId = node.parentId;
+      if (e.key === 'Escape') {
+        selectNodeForPlan(resolvedPlanIndex, null);
+        return;
+      } else if (e.key === parentKey) {
+        if (node.parentId !== undefined) targetId = node.parentId;
+      } else if (e.key === childKey) {
+        if (node.children.length > 0) targetId = node.children[0].id;
+      } else if (e.key === previousKey || e.key === nextKey) {
+        // Previous/next *visible* node at the same depth, anywhere in the
+        // tree (siblings first, since they are adjacent in plan order)
+        const sameDepth = parsedPlan.allNodes.filter(n => n.depth === node.depth && !hiddenNodeIds.has(n.id));
+        const idx = sameDepth.findIndex(n => n.id === node.id);
+        if (idx >= 0) {
+          const newIdx = idx + (e.key === previousKey ? -1 : 1);
+          if (newIdx >= 0 && newIdx < sameDepth.length) {
+            targetId = sameDepth[newIdx].id;
           }
-          break;
         }
-        case 'ArrowDown': {
-          // Go to first child
-          if (node.children.length > 0) {
-            targetId = node.children[0].id;
-          }
-          break;
-        }
-        case 'ArrowLeft':
-        case 'ArrowRight': {
-          // Go to the previous/next node at the same depth, anywhere in the
-          // tree (siblings first, since they are adjacent in plan order)
-          const sameDepth = parsedPlan.allNodes.filter(n => n.depth === node.depth);
-          const idx = sameDepth.findIndex(n => n.id === node.id);
-          if (idx >= 0) {
-            const delta = e.key === 'ArrowLeft' ? -1 : 1;
-            const newIdx = idx + delta;
-            if (newIdx >= 0 && newIdx < sameDepth.length) {
-              targetId = sameDepth[newIdx].id;
-            }
-          }
-          break;
-        }
-        default:
-          return;
+      } else {
+        return;
       }
 
       if (targetId !== null) {
         e.preventDefault();
+        markSelectionSource('keyboard', targetId);
         selectNodeForPlan(resolvedPlanIndex, targetId);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activePlanIndex, nodeById, parsedPlan, resolvedPlanIndex, selectNodeForPlan, selectedNodeId]);
+  }, [activePlanIndex, nodeById, parsedPlan, resolvedPlanIndex, selectNodeForPlan, selectedNodeId, isHorizontal, hiddenNodeIds, markSelectionSource]);
 
-  // Handle container resize
+  const minimapWanted =
+    treeMinimap === 'on' || (treeMinimap === 'auto' && visibleNodeCount > MINIMAP_AUTO_THRESHOLD);
+  const showMinimap = !isExporting && minimapWanted;
+
+  // Publish what the toolbar's layout strip shows (hidden count for "Expand
+  // all", whether anything can collapse, whether the 'auto' map is on screen).
+  // Only the single-plan tree does; compare panes keep their own overlay strip.
+  // (`minimapWanted`, not `showMinimap`: the PNG export briefly hides the map
+  // and the toolbar should not flicker for it.)
+  const hiddenCount = hiddenNodeIds.size;
+  const canCollapse = collapseAllTarget.size > 0;
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const resizeObserver = new ResizeObserver(() => {
-      // Small delay to let the layout settle
-      setTimeout(() => fitView({ padding: 0.2 }), 50);
-    });
-
-    resizeObserver.observe(container);
-    return () => resizeObserver.disconnect();
-  }, [fitView]);
+    if (!registerExport) return;
+    setTreeViewState({ hiddenCount, canCollapse, minimapShown: minimapWanted });
+  }, [registerExport, hiddenCount, canCollapse, minimapWanted, setTreeViewState]);
+  useEffect(() => {
+    if (!registerExport) return;
+    return () => setTreeViewState(null);
+  }, [registerExport, setTreeViewState]);
+  const minimapNodeColor = useCallback((node: Node): string => {
+    if (node.type !== 'planNode') return 'transparent';
+    const data = node.data as PlanNodeData;
+    const dark = theme === 'dark';
+    if (data.isSelected) return dark ? '#60a5fa' : '#2563eb';
+    if (data.isHotNode) return dark ? '#f87171' : '#dc2626';
+    if (!data.isFiltered) return dark ? 'rgba(100,116,139,0.35)' : 'rgba(148,163,184,0.45)';
+    if (data.isCollapsed) return dark ? '#818cf8' : '#6366f1';
+    return dark ? '#64748b' : '#94a3b8';
+  }, [theme]);
 
   if (!parsedPlan?.rootNode) {
     return (
@@ -1278,7 +1655,7 @@ function HierarchicalViewContent({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-full min-h-[320px] min-w-0 overflow-hidden transition-opacity duration-150 ${
+      className={`relative w-full h-full min-h-[320px] min-w-0 overflow-hidden motion-safe:transition-opacity motion-safe:duration-150 ${
         layoutReady ? 'opacity-100' : 'opacity-0'
       }`}
     >
@@ -1300,7 +1677,7 @@ function HierarchicalViewContent({
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
+        fitViewOptions={{ padding: FIT_PADDING }}
         minZoom={0.1}
         maxZoom={2}
         onlyRenderVisibleElements={!isExporting}
@@ -1315,24 +1692,46 @@ function HierarchicalViewContent({
           color={theme === 'dark' ? 'rgba(148,163,184,0.16)' : 'rgba(100,116,139,0.16)'}
         />
         <Controls className="!bg-transparent !border-none !shadow-none [&_button]:!bg-white/80 [&_button]:!border-slate-200/80 [&_button]:!text-slate-600 [&_button]:backdrop-blur-sm dark:[&_button]:!bg-slate-800/70 dark:[&_button]:!border-slate-700/70 dark:[&_button]:!text-slate-300 [&_button:hover]:!bg-white dark:[&_button:hover]:!bg-slate-700/80" />
-        <Panel position="top-left" className="flex items-center gap-2">
-          {selectedNodeId !== null && <button type="button"
-            onClick={() => fitView({ nodes: [{ id: String(selectedNodeId) }], padding: 0.3, minZoom: 0.85, maxZoom: 1.2 })}
-            className="px-2.5 py-1.5 text-xs rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus-visible:ring-2 focus-visible:ring-blue-500">
-            Focus selected
-          </button>}
-          <button
-            type="button"
-            onClick={resetLayout}
-            className="p-1.5 rounded-md bg-white/80 dark:bg-slate-800/70 backdrop-blur-sm border border-slate-200/80 dark:border-slate-700/70 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700/80 transition-colors shadow-sm"
-            title="Redraw layout"
-            aria-label="Redraw layout"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-            </svg>
-          </button>
-        </Panel>
+        {/* Overview map: bottom-right, clear of the bottom-left Controls */}
+        {showMinimap && (
+          <MiniMap
+            position="bottom-right"
+            pannable
+            zoomable
+            ariaLabel="Plan overview map"
+            className="overflow-hidden rounded-lg border border-slate-200/80 dark:border-slate-700/70 shadow-sm"
+            style={{ width: 176, height: 120 }}
+            bgColor="var(--canvas-bg)"
+            maskColor={theme === 'dark' ? 'rgba(2, 6, 23, 0.55)' : 'rgba(241, 245, 249, 0.7)'}
+            maskStrokeColor={theme === 'dark' ? '#60a5fa' : '#2563eb'}
+            maskStrokeWidth={1.5}
+            nodeColor={minimapNodeColor}
+            nodeStrokeColor="transparent"
+            nodeBorderRadius={6}
+          />
+        )}
+        {/* The single-plan tree's layout strip lives in the workspace toolbar
+            (and focus mode's View chip), wired through the context. Compare
+            panes have no toolbar strip — the toolbar cannot address one pane —
+            so they keep this per-pane overlay. */}
+        {!registerExport && (
+          <Panel position="top-left">
+            <TreeLayoutControls
+              direction={layoutDirection}
+              onDirectionChange={changeDirection}
+              minimap={treeMinimap}
+              onMinimapChange={setTreeMinimap}
+              minimapShown={showMinimap}
+              onExpandAll={expandAll}
+              onCollapseAll={collapseAll}
+              hiddenCount={hiddenCount}
+              canCollapse={canCollapse}
+              onFocusSelected={focusSelected}
+              canFocusSelected={selectedNodeId !== null}
+              onRedraw={resetLayout}
+            />
+          </Panel>
+        )}
       </ReactFlow>
     </div>
   );
@@ -1349,16 +1748,34 @@ export function HierarchicalView({
   registerExport = true,
   showAnnotations = true,
 }: HierarchicalViewProps) {
-  const { plans, activePlanIndex, colorScheme } = usePlan();
+  const { plans, activePlanIndex, colorScheme, treeLayoutDirection } = usePlan();
   const resolvedPlanIndex = planIndex ?? activePlanIndex;
   const parsedPlan = plans[resolvedPlanIndex]?.parsedPlan ?? null;
 
-  // Create a unique key that changes when the plan or color scheme changes to force
-  // complete remount. This ensures useNodesState/useEdgesState hooks are reset with
-  // fresh state and node dimensions are recalculated from scratch.
+  // Collapsed subtrees, per plan and in memory only. Held out here (not in the
+  // keyed content below) so layout-direction / colour-scheme remounts keep it;
+  // the plan-keyed memory in treeCollapse.ts also carries it across view
+  // switches. A different plan (new parsed object) starts fully expanded.
+  const [collapse, setCollapse] = useState(() => ({ plan: parsedPlan, ids: recallCollapsed(parsedPlan) }));
+  const collapsedIds = collapse.plan === parsedPlan ? collapse.ids : recallCollapsed(parsedPlan);
+  const updateCollapsed = useCallback((updater: CollapseUpdater) => {
+    setCollapse((prev) => {
+      const base = prev.plan === parsedPlan ? prev.ids : recallCollapsed(parsedPlan);
+      const next = updater(base);
+      if (next === base && prev.plan === parsedPlan) return prev;
+      rememberCollapsed(parsedPlan, next);
+      return { plan: parsedPlan, ids: next };
+    });
+  }, [parsedPlan]);
+  const directionFocusRef = useRef(false);
+
+  // Create a unique key that changes when the plan, color scheme or layout
+  // direction changes to force a complete remount. This resets
+  // useNodesState/useEdgesState with fresh state, recalculates node dimensions
+  // and handle positions from scratch, and refits the new layout.
   const planKey = parsedPlan
-    ? `${parsedPlan.planHashValue ?? 'nohash'}-${parsedPlan.allNodes.length}-${parsedPlan.rootNode?.operation ?? ''}-${colorScheme}`
-    : `no-plan-${colorScheme}`;
+    ? `${parsedPlan.planHashValue ?? 'nohash'}-${parsedPlan.allNodes.length}-${parsedPlan.rootNode?.operation ?? ''}-${colorScheme}-${treeLayoutDirection}`
+    : `no-plan-${colorScheme}-${treeLayoutDirection}`;
 
   return (
     <ReactFlowProvider key={planKey}>
@@ -1366,6 +1783,10 @@ export function HierarchicalView({
         planIndex={resolvedPlanIndex}
         registerExport={registerExport}
         showAnnotations={showAnnotations}
+        layoutDirection={treeLayoutDirection}
+        collapsedIds={collapsedIds}
+        updateCollapsed={updateCollapsed}
+        directionFocusRef={directionFocusRef}
       />
     </ReactFlowProvider>
   );

@@ -9,6 +9,13 @@ import { DEFAULT_ANTHROPIC_MODEL } from './ai/prompts';
 const SETTINGS_KEY = 'ora-explain-viz-settings';
 const SETTINGS_VERSION = 1;
 
+/** Tree view orientation: top-down (root on top) or left-to-right (root on the left). */
+export type TreeLayoutDirection = 'TB' | 'LR';
+/** Tree minimap visibility: 'auto' shows it only for larger (visible) trees. */
+export type TreeMinimapMode = 'auto' | 'on' | 'off';
+export const TREE_LAYOUT_DIRECTIONS: readonly TreeLayoutDirection[] = ['TB', 'LR'];
+export const TREE_MINIMAP_MODES: readonly TreeMinimapMode[] = ['auto', 'on', 'off'];
+
 /**
  * User settings that persist across sessions.
  * Note: We don't persist searchText, minCost slider values, operation/predicate
@@ -52,6 +59,10 @@ export interface UserSettings {
   // Highlight style
   highlightStyle: HighlightStyle;
 
+  // Tree view layout
+  treeLayoutDirection: TreeLayoutDirection;
+  treeMinimap: TreeMinimapMode;
+
   // AI analysis (non-secret preferences; keys live in sessionStorage — see lib/ai/secrets.ts)
   aiProvider: AiProviderId;
   aiAnthropicModel: string;
@@ -61,6 +72,17 @@ export interface UserSettings {
 }
 
 export const defaultNodeDisplayOptions: NodeDisplayOptions = { ...DENSITY_PRESETS.compact };
+
+/**
+ * Default tree behaviour toggles (edge animation, edge width scaled by rows,
+ * dimming everything outside the selected path). Shared by the settings
+ * defaults, the initial filter state and "Reset defaults" in Customize view.
+ */
+export const defaultBehaviourOptions: Readonly<Pick<UserSettings, 'animateEdges' | 'scaleEdgeWidth' | 'focusSelection'>> = {
+  animateEdges: false,
+  scaleEdgeWidth: true,
+  focusSelection: true,
+};
 
 export const defaultAiSections: Record<AiSectionId, boolean> = {
   sql: true,
@@ -93,12 +115,12 @@ const defaultSettings: UserSettings = {
   inputPanelCollapsed: false,
   filterPanelCollapsed: true,
   focusMode: false,
-  animateEdges: false,
-  scaleEdgeWidth: true,
-  focusSelection: true,
+  ...defaultBehaviourOptions,
   nodeDisplayOptions: defaultNodeDisplayOptions,
   compareMetrics: ['cost', 'actualRows', 'actualTime'],
   highlightStyle: 'circle',
+  treeLayoutDirection: 'TB',
+  treeMinimap: 'auto',
   aiProvider: 'anthropic',
   aiAnthropicModel: DEFAULT_ANTHROPIC_MODEL,
   aiOpenAiBaseUrl: '',
@@ -148,6 +170,14 @@ export function loadSettings(theme?: Theme): UserSettings {
     // Drop experimental sub-views that no longer exist (removed views fall back to the default)
     if (parsed.experimentalSubView && !VALID_EXPERIMENTAL_SUB_VIEWS.includes(parsed.experimentalSubView)) {
       delete parsed.experimentalSubView;
+    }
+
+    // Drop unknown tree layout values (fall back to the defaults)
+    if (parsed.treeLayoutDirection && !TREE_LAYOUT_DIRECTIONS.includes(parsed.treeLayoutDirection)) {
+      delete parsed.treeLayoutDirection;
+    }
+    if (parsed.treeMinimap && !TREE_MINIMAP_MODES.includes(parsed.treeMinimap)) {
+      delete parsed.treeMinimap;
     }
 
     // Handle version migrations in the future

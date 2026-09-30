@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MetadataBundle } from '../lib/metadata/bundle';
 import { GatherScriptModal } from './GatherScriptModal';
+import { FOCUS_RING, useConfirm, useToast } from './ui';
 
 interface MetadataChipProps {
   bundle: MetadataBundle | null;
@@ -13,11 +14,30 @@ export function MetadataChip({ bundle, warning, planSqlId, onDetach }: MetadataC
   const [showModal, setShowModal] = useState(false);
   const [showPopover, setShowPopover] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const confirm = useConfirm();
+  const toast = useToast();
+
+  const handleDetach = async () => {
+    const ok = await confirm({
+      title: 'Detach the metadata bundle?',
+      message: 'You will need to re-run the gather script to attach it again.',
+      confirmLabel: 'Detach',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    onDetach();
+    setShowPopover(false);
+    toast.show({ tone: 'info', message: 'Metadata bundle detached' });
+  };
 
   useEffect(() => {
     if (!showPopover) return;
     const handleClickOutside = (event: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+      // A confirm dialog opened from the popover lives in a portal; clicking it must not close the popover
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (target instanceof Element && target.closest('[aria-modal="true"], [data-ui-backdrop]')) return;
+      if (popoverRef.current && !popoverRef.current.contains(target)) {
         setShowPopover(false);
       }
     };
@@ -39,9 +59,9 @@ export function MetadataChip({ bundle, warning, planSqlId, onDetach }: MetadataC
           type="button"
           onClick={() => setShowModal(true)}
           title="Generate a SQL script that gathers schema metadata (tables, indexes, column stats, histograms) for this plan. Coverage depends on your database privileges."
-          className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded border border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 bg-indigo-50/60 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors"
+          className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded border border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 bg-indigo-50/60 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors ${FOCUS_RING}`}
         >
-          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           Add metadata
@@ -70,29 +90,41 @@ export function MetadataChip({ bundle, warning, planSqlId, onDetach }: MetadataC
           type="button"
           onClick={() => setShowPopover((v) => !v)}
           title="Schema metadata is attached to this plan"
-          className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded border border-indigo-300/70 dark:border-indigo-500/40 text-indigo-700 dark:text-indigo-300 bg-transparent hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+          aria-haspopup="dialog"
+          aria-expanded={showPopover}
+          className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded border border-indigo-300/70 dark:border-indigo-500/40 text-indigo-700 dark:text-indigo-300 bg-transparent hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors ${FOCUS_RING}`}
         >
-          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H6a2 2 0 00-2 2z" />
           </svg>
           Metadata: {tableCount} {tableCount === 1 ? 'table' : 'tables'}, {indexCount} {indexCount === 1 ? 'index' : 'indexes'}
           {warningCount > 0 && (
-            <span className="ml-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-400 text-amber-950 text-[10px] font-bold" title={`${warningCount} warning${warningCount === 1 ? '' : 's'}`}>
+            <span
+              role="img"
+              aria-label={`${warningCount} warning${warningCount === 1 ? '' : 's'}`}
+              className="ml-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-400 text-amber-950 text-[10px] font-bold"
+              title={`${warningCount} warning${warningCount === 1 ? '' : 's'}`}
+            >
               !
             </span>
           )}
         </button>
         {showPopover && (
-          <div className="absolute left-0 top-full mt-1 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50 p-3 text-xs">
+          <div
+            role="dialog"
+            aria-label="Metadata bundle"
+            className="absolute left-0 top-full mt-1 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50 p-3 text-xs"
+          >
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Metadata bundle</h3>
               <button
                 type="button"
                 onClick={() => setShowPopover(false)}
                 aria-label="Close"
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                title="Close"
+                className={`rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ${FOCUS_RING}`}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -142,17 +174,14 @@ export function MetadataChip({ bundle, warning, planSqlId, onDetach }: MetadataC
                   setShowPopover(false);
                   setShowModal(true);
                 }}
-                className="h-7 px-2 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                className={`h-7 px-2 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ${FOCUS_RING}`}
               >
                 Replace…
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  onDetach();
-                  setShowPopover(false);
-                }}
-                className="h-7 px-2 text-xs border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 bg-white dark:bg-slate-800 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                onClick={() => void handleDetach()}
+                className={`h-7 px-2 text-xs border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 bg-white dark:bg-slate-800 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors ${FOCUS_RING}`}
               >
                 Detach
               </button>

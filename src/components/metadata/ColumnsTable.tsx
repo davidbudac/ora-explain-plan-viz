@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { ColumnStats } from '../../lib/metadata/bundle';
 import { formatHistogramLabel } from './shared';
 import { formatNumberShort } from '../../lib/format';
+import { FOCUS_RING_INSET } from '../ui';
 
 type SortKey = 'name' | 'data_type' | 'nullable' | 'num_distinct' | 'num_nulls' | 'density' | 'low_value' | 'high_value' | 'histogram';
 
@@ -135,11 +136,17 @@ function Th({
   const isActive = active === sortKey;
   return (
     <th
-      className={`px-2 py-1.5 font-semibold text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 cursor-pointer select-none whitespace-nowrap ${align === 'right' ? 'text-right' : 'text-left'}`}
-      onClick={() => onSort(sortKey)}
+      aria-sort={isActive ? (asc ? 'ascending' : 'descending') : 'none'}
+      className={`p-0 font-semibold text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 whitespace-nowrap ${align === 'right' ? 'text-right' : 'text-left'}`}
     >
-      {label}
-      {isActive ? (asc ? ' ▲' : ' ▼') : ''}
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`w-full px-2 py-1.5 font-semibold uppercase tracking-wider select-none cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 ${FOCUS_RING_INSET} ${align === 'right' ? 'text-right' : 'text-left'}`}
+      >
+        {label}
+        <span aria-hidden="true">{isActive ? (asc ? ' ▲' : ' ▼') : ''}</span>
+      </button>
     </th>
   );
 }

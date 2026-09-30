@@ -1,17 +1,19 @@
 import { useId, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { OPERATION_CATEGORIES, getOperationCategory } from '../lib/types';
-import type { NodeDisplayOptions, PredicateType } from '../lib/types';
+import type { PredicateType } from '../lib/types';
 import { matchesSearch, hasActiveFilters } from '../lib/filtering';
 import { computeCardinalityRatio, formatNumberShort, formatTimeCompact } from '../lib/format';
-import { CustomizeViewMenu } from './CustomizeViewMenu';
+import { FOCUS_RING } from './ui';
+import { PanelResizeHandle } from './PanelEdgeTab';
 
 const HISTOGRAM_BUCKETS = 40;
 
-const FOCUS_RING =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
-// Hairline used by the panel's quiet chips and segmented controls.
+// Hairline used by the panel's quiet chips.
 const HAIRLINE = 'border border-slate-200/70 dark:border-slate-700/50';
+const SECTION_HEADING = 'block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3';
+const SLIDER_LABEL = 'text-[11px] text-slate-500 dark:text-slate-400 font-medium';
+const SLIDER = `w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-blue-600 ${FOCUS_RING}`;
 
 /** Renders a robust histogram behind a range slider showing node value distribution. */
 function SliderHistogram({ values, max, height = 40 }: { values: number[]; max: number; height?: number }) {
@@ -46,60 +48,20 @@ function SliderHistogram({ values, max, height = 40 }: { values: number[]; max: 
   );
 }
 
-function IndicatorButton<T extends string>({
-  metric,
-  label,
-  current,
-  onClick,
-  activeClass = 'bg-slate-200/80 dark:bg-slate-700/70 text-slate-900 dark:text-slate-100',
-}: {
-  metric: T;
-  label: string;
-  current: T;
-  onClick: (metric: T) => void;
-  activeClass?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onClick(metric)}
-      className={`px-2 py-1 text-[10px] rounded-md transition-all font-semibold uppercase tracking-wider ${FOCUS_RING} ${current === metric ? activeClass : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-    >
-      {label}
-    </button>
-  );
-}
-
-const DEFAULT_NODE_DISPLAY_OPTIONS: NodeDisplayOptions = {
-  showRows: true,
-  showCost: true,
-  showBytes: true,
-  showObjectName: true,
-  showPredicateIndicators: true,
-  showPredicateDetails: false,
-  showPartitionInfo: true,
-  showQueryBlockBadge: true,
-  showQueryBlockGrouping: true,
-  showActualRows: true,
-  showActualTime: true,
-  showStarts: true,
-  showHotspotBadge: true,
-  showSpillBadge: true,
-  showCardinalityBadge: true,
-  showAdvisorBadge: true,
-  showStaleStatsBadge: true,
-  showMissingStatsBadge: true,
-  showMismatchNoHistogramBadge: true,
-  showAnnotations: true,
-  compactStats: false,
-};
-
 interface FilterPanelProps {
   panelWidth: number;
-  onResizeStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+  // Method syntax so App's HTMLButtonElement-typed handler still fits the
+  // separator element (method parameters are bivariant).
+  onResizeStart(event: ReactPointerEvent<HTMLElement>): void;
+  /** Keyboard resizing (←/→ on the splitter); the splitter is pointer-only without it. */
+  onResizeBy?: (delta: number) => void;
+  minWidth?: number;
+  maxWidth?: number;
 }
 
-export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
+const FILTER_PANEL_ID = 'filter-panel';
+
+export function FilterPanel({ panelWidth, onResizeStart, onResizeBy, minWidth, maxWidth }: FilterPanelProps) {
   const {
     parsedPlan, filters, filteredNodes,
     filterPanelCollapsed: isCollapsed, setFilterPanelCollapsed: setIsCollapsed,
@@ -138,14 +100,19 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
 
   return (
     <div
+      id={FILTER_PANEL_ID}
       className="relative shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 overflow-y-auto"
       style={{ width: panelWidth }}
     >
-      <button
-        type="button"
+      <PanelResizeHandle
+        side="left"
+        label="Resize filters panel"
+        width={panelWidth}
+        minWidth={minWidth}
+        maxWidth={maxWidth}
+        controls={FILTER_PANEL_ID}
         onPointerDown={onResizeStart}
-        className={`absolute right-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors ${FOCUS_RING}`}
-        aria-label="Resize filters panel"
+        onResizeBy={onResizeBy}
       />
       <FilterPanelBody />
     </div>
@@ -157,14 +124,20 @@ export function FilterPanel({ panelWidth, onResizeStart }: FilterPanelProps) {
  * the docked filter panel and focus mode's floating filter popover.
  */
 export function FilterPanelBody() {
-  const {
-    parsedPlan, filters, setFilters, filteredNodes, selectNode,
-    nodeIndicatorMetric, setNodeIndicatorMetric,
-    viewMode, sankeyMetric, setSankeyMetric, flameMetric, setFlameMetric, treeCompareEnabled
-  } = usePlan();
+  const { parsedPlan, filters, setFilters, filteredNodes, selectNode } = usePlan();
   // null = no match navigated to yet (first "Next" selects the first match)
   const [activeMatchIndex, setActiveMatchIndex] = useState<number | null>(null);
-  const searchInputId = useId();
+  const idPrefix = useId();
+  const ids = {
+    search: `${idPrefix}-search`,
+    predicates: `${idPrefix}-predicates`,
+    operations: `${idPrefix}-operations`,
+    thresholds: `${idPrefix}-thresholds`,
+    cost: `${idPrefix}-cost`,
+    actualRows: `${idPrefix}-arows`,
+    actualTime: `${idPrefix}-atime`,
+    mismatch: `${idPrefix}-mismatch`,
+  };
 
   const operationStats = useMemo(() => {
     if (!parsedPlan) return new Map<string, number>();
@@ -335,6 +308,7 @@ export function FilterPanelBody() {
           <div className="flex items-center gap-1">
             {(hasActiveFilters(filters) || filteredCount !== totalCount) && (
               <button
+                type="button"
                 onClick={clearFilters}
                 className={`px-2 py-1 text-[10px] font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md uppercase tracking-wider transition-colors ${FOCUS_RING}`}
               >
@@ -345,75 +319,14 @@ export function FilterPanelBody() {
         </div>
       </div>
 
-      {/* View Settings */}
-      <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
-        <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">
-          View Settings
-        </label>
-        
-        {viewMode === 'hierarchical' && parsedPlan && !treeCompareEnabled && (
-          <div className="mb-4">
-            <span className="block text-[11px] text-slate-500 dark:text-slate-400 mb-2 font-medium">Node Indicator</span>
-            <div className="grid grid-cols-2 gap-0.5">
-              <IndicatorButton metric="cost" label="Cost" current={nodeIndicatorMetric} onClick={setNodeIndicatorMetric} />
-              {parsedPlan.hasActualStats && (
-                <>
-                  <IndicatorButton metric="actualRows" label="A-Rows" current={nodeIndicatorMetric} onClick={setNodeIndicatorMetric} />
-                  <IndicatorButton metric="actualTime" label="A-Time" current={nodeIndicatorMetric} onClick={setNodeIndicatorMetric} />
-                  <IndicatorButton metric="starts" label="Starts" current={nodeIndicatorMetric} onClick={setNodeIndicatorMetric} />
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {viewMode === 'sankey' && parsedPlan && (
-           <div className="mb-4">
-            <span className="block text-[11px] text-slate-500 dark:text-slate-400 mb-2 font-medium">Flow Metric</span>
-            <div className="grid grid-cols-2 gap-0.5">
-                <IndicatorButton metric="rows" label={parsedPlan.hasActualStats ? 'E-Rows' : 'Rows'} current={sankeyMetric} onClick={setSankeyMetric} />
-                <IndicatorButton metric="cost" label="Cost" current={sankeyMetric} onClick={setSankeyMetric} />
-                {parsedPlan.hasActualStats && (
-                  <>
-                    <IndicatorButton metric="actualRows" label="Rows × Starts" current={sankeyMetric} onClick={setSankeyMetric} />
-                    <IndicatorButton metric="actualTime" label="A-Time" current={sankeyMetric} onClick={setSankeyMetric} />
-                  </>
-                )}
-            </div>
-          </div>
-        )}
-
-        {viewMode === 'flame' && parsedPlan && (
-           <div className="mb-4">
-            <span className="block text-[11px] text-slate-500 dark:text-slate-400 mb-2 font-medium">Flame Metric</span>
-            <div className="grid grid-cols-2 gap-0.5">
-                <IndicatorButton metric="cost" label="Cost" current={flameMetric} onClick={setFlameMetric} />
-                {parsedPlan.hasActualStats && (
-                  <>
-                    <IndicatorButton metric="actualTime" label="A-Time" current={flameMetric} onClick={setFlameMetric} />
-                    <IndicatorButton metric="actualRows" label="A-Rows" current={flameMetric} onClick={setFlameMetric} />
-                  </>
-                )}
-            </div>
-          </div>
-        )}
-
-        <CustomizeViewMenu
-          filters={filters}
-          setFilters={setFilters}
-          hasActualStats={parsedPlan.hasActualStats}
-          defaultNodeDisplayOptions={DEFAULT_NODE_DISPLAY_OPTIONS}
-        />
-      </div>
-
       {/* Search */}
       <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
-        <label htmlFor={searchInputId} className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">
+        <label htmlFor={ids.search} className={SECTION_HEADING}>
           Search
         </label>
         <div className="relative">
           <input
-            id={searchInputId}
+            id={ids.search}
             type="text"
             value={filters.searchText}
             onChange={(e) => setFilters({ searchText: e.target.value })}
@@ -421,14 +334,14 @@ export function FilterPanelBody() {
             className="w-full pl-0.5 pr-5 py-1.5 text-[11px] bg-transparent border-0 border-b border-slate-300 dark:border-slate-700 rounded-none text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-0 focus:border-blue-500"
           />
           <div className="absolute right-0.5 top-1.5 pointer-events-none">
-             <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+             <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
              </svg>
           </div>
         </div>
         {filters.searchText.trim() && (
           <div className="mt-2 flex items-center justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-tight">
-            <span className="tabular-nums">
+            <span className="tabular-nums" role="status">
               {searchMatches.length === 0
                 ? 'No matches'
                 : activeMatchIndex === null
@@ -438,6 +351,7 @@ export function FilterPanelBody() {
             {searchMatches.length > 0 && (
               <div className="flex items-center gap-1">
                 <button
+                  type="button"
                   onClick={() => handleMatchNavigate('prev')}
                   className={`px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ${FOCUS_RING}`}
                   title="Previous match"
@@ -445,6 +359,7 @@ export function FilterPanelBody() {
                   Prev
                 </button>
                 <button
+                  type="button"
                   onClick={() => handleMatchNavigate('next')}
                   className={`px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ${FOCUS_RING}`}
                   title="Next match"
@@ -459,10 +374,10 @@ export function FilterPanelBody() {
 
       {/* Predicate Types */}
       <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
-        <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">
+        <h4 id={ids.predicates} className={SECTION_HEADING}>
           Predicate types
-        </label>
-        <div className="flex flex-wrap gap-2">
+        </h4>
+        <div role="group" aria-labelledby={ids.predicates} className="flex flex-wrap gap-2">
           {([
             { type: 'access' as PredicateType, label: 'Access', count: predicateStats.access },
             { type: 'filter' as PredicateType, label: 'Filter', count: predicateStats.filter },
@@ -474,6 +389,9 @@ export function FilterPanelBody() {
             return (
               <button
                 key={type}
+                type="button"
+                aria-pressed={isActive}
+                aria-label={type === 'none' ? `Without predicates (${count})` : `${label} predicates (${count})`}
                 onClick={() => handlePredicateTypeToggle(type)}
                 className={`
                   flex items-center gap-1.5 px-2 py-1 text-[10px] rounded-md transition-colors font-semibold uppercase tracking-tight
@@ -497,10 +415,10 @@ export function FilterPanelBody() {
 
       {/* Operation Categories */}
       <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
-        <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">
+        <h4 id={ids.operations} className={SECTION_HEADING}>
           Operation types
-        </label>
-        <div className="flex flex-wrap gap-2">
+        </h4>
+        <div role="group" aria-labelledby={ids.operations} className="flex flex-wrap gap-2">
           {Object.keys(OPERATION_CATEGORIES).map((category) => {
             const count = operationStats.get(category) || 0;
             if (count === 0) return null;
@@ -510,6 +428,10 @@ export function FilterPanelBody() {
             return (
               <button
                 key={category}
+                type="button"
+                aria-pressed={isActive}
+                aria-label={`${category} (${count})`}
+                title={category}
                 onClick={() => handleCategoryToggle(category)}
                 className={`
                    flex items-center gap-1.5 px-2 py-1 text-[10px] rounded-md transition-colors font-semibold uppercase tracking-tight
@@ -533,27 +455,28 @@ export function FilterPanelBody() {
 
       {/* Thresholds */}
       <div className="p-3">
-        <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">
+        <h4 id={ids.thresholds} className={SECTION_HEADING}>
           Hide below threshold
-        </label>
-        <div className="space-y-4">
+        </h4>
+        <div role="group" aria-labelledby={ids.thresholds} className="space-y-4">
           {/* Cost Range */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Cost</span>
-              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 font-mono">
+              <label htmlFor={ids.cost} className={SLIDER_LABEL}>Minimum cost</label>
+              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 font-mono" aria-hidden="true">
                 {filters.minCost > 0 ? `≥ ${filters.minCost}` : 'All'}
               </span>
             </div>
             <SliderHistogram values={costValues} max={maxCost} />
             <input
+              id={ids.cost}
               type="range"
               min={0}
               max={maxCost}
-              aria-label="Minimum cost"
+              aria-valuetext={filters.minCost > 0 ? `at least ${filters.minCost}` : 'show all'}
               value={filters.minCost}
               onChange={(e) => setFilters({ minCost: parseInt(e.target.value) })}
-              className={`w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-blue-600 ${FOCUS_RING}`}
+              className={SLIDER}
             />
             <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-tight">
               <span>Show all</span>
@@ -565,20 +488,21 @@ export function FilterPanelBody() {
           {parsedPlan?.hasActualStats && maxActualRows > 0 && (
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">A-Rows</span>
-                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 font-mono">
+                <label htmlFor={ids.actualRows} className={SLIDER_LABEL}>Minimum A-Rows</label>
+                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 font-mono" aria-hidden="true">
                   {filters.minActualRows > 0 ? `≥ ${formatNumberShort(filters.minActualRows, { infinity: '∞' })}` : 'All'}
                 </span>
               </div>
               <SliderHistogram values={actualRowsValues} max={maxActualRows} />
               <input
+                id={ids.actualRows}
                 type="range"
                 min={0}
                 max={maxActualRows}
-                aria-label="Minimum A-Rows"
+                aria-valuetext={filters.minActualRows > 0 ? `at least ${formatNumberShort(filters.minActualRows, { infinity: 'infinity' })} rows` : 'show all'}
                 value={filters.minActualRows === Infinity ? maxActualRows : filters.minActualRows}
                 onChange={(e) => setFilters({ minActualRows: parseInt(e.target.value) })}
-                className={`w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-blue-600 ${FOCUS_RING}`}
+                className={SLIDER}
               />
               <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-tight">
                 <span>Show all</span>
@@ -591,20 +515,21 @@ export function FilterPanelBody() {
           {parsedPlan?.hasActualStats && maxActualTime > 0 && (
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">A-Time</span>
-                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 font-mono">
+                <label htmlFor={ids.actualTime} className={SLIDER_LABEL}>Minimum A-Time</label>
+                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 font-mono" aria-hidden="true">
                   {filters.minActualTime > 0 ? `≥ ${formatTimeCompact(filters.minActualTime, { infinity: '∞' })}` : 'All'}
                 </span>
               </div>
               <SliderHistogram values={actualTimeValues} max={maxActualTime} />
               <input
+                id={ids.actualTime}
                 type="range"
                 min={0}
                 max={maxActualTime}
-                aria-label="Minimum A-Time"
+                aria-valuetext={filters.minActualTime > 0 ? `at least ${formatTimeCompact(filters.minActualTime, { infinity: 'infinity' })}` : 'show all'}
                 value={filters.minActualTime === Infinity ? maxActualTime : filters.minActualTime}
                 onChange={(e) => setFilters({ minActualTime: parseInt(e.target.value) })}
-                className={`w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-blue-600 ${FOCUS_RING}`}
+                className={SLIDER}
               />
               <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-tight">
                 <span>Show all</span>
@@ -617,21 +542,22 @@ export function FilterPanelBody() {
           {parsedPlan?.hasActualStats && (
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Cardinality mismatch</span>
-                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 font-mono">
+                <label htmlFor={ids.mismatch} className={SLIDER_LABEL}>Minimum cardinality mismatch</label>
+                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 font-mono" aria-hidden="true">
                   {filters.minCardinalityMismatch > 0 ? `≥ ${filters.minCardinalityMismatch}x` : 'Off'}
                 </span>
               </div>
               <SliderHistogram values={cardinalityMismatchValues} max={100} />
               <input
+                id={ids.mismatch}
                 type="range"
                 min={0}
                 max={100}
                 step={1}
-                aria-label="Minimum cardinality mismatch"
+                aria-valuetext={filters.minCardinalityMismatch > 0 ? `at least ${filters.minCardinalityMismatch} times` : 'off'}
                 value={filters.minCardinalityMismatch}
                 onChange={(e) => setFilters({ minCardinalityMismatch: parseInt(e.target.value) })}
-                className={`w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-blue-600 ${FOCUS_RING}`}
+                className={SLIDER}
               />
               <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-tight">
                 <span>Off</span>

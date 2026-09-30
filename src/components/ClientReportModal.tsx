@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { getSourceDisplayName } from '../lib/parser';
 import { hasAnnotations } from '../lib/annotations';
@@ -10,6 +10,8 @@ import {
   saveReportIdentity,
   type ClientReportSections,
 } from '../lib/clientReport';
+import { downloadTextFile, printHtml } from '../lib/fileExport';
+import { BTN_SECONDARY, Dialog, DialogBody, DialogFooter, FOCUS_RING, useToast } from './ui';
 
 interface ClientReportModalProps {
   onClose: () => void;
@@ -20,9 +22,6 @@ interface SectionToggleDef {
   label: string;
   description: string;
 }
-
-const FOCUS_RING =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
 
 const INPUT_CLASS =
   'w-full px-2.5 py-1.5 text-xs rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/60';
@@ -38,17 +37,18 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
   const [showPreview, setShowPreview] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    titleRef.current?.focus();
-  }, []);
+  const toast = useToast();
+  const titleId = useId();
+  const clientId = useId();
+  const preparedById = useId();
+  const summaryId = useId();
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  // Typed report text: Escape and backdrop clicks ask before discarding it
+  const dirty =
+    title !== '' ||
+    summaryText !== '' ||
+    clientName !== savedIdentity.clientName ||
+    preparedBy !== savedIdentity.preparedBy;
 
   const sectionToggles = useMemo<SectionToggleDef[]>(() => {
     if (!parsedPlan) return [];
@@ -110,194 +110,161 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
   const download = () => {
     if (!parsedPlan || !html) return;
     persistIdentity();
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = clientReportFilename(parsedPlan);
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (downloadTextFile(html, clientReportFilename(parsedPlan), 'text/html;charset=utf-8')) {
+      toast.show({ tone: 'success', message: 'Report downloaded' });
+    }
   };
 
   const openPrintView = () => {
     if (!html) return;
     persistIdentity();
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-    // Give the new document a beat to lay out before opening the print dialog.
-    setTimeout(() => {
-      try {
-        win.focus();
-        win.print();
-      } catch {
-        /* window may have been closed */
-      }
-    }, 250);
+    // Shows its own error toast when the popup is blocked
+    printHtml(html);
   };
 
   if (!parsedPlan) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 dark:bg-black/60 overflow-y-auto p-4"
-      onClick={onClose}
+    <Dialog
+      open
+      onClose={onClose}
+      title="Export Client Report"
+      size="lg"
+      initialFocusRef={titleRef}
+      dirty={dirty}
     >
-      <div
-        className="bg-white dark:bg-slate-900 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 w-[720px] max-w-[95vw] my-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800">
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-            Export Client Report
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 text-lg leading-none px-1"
-            aria-label="Close"
-          >
-            ×
-          </button>
+      <DialogBody className="space-y-4 pb-4">
+        <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-snug">
+          Packages this plan, your annotations, and the app&apos;s analysis into a single
+          self-contained HTML document to hand to a client — download it, or open the print view
+          to save it as a PDF. Everything is generated in the browser; nothing is uploaded.
+        </p>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2">
+            <label htmlFor={titleId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
+              Report title
+            </label>
+            <input
+              id={titleId}
+              ref={titleRef}
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Query Performance Documentation"
+              className={INPUT_CLASS}
+            />
+          </div>
+          <div>
+            <label htmlFor={clientId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
+              Client
+            </label>
+            <input
+              id={clientId}
+              type="text"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              placeholder="e.g. Acme Corp"
+              className={INPUT_CLASS}
+            />
+          </div>
+          <div>
+            <label htmlFor={preparedById} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
+              Prepared by
+            </label>
+            <input
+              id={preparedById}
+              type="text"
+              value={preparedBy}
+              onChange={(e) => setPreparedBy(e.target.value)}
+              placeholder="Your name"
+              className={INPUT_CLASS}
+            />
+          </div>
+          <div className="col-span-2">
+            <label htmlFor={summaryId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
+              Executive summary
+            </label>
+            <textarea
+              id={summaryId}
+              value={summaryText}
+              onChange={(e) => setSummaryText(e.target.value)}
+              rows={4}
+              placeholder={'What did you investigate, what did you find, and what do you recommend?\nBlank lines start new paragraphs.'}
+              className={`${INPUT_CLASS} resize-y`}
+            />
+          </div>
         </div>
 
-        <div className="p-4 space-y-4">
-          <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-snug">
-            Packages this plan, your annotations, and the app&apos;s analysis into a single
-            self-contained HTML document to hand to a client — download it, or open the print view
-            to save it as a PDF. Everything is generated in the browser; nothing is uploaded.
-          </p>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
-                Report title
-              </label>
-              <input
-                ref={titleRef}
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Query Performance Documentation"
-                className={INPUT_CLASS}
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
-                Client
-              </label>
-              <input
-                type="text"
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                placeholder="e.g. Acme Corp"
-                className={INPUT_CLASS}
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
-                Prepared by
-              </label>
-              <input
-                type="text"
-                value={preparedBy}
-                onChange={(e) => setPreparedBy(e.target.value)}
-                placeholder="Your name"
-                className={INPUT_CLASS}
-              />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
-                Executive summary
-              </label>
-              <textarea
-                value={summaryText}
-                onChange={(e) => setSummaryText(e.target.value)}
-                rows={4}
-                placeholder={'What did you investigate, what did you find, and what do you recommend?\nBlank lines start new paragraphs.'}
-                className={`${INPUT_CLASS} resize-y`}
-              />
-            </div>
-          </div>
-
-          <div>
-            <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
-              Sections
-            </span>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-              {sectionToggles.map((def) => (
-                <label key={def.key} className="flex items-start gap-2 cursor-pointer" title={def.description}>
-                  <input
-                    type="checkbox"
-                    checked={sections[def.key]}
-                    onChange={(e) => setSections({ ...sections, [def.key]: e.target.checked })}
-                    className="mt-0.5"
-                  />
-                  <span>
-                    <span className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
-                      {def.label}
-                    </span>
-                    <span className="block text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
-                      {def.description}
-                    </span>
+        <div>
+          <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+            Sections
+          </span>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+            {sectionToggles.map((def) => (
+              <label key={def.key} className="flex items-start gap-2 cursor-pointer" title={def.description}>
+                <input
+                  type="checkbox"
+                  checked={sections[def.key]}
+                  onChange={(e) => setSections({ ...sections, [def.key]: e.target.checked })}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
+                    {def.label}
                   </span>
-                </label>
-              ))}
-            </div>
+                  <span className="block text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                    {def.description}
+                  </span>
+                </span>
+              </label>
+            ))}
           </div>
+        </div>
 
-          <div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={download}
-                disabled={!html}
-                className={`h-8 px-3 text-xs font-semibold rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${FOCUS_RING}`}
-              >
-                Download .html
-              </button>
-              <button
-                type="button"
-                onClick={openPrintView}
-                disabled={!html}
-                className={`h-8 px-3 text-xs font-semibold rounded border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${FOCUS_RING}`}
-              >
-                Print / Save as PDF
-              </button>
-            </div>
+        <div>
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setShowPreview(!showPreview)}
-              className={`mt-2 text-[10px] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 select-none ${FOCUS_RING}`}
-              aria-expanded={showPreview}
+              onClick={download}
+              disabled={!html}
+              className={`h-8 px-3 text-xs font-semibold rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${FOCUS_RING}`}
             >
-              {showPreview ? '▾ Hide preview' : '▸ Show preview'}
+              Download .html
             </button>
-            {showPreview && html && (
-              <iframe
-                title="Report preview"
-                sandbox=""
-                srcDoc={html}
-                className="mt-1 w-full h-96 rounded border border-slate-200 dark:border-slate-700 bg-white"
-              />
-            )}
+            <button
+              type="button"
+              onClick={openPrintView}
+              disabled={!html}
+              className={`h-8 px-3 text-xs font-semibold rounded border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${FOCUS_RING}`}
+            >
+              Print / Save as PDF
+            </button>
           </div>
-        </div>
-
-        <div className="flex justify-end px-4 py-3 border-t border-slate-200 dark:border-slate-800">
           <button
             type="button"
-            onClick={onClose}
-            className={`text-xs px-3 py-1.5 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 ${FOCUS_RING}`}
+            onClick={() => setShowPreview(!showPreview)}
+            className={`mt-2 text-[10px] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 select-none ${FOCUS_RING}`}
+            aria-expanded={showPreview}
           >
-            Close
+            {showPreview ? '▾ Hide preview' : '▸ Show preview'}
           </button>
+          {showPreview && html && (
+            <iframe
+              title="Report preview"
+              sandbox=""
+              srcDoc={html}
+              className="mt-1 w-full h-96 rounded border border-slate-200 dark:border-slate-700 bg-white"
+            />
+          )}
         </div>
-      </div>
-    </div>
+      </DialogBody>
+
+      <DialogFooter>
+        <button type="button" onClick={onClose} className={BTN_SECONDARY}>
+          Close
+        </button>
+      </DialogFooter>
+    </Dialog>
   );
 }

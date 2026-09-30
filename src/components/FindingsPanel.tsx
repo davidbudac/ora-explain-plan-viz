@@ -3,6 +3,7 @@ import { usePlan } from '../hooks/usePlanContext';
 import type { FindingSeverity, Finding } from '../lib/advisor';
 import { SEVERITY_STYLES } from '../lib/severityStyles';
 import { walkPlanTree } from '../lib/analysis';
+import { FOCUS_RING, FOCUS_RING_INSET } from './ui';
 
 const SEVERITY_ORDER: FindingSeverity[] = ['critical', 'warning', 'info'];
 const SEVERITY_LABELS: Record<FindingSeverity, { singular: string; plural: string }> = {
@@ -123,11 +124,12 @@ function FindingRow({
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 shrink-0"
+          className={`p-0.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 shrink-0 ${FOCUS_RING}`}
           title={expanded ? 'Collapse' : 'Expand'}
+          aria-label={expanded ? 'Hide finding details' : 'Show finding details'}
           aria-expanded={expanded}
         >
-          <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
           </svg>
         </button>
@@ -136,7 +138,7 @@ function FindingRow({
           type="button"
           onClick={() => canNavigate && onNavigate(nodeId)}
           disabled={!canNavigate}
-          className={`flex-1 min-w-0 flex items-center gap-1.5 text-left font-mono ${canNavigate ? '' : 'cursor-default'}`}
+          className={`flex-1 min-w-0 flex items-center gap-1.5 text-left font-mono rounded ${FOCUS_RING} ${canNavigate ? '' : 'cursor-default'}`}
           title={finding.title}
         >
           {canNavigate && (
@@ -176,13 +178,14 @@ function FindingGroupRow({
         type="button"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
-        className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[11px] rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        className={`w-full flex items-center gap-1.5 px-2 py-1.5 text-[11px] rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING_INSET}`}
       >
         <svg
           className={`w-3 h-3 shrink-0 text-slate-400 transition-transform ${expanded ? 'rotate-90' : ''}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
+          aria-hidden="true"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
         </svg>
@@ -229,7 +232,14 @@ export function FindingsList() {
     [advisorReport]
   );
 
-  if (!advisorReport || advisorReport.findings.length === 0) return null;
+  if (!advisorReport) return null;
+  if (advisorReport.findings.length === 0) {
+    return (
+      <p className="text-[11px] text-slate-500 dark:text-slate-400" role="status">
+        No advisor findings for this plan
+      </p>
+    );
+  }
 
   const countsLabel = severityCountsLabel(advisorReport.counts);
 

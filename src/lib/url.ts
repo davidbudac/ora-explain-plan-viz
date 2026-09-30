@@ -1,5 +1,6 @@
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
 import type { SerializedAnnotationState } from './annotations';
+import type { ViewMode } from './types';
 
 const URL_PARAM = 'plan';
 const HASH_PARAM = 'gz';
@@ -9,13 +10,28 @@ const SOFT_WARN_URL_LENGTH = 8000;
 const HARD_MAX_URL_LENGTH = 100_000;
 /** Cap for the legacy lz-string `?plan=` fallback (query params hit server request-line limits). */
 const LEGACY_MAX_URL_LENGTH = 8000;
+/** Metadata bundles ride along only while the share URL stays under this length. */
+export const SHARE_BUNDLE_MAX_URL_LENGTH = 32_000;
+
+/** Query params used by marketing/deep links (`?example=22&view=sankey`). */
+const DEEP_LINK_PARAMS = ['example', 'view'];
+
+export interface SharePlanEntry {
+  rawInput: string;
+  annotations?: SerializedAnnotationState;
+  /** Attached ora-plan-metadata bundle (the parsed JSON object), when it fits. */
+  metadataBundle?: unknown;
+}
 
 /**
  * Shape of the new JSON payload stored in the URL.
- * Each plan slot only needs its rawInput text.
+ * Each plan slot needs its rawInput text; annotations, the metadata bundle and
+ * the active view are optional (older links carry none of them).
  */
 export interface SharePayload {
-  plans: { rawInput: string; annotations?: SerializedAnnotationState }[];
+  plans: SharePlanEntry[];
+  /** Active visualization tab at share time. */
+  viewMode?: string;
   /** @deprecated Global annotations from older shares — migrated to per-plan on load */
   annotations?: SerializedAnnotationState;
 }
@@ -74,10 +90,18 @@ export function getGzipPlanParamFromHash(): string | null {
 /**
  * Remove the ?plan= query param and #gz= hash param from the URL without
  * triggering navigation. Preserves any other hash params.
+ *
+ * With `includeDeepLinks`, also drops `?example=` / `?view=` — used once the
+ * plan they pointed at has been replaced or cleared, so a reload does not
+ * resurrect it.
  */
-export function clearPlanFromUrl(): void {
+export function clearPlanFromUrl(options?: { includeDeepLinks?: boolean }): void {
+  if (typeof window === 'undefined') return;
   const url = new URL(window.location.href);
   url.searchParams.delete(URL_PARAM);
+  if (options?.includeDeepLinks) {
+    for (const param of DEEP_LINK_PARAMS) url.searchParams.delete(param);
+  }
 
   const hashParams = new URLSearchParams(url.hash.slice(1));
   hashParams.delete(HASH_PARAM);
@@ -250,4 +274,92 @@ export async function buildShareUrl(payload: SharePayload): Promise<ShareResult>
   }
 
   return { ok: true, url: fullUrl };
+}
+
+const SHAREABLE_VIEW_MODES: readonly ViewMode[] = [
+  'hierarchical', 'sankey', 'flame', 'tabular', 'text', 'sql', 'metadata', 'compare', 'monitor', 'experimental',
+];
+
+/**
+ * The view mode a shared payload asks for, when it is one the recipient can
+ * open without extra state (AI tabs are session-only and never restored).
+ */
+export function getSharedViewMode(payload: SharePayload): ViewMode | null {
+  const value = payload.viewMode;
+  return typeof value === 'string' && (SHAREABLE_VIEW_MODES as readonly string[]).includes(value)
+    ? (value as ViewMode)
+    : null;
+}
+
+export interface ShareLinkOptions {
+  viewMode?: ViewMode;
+  /** Injected for tests; defaults to `buildShareUrl`. */
+  build?: (payload: SharePayload) => Promise<ShareResult>;
+  /** Max URL length that still carries metadata bundles. */
+  bundleMaxUrlLength?: number;
+}
+
+export type ShareLinkResult =
+  | { ok: true; url: string; warnings: string[] }
+  | { ok: false; error: string };
+
+function toPayload(
+  plans: SharePlanEntry[],
+  viewMode: ViewMode | undefined,
+  opts: { includeBundles: boolean; transform?: (text: string) => string },
+): SharePayload {
+  const payload: SharePayload = {
+    plans: plans.map((plan) => {
+      const entry: SharePlanEntry = { rawInput: opts.transform ? opts.transform(plan.rawInput) : plan.rawInput };
+      if (plan.annotations) entry.annotations = plan.annotations;
+      if (opts.includeBundles && plan.metadataBundle !== undefined && plan.metadataBundle !== null) {
+        entry.metadataBundle = plan.metadataBundle;
+      }
+      return entry;
+    }),
+  };
+  if (viewMode && (SHAREABLE_VIEW_MODES as readonly string[]).includes(viewMode)) {
+    payload.viewMode = viewMode;
+  }
+  return payload;
+}
+
+/**
+ * Build a share link with graceful degradation:
+ *  1. full payload incl. metadata bundles;
+ *  2. without bundles when (1) is longer than ~32k chars or fails
+ *     ("metadata bundle omitted: too large");
+ *  3. with bulky SQL Monitor XML sections stripped when still too large.
+ */
+export async function buildShareLink(plans: SharePlanEntry[], options: ShareLinkOptions = {}): Promise<ShareLinkResult> {
+  const build = options.build ?? buildShareUrl;
+  const bundleMax = options.bundleMaxUrlLength ?? SHARE_BUNDLE_MAX_URL_LENGTH;
+  const hasBundles = plans.some((p) => p.metadataBundle !== undefined && p.metadataBundle !== null);
+  const warnings: string[] = [];
+
+  let result: ShareResult | null = null;
+  if (hasBundles) {
+    const withBundles = await build(toPayload(plans, options.viewMode, { includeBundles: true }));
+    if (withBundles.ok && withBundles.url.length <= bundleMax) {
+      result = withBundles;
+    } else {
+      warnings.push('Metadata bundle omitted: too large for a share link.');
+    }
+  }
+
+  if (!result) {
+    result = await build(toPayload(plans, options.viewMode, { includeBundles: false }));
+  }
+
+  if (!result.ok) {
+    const stripped = await build(
+      toPayload(plans, options.viewMode, { includeBundles: false, transform: stripUnusedXmlSections }),
+    );
+    if (!stripped.ok) return stripped;
+    result = stripped;
+    warnings.push('Some non-essential data was stripped to fit the URL size limit.');
+  }
+
+  if (result.warning) warnings.push(result.warning);
+  return { ok: true, url: result.url, warnings };
 }

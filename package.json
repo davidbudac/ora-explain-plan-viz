@@ -19,6 +19,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.121.0",
     "@dagrejs/dagre": "^1.1.8",
+    "@tanstack/react-virtual": "^3.14.13",
     "@xyflow/react": "^12.10.0",
     "d3-force": "^3.0.0",
     "d3-sankey": "^0.12.3",

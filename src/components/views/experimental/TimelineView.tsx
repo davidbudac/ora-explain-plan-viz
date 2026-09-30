@@ -102,7 +102,8 @@ export function TimelineView() {
     };
   }, []);
 
-  const nodes = parsedPlan?.allNodes ?? [];
+  const allNodes = parsedPlan?.allNodes;
+  const nodes = useMemo(() => allNodes ?? [], [allNodes]);
   const hasTimingData = nodes.some((node) => node.firstActiveOffset !== undefined);
 
   const timeline = parsedPlan?.activityTimeline;

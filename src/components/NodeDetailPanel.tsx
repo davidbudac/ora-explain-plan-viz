@@ -18,14 +18,13 @@ import { GatherScriptModal } from './GatherScriptModal';
 import { assessPartitionPruning, computeParallelSignals } from '../lib/planSignals';
 import type { ParallelSignal } from '../lib/planSignals';
 import { FindingsList, NodeFindings } from './FindingsPanel';
-import { DdlBlock, CopyButton, formatHistogramLabel, formatDateShort } from './metadata/shared';
-
-const FOCUS_RING =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
+import { DdlBlock, formatHistogramLabel, formatDateShort } from './metadata/shared';
 // Full-width rows and accordion summaries run edge-to-edge inside the panel's
-// scroll container, where an outset ring would be clipped.
-const FOCUS_RING_INSET =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
+// scroll container, where an outset ring would be clipped: they use FOCUS_RING_INSET.
+import { CopyButton, FOCUS_RING, FOCUS_RING_INSET } from './ui';
+import { PanelResizeHandle } from './PanelEdgeTab';
+
+const MULTI_SELECT_TIP = 'Tip: ⌘/Ctrl-click nodes to multi-select and create a group';
 
 const HIGHLIGHT_COLORS_MAP: Record<HighlightColor, string> = Object.fromEntries(
   HIGHLIGHT_COLORS.map((c) => [c.name, c.chip])
@@ -33,8 +32,16 @@ const HIGHLIGHT_COLORS_MAP: Record<HighlightColor, string> = Object.fromEntries(
 
 interface NodeDetailPanelProps {
   panelWidth: number;
-  onResizeStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+  // Method syntax so App's HTMLButtonElement-typed handler still fits the
+  // separator element (method parameters are bivariant).
+  onResizeStart(event: ReactPointerEvent<HTMLElement>): void;
+  /** Keyboard resizing (←/→ on the splitter); the splitter is pointer-only without it. */
+  onResizeBy?: (delta: number) => void;
+  minWidth?: number;
+  maxWidth?: number;
 }
+
+const DETAIL_PANEL_ID = 'detail-panel';
 
 /**
  * One row of a "worst nodes" list. Only the leader is coloured red — the rest
@@ -86,7 +93,7 @@ function WorstNodeRow({
   );
 }
 
-export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelProps) {
+export function NodeDetailPanel({ panelWidth, onResizeStart, onResizeBy, minWidth, maxWidth }: NodeDetailPanelProps) {
   const {
     selectedNodes,
     detailPanelCollapsed: isCollapsed, setDetailPanelCollapsed: setIsCollapsed,
@@ -114,28 +121,90 @@ export function NodeDetailPanel({ panelWidth, onResizeStart }: NodeDetailPanelPr
 
   return (
     <div
+      id={DETAIL_PANEL_ID}
       className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 overflow-y-auto"
       style={{ width: panelWidth }}
     >
-      <button
-        type="button"
+      <PanelResizeHandle
+        side="right"
+        label="Resize details panel"
+        width={panelWidth}
+        minWidth={minWidth}
+        maxWidth={maxWidth}
+        controls={DETAIL_PANEL_ID}
         onPointerDown={onResizeStart}
-        className={`absolute left-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors ${FOCUS_RING}`}
-        aria-label="Resize details panel"
-        title="Resize details panel"
+        onResizeBy={onResizeBy}
       />
       {selectedNodes.length === 0 ? <NoSelectionBody /> : <NodeDetailBody />}
     </div>
   );
 }
 
+function InlineSwitch({
+  label,
+  title,
+  checked,
+  onChange,
+  onClass,
+}: {
+  label: string;
+  title?: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  onClass: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      title={title}
+      onClick={() => onChange(!checked)}
+      className={`flex items-center gap-1.5 rounded px-1 py-0.5 text-[10px] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 ${FOCUS_RING}`}
+    >
+      <span>{label}</span>
+      <span
+        aria-hidden="true"
+        className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${checked ? onClass : 'bg-slate-300 dark:bg-slate-700'}`}
+      >
+        <span className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${checked ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Hotspot detection + advisor suggestion switches. A compact row under the
+ * inspector's header, present whether or not something is selected.
+ */
+function InsightSwitches() {
+  const { hotspotsEnabled, setHotspotsEnabled, showAdvisorSuggestions, setShowAdvisorSuggestions } = usePlan();
+  return (
+    <div className="mt-2 -mx-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+      <InlineSwitch
+        label="Hotspots"
+        title="Highlight the slowest operation and list the top offenders"
+        checked={hotspotsEnabled}
+        onChange={setHotspotsEnabled}
+        onClass="bg-red-500"
+      />
+      <InlineSwitch
+        label="Suggestions"
+        title="Show the tuning recommendation line on advisor findings"
+        checked={showAdvisorSuggestions}
+        onChange={setShowAdvisorSuggestions}
+        onClass="bg-sky-500"
+      />
+    </div>
+  );
+}
+
 /** Plan-wide summary shown in the docked details panel when nothing is selected. */
-export function NoSelectionBody() {
+export function NoSelectionBody({ hideTitle = false }: { hideTitle?: boolean } = {}) {
   const {
     parsedPlan, selectNode, annotations,
     updateAnnotationGroup, removeAnnotationGroup,
-    hotspotsEnabled, setHotspotsEnabled,
-    showAdvisorSuggestions, setShowAdvisorSuggestions,
+    hotspotsEnabled,
     advisorReport,
   } = usePlan();
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
@@ -164,48 +233,12 @@ export function NoSelectionBody() {
   return (
     <>
       <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Details</h3>
+        {!hideTitle && <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Overview</h3>}
+        <InsightSwitches />
+        <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">{MULTI_SELECT_TIP}</p>
       </div>
 
-      <div className="px-3 py-2.5 border-b border-slate-200 dark:border-slate-800 space-y-2">
-         <div className="flex items-center justify-between">
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Quick Analysis</h3>
-            <div className="flex items-center gap-2">
-               <span className="text-[10px] text-slate-400 dark:text-slate-500">Hotspots</span>
-               <button
-                 role="switch"
-                 aria-checked={hotspotsEnabled}
-                 aria-label="Hotspots"
-                 onClick={() => setHotspotsEnabled(!hotspotsEnabled)}
-                 className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${FOCUS_RING} ${
-                   hotspotsEnabled ? 'bg-red-500' : 'bg-slate-300 dark:bg-slate-700'
-                 }`}
-               >
-                 <span className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${
-                   hotspotsEnabled ? 'translate-x-3.5' : 'translate-x-0.5'
-                 }`} />
-               </button>
-            </div>
-         </div>
-         <div className="flex items-center justify-between">
-            <span className="text-[10px] text-slate-400 dark:text-slate-500" title="Show the tuning recommendation line on advisor findings">Suggestions</span>
-            <button
-              role="switch"
-              aria-checked={showAdvisorSuggestions}
-              aria-label="Suggestions"
-              onClick={() => setShowAdvisorSuggestions(!showAdvisorSuggestions)}
-              className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${FOCUS_RING} ${
-                showAdvisorSuggestions ? 'bg-sky-500' : 'bg-slate-300 dark:bg-slate-700'
-              }`}
-            >
-              <span className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${
-                showAdvisorSuggestions ? 'translate-x-3.5' : 'translate-x-0.5'
-              }`} />
-            </button>
-         </div>
-      </div>
-
-      {advisorReport && advisorReport.findings.length > 0 && (
+      {advisorReport && (
         <Accordion
           title="Findings"
           subtitle={`${advisorReport.findings.length}`}
@@ -294,7 +327,7 @@ export function NoSelectionBody() {
                   ) : (
                     <>
                       <code className="font-mono text-slate-800 dark:text-slate-200 truncate block">{bind.value}</code>
-                      <CopyButton text={bind.value} label={`Copy ${bind.name} value`} />
+                      <CopyButton text={bind.value} iconOnly ariaLabel={`Copy ${bind.name} value`} />
                     </>
                   )}
                 </span>
@@ -322,9 +355,11 @@ export function NoSelectionBody() {
                     <span className="text-[10px] text-slate-400">({group.nodeIds.length})</span>
                   </span>
                   <button
+                    type="button"
                     onClick={() => setEditingGroupId(group.id)}
                     className={`p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded ${FOCUS_RING}`}
                     title="Edit group"
+                    aria-label={`Edit group ${group.name}`}
                   >
                     <svg className="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -402,14 +437,16 @@ export function NodeDetailBody() {
         <div className="p-3 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-start justify-between">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-              {selectedNodes.length} nodes selected
+              {selectedNodes.length} operations selected
             </h3>
             <button
+              type="button"
               onClick={() => selectNode(null)}
               className={`p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors text-slate-400 ${FOCUS_RING}`}
               title="Clear selection"
+              aria-label="Clear selection"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -417,6 +454,7 @@ export function NodeDetailBody() {
           <div className="mt-2 text-[11px] font-mono text-slate-500 dark:text-slate-400 break-all">
             <span className="font-sans font-medium text-slate-500 dark:text-slate-400 mr-1">IDs:</span> {selectedIdPreview}{hasMoreIds ? '...' : ''}
           </div>
+          <InsightSwitches />
         </div>
 
         {/* Bulk annotation controls */}
@@ -510,26 +548,28 @@ export function NodeDetailBody() {
       {/* Header */}
       <div className="p-3 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-             <span className="font-mono text-[11px] px-1.5 py-0.5 rounded border border-slate-200/70 dark:border-slate-700/50 text-slate-500 dark:text-slate-400">
-                #{node.id}
-             </span>
-             <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400">{category}</span>
+          <div className="flex items-baseline gap-2 min-w-0">
+             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
+               Operation <span className="font-mono">#{node.id}</span>
+             </h3>
+             <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 truncate">{category}</span>
           </div>
           <button
+            type="button"
             onClick={() => selectNode(null)}
             className={`p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors text-slate-400 ${FOCUS_RING}`}
             title="Clear selection"
+            aria-label="Clear selection"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-tight">
+        <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-tight">
           <HighlightText text={node.operation} query={searchText} />
-        </h3>
+        </h4>
 
         {node.objectName && (
           <div className="mt-1 font-mono text-[11px] text-blue-600 dark:text-blue-400 break-all">
@@ -552,6 +592,8 @@ export function NodeDetailBody() {
             </div>
           ) : null;
         })()}
+
+        <InsightSwitches />
       </div>
 
       {/* Advisor findings for this node */}
@@ -646,7 +688,7 @@ export function NodeDetailBody() {
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
                   Access
                 </span>
-                <CopyButton text={node.accessPredicates} />
+                <CopyButton text={node.accessPredicates} iconOnly ariaLabel="Copy access predicate" />
               </div>
               <code className="block text-[11px] font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md p-2.5 text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words leading-relaxed">
                 <FormattedPredicate text={node.accessPredicates} searchQuery={searchText} />
@@ -660,7 +702,7 @@ export function NodeDetailBody() {
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
                   Filter
                 </span>
-                <CopyButton text={node.filterPredicates} />
+                <CopyButton text={node.filterPredicates} iconOnly ariaLabel="Copy filter predicate" />
               </div>
               <code className="block text-[11px] font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md p-2.5 text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words leading-relaxed">
                 <FormattedPredicate text={node.filterPredicates} searchQuery={searchText} />
@@ -921,19 +963,26 @@ function MetadataSection({
     </div>
   ) : null;
   if (!bundle) {
+    // One quiet line rather than an open accordion on every operation.
     return (
-      <Accordion title="Metadata">
+      <div className="px-3 py-2 border-b border-slate-200 dark:border-slate-800">
         {warningBanner}
-        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed mb-3">
-          No metadata loaded for this plan. Run the gather script to attach schema details (tables, indexes, column stats).
-        </p>
-        <button
-          type="button"
-          onClick={() => setShowGatherModal(true)}
-          className={`w-full text-[11px] font-bold py-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-slate-700/70 transition-colors uppercase tracking-wider ${FOCUS_RING}`}
-        >
-          {planSqlId ? 'Generate gather script' : 'Manual gather script'}
-        </button>
+        <div className="flex items-center justify-between gap-2">
+          <span
+            className="text-[11px] text-slate-500 dark:text-slate-400"
+            title="Run the gather script to attach schema details (tables, indexes, column stats)"
+          >
+            No metadata loaded
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowGatherModal(true)}
+            className={`shrink-0 px-2 py-1 text-[11px] font-semibold rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-slate-700/70 transition-colors ${FOCUS_RING}`}
+            title="Generate a SQL script that collects table, index and column statistics for this plan"
+          >
+            {planSqlId ? 'Gather script…' : 'Manual gather script…'}
+          </button>
+        </div>
         {showGatherModal && (
           <GatherScriptModal
             initialSqlId={planSqlId}
@@ -941,7 +990,7 @@ function MetadataSection({
             onClose={() => setShowGatherModal(false)}
           />
         )}
-      </Accordion>
+      </div>
     );
   }
 

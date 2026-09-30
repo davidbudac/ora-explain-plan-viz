@@ -1,6 +1,7 @@
 import type { MetadataBundle, IndexObject } from '../../lib/metadata/bundle';
 import { formatNumberShort } from '../../lib/format';
 import { Card, DdlBlock, StatItem, formatBytes, formatDateShort } from './shared';
+import { FOCUS_RING } from '../ui';
 
 interface IndexObjectDetailProps {
   objectKey: string;
@@ -25,7 +26,7 @@ export function IndexObjectDetail({ objectKey, index, bundle, onSelectObject }: 
           <button
             type="button"
             onClick={() => onSelectObject(index.table)}
-            className="text-[12px] font-mono text-blue-600 dark:text-blue-400 hover:underline"
+            className={`rounded text-[12px] font-mono text-blue-600 dark:text-blue-400 hover:underline ${FOCUS_RING}`}
           >
             {index.table}
           </button>

@@ -1,68 +1,37 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useCallback, useState } from 'react';
 import type { ColumnStats } from '../../lib/metadata/bundle';
+import { CopyButton, FOCUS_RING } from '../ui';
 
 export { formatBytes } from '../../lib/format';
-
-/** Copy-to-clipboard icon button with a brief "copied" confirmation state. */
-export function CopyButton({ text, label }: { text: string; label?: string }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  }, [text]);
-
-  return (
-    <button
-      onClick={handleCopy}
-      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
-      title={label || 'Copy to clipboard'}
-    >
-      {copied ? (
-        <svg className="w-3.5 h-3.5 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-        </svg>
-      ) : (
-        <svg className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-        </svg>
-      )}
-    </button>
-  );
-}
 
 /** Collapsible DDL block with a copy button, matching the detail-panel accordion look. */
 export function DdlBlock({ ddl }: { ddl: string }) {
   if (!ddl || !ddl.trim()) return null;
   return (
-    <details className="group mt-4 pt-4 border-t border-slate-200 dark:border-slate-800" open={false}>
-      <summary className="flex items-center justify-between cursor-pointer list-none select-none mb-2">
-        <div className="flex items-center gap-1.5">
-          <svg className="w-3.5 h-3.5 text-slate-300 group-open:rotate-180 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-          </svg>
-          <h5 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            DDL
-          </h5>
-        </div>
-        <span
-          role="button"
-          tabIndex={0}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          className="inline-flex"
+    <div className="relative mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+      <details className="group" open={false}>
+        <summary
+          className={`flex items-center cursor-pointer list-none select-none mb-2 pr-8 rounded ${FOCUS_RING}`}
         >
-          <CopyButton text={ddl} label="Copy DDL" />
-        </span>
-      </summary>
-      <pre className="text-[10px] leading-relaxed font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md p-2.5 text-slate-800 dark:text-slate-200 whitespace-pre overflow-auto max-h-72">
-        {ddl.trim()}
-      </pre>
-    </details>
+          <div className="flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5 text-slate-300 group-open:rotate-180 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+            </svg>
+            <h5 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              DDL
+            </h5>
+          </div>
+        </summary>
+        <pre className="text-[10px] leading-relaxed font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md p-2.5 text-slate-800 dark:text-slate-200 whitespace-pre overflow-auto max-h-72">
+          {ddl.trim()}
+        </pre>
+      </details>
+      {/* A sibling of <details>, not a child of <summary>: a button nested in a
+          summary toggles the section on click and confuses screen readers. */}
+      <div className="absolute right-0 top-3">
+        <CopyButton text={ddl} iconOnly ariaLabel="Copy DDL" />
+      </div>
+    </div>
   );
 }
 

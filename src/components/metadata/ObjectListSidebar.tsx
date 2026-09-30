@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { MetadataBundle } from '../../lib/metadata/bundle';
+import { FOCUS_RING_INSET } from '../ui';
 
 interface ObjectListSidebarProps {
   bundle: MetadataBundle;
@@ -39,6 +40,7 @@ export function ObjectListSidebar({ bundle, selectedKey, onSelect }: ObjectListS
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Filter objects…"
+          aria-label="Filter objects"
           className="w-full px-2 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
         />
       </div>
@@ -46,7 +48,8 @@ export function ObjectListSidebar({ bundle, selectedKey, onSelect }: ObjectListS
         <button
           type="button"
           onClick={() => onSelect(null)}
-          className={`w-full text-left px-3 py-1.5 text-xs font-semibold transition-colors ${
+          aria-current={selectedKey === null ? 'true' : undefined}
+          className={`w-full text-left px-3 py-1.5 text-xs font-semibold transition-colors ${FOCUS_RING_INSET} ${
             selectedKey === null
               ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -132,14 +135,24 @@ function ObjectRow({
     <button
       type="button"
       onClick={onSelect}
-      className={`w-full flex items-center gap-1.5 px-3 py-1.5 text-left text-[11px] font-mono transition-colors ${
+      aria-current={isSelected ? 'true' : undefined}
+      className={`w-full flex items-center gap-1.5 px-3 py-1.5 text-left text-[11px] font-mono transition-colors ${FOCUS_RING_INSET} ${
         isSelected
           ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
           : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
       }`}
     >
-      {staleDot && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" title="Stale stats" />}
-      {hasCoverageWarning && <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" title="Coverage warning" />}
+      {/* The dots are colour-only, so each carries screen-reader text too */}
+      {staleDot && (
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" title="Stale stats">
+          <span className="sr-only">Stale stats</span>
+        </span>
+      )}
+      {hasCoverageWarning && (
+        <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" title="Coverage warning">
+          <span className="sr-only">Coverage warning</span>
+        </span>
+      )}
       <span className="truncate flex-1">{objectKey}</span>
       {badges.map((b) => (
         <span

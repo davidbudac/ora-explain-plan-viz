@@ -7,7 +7,13 @@ export interface PlanSlot {
   id: string;
   label: string;
   customLabel?: string;
+  /** Source text of the currently loaded plan (only changes on a successful load). */
   rawInput: string;
+  /**
+   * What the user is editing in the input drawer. Absent means "same as
+   * rawInput" (a freshly loaded plan); Parse reads this, not rawInput.
+   */
+  draftInput?: string;
   parsedPlan: ParsedPlan | null;
   error: string | null;
   selectedNodeId: number | null;

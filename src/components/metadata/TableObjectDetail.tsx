@@ -4,6 +4,7 @@ import { resolveIndexesForBlock } from '../../lib/metadata/indexes';
 import { formatNumberShort } from '../../lib/format';
 import { Card, DdlBlock, Tag, StatItem, formatBytes, formatDateShort } from './shared';
 import { ColumnsTable } from './ColumnsTable';
+import { FOCUS_RING } from '../ui';
 
 interface TableObjectDetailProps {
   objectKey: string;
@@ -103,7 +104,7 @@ export function TableObjectDetail({ objectKey, table, bundle, onSelectObject }: 
                       <button
                         type="button"
                         onClick={() => onSelectObject(refKey)}
-                        className="text-blue-600 dark:text-blue-400 hover:underline"
+                        className={`rounded text-blue-600 dark:text-blue-400 hover:underline ${FOCUS_RING}`}
                       >
                         {refKey}
                       </button>
@@ -129,7 +130,7 @@ export function TableObjectDetail({ objectKey, table, bundle, onSelectObject }: 
               <button
                 type="button"
                 onClick={() => setShowGenerated(true)}
-                className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
+                className={`rounded text-[10px] font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 ${FOCUS_RING}`}
               >
                 Show {hiddenGeneratedCount} system-generated NOT NULL check{hiddenGeneratedCount === 1 ? '' : 's'}
               </button>
@@ -138,7 +139,7 @@ export function TableObjectDetail({ objectKey, table, bundle, onSelectObject }: 
               <button
                 type="button"
                 onClick={() => setShowGenerated(false)}
-                className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
+                className={`rounded text-[10px] font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 ${FOCUS_RING}`}
               >
                 Hide system-generated checks
               </button>

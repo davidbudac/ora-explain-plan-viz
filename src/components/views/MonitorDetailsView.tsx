@@ -1,49 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { usePlan } from '../../hooks/usePlanContext';
 import type { SqlMonitorMetadata } from '../../lib/types';
 import { formatNumberShort, formatBytes, formatTimeDetailed } from '../../lib/format';
 import hljs from 'highlight.js/lib/core';
 import sql from 'highlight.js/lib/languages/sql';
+import { CopyButton } from '../ui';
 
 hljs.registerLanguage('sql', sql);
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-    }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-  return (
-    <button
-      onClick={handleCopy}
-      className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border transition-colors
-        text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600
-        hover:bg-slate-100 dark:hover:bg-slate-800"
-    >
-      {copied ? (
-        <>
-          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-          Copied
-        </>
-      ) : (
-        <>
-          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-          Copy
-        </>
-      )}
-    </button>
-  );
-}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -209,7 +172,7 @@ export function MonitorDetailsView() {
         <Section title="SQL Text">
           <div className="space-y-2">
             <div className="flex justify-end">
-              <CopyButton text={parsedPlan.sqlText} />
+              <CopyButton text={parsedPlan.sqlText} label="Copy SQL" className="border border-slate-300 dark:border-slate-600" />
             </div>
             <div className="max-h-64 overflow-auto rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-3">
               <pre className="text-xs font-mono leading-relaxed whitespace-pre-wrap break-words">

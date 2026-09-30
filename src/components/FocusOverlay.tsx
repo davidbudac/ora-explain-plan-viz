@@ -3,9 +3,8 @@ import { usePlan } from '../hooks/usePlanContext';
 import { FilterPanelBody } from './FilterPanel';
 import { NodeDetailBody } from './NodeDetailPanel';
 import { FindingsList } from './FindingsPanel';
-
-const FOCUS_RING =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
+import { LegendToggle, ViewControls } from './WorkspaceTools';
+import { FOCUS_RING } from './ui';
 
 // One glass recipe for every floating instrument, so the pill, its dropdowns
 // and the inspector card read as the same material.
@@ -21,16 +20,17 @@ const CHIP_IDLE =
 const CHIP_ACTIVE =
   'bg-slate-200/80 dark:bg-slate-700/70 text-slate-900 dark:text-slate-100';
 
-type PillPanel = 'filters' | 'findings';
+type PillPanel = 'filters' | 'findings' | 'view';
 
 /**
  * Floating instruments for focus mode: a top-center command pill (search,
- * filters, findings) plus a top-right inspector card for the current selection.
+ * filters, view display controls, legend, findings) plus a top-right inspector
+ * card for the current selection.
  * Both hover over the canvas so the plan itself gets the full width.
  */
 export function FocusOverlay() {
   const {
-    filters, setFilters, filteredNodes, parsedPlan, advisorReport, selectedNodes,
+    filters, setFilters, filteredNodes, parsedPlan, advisorReport, selectedNodes, viewMode,
   } = usePlan();
   const [openPanel, setOpenPanel] = useState<PillPanel | null>(null);
   const pillRef = useRef<HTMLDivElement>(null);
@@ -39,8 +39,10 @@ export function FocusOverlay() {
   useEffect(() => {
     if (!openPanel) return;
     const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (!target || !pillRef.current || pillRef.current.contains(target)) return;
+      // The target is not always an Element (e.g. the document itself or a
+      // synthetic event): `.closest` would throw.
+      const target = event.target;
+      if (!(target instanceof Element) || !pillRef.current || pillRef.current.contains(target)) return;
       // The filter body's "Customize view" menu portals out of the dropdown —
       // clicking inside it must not read as clicking away from the pill.
       if (target.closest('[role="dialog"]')) return;
@@ -66,6 +68,8 @@ export function FocusOverlay() {
 
   const togglePanel = (panel: PillPanel) =>
     setOpenPanel((current) => (current === panel ? null : panel));
+  // Only the tree, Sankey and flame views have display controls to offer.
+  const hasViewControls = viewMode === 'hierarchical' || viewMode === 'sankey' || viewMode === 'flame';
 
   return (
     <>
@@ -120,6 +124,20 @@ export function FocusOverlay() {
             </span>
           </button>
 
+          {hasViewControls && (
+            <button
+              type="button"
+              onClick={() => togglePanel('view')}
+              aria-expanded={openPanel === 'view'}
+              title="Display options for this view"
+              className={`${CHIP_BASE} ${openPanel === 'view' ? CHIP_ACTIVE : CHIP_IDLE}`}
+            >
+              View
+            </button>
+          )}
+
+          <LegendToggle iconOnly={false} className={`${CHIP_BASE} ${CHIP_IDLE}`} pressedClassName={CHIP_ACTIVE} />
+
           <button
             type="button"
             onClick={() => togglePanel('findings')}
@@ -145,6 +163,10 @@ export function FocusOverlay() {
           >
             {openPanel === 'filters' ? (
               <FilterPanelBody />
+            ) : openPanel === 'view' ? (
+              <div className="p-3 flex flex-col items-start gap-3">
+                <ViewControls labelled />
+              </div>
             ) : (
               <div className="p-2.5">
                 <FindingsList />

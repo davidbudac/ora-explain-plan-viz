@@ -1,15 +1,14 @@
 import { useMemo } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { COLOR_SCHEME_PALETTES, getOperationCategory } from '../lib/types';
-
-const FOCUS_RING =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
+import { FOCUS_RING } from './ui';
 
 /**
  * Floating legend for the visualization area: operation-category colors for
  * the active color scheme, warning-badge meanings, and edge-width semantics.
- * Toggled from the command palette ("Toggle legend"); visibility is persisted
- * via the existing `legendVisible` setting.
+ * Toggled from the workspace toolbar's "Legend" button, the Appearance menu,
+ * focus mode's pill and the command palette; visibility is persisted via the
+ * `legendVisible` setting.
  */
 export function Legend() {
   const { legendVisible, setLegendVisible, colorScheme, parsedPlan, filters } = usePlan();
@@ -31,7 +30,10 @@ export function Legend() {
   return (
     <div className="absolute bottom-3 left-14 z-30 flex flex-col items-start gap-2 pointer-events-none">
       {legendVisible && (
-        <div className="pointer-events-auto w-56 max-h-[60vh] overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 backdrop-blur shadow-xl p-3 text-[11px]">
+        <section
+          aria-label="Legend"
+          className="pointer-events-auto w-56 max-h-[60vh] overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 backdrop-blur shadow-xl p-3 text-[11px]"
+        >
           <div className="flex items-center justify-between mb-2">
             <h4 className="font-bold text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest">Legend</h4>
             <button
@@ -41,7 +43,7 @@ export function Legend() {
               title="Hide legend"
               aria-label="Hide legend"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -95,7 +97,7 @@ export function Legend() {
               Edge thickness scales with the number of rows flowing between operations.
             </div>
           )}
-        </div>
+        </section>
       )}
     </div>
   );

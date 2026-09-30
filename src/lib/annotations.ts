@@ -1,4 +1,5 @@
 import type { PlanSource } from './types';
+import { generateId } from './ids';
 
 // --- Highlight Styles ---
 
@@ -316,5 +317,5 @@ export function downloadAnnotatedPlan(exportData: AnnotatedPlanExport): void {
 }
 
 export function generateGroupId(): string {
-  return crypto.randomUUID();
+  return generateId();
 }

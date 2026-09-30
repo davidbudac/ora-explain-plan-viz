@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { toast } from './ui';
+import { popupBlockedMessage } from '../lib/fileExport';
 
 interface PopoutWindowProps {
   title: string;
@@ -15,6 +17,10 @@ interface PopoutWindowProps {
 // second window would fail anyway — the click's transient user activation is
 // consumed by the first window.open, so the popup blocker rejects the retry.
 const parkedWindows = new Map<string, { win: Window; closeTimer: number }>();
+
+// A blocked popup is reported once per attempt: StrictMode re-runs the effect,
+// which would otherwise raise the same toast twice in development.
+let lastBlockedToastAt = 0;
 
 /**
  * Mounts `children` into a real, separate browser window (via `window.open` +
@@ -39,7 +45,15 @@ export function PopoutWindow({ title, width = 1100, height = 800, onClose, child
       opened = window.open('', '', `width=${width},height=${height},popup=yes`);
     }
     if (!opened) {
-      // Popup blocked — reset silently rather than leaving a stuck "open" flag.
+      // Popup blocked — say so, and reset rather than leaving a stuck "open" flag.
+      const now = Date.now();
+      if (now - lastBlockedToastAt > 1000) {
+        lastBlockedToastAt = now;
+        toast.show({
+          tone: 'error',
+          message: popupBlockedMessage(title),
+        });
+      }
       onCloseRef.current();
       return;
     }
