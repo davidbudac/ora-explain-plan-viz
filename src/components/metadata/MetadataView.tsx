@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { usePlan } from '../../hooks/usePlanContext';
 import { GatherScriptModal } from '../GatherScriptModal';
 import { MetadataExplorer } from './MetadataExplorer';
+import { FOCUS_RING } from '../ui';
 
 function formatCapturedAt(iso: string): string {
   const date = new Date(iso);
@@ -27,10 +28,25 @@ export function MetadataView() {
         <button
           type="button"
           onClick={() => setShowGatherModal(true)}
-          className="mt-1 px-3 py-1.5 text-xs font-bold rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors uppercase tracking-wider"
+          className={`mt-1 px-3 py-1.5 text-xs font-bold rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors uppercase tracking-wider ${FOCUS_RING}`}
         >
           {parsedPlan?.sqlId ? 'Generate gather script' : 'Manual gather script'}
         </button>
+        <div className="mt-2 max-w-md text-left text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+          <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Already have the output?
+          </h4>
+          <ol className="list-decimal space-y-0.5 pl-4">
+            <li>
+              Run the script in SQL*Plus; it writes <span className="font-mono">bundle.json</span> (or prints the JSON).
+            </li>
+            <li>
+              Paste that output into the input drawer and press <span className="font-semibold">Parse</span>, or drop
+              the <span className="font-mono">.json</span> file onto the input box.
+            </li>
+          </ol>
+          <p className="mt-1">The bundle attaches to the active plan and this tab fills in.</p>
+        </div>
         {showGatherModal && (
           <GatherScriptModal
             initialSqlId={parsedPlan?.sqlId}
@@ -52,7 +68,7 @@ export function MetadataView() {
         <button
           type="button"
           onClick={() => setMetadataPopoutOpen(false)}
-          className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors uppercase tracking-wider"
+          className={`px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors uppercase tracking-wider ${FOCUS_RING}`}
         >
           Bring back
         </button>
@@ -83,7 +99,7 @@ export function MetadataView() {
         <button
           type="button"
           onClick={() => setMetadataPopoutOpen(true)}
-          className="shrink-0 h-7 px-2.5 text-[11px] font-semibold rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors inline-flex items-center gap-1.5"
+          className={`shrink-0 h-7 px-2.5 text-[11px] font-semibold rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors inline-flex items-center gap-1.5 ${FOCUS_RING}`}
           title="Pop out into a separate window"
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

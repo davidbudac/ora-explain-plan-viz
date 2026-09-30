@@ -10,6 +10,7 @@ import {
 } from '../../lib/compare';
 import type { NodeMatch, MatchType, CompareMetric, ComparisonRow, MetricDelta } from '../../lib/compare';
 import { CompareMetricSelector } from '../CompareMetricSelector';
+import { FOCUS_RING, FOCUS_RING_INSET, useToast } from '../ui';
 import { formatNumberShort, formatTimeShort } from '../../lib/format';
 
 function formatMetricValue(value: number | undefined, metric: string): string {
@@ -299,7 +300,7 @@ function ExpandedRowDetail({ row, labelA, labelB, onViewInTree }: {
           type="button"
           disabled={!nodeA}
           onClick={(e) => { e.stopPropagation(); onViewInTree('A'); }}
-          className="px-2.5 py-1 text-[11px] font-semibold rounded border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className={`px-2.5 py-1 text-[11px] font-semibold rounded border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS_RING}`}
         >
           View A in tree
         </button>
@@ -307,7 +308,7 @@ function ExpandedRowDetail({ row, labelA, labelB, onViewInTree }: {
           type="button"
           disabled={!nodeB}
           onClick={(e) => { e.stopPropagation(); onViewInTree('B'); }}
-          className="px-2.5 py-1 text-[11px] font-semibold rounded border border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/40 hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className={`px-2.5 py-1 text-[11px] font-semibold rounded border border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/40 hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS_RING}`}
         >
           View B in tree
         </button>
@@ -320,6 +321,7 @@ type SortState = { metric: CompareMetric; direction: 'desc' | 'asc' } | null;
 
 export function CompareView() {
   const { plans, compareMetrics, comparePlanIndices, setActivePlan, selectNodeForPlan, setTreeCompareEnabled, setViewMode, applyMetadataToAllSlots } = usePlan();
+  const toast = useToast();
 
   const [leftIndex, rightIndex] = comparePlanIndices;
   const planA = plans[leftIndex]?.parsedPlan;
@@ -431,8 +433,22 @@ export function CompareView() {
 
   const totalColumns = 5 + compareMetrics.length * 3;
 
+  // Different statements still compare, but almost nothing lines up by node id
+  const sqlIdA = planA.sqlId;
+  const sqlIdB = planB.sqlId;
+  const differentStatements = Boolean(sqlIdA && sqlIdB && sqlIdA !== sqlIdB);
+
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-auto bg-slate-50 dark:bg-slate-950 p-4 gap-4">
+      {differentStatements && (
+        <div
+          role="note"
+          className="p-2 rounded border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-[11px] leading-snug text-amber-800 dark:text-amber-200"
+        >
+          Comparing different SQL statements (A: <code className="font-mono">{sqlIdA}</code>, B:{' '}
+          <code className="font-mono">{sqlIdB}</code>) — node matching will be mostly heuristic
+        </div>
+      )}
       {/* Summary header */}
       <div className="flex items-center gap-3">
         <SummaryCard
@@ -475,8 +491,11 @@ export function CompareView() {
           </span>
           <button
             type="button"
-            onClick={() => applyMetadataToAllSlots(sharedBundleCandidate.bundle)}
-            className="ml-auto whitespace-nowrap px-2 py-1 rounded border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-900 hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
+            onClick={() => {
+              applyMetadataToAllSlots(sharedBundleCandidate.bundle);
+              toast.show({ tone: 'success', message: 'Metadata bundle applied to both plans' });
+            }}
+            className={`ml-auto whitespace-nowrap px-2 py-1 rounded border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-900 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 ${FOCUS_RING}`}
           >
             Apply to both
           </button>
@@ -503,7 +522,7 @@ export function CompareView() {
           aria-checked={showChangedOnly}
           onClick={() => setShowChangedOnly((v) => !v)}
           title="Compares only the currently selected metrics"
-          className={`ml-auto px-2.5 py-1 rounded-full border text-[11px] font-semibold transition-colors ${
+          className={`ml-auto px-2.5 py-1 rounded-full border text-[11px] font-semibold transition-colors ${FOCUS_RING} ${
             showChangedOnly
               ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
               : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -541,7 +560,7 @@ export function CompareView() {
                         type="button"
                         onClick={() => cycleSort(metric)}
                         title={`Sort by ${getMetricLabel(metric)} delta (largest change first)`}
-                        className={`w-full px-2 py-2 text-center font-semibold transition-colors hover:bg-slate-200/60 dark:hover:bg-slate-700/60 ${
+                        className={`w-full px-2 py-2 text-center font-semibold transition-colors hover:bg-slate-200/60 dark:hover:bg-slate-700/60 ${FOCUS_RING_INSET} ${
                           active ? 'text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400'
                         }`}
                       >
@@ -582,7 +601,7 @@ export function CompareView() {
                       tabIndex={0}
                       aria-expanded={isExpanded}
                       aria-controls={isExpanded ? `compare-detail-${row.key}` : undefined}
-                      className={`border-b border-slate-100 dark:border-slate-800 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 ${
+                      className={`border-b border-slate-100 dark:border-slate-800 cursor-pointer transition-colors ${FOCUS_RING_INSET} ${
                         isExpanded
                           ? 'bg-blue-50/60 dark:bg-blue-950/25'
                           : 'hover:bg-slate-100 dark:hover:bg-slate-800/60'

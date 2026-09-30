@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { usePlan } from '../hooks/usePlanContext';
+import { Dialog, DialogBody } from './ui';
 
 const isMac = navigator.platform?.includes('Mac');
 const MOD = isMac ? '⌘' : 'Ctrl';
@@ -17,18 +17,52 @@ const SHORTCUT_GROUPS: { title: string; items: { keys: string[]; description: st
     ],
   },
   {
-    title: 'Navigation (Tree & Tabular views)',
+    title: 'Tree view',
     items: [
       { keys: ['↑'], description: 'Select parent operation' },
       { keys: ['↓'], description: 'Select first child operation' },
       { keys: ['←', '→'], description: 'Select previous / next sibling' },
-      { keys: ['Esc'], description: 'Deselect / close dialogs' },
+      { keys: ['←', '→'], description: 'Left-to-right layout (the arrows rotate): parent / first child' },
+      { keys: ['↑', '↓'], description: 'Left-to-right layout: previous / next sibling' },
+      { keys: ['Arrows'], description: 'Arrowing into a collapsed node expands it' },
+      { keys: ['Chevron'], description: 'Click the chevron on a node to collapse / expand its subtree' },
+    ],
+  },
+  {
+    title: 'Tabular view',
+    items: [
+      { keys: ['↑', '↓'], description: 'Move to the previous / next row' },
+      { keys: ['←', '→'], description: 'Collapse / expand the selected row' },
+    ],
+  },
+  {
+    title: 'Compare view',
+    items: [
+      { keys: ['Enter', 'Space'], description: 'Expand / collapse the focused row’s details' },
+    ],
+  },
+  {
+    title: 'Flame graph',
+    items: [
+      { keys: ['Double-click'], description: 'Zoom in to a bar’s subtree' },
+      { keys: ['Esc'], description: 'Reset the zoom' },
+      { keys: ['Tab'], description: 'Move focus between bars' },
+      { keys: ['Enter'], description: 'Select the focused bar' },
+      { keys: ['Shift+Enter'], description: 'Zoom in to the focused bar' },
+    ],
+  },
+  {
+    title: 'Sankey diagram',
+    items: [
+      { keys: ['Tab'], description: 'Move focus between nodes (the tooltip follows)' },
+      { keys: ['Enter', 'Space'], description: 'Select the focused node' },
     ],
   },
   {
     title: 'Selection',
     items: [
       { keys: [`${MOD}+Click`], description: 'Add or remove a node from a multi-selection' },
+      { keys: ['Esc'], description: 'Deselect, or close the open dialog' },
     ],
   },
 ];
@@ -37,14 +71,9 @@ const SHORTCUT_GROUPS: { title: string; items: { keys: string[]; description: st
 export function ShortcutsOverlay() {
   const { shortcutsOverlayOpen: open, setShortcutsOverlayOpen: setOpen } = usePlan();
 
-  // Global `?` opener (skips inputs); Escape closes while open.
+  // Global `?` opener (skips inputs). Escape and focus handling belong to the Dialog.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (open && e.key === 'Escape') {
-        e.preventDefault();
-        setOpen(false);
-        return;
-      }
       if (e.key !== '?' || e.ctrlKey || e.metaKey || e.altKey) return;
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
@@ -54,62 +83,36 @@ export function ShortcutsOverlay() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [open, setOpen]);
+  }, [setOpen]);
 
-  if (!open) return null;
-
-  return createPortal(
-    <>
-      <div
-        className="fixed inset-0 z-[90] bg-black/30 dark:bg-black/50"
-        onClick={() => setOpen(false)}
-      />
-      <div
-        role="dialog"
-        aria-label="Keyboard shortcuts"
-        className="fixed z-[91] top-[min(20%,120px)] left-1/2 -translate-x-1/2 w-[440px] max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl flex flex-col overflow-hidden"
-      >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
-          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Keyboard shortcuts</h3>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
-            aria-label="Close"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <div className="max-h-[min(60vh,480px)] overflow-y-auto p-4 space-y-4">
-          {SHORTCUT_GROUPS.map((group) => (
-            <div key={group.title}>
-              <h4 className="text-[11px] font-semibold tracking-wide text-slate-500 dark:text-slate-400 uppercase mb-2">
-                {group.title}
-              </h4>
-              <div className="space-y-1.5">
-                {group.items.map((item) => (
-                  <div key={item.description} className="flex items-center justify-between gap-3 text-sm">
-                    <span className="text-slate-700 dark:text-slate-300">{item.description}</span>
-                    <span className="flex items-center gap-1 shrink-0">
-                      {item.keys.map((key) => (
-                        <kbd
-                          key={key}
-                          className="px-1.5 py-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded"
-                        >
-                          {key}
-                        </kbd>
-                      ))}
-                    </span>
-                  </div>
-                ))}
-              </div>
+  return (
+    <Dialog open={open} onClose={() => setOpen(false)} title="Keyboard shortcuts" size="md">
+      <DialogBody className="space-y-4 pb-5">
+        {SHORTCUT_GROUPS.map((group) => (
+          <div key={group.title}>
+            <h3 className="text-[11px] font-semibold tracking-wide text-slate-500 dark:text-slate-400 uppercase mb-2">
+              {group.title}
+            </h3>
+            <div className="space-y-1.5">
+              {group.items.map((item) => (
+                <div key={item.description} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-slate-700 dark:text-slate-300">{item.description}</span>
+                  <span className="flex items-center gap-1 shrink-0">
+                    {item.keys.map((key) => (
+                      <kbd
+                        key={key}
+                        className="px-1.5 py-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded"
+                      >
+                        {key}
+                      </kbd>
+                    ))}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
-    </>,
-    document.body
+          </div>
+        ))}
+      </DialogBody>
+    </Dialog>
   );
 }

@@ -34,6 +34,10 @@ export async function copyToClipboard(text: string): Promise<boolean> {
     // readonly + off-screen so the textarea never steals focus visibly or
     // pops up the mobile keyboard, while still being selectable for the copy.
     textarea.setAttribute('readonly', '');
+    // Opt out of the shared Dialog's focus guard, which otherwise pulls focus
+    // (and with it the selection) back into the dialog when a copy is triggered
+    // from inside one.
+    textarea.setAttribute('data-ui-allow-focus', '');
     textarea.style.position = 'fixed';
     textarea.style.top = '-9999px';
     textarea.style.left = '-9999px';

@@ -1,5 +1,5 @@
-const FOCUS_RING =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60';
+import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
+import { FOCUS_RING } from './ui';
 
 interface PanelEdgeTabProps {
   /** Which canvas seam the tab is attached to — i.e. which panel it collapses. */
@@ -51,5 +51,79 @@ export function PanelEdgeTab({ side, label, onClick }: PanelEdgeTabProps) {
         {label}
       </span>
     </button>
+  );
+}
+
+/** Keyboard step for splitter resizing (Shift = coarse). */
+const RESIZE_STEP_PX = 16;
+const RESIZE_STEP_COARSE_PX = 64;
+
+export interface PanelResizeHandleProps {
+  /** Edge of the canvas the panel sits on; decides which arrow grows it. */
+  side: 'left' | 'right';
+  label: string;
+  /** Current panel width in px (`aria-valuenow`). */
+  width: number;
+  minWidth?: number;
+  maxWidth?: number;
+  /** id of the panel element this splitter sizes. */
+  controls?: string;
+  // Method syntax on purpose: callers pass handlers typed for a narrower
+  // element (e.g. HTMLButtonElement) and method parameters are bivariant.
+  onPointerDown(event: ReactPointerEvent<HTMLElement>): void;
+  /**
+   * Keyboard resizing: called with a width delta in px. Without it the
+   * splitter still works with the pointer but is not a keyboard tab stop.
+   */
+  onResizeBy?: (delta: number) => void;
+}
+
+/**
+ * Window-splitter handle on a docked panel's inner edge: `role="separator"`
+ * with the panel width as its value; drag with the pointer, or focus it and
+ * use ←/→ (Shift for bigger steps) and Home/End.
+ */
+export function PanelResizeHandle({
+  side,
+  label,
+  width,
+  minWidth,
+  maxWidth,
+  controls,
+  onPointerDown,
+  onResizeBy,
+}: PanelResizeHandleProps) {
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!onResizeBy) return;
+    const step = event.shiftKey ? RESIZE_STEP_COARSE_PX : RESIZE_STEP_PX;
+    // The left panel grows to the right; the right panel grows to the left.
+    const grow = side === 'left' ? 'ArrowRight' : 'ArrowLeft';
+    const shrink = side === 'left' ? 'ArrowLeft' : 'ArrowRight';
+    let delta: number | null = null;
+    if (event.key === grow) delta = step;
+    else if (event.key === shrink) delta = -step;
+    else if (event.key === 'Home' && minWidth !== undefined) delta = minWidth - width;
+    else if (event.key === 'End' && maxWidth !== undefined) delta = maxWidth - width;
+    if (delta === null) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (delta !== 0) onResizeBy(delta);
+  };
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={label}
+      aria-valuenow={Math.round(width)}
+      aria-valuemin={minWidth}
+      aria-valuemax={maxWidth}
+      aria-controls={controls}
+      tabIndex={onResizeBy ? 0 : undefined}
+      title={label}
+      onPointerDown={onPointerDown}
+      onKeyDown={onKeyDown}
+      className={`absolute ${side === 'left' ? 'right-0' : 'left-0'} top-0 z-10 h-full w-1 cursor-col-resize touch-none bg-transparent hover:bg-slate-200/70 dark:hover:bg-slate-700/70 focus-visible:bg-blue-500/40 transition-colors ${FOCUS_RING}`}
+    />
   );
 }

@@ -6,11 +6,31 @@ import { computeFlameLayout, getEffectiveFlameMetric } from '../../lib/flameLayo
 import type { FlameRect } from '../../lib/flameLayout';
 import { formatNumberShort, formatTimeCompact } from '../../lib/format';
 import { matchesSearch } from '../../lib/filtering';
+import { FOCUS_RING } from '../ui';
 
 /** Rows never get thinner than this — deep plans stay compact and scroll. */
 const MIN_ROW_HEIGHT = 28;
 /** …and never taller than this, so a 3-op plan doesn't become slab art. */
 const MAX_ROW_HEIGHT = 56;
+
+const HINT_DISMISSED_KEY = 'ora-explain-viz-flame-zoom-hint-dismissed';
+
+function readHintDismissed(): boolean {
+  try {
+    return localStorage.getItem(HINT_DISMISSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** True when the element is focused the way a keyboard user focuses it (not a mouse click). */
+function isKeyboardFocus(el: Element): boolean {
+  try {
+    return el.matches(':focus-visible');
+  } catch {
+    return true;
+  }
+}
 
 /** Finds a node by id anywhere in the plan tree. */
 function findNodeById(root: PlanNode, id: number): PlanNode | null {
@@ -59,6 +79,9 @@ export function FlameView() {
   const [height, setHeight] = useState(0);
   const [zoomNodeId, setZoomNodeId] = useState<number | null>(null);
   const [tooltip, setTooltip] = useState<Tooltip | null>(null);
+  // Node id whose bar has keyboard focus (draws the focus outline)
+  const [focusedNodeId, setFocusedNodeId] = useState<number | null>(null);
+  const [hintDismissed, setHintDismissed] = useState(readHintDismissed);
   const tooltipStateRef = useRef<Tooltip | null>(null);
   const rafRef = useRef<number | null>(null);
   const pendingTooltipRef = useRef<Tooltip | null>(null);
@@ -99,22 +122,29 @@ export function FlameView() {
     };
   }, []);
 
-  // Escape deselects — same behavior as the other views
+  // Escape resets the zoom first; with nothing zoomed it deselects, like the other views
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       const tag = (event.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if ((event.target as HTMLElement)?.isContentEditable) return;
+      if (zoomNodeId !== null) {
+        event.preventDefault();
+        setZoomNodeId(null);
+        return;
+      }
       if (selectedNodeIds.length === 0) return;
       event.preventDefault();
       selectNode(null);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedNodeIds.length, selectNode]);
+  }, [zoomNodeId, selectedNodeIds.length, selectNode]);
 
-  // Update width/height on mount and resize
+  // Update width/height on mount and resize. The container only exists once a
+  // plan is loaded, so re-attach when that changes.
+  const hasPlan = Boolean(parsedPlan?.rootNode);
   useEffect(() => {
     const updateSize = () => {
       if (containerRef.current) {
@@ -135,7 +165,7 @@ export function FlameView() {
       clearTimeout(timer);
       observer?.disconnect();
     };
-  }, []);
+  }, [hasPlan]);
 
   // Reset zoom if the zoomed node no longer exists (e.g. new plan loaded)
   const [prevZoomCheckPlan, setPrevZoomCheckPlan] = useState(parsedPlan);
@@ -173,6 +203,12 @@ export function FlameView() {
     return computeFlameLayout(zoomRoot, effectiveMetric, { width });
   }, [zoomRoot, effectiveMetric, width]);
 
+  // A focused bar that leaves the layout (zoomed away) takes its focus ring with it,
+  // instead of the ring reappearing on a bar that no longer has focus.
+  if (focusedNodeId !== null && !rects.some((r) => r.node.id === focusedNodeId)) {
+    setFocusedNodeId(null);
+  }
+
   const rootValue = rects.length > 0 ? rects[0].value : 0;
 
   const maxDepth = useMemo(() => {
@@ -202,9 +238,25 @@ export function FlameView() {
     [selectNode]
   );
 
-  const handleRectDoubleClick = useCallback((node: PlanNode) => {
-    setZoomNodeId(node.id);
+  const dismissHint = useCallback(() => {
+    setHintDismissed(true);
+    try {
+      localStorage.setItem(HINT_DISMISSED_KEY, '1');
+    } catch {
+      // Storage unavailable (private window etc.) — the hint just reappears next visit
+    }
   }, []);
+
+  const handleRectDoubleClick = useCallback(
+    (node: PlanNode) => {
+      setZoomNodeId(node.id);
+      // The layout is about to change, so the current tooltip's figures would be stale
+      scheduleTooltipUpdate(null);
+      // They found the gesture; the hint has done its job
+      dismissHint();
+    },
+    [dismissHint, scheduleTooltipUpdate]
+  );
 
   const buildTooltipLines = useCallback(
     (rect: FlameRect): { title: string; lines: string[] } => {
@@ -230,6 +282,19 @@ export function FlameView() {
     [effectiveMetric, rootValue]
   );
 
+  // Accessible names, e.g. "#4 TABLE ACCESS FULL (ORDERS), A-Time: 1.2s, Self: 1.1s, % of total: 41.0%".
+  // Memoized: the tooltip re-renders this view on every mouse move.
+  const ariaLabels = useMemo(() => {
+    const labels = new Map<number, string>();
+    for (const rect of rects) {
+      const { title, lines } = buildTooltipLines(rect);
+      labels.set(rect.node.id, `#${rect.node.id} ${title}, ${lines.join(', ')}. Enter selects, Shift+Enter zooms in.`);
+    }
+    return labels;
+  }, [rects, buildTooltipLines]);
+
+  const focusedRect = focusedNodeId === null ? null : rects.find((r) => r.node.id === focusedNodeId) ?? null;
+
   if (!parsedPlan?.rootNode) {
     return (
       <div className="flex items-center justify-center h-full text-slate-500 dark:text-slate-400">
@@ -250,7 +315,16 @@ export function FlameView() {
               <g
                 key={`ancestor-${ancestor.id}`}
                 className="cursor-pointer"
+                role="button"
+                tabIndex={0}
+                aria-label={`Zoom out to ${ancestor.operation}${ancestor.objectName ? ` ${ancestor.objectName}` : ''}`}
                 onClick={() => setZoomNodeId(isTopmost ? null : ancestor.id)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') return;
+                  event.preventDefault();
+                  setZoomNodeId(isTopmost ? null : ancestor.id);
+                }}
+                style={{ outline: 'none' }}
               >
                 <rect
                   x={0}
@@ -285,9 +359,13 @@ export function FlameView() {
           {rects.map((rect) => {
             const node = rect.node;
             const y = (ancestorRowCount + rect.depth) * rowHeight;
-            const rectWidth = Math.max(0.5, rect.x1 - rect.x0);
-            const isFiltered = filteredNodeIds.has(node.id);
+            const rawWidth = rect.x1 - rect.x0;
             const isSelected = selectedNodeIdSet.has(node.id);
+            // Sub-half-pixel bars are invisible and only cost DOM nodes on big
+            // plans; a selected one is still drawn so the selection never vanishes.
+            if (rawWidth < 0.5 && !isSelected) return null;
+            const rectWidth = Math.max(0.5, rawWidth);
+            const isFiltered = filteredNodeIds.has(node.id);
             const isSearchMatch = searchText.trim() !== '' && matchesSearch(node, searchText);
 
             const category = getOperationCategory(node.operation);
@@ -335,8 +413,44 @@ export function FlameView() {
                   strokeWidth={strokeWidth}
                   strokeDasharray={strokeDasharray}
                   className="cursor-pointer"
+                  data-node-id={node.id}
+                  tabIndex={0}
+                  role="button"
+                  aria-pressed={isSelected}
+                  aria-label={ariaLabels.get(node.id)}
+                  style={{ outline: 'none' }}
                   onClick={(event) => handleRectClick(node, event)}
                   onDoubleClick={() => handleRectDoubleClick(node)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && event.shiftKey) {
+                      // Keyboard equivalent of double-click
+                      event.preventDefault();
+                      handleRectDoubleClick(node);
+                    } else if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      selectNode(node.id, { additive: event.metaKey || event.ctrlKey });
+                    }
+                  }}
+                  onFocus={(event) => {
+                    if (!isKeyboardFocus(event.currentTarget)) return;
+                    setFocusedNodeId(node.id);
+                    const { title, lines } = buildTooltipLines(rect);
+                    const box = event.currentTarget.getBoundingClientRect();
+                    const containerRect = containerRef.current?.getBoundingClientRect();
+                    scheduleTooltipUpdate({
+                      x: Math.min(
+                        box.left - (containerRect?.left ?? 0) + 8,
+                        Math.max(0, (containerRect?.width ?? 0) - 300)
+                      ),
+                      y: box.top - (containerRect?.top ?? 0) + rowHeight / 2,
+                      title,
+                      lines,
+                    });
+                  }}
+                  onBlur={() => {
+                    setFocusedNodeId((current) => (current === node.id ? null : current));
+                    scheduleTooltipUpdate(null);
+                  }}
                   onMouseEnter={(event) => {
                     const { title, lines } = buildTooltipLines(rect);
                     const containerRect = containerRef.current?.getBoundingClientRect();
@@ -374,8 +488,40 @@ export function FlameView() {
               </g>
             );
           })}
+
+          {/* Keyboard focus outline, drawn on top of the bars */}
+          {focusedRect && (
+            <rect
+              x={focusedRect.x0 + 1}
+              y={(ancestorRowCount + focusedRect.depth) * rowHeight + 1}
+              width={Math.max(2, focusedRect.x1 - focusedRect.x0 - 2)}
+              height={rowHeight - 2}
+              fill="none"
+              stroke={isDark ? '#93c5fd' : '#1d4ed8'}
+              strokeWidth={2}
+              pointerEvents="none"
+            />
+          )}
         </svg>
       </div>
+
+      {/* One-time discoverability hint for the (otherwise invisible) zoom gesture */}
+      {!hintDismissed && zoomNodeId === null && (
+        <div className="absolute bottom-3 left-3 z-20 flex items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 pl-2.5 pr-1 py-1 text-xs text-slate-600 dark:text-slate-300 shadow-sm">
+          <span>Double-click a bar to zoom in · Esc resets</span>
+          <button
+            type="button"
+            onClick={dismissHint}
+            aria-label="Dismiss hint"
+            title="Dismiss"
+            className={`flex h-5 w-5 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100 ${FOCUS_RING}`}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+              <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Estimate-only notice + reset zoom control (bottom-right stack) */}
       <div className="absolute bottom-3 right-3 z-20 flex flex-col items-end gap-2">
@@ -388,8 +534,8 @@ export function FlameView() {
           <button
             type="button"
             onClick={() => setZoomNodeId(null)}
-            className="px-2.5 h-7 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm text-xs font-semibold"
-            title="Reset zoom to full plan"
+            className={`px-2.5 h-7 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm text-xs font-semibold ${FOCUS_RING}`}
+            title="Reset zoom to full plan (Esc)"
           >
             Reset zoom
           </button>

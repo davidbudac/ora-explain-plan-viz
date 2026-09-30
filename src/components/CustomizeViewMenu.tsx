@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { FilterState, NodeDisplayOptions } from '../lib/types';
+import type { FilterState } from '../lib/types';
 import { usePlan } from '../hooks/usePlanContext';
 import { DENSITY_PRESET_LABELS, DENSITY_PRESET_ORDER } from '../lib/density';
 import type { DensityPreset } from '../lib/density';
+// "Reset defaults" restores the shared defaults from lib/settings.ts: the
+// behaviour toggles and the node fields (the Compact preset, so a reset lands
+// on Compact rather than "Custom").
+import { defaultBehaviourOptions, defaultNodeDisplayOptions } from '../lib/settings';
+import { FOCUS_RING, FOCUS_RING_INSET } from './ui';
+
+const SMALL_BUTTON =
+  `px-2 py-1 text-[11px] rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 ${FOCUS_RING}`;
 
 const DENSITY_PRESET_TITLES: Record<DensityPreset, string> = {
   minimal: 'Operation, object and one metric line — warnings collapse into a single dot',
@@ -46,10 +54,8 @@ interface ViewCommand {
 }
 
 interface CustomizeViewMenuProps {
-  filters: FilterState;
-  setFilters: (filters: Partial<FilterState>) => void;
-  hasActualStats: boolean;
-  defaultNodeDisplayOptions: NodeDisplayOptions;
+  /** Classes for the trigger button (it sits in the workspace toolbar). */
+  triggerClassName?: string;
 }
 
 const SECTION_ORDER: CommandSection[] = ['Behavior', 'Node fields', 'Runtime fields', 'Warning badges', 'Metadata indicators', 'Annotations'];
@@ -210,13 +216,13 @@ function isCommandEnabled(commandKey: CommandKey, filters: FilterState): boolean
   return filters.nodeDisplayOptions[commandKey] ?? false;
 }
 
-export function CustomizeViewMenu({
-  filters,
-  setFilters,
-  hasActualStats,
-  defaultNodeDisplayOptions,
-}: CustomizeViewMenuProps) {
-  const { densitySelection, applyDensityPreset } = usePlan();
+/**
+ * "Customize…" trigger + popover for the tree's node display: density presets
+ * and, under Advanced, every individual node field and behaviour toggle.
+ */
+export function CustomizeViewMenu({ triggerClassName = '' }: CustomizeViewMenuProps) {
+  const { densitySelection, applyDensityPreset, filters, setFilters, parsedPlan } = usePlan();
+  const hasActualStats = parsedPlan?.hasActualStats ?? false;
   const [open, setOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -247,11 +253,18 @@ export function CustomizeViewMenu({
     })).filter((group) => group.items.length > 0);
   }, [filteredCommands]);
 
-  const availableCount = availableCommands.length;
-  const enabledCount = useMemo(
-    () => availableCommands.reduce((count, command) => count + (isCommandEnabled(command.key, filters) ? 1 : 0), 0),
-    [availableCommands, filters]
+  // "N of M node fields shown" counts the node fields only, not the
+  // behaviour toggles (edge animation etc.) that share the list.
+  const fieldCommands = useMemo(
+    () => availableCommands.filter((command) => command.section !== 'Behavior'),
+    [availableCommands]
   );
+  const fieldCount = fieldCommands.length;
+  const shownFieldCount = useMemo(
+    () => fieldCommands.reduce((count, command) => count + (isCommandEnabled(command.key, filters) ? 1 : 0), 0),
+    [fieldCommands, filters]
+  );
+  const fieldsSummary = `${shownFieldCount} of ${fieldCount} node fields shown`;
 
   // Advanced auto-opens while searching or when the options don't match a preset
   const effectiveAdvancedOpen = advancedOpen || query.trim().length > 0 || densitySelection === 'custom';
@@ -285,7 +298,8 @@ export function CustomizeViewMenu({
     };
 
     const handleOutsideClick = (event: MouseEvent) => {
-      const targetNode = event.target as Node;
+      const targetNode = event.target;
+      if (!(targetNode instanceof Node)) return;
       const clickedTrigger = triggerRef.current?.contains(targetNode);
       const clickedPopover = popoverRef.current?.contains(targetNode);
       if (!clickedTrigger && !clickedPopover) {
@@ -404,9 +418,7 @@ export function CustomizeViewMenu({
 
   const resetDefaults = () => {
     setFilters({
-      animateEdges: false,
-      scaleEdgeWidth: true,
-      focusSelection: false,
+      ...defaultBehaviourOptions,
       nodeDisplayOptions: { ...defaultNodeDisplayOptions },
     });
   };
@@ -418,30 +430,23 @@ export function CustomizeViewMenu({
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-controls="customize-view-popover"
+        aria-controls={open ? 'customize-view-popover' : undefined}
         onClick={() => setOpen((value) => !value)}
-        className="w-full h-8 px-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center justify-between"
+        title={`Customize node display — ${fieldsSummary}`}
+        className={`flex items-center gap-1.5 ${triggerClassName}`}
       >
-        <span>Density: <span className="font-bold">{DENSITY_PRESET_LABELS[densitySelection]}</span></span>
-        <svg
-          className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
         </svg>
+        <span>Customize…</span>
       </button>
-      <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-        {enabledCount}/{availableCount} enabled
-      </p>
 
       {open && createPortal(
         <div
           ref={popoverRef}
           id="customize-view-popover"
           role="dialog"
-          aria-label="Customize view"
+          aria-label="Customize node display"
           className="fixed z-[80] w-[320px] max-w-[calc(100vw-1rem)] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl"
           style={{ top: popoverPosition.top, left: popoverPosition.left }}
         >
@@ -458,7 +463,7 @@ export function CustomizeViewMenu({
                     aria-checked={active}
                     onClick={() => applyDensityPreset(preset)}
                     title={DENSITY_PRESET_TITLES[preset]}
-                    className={`px-2 py-1.5 text-xs rounded-md border font-semibold transition-colors ${
+                    className={`px-2 py-1.5 text-xs rounded-md border font-semibold transition-colors ${FOCUS_RING} ${
                       active
                         ? 'bg-slate-200/80 dark:bg-slate-700/70 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600'
                         : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -469,11 +474,11 @@ export function CustomizeViewMenu({
                 );
               })}
             </div>
-            {densitySelection === 'custom' && (
-              <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-                Custom — pick a preset to reset the toggles below.
-              </p>
-            )}
+            <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+              {densitySelection === 'custom'
+                ? `Custom (${fieldsSummary}) — pick a preset to reset the toggles below.`
+                : fieldsSummary}
+            </p>
           </div>
 
           {/* Advanced disclosure */}
@@ -482,7 +487,7 @@ export function CustomizeViewMenu({
               type="button"
               onClick={() => setAdvancedOpen((v) => !v)}
               aria-expanded={effectiveAdvancedOpen}
-              className="w-full px-3 py-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              className={`w-full px-3 py-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING_INSET}`}
             >
               <svg
                 className={`w-3 h-3 transition-transform ${effectiveAdvancedOpen ? 'rotate-90' : ''}`}
@@ -493,7 +498,7 @@ export function CustomizeViewMenu({
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
-              Advanced ({enabledCount}/{availableCount})
+              Advanced options
             </button>
           </div>
 
@@ -505,28 +510,17 @@ export function CustomizeViewMenu({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search view options..."
+              aria-label="Search view options"
               className="w-full px-2 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60"
             />
             <div className="mt-2 flex gap-1">
-              <button
-                type="button"
-                onClick={resetDefaults}
-                className="px-2 py-1 text-[11px] rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-              >
+              <button type="button" onClick={resetDefaults} className={SMALL_BUTTON} title="Back to the Compact preset and default behaviour">
                 Reset defaults
               </button>
-              <button
-                type="button"
-                onClick={() => setAllVisible(true)}
-                className="px-2 py-1 text-[11px] rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-              >
+              <button type="button" onClick={() => setAllVisible(true)} className={SMALL_BUTTON}>
                 Enable all
               </button>
-              <button
-                type="button"
-                onClick={() => setAllVisible(false)}
-                className="px-2 py-1 text-[11px] rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-              >
+              <button type="button" onClick={() => setAllVisible(false)} className={SMALL_BUTTON}>
                 Disable all
               </button>
             </div>
@@ -552,7 +546,7 @@ export function CustomizeViewMenu({
                         <button
                           type="button"
                           onClick={() => toggleSectionAll(group.items, true)}
-                          className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${
+                          className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${FOCUS_RING} ${
                             allOn
                               ? 'text-slate-400 dark:text-slate-500 cursor-default'
                               : 'text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'
@@ -564,7 +558,7 @@ export function CustomizeViewMenu({
                         <button
                           type="button"
                           onClick={() => toggleSectionAll(group.items, false)}
-                          className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${
+                          className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${FOCUS_RING} ${
                             allOff
                               ? 'text-slate-400 dark:text-slate-500 cursor-default'
                               : 'text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'
@@ -586,14 +580,14 @@ export function CustomizeViewMenu({
                           role="switch"
                           aria-checked={enabled}
                           onClick={() => toggleCommand(command.key)}
-                          className={`w-full px-2 py-1.5 rounded-md text-xs border transition-colors flex items-center justify-between ${
+                          className={`w-full px-2 py-1.5 rounded-md text-xs border transition-colors flex items-center justify-between ${FOCUS_RING} ${
                             enabled
                               ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300'
                               : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                           }`}
                         >
                           <span className="text-left">{command.label}</span>
-                          <span className="text-[11px] font-semibold">{enabled ? 'ON' : 'OFF'}</span>
+                          <span className="text-[11px] font-semibold" aria-hidden="true">{enabled ? 'ON' : 'OFF'}</span>
                         </button>
                       );
                     })}

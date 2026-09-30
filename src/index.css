@@ -340,3 +340,75 @@ pre code.hljs {
   --canvas-bg: #1b1815;
   --canvas-label-bg: #221e19;
 }
+
+/* ============================================================================
+   Accessibility baseline
+   ----------------------------------------------------------------------------
+   Global keyboard focus indicator. It lives in the base layer on purpose: any
+   Tailwind utility (e.g. `focus-visible:outline-none` paired with a ring, the
+   pattern most controls here use) outranks base-layer rules, so components
+   that draw their own ring never get a second, doubled outline. The accent
+   follows the active app palette via the --color-blue-* ramp.
+   ============================================================================ */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-blue-500, var(--color-primary));
+    outline-offset: 2px;
+  }
+
+  .dark :focus-visible {
+    outline-color: var(--color-blue-400, var(--color-primary));
+  }
+
+  /* Containers focused programmatically (dialog panels, headings) are not Tab
+     stops; an outline around them is noise. */
+  [tabindex="-1"]:focus-visible {
+    outline: none;
+  }
+}
+
+/* Entrance animations for the ui/ primitives (Dialog, Toast). Only declared
+   when the user has not asked for reduced motion, so they simply do not exist
+   otherwise. */
+@keyframes ui-toast-in {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes ui-dialog-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ui-toast-enter { animation: ui-toast-in 160ms ease-out; }
+  .ui-dialog-enter { animation: ui-dialog-in 140ms ease-out; }
+}
+
+/* Respect the OS "reduce motion" preference: stop decorative loops and make
+   state transitions effectively instant. Progress spinners (animate-spin) keep
+   running — they convey activity, not decoration. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+
+  .highlight-breathe {
+    animation: none;
+  }
+
+  .animate-pulse,
+  .animate-ping,
+  .animate-bounce {
+    animation: none !important;
+  }
+
+  .react-flow__edge-path,
+  .react-flow__edge.animated path {
+    animation: none !important;
+  }
+}

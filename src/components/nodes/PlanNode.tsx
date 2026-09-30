@@ -6,6 +6,7 @@ import { formatNumberShort, formatBytes, formatTimeCompact, formatCardinalityRat
 import type { PlanNode as PlanNodeType, NodeDisplayOptions, ColorScheme, NodeIndicatorMetric } from '../../lib/types';
 import { HighlightText } from '../HighlightText';
 import { NodeHoverCard, useNodeHoverCard } from './NodeHoverCard';
+import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 import { getHighlightColorDef } from '../../lib/annotations';
 import type { HighlightColor, HighlightStyle } from '../../lib/annotations';
 import type { MetadataBadge } from '../../lib/metadata/badges';
@@ -41,6 +42,16 @@ export interface PlanNodeData extends Record<string, unknown> {
   advisorSeverity?: FindingSeverity;
   advisorCount?: number;
   advisorTitles?: string[];
+  /** Tree orientation: handles and the subtree toggle move with it. */
+  layoutDirection?: 'TB' | 'LR';
+  /** This node's subtree is collapsed (descendants hidden from the canvas). */
+  isCollapsed?: boolean;
+  /** Descendants hidden under this collapsed node. */
+  hiddenCount?: number;
+  /** Hidden descendants that match the active search. */
+  hiddenMatchCount?: number;
+  /** Collapse / expand this node's subtree (absent → no toggle rendered). */
+  onToggleCollapse?: (nodeId: number) => void;
 }
 
 interface PlanNodeProps {
@@ -73,7 +84,14 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     advisorSeverity,
     advisorCount,
     advisorTitles,
+    layoutDirection = 'TB',
+    isCollapsed = false,
+    hiddenCount = 0,
+    hiddenMatchCount = 0,
+    onToggleCollapse,
   } = data;
+  const isHorizontal = layoutDirection === 'LR';
+  const reducedMotion = usePrefersReducedMotion();
   const category = getOperationCategory(node.operation);
   const schemeColors = COLOR_SCHEMES[colorScheme];
   const colors = schemeColors[category] || schemeColors['Other'];
@@ -205,7 +223,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
       ref={anchorRef}
       {...hoverProps}
       className={`
-        relative ${isCompact ? 'w-[200px]' : isTicker ? 'w-[240px]' : 'w-[260px]'} ${isTerminal ? 'rounded-none' : 'rounded-xl'} transition-all duration-300
+        group/node relative ${isCompact ? 'w-[200px]' : isTicker ? 'w-[240px]' : 'w-[260px]'} ${isTerminal ? 'rounded-none' : 'rounded-xl'} motion-safe:transition-all motion-safe:duration-300
         ${isTerminal
           ? 'shadow-[3px_3px_0_rgba(15,23,42,0.15)] dark:shadow-[3px_3px_0_rgba(0,0,0,0.45)]'
           : 'shadow-md shadow-slate-400/30 dark:shadow-lg dark:shadow-black/40'}
@@ -225,7 +243,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           <svg
             viewBox="0 0 100 100"
             preserveAspectRatio="none"
-            className="w-full h-full highlight-breathe"
+            className={`w-full h-full ${reducedMotion ? '' : 'highlight-breathe'}`}
             fill="none"
             overflow="visible"
             style={{ transform: 'rotate(-3deg)' }}
@@ -289,14 +307,14 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
       {/* Dot: pulsing colored circle in top-right corner */}
       {showHighlight && highlightStyle === 'dot' && (
         <div
-          className="absolute -top-1.5 -right-1.5 z-10 pointer-events-none highlight-breathe"
+          className={`absolute -top-1.5 -right-1.5 z-10 pointer-events-none ${reducedMotion ? '' : 'highlight-breathe'}`}
           style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: hexColor, boxShadow: `0 0 6px 2px ${hexColor}80` }}
         />
       )}
 
       {/* Underline: marker stroke under the operation name — rendered inside the node below */}
 
-      <Handle type="target" position={Position.Top} className="!opacity-0 !w-1 !h-1" />
+      <Handle type="target" position={isHorizontal ? Position.Left : Position.Top} className="!opacity-0 !w-1 !h-1" />
 
       {/* Metric indicator bar */}
       <div
@@ -308,7 +326,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         }
       >
         <div
-          className={`h-full ${indicator.color} transition-all`}
+          className={`h-full ${indicator.color} motion-safe:transition-all`}
           style={{ width: `${Math.min(100, indicator.ratio * 100)}%` }}
         />
       </div>
@@ -388,10 +406,17 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
               ))}
             </span>
             {compactWarnings.length > 0 && (
-              <span
-                className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"
-                title={compactWarnings.join('\n')}
-              />
+              <>
+                <span
+                  aria-hidden
+                  className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"
+                  title={compactWarnings.join('\n')}
+                />
+                <span className="sr-only">
+                  {compactWarnings.length === 1 ? 'Warning: ' : `${compactWarnings.length} warnings: `}
+                  {compactWarnings.join('; ')}
+                </span>
+              </>
             )}
           </div>
         )}
@@ -647,7 +672,18 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
       </div>
 
       {node.children.length > 0 && (
-        <Handle type="source" position={Position.Bottom} className="!opacity-0 !w-1 !h-1" />
+        <Handle type="source" position={isHorizontal ? Position.Right : Position.Bottom} className="!opacity-0 !w-1 !h-1" />
+      )}
+
+      {node.children.length > 0 && onToggleCollapse && (
+        <SubtreeToggle
+          nodeId={node.id}
+          isHorizontal={isHorizontal}
+          isCollapsed={isCollapsed}
+          hiddenCount={hiddenCount}
+          hiddenMatchCount={hiddenMatchCount}
+          onToggle={onToggleCollapse}
+        />
       )}
 
       {/* Minimal density: everything the node body drops, disclosed on hover/focus */}
@@ -692,6 +728,73 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         </NodeHoverCard>
       )}
     </div>
+  );
+}
+
+interface SubtreeToggleProps {
+  nodeId: number;
+  isHorizontal: boolean;
+  isCollapsed: boolean;
+  hiddenCount: number;
+  hiddenMatchCount: number;
+  onToggle: (nodeId: number) => void;
+}
+
+/**
+ * Collapse / expand chevron on the edge where the node's children hang
+ * (bottom in top-down layout, right in left-to-right), plus a "+N hidden"
+ * badge while collapsed. A real button: keyboard reachable, never selects the
+ * node (clicks and Enter/Space stop at the button), and `nodrag nopan` keeps
+ * React Flow from starting a drag or pan on it.
+ */
+function SubtreeToggle({ nodeId, isHorizontal, isCollapsed, hiddenCount, hiddenMatchCount, onToggle }: SubtreeToggleProps) {
+  // Chevron points away from the root while collapsed ("more this way") and
+  // back toward it while expanded ("fold up").
+  const rotation = isHorizontal
+    ? (isCollapsed ? '-rotate-90' : 'rotate-90')
+    : (isCollapsed ? '' : 'rotate-180');
+  return (
+    <>
+      <button
+        type="button"
+        data-export-exclude
+        className={`nodrag nopan absolute z-20 flex h-6 w-6 items-center justify-center rounded-full border shadow-sm motion-safe:transition
+          ${isCollapsed ? '' : 'opacity-60 group-hover/node:opacity-100 focus-visible:opacity-100'}
+          ${isHorizontal ? 'top-1/2 right-0 translate-x-1/2 -translate-y-1/2' : 'left-1/2 bottom-0 -translate-x-1/2 translate-y-1/2'}
+          ${isCollapsed
+            ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:border-blue-500 dark:text-slate-950 dark:hover:bg-blue-400'
+            : 'bg-white border-slate-300 text-slate-500 hover:text-slate-900 hover:border-slate-400 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 dark:hover:text-white'}
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-blue-400 dark:focus-visible:ring-offset-slate-900`}
+        aria-expanded={!isCollapsed}
+        aria-label={isCollapsed ? 'Expand subtree' : 'Collapse subtree'}
+        title={isCollapsed ? `Expand subtree (${hiddenCount} hidden)` : 'Collapse subtree'}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle(nodeId);
+        }}
+        onDoubleClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          // Keep React Flow's Enter/Space "select node" handler out of it.
+          if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+        }}
+      >
+        <svg aria-hidden className={`h-3.5 w-3.5 ${rotation}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+      {isCollapsed && hiddenCount > 0 && (
+        <span
+          className={`pointer-events-none absolute z-20 whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-semibold tabular-nums shadow-sm
+            border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200
+            ${isHorizontal ? 'top-1/2 left-full ml-4 -translate-y-1/2' : 'top-full left-1/2 ml-4 -translate-y-1/2'}`}
+        >
+          +{hiddenCount} hidden
+          {hiddenMatchCount > 0 && (
+            <span className="ml-1 text-amber-700 dark:text-amber-300">· {hiddenMatchCount} match{hiddenMatchCount === 1 ? '' : 'es'}</span>
+          )}
+        </span>
+      )}
+    </>
   );
 }
 

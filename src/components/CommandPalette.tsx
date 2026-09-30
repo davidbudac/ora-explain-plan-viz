@@ -1,15 +1,21 @@
-import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { OutlineIcon, ViewIcon } from './viewIcons';
 import { usePlan } from '../hooks/usePlanContext';
-import type { ViewMode, SankeyMetric, NodeIndicatorMetric, ColorScheme, NodeDisplayOptions } from '../lib/types';
+import type { ViewMode, SankeyMetric, NodeIndicatorMetric, ColorScheme, NodeDisplayOptions, FlameMetric } from '../lib/types';
 import type { HighlightStyle } from '../lib/annotations';
 import { hasAnnotations } from '../lib/annotations';
 import { APP_PALETTE_LABELS, APP_PALETTE_ORDER } from '../lib/types';
 import { DENSITY_PRESET_LABELS, DENSITY_PRESET_ORDER } from '../lib/density';
 import { isDbAgentEnabled } from '../lib/agent/client';
+import { rankCommands } from '../lib/paletteSearch';
+import { useToast } from './ui';
+import { runPngExport, shareFeedback } from '../lib/actionFeedback';
+import { SAMPLE_PLANS, SAMPLE_CATEGORY_BADGES } from '../examples';
+import type { TreeLayoutDirection, TreeMinimapMode } from '../lib/settings';
 
 type CommandCategory =
+  | 'Examples'
   | 'View'
   | 'Node Display'
   | 'Runtime Display'
@@ -27,6 +33,7 @@ type CommandCategory =
  * checkbox — the palette lists commands, it isn't a multi-select form.
  */
 const CATEGORY_ICON_PATHS: Record<CommandCategory, string> = {
+  'Examples': 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
   'View': 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z',
   'Node Display': 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
   'Runtime Display': 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
@@ -40,16 +47,28 @@ const CATEGORY_ICON_PATHS: Record<CommandCategory, string> = {
   'Annotations': 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
 };
 
+/**
+ * How a command behaves once it has run:
+ * - `action`: one-shot (export, open a dialog, ...) — the palette closes.
+ * - `select`: one pick from a set of mutually exclusive choices (view, theme,
+ *   colour scheme, metric, ...) — the palette closes.
+ * - `toggle`: a boolean on/off switch — the palette stays open so several can
+ *   be flipped in a row.
+ * `isActive` only drives the checkmark; it never decides whether we close.
+ */
+type CommandKind = 'action' | 'toggle' | 'select';
+
 interface Command {
   id: string;
   label: string;
   category: CommandCategory;
+  kind: CommandKind;
   keywords: string[];
   shortcut?: string;
   /** Row icon; falls back to the category glyph when absent. */
   icon?: ReactNode;
   execute: () => void;
-  /** If present, command is a toggle and this returns current state */
+  /** If present, this returns the current state and a checkmark is shown (toggle / select) */
   isActive?: () => boolean;
   /** If present, command is only available when this returns true */
   isAvailable?: () => boolean;
@@ -96,6 +115,24 @@ const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
   terminal: 'Terminal',
 };
 
+// 'rows' exists as a fallback metric but is not offered as a choice.
+const FLAME_METRIC_LABELS: Partial<Record<FlameMetric, string>> = {
+  cost: 'Cost',
+  actualTime: 'A-Time',
+  actualRows: 'A-Rows',
+};
+
+const TREE_DIRECTION_LABELS: Record<TreeLayoutDirection, string> = {
+  TB: 'Top-down',
+  LR: 'Left-to-right',
+};
+
+const TREE_MINIMAP_LABELS: Record<TreeMinimapMode, string> = {
+  auto: 'Auto (larger trees)',
+  on: 'On',
+  off: 'Off',
+};
+
 const HIGHLIGHT_STYLE_LABELS: Record<HighlightStyle, string> = {
   circle: 'Circle',
   tint: 'Tint',
@@ -105,10 +142,18 @@ const HIGHLIGHT_STYLE_LABELS: Record<HighlightStyle, string> = {
   hachure: 'Hachure',
 };
 
-// `onExportPng` is a plain callback (already dereferenced from its ref by the
-// caller) rather than the ref itself — see the call site in `CommandPalette`
-// for why that split matters.
-function useCommands(onExportPng: () => void): Command[] {
+/** Tree-view actions, already dereferenced from `treeViewActionsRef` by the caller. */
+interface TreeCommandActions {
+  expandAll: () => void;
+  collapseAll: () => void;
+  fitView: () => void;
+  focusSelected: () => void;
+}
+
+// `onExportPng` / `treeActions` are plain callbacks (already dereferenced from
+// their refs by the caller) rather than the refs themselves — see the call
+// site in `CommandPalette` for why that split matters.
+function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): Command[] {
   const {
     // State
     viewMode,
@@ -151,12 +196,21 @@ function useCommands(onExportPng: () => void): Command[] {
     setHotspotsEnabled,
     setTreeCompareEnabled,
     exportAnnotatedPlan,
-    clearAnnotations,
+    requestClearAnnotations,
     share,
     setBaselineDialogOpen,
     setReportDialogOpen,
     setConnectPanelOpen,
+    treeLayoutDirection,
+    setTreeLayoutDirection,
+    treeMinimap,
+    setTreeMinimap,
+    loadExample,
+    selectedNodes,
+    flameMetric,
+    setFlameMetric,
   } = usePlan();
+  const hasSelection = selectedNodes.length > 0;
 
   const anyPlanParsed = plans.some(p => p.parsedPlan);
   const hasActualStats = parsedPlan?.hasActualStats ?? false;
@@ -206,6 +260,7 @@ function useCommands(onExportPng: () => void): Command[] {
         id: `view-${mode}`,
         label: `Switch to ${label} view`,
         category: 'View',
+        kind: 'select',
         keywords: ['view', 'mode', 'switch', label.toLowerCase(), mode],
         icon: <ViewIcon mode={mode} />,
         execute: () => setViewMode(mode),
@@ -223,6 +278,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'split-compare',
       label: 'Split compare (dual trees)',
       category: 'View',
+      kind: 'toggle',
       keywords: ['split', 'compare', 'dual', 'side by side', 'tree'],
       execute: () => setTreeCompareEnabled(!treeCompareEnabled),
       isActive: () => treeCompareEnabled,
@@ -234,17 +290,65 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'toggle-legend',
       label: 'Toggle legend',
       category: 'View',
+      kind: 'toggle',
       keywords: ['legend', 'colors', 'key', 'badges', 'meaning'],
       execute: () => setLegendVisible(!legendVisible),
       isActive: () => legendVisible,
       isAvailable: () => anyPlanParsed,
     });
 
+    // --- Tree layout (direction + overview map) ---
+    for (const [direction, label] of Object.entries(TREE_DIRECTION_LABELS) as [TreeLayoutDirection, string][]) {
+      commands.push({
+        id: `tree-direction-${direction}`,
+        label: `Tree layout: ${label}`,
+        category: 'View',
+        kind: 'select',
+        keywords: ['tree', 'layout', 'direction', 'orientation', 'rotate', 'horizontal', 'vertical', label.toLowerCase(), direction.toLowerCase()],
+        execute: () => setTreeLayoutDirection(direction),
+        isActive: () => treeLayoutDirection === direction,
+        isAvailable: () => anyPlanParsed,
+      });
+    }
+    for (const [mode, label] of Object.entries(TREE_MINIMAP_LABELS) as [TreeMinimapMode, string][]) {
+      commands.push({
+        id: `tree-minimap-${mode}`,
+        label: `Tree minimap: ${label}`,
+        category: 'View',
+        kind: 'select',
+        keywords: ['tree', 'minimap', 'overview', 'map', 'navigator', mode],
+        execute: () => setTreeMinimap(mode),
+        isActive: () => treeMinimap === mode,
+        isAvailable: () => anyPlanParsed,
+      });
+    }
+
+    // Tree actions (only while the single-plan tree is on screen)
+    const treeActionItems: { id: string; label: string; keywords: string[]; run: () => void; needsSelection?: boolean }[] = [
+      { id: 'tree-expand-all', label: 'Tree: Expand all', keywords: ['expand', 'all', 'open', 'subtrees', 'uncollapse'], run: treeActions.expandAll },
+      { id: 'tree-collapse-all', label: 'Tree: Collapse all', keywords: ['collapse', 'all', 'fold', 'subtrees', 'close'], run: treeActions.collapseAll },
+      { id: 'tree-fit', label: 'Tree: Fit to screen', keywords: ['fit', 'zoom', 'view', 'whole', 'reset', 'center'], run: treeActions.fitView },
+      { id: 'tree-focus-selected', label: 'Tree: Focus selected', keywords: ['focus', 'selected', 'center', 'zoom', 'selection'], run: treeActions.focusSelected, needsSelection: true },
+    ];
+    for (const item of treeActionItems) {
+      commands.push({
+        id: item.id,
+        label: item.label,
+        category: 'View',
+        kind: 'action',
+        keywords: ['tree', ...item.keywords],
+        execute: item.run,
+        isAvailable: () =>
+          anyPlanParsed && viewMode === 'hierarchical' && !treeCompareEnabled && (!item.needsSelection || hasSelection),
+      });
+    }
+
     // --- Keyboard shortcuts help ---
     commands.push({
       id: 'keyboard-shortcuts',
       label: 'Keyboard shortcuts',
       category: 'View',
+      kind: 'action',
       keywords: ['keyboard', 'shortcuts', 'help', 'keys', 'hotkeys'],
       shortcut: '?',
       execute: () => setShortcutsOverlayOpen(true),
@@ -255,6 +359,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'maximize',
       label: visualizationMaximized ? 'Restore visualization' : 'Maximize visualization',
       category: 'View',
+      kind: 'action',
       keywords: ['maximize', 'fullscreen', 'restore', 'minimize', 'focus', 'zen'],
       shortcut: 'F',
       execute: () => setVisualizationMaximized(!visualizationMaximized),
@@ -267,6 +372,7 @@ function useCommands(onExportPng: () => void): Command[] {
         id: `density-${preset}`,
         label: `Density preset: ${DENSITY_PRESET_LABELS[preset]}`,
         category: 'Node Display',
+        kind: 'select',
         keywords: ['density', 'preset', 'minimal', 'compact', 'detailed', 'simplify', preset],
         execute: () => applyDensityPreset(preset),
         isActive: () => densitySelection === preset,
@@ -292,6 +398,7 @@ function useCommands(onExportPng: () => void): Command[] {
         id: `display-${item.key}`,
         label: `Toggle ${item.label}`,
         category: 'Node Display',
+        kind: 'toggle',
         keywords: ['display', 'show', 'hide', 'toggle', 'node', ...item.keywords],
         execute: () => toggleNodeDisplayOption(item.key),
         isActive: () => filters.nodeDisplayOptions[item.key],
@@ -311,6 +418,7 @@ function useCommands(onExportPng: () => void): Command[] {
         id: `display-${item.key}`,
         label: `Toggle ${item.label}`,
         category: 'Runtime Display',
+        kind: 'toggle',
         keywords: ['display', 'show', 'hide', 'toggle', ...item.keywords],
         execute: () => toggleNodeDisplayOption(item.key),
         isActive: () => filters.nodeDisplayOptions[item.key],
@@ -331,6 +439,7 @@ function useCommands(onExportPng: () => void): Command[] {
         id: `warning-${item.key}`,
         label: `Toggle ${item.label}`,
         category: 'Warnings',
+        kind: 'toggle',
         keywords: ['warning', 'show', 'hide', 'toggle', ...item.keywords],
         execute: () => toggleNodeDisplayOption(item.key),
         isActive: () => filters.nodeDisplayOptions[item.key],
@@ -350,6 +459,7 @@ function useCommands(onExportPng: () => void): Command[] {
         id: `metadata-${item.key}`,
         label: `Toggle ${item.label}`,
         category: 'Metadata',
+        kind: 'toggle',
         keywords: ['metadata', 'show', 'hide', 'toggle', ...item.keywords],
         execute: () => toggleNodeDisplayOption(item.key),
         isActive: () => filters.nodeDisplayOptions[item.key],
@@ -362,6 +472,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'animate-edges',
       label: 'Toggle edge animation',
       category: 'Behavior',
+      kind: 'toggle',
       keywords: ['animate', 'edges', 'motion', 'flow'],
       execute: () => setFilters({ animateEdges: !filters.animateEdges }),
       isActive: () => filters.animateEdges,
@@ -372,6 +483,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'focus-selection',
       label: 'Toggle focus selection path',
       category: 'Behavior',
+      kind: 'toggle',
       keywords: ['focus', 'selection', 'path', 'highlight'],
       execute: () => setFilters({ focusSelection: !filters.focusSelection }),
       isActive: () => filters.focusSelection,
@@ -383,6 +495,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'show-annotations',
       label: 'Toggle annotation overlays',
       category: 'Annotations',
+      kind: 'toggle',
       keywords: ['annotations', 'notes', 'highlights', 'overlay', 'show', 'hide'],
       execute: () => toggleNodeDisplayOption('showAnnotations'),
       isActive: () => filters.nodeDisplayOptions.showAnnotations,
@@ -394,6 +507,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'enable-all-display',
       label: 'Enable all display options',
       category: 'Node Display',
+      kind: 'action',
       keywords: ['enable', 'all', 'show', 'display', 'options'],
       execute: enableAllDisplayOptions,
       isAvailable: () => anyPlanParsed,
@@ -403,6 +517,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'disable-all-display',
       label: 'Disable all display options',
       category: 'Node Display',
+      kind: 'action',
       keywords: ['disable', 'all', 'hide', 'display', 'options'],
       execute: disableAllDisplayOptions,
       isAvailable: () => anyPlanParsed,
@@ -413,6 +528,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'toggle-theme',
       label: `Switch to ${theme === 'light' ? 'dark' : 'light'} mode`,
       category: 'Theme',
+      kind: 'select',
       keywords: ['theme', 'dark', 'light', 'mode', 'toggle'],
       execute: () => setTheme(theme === 'light' ? 'dark' : 'light'),
       hint: () => theme === 'light' ? 'Light' : 'Dark',
@@ -424,6 +540,7 @@ function useCommands(onExportPng: () => void): Command[] {
         id: `color-${scheme}`,
         label: `${label} color scheme`,
         category: 'Theme',
+        kind: 'select',
         keywords: ['color', 'scheme', 'palette', label.toLowerCase()],
         execute: () => setColorScheme(scheme),
         isActive: () => colorScheme === scheme,
@@ -436,6 +553,7 @@ function useCommands(onExportPng: () => void): Command[] {
         id: `app-palette-${value}`,
         label: `Palette: ${APP_PALETTE_LABELS[value]}`,
         category: 'Theme',
+        kind: 'select',
         keywords: ['palette', 'theme', 'skin', 'colors', APP_PALETTE_LABELS[value].toLowerCase()],
         execute: () => setPalette(value),
         isActive: () => palette === value,
@@ -448,6 +566,7 @@ function useCommands(onExportPng: () => void): Command[] {
         id: `highlight-style-${style}`,
         label: `${label} highlight style`,
         category: 'Theme',
+        kind: 'select',
         keywords: ['highlight', 'style', label.toLowerCase(), 'annotation'],
         execute: () => setHighlightStyle(style),
         isActive: () => highlightStyle === style,
@@ -459,6 +578,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'share-url',
       label: 'Share plan via URL',
       category: 'Export & Share',
+      kind: 'action',
       keywords: ['share', 'url', 'link', 'copy', 'clipboard'],
       execute: () => { void share(); },
       isAvailable: () => hasAnyInput,
@@ -468,6 +588,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'export-png',
       label: 'Export as PNG',
       category: 'Export & Share',
+      kind: 'action',
       keywords: ['export', 'png', 'image', 'screenshot', 'download'],
       execute: onExportPng,
       isAvailable: () => canExportPng,
@@ -477,6 +598,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'export-client-report',
       label: 'Export client report…',
       category: 'Export & Share',
+      kind: 'action',
       keywords: ['report', 'client', 'document', 'documentation', 'export', 'pdf', 'html', 'deliverable', 'consultant'],
       execute: () => setReportDialogOpen(true),
       isAvailable: () => parsedPlan !== null,
@@ -486,6 +608,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'create-baseline-script',
       label: 'Create SQL Plan Baseline script…',
       category: 'Export & Share',
+      kind: 'action',
       keywords: ['baseline', 'sql plan baseline', 'spm', 'dbms_spm', 'script', 'fix plan'],
       execute: () => setBaselineDialogOpen(true),
       isAvailable: () => parsedPlan !== null,
@@ -495,6 +618,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'save-annotations',
       label: 'Save annotated plan',
       category: 'Export & Share',
+      kind: 'action',
       keywords: ['save', 'annotations', 'export', 'json', 'download'],
       execute: exportAnnotatedPlan,
       isAvailable: () => parsedPlan !== null,
@@ -504,8 +628,10 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'clear-annotations',
       label: 'Clear all annotations',
       category: 'Annotations',
+      kind: 'action',
       keywords: ['clear', 'annotations', 'remove', 'reset'],
-      execute: clearAnnotations,
+      // Confirms before discarding (the context action owns the dialog).
+      execute: () => { void requestClearAnnotations(); },
       isAvailable: () => parsedPlan !== null && hasAnnotations(annotations),
     });
 
@@ -514,6 +640,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'toggle-input-panel',
       label: inputPanelCollapsed ? 'Show input panel' : 'Hide input panel',
       category: 'Panels',
+      kind: 'action',
       keywords: ['input', 'panel', 'collapse', 'expand', 'show', 'hide'],
       execute: () => setInputPanelCollapsed(!inputPanelCollapsed),
     });
@@ -522,6 +649,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'connect-database',
       label: 'Connect to database…',
       category: 'Panels',
+      kind: 'action',
       keywords: ['connect', 'database', 'db', 'oracle', 'agent', 'sql'],
       execute: () => {
         setInputPanelCollapsed(false);
@@ -534,6 +662,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'toggle-filter-panel',
       label: filterPanelCollapsed ? 'Show filter panel' : 'Hide filter panel',
       category: 'Panels',
+      kind: 'action',
       keywords: ['filter', 'panel', 'collapse', 'expand', 'show', 'hide', 'left'],
       execute: () => setFilterPanelCollapsed(!filterPanelCollapsed),
       isAvailable: () => anyPlanParsed,
@@ -543,6 +672,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'toggle-detail-panel',
       label: detailPanelCollapsed ? 'Show detail panel' : 'Hide detail panel',
       category: 'Panels',
+      kind: 'action',
       keywords: ['detail', 'panel', 'collapse', 'expand', 'show', 'hide', 'right', 'node'],
       execute: () => setDetailPanelCollapsed(!detailPanelCollapsed),
       isAvailable: () => anyPlanParsed,
@@ -552,6 +682,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'toggle-focus-mode',
       label: 'Toggle focus mode',
       category: 'Panels',
+      kind: 'toggle',
       keywords: ['focus', 'mode', 'floating', 'zen', 'panels', 'distraction', 'canvas'],
       shortcut: 'Z',
       execute: () => setFocusMode(!focusMode),
@@ -565,6 +696,7 @@ function useCommands(onExportPng: () => void): Command[] {
       id: 'toggle-hotspots',
       label: 'Toggle hotspot detection',
       category: 'Panels',
+      kind: 'toggle',
       keywords: ['hotspot', 'detection', 'hot', 'node', 'enable', 'disable'],
       execute: () => setHotspotsEnabled(!hotspotsEnabled),
       isActive: () => hotspotsEnabled,
@@ -578,6 +710,7 @@ function useCommands(onExportPng: () => void): Command[] {
         id: `indicator-${metric}`,
         label: `Node indicator: ${label}`,
         category: 'Metrics',
+        kind: 'select',
         keywords: ['indicator', 'metric', 'badge', 'node', label.toLowerCase()],
         execute: () => setNodeIndicatorMetric(metric),
         isActive: () => nodeIndicatorMetric === metric,
@@ -592,10 +725,38 @@ function useCommands(onExportPng: () => void): Command[] {
         id: `sankey-${metric}`,
         label: `Sankey metric: ${label}`,
         category: 'Metrics',
+        kind: 'select',
         keywords: ['sankey', 'metric', 'flow', label.toLowerCase()],
         execute: () => setSankeyMetric(metric),
         isActive: () => sankeyMetric === metric,
         isAvailable: () => anyPlanParsed && (!isRuntime || hasActualStats),
+      });
+    }
+
+    // --- Flame metric ---
+    for (const [metric, label] of Object.entries(FLAME_METRIC_LABELS) as [FlameMetric, string][]) {
+      commands.push({
+        id: `flame-${metric}`,
+        label: `Flame metric: ${label}`,
+        category: 'Metrics',
+        kind: 'select',
+        keywords: ['flame', 'graph', 'metric', label.toLowerCase()],
+        execute: () => setFlameMetric(metric),
+        isActive: () => flameMetric === metric,
+        isAvailable: () => anyPlanParsed && (metric === 'cost' || hasActualStats),
+      });
+    }
+
+    // --- Bundled examples (always available, so they are keyboard-discoverable) ---
+    for (const sample of SAMPLE_PLANS) {
+      commands.push({
+        id: `example-${sample.category}-${sample.name}`,
+        label: `Load example: ${sample.name}`,
+        category: 'Examples',
+        kind: 'action',
+        keywords: ['example', 'sample', 'demo', 'load', 'open', sample.category.replace('_', ' '), ...sample.name.toLowerCase().split(/\s+/)],
+        execute: () => { void loadExample(sample); },
+        hint: () => SAMPLE_CATEGORY_BADGES[sample.category],
       });
     }
 
@@ -612,9 +773,30 @@ function useCommands(onExportPng: () => void): Command[] {
     setNodeIndicatorMetric, setHighlightStyle, setVisualizationMaximized,
     setInputPanelCollapsed, setFilterPanelCollapsed,
     setDetailPanelCollapsed, setFocusMode, setHotspotsEnabled, setTreeCompareEnabled,
-    exportAnnotatedPlan, clearAnnotations, share, onExportPng, setBaselineDialogOpen, setReportDialogOpen, setConnectPanelOpen,
+    exportAnnotatedPlan, requestClearAnnotations, share, onExportPng, setBaselineDialogOpen, setReportDialogOpen, setConnectPanelOpen,
     toggleNodeDisplayOption, enableAllDisplayOptions, disableAllDisplayOptions,
+    treeLayoutDirection, setTreeLayoutDirection, treeMinimap, setTreeMinimap, loadExample,
+    treeActions, hasSelection, flameMetric, setFlameMetric,
   ]);
+}
+
+/**
+ * Announces every share outcome with a toast, whichever entry point started
+ * it (header button, compact menu, this palette) and even while the header is
+ * hidden (maximized canvas). Lives here because the palette is mounted exactly
+ * once for the app's lifetime; the header's share button keeps its icon flash.
+ */
+function useShareToasts() {
+  const { shareNotice } = usePlan();
+  const toast = useToast();
+  // Each share publishes a fresh notice object; toast each one exactly once.
+  const lastToastedRef = useRef<typeof shareNotice>(null);
+  useEffect(() => {
+    if (!shareNotice || lastToastedRef.current === shareNotice) return;
+    lastToastedRef.current = shareNotice;
+    const feedback = shareFeedback(shareNotice);
+    if (feedback) toast.show(feedback);
+  }, [shareNotice, toast]);
 }
 
 const CATEGORY_ORDER: CommandCategory[] = [
@@ -622,12 +804,14 @@ const CATEGORY_ORDER: CommandCategory[] = [
   'Node Display',
   'Runtime Display',
   'Warnings',
+  'Metadata',
   'Behavior',
   'Theme',
   'Export & Share',
   'Panels',
   'Metrics',
   'Annotations',
+  'Examples',
 ];
 
 export function CommandPalette() {
@@ -637,15 +821,30 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+  // Whatever had focus when the palette opened, so closing can hand it back.
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const listboxId = useId();
+  const optionId = (cmd: Command) => `${listboxId}-opt-${cmd.id}`;
   // Dereference the ref here, in a plain event-handler-shaped callback, and
   // hand `useCommands` an ordinary function — reading `.current` inside a
   // closure that itself gets stored in the commands array (built with
   // `.push`) trips the refs-during-render check even though it only ever
   // runs from a click/keyboard handler.
+  const toast = useToast();
   const triggerExportPng = useCallback(() => {
-    exportPngFnRef.current?.();
-  }, [exportPngFnRef]);
-  const commands = useCommands(triggerExportPng);
+    void runPngExport(exportPngFnRef.current, toast.show);
+  }, [exportPngFnRef, toast]);
+  const { treeViewActionsRef } = usePlan();
+  const expandAll = useCallback(() => treeViewActionsRef.current?.expandAll(), [treeViewActionsRef]);
+  const collapseAll = useCallback(() => treeViewActionsRef.current?.collapseAll(), [treeViewActionsRef]);
+  const fitView = useCallback(() => treeViewActionsRef.current?.fitView(), [treeViewActionsRef]);
+  const focusSelected = useCallback(() => treeViewActionsRef.current?.focusSelected(), [treeViewActionsRef]);
+  const treeActions = useMemo(
+    () => ({ expandAll, collapseAll, fitView, focusSelected }),
+    [expandAll, collapseAll, fitView, focusSelected]
+  );
+  const commands = useCommands(triggerExportPng, treeActions);
+  useShareToasts();
 
   // Filter to available commands
   const availableCommands = useMemo(
@@ -653,26 +852,26 @@ export function CommandPalette() {
     [commands]
   );
 
-  // Search
-  const filtered = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    if (!term) return availableCommands;
-    const terms = term.split(/\s+/);
-    return availableCommands.filter(cmd => {
-      const searchable = [cmd.label.toLowerCase(), ...cmd.keywords].join(' ');
-      return terms.every(t => searchable.includes(t));
-    });
-  }, [availableCommands, query]);
+  // Search: ranked, best match first (original order for an empty query)
+  const filtered = useMemo(() => rankCommands(query, availableCommands), [availableCommands, query]);
 
-  // Group by category
+  // Group by category. With no query the groups follow the fixed category
+  // order; with a query they follow each group's best-ranked item, and items
+  // keep their rank order inside a group.
   const grouped = useMemo(() => {
-    return CATEGORY_ORDER
-      .map(cat => ({
-        category: cat,
-        items: filtered.filter(cmd => cmd.category === cat),
-      }))
-      .filter(g => g.items.length > 0);
-  }, [filtered]);
+    // Map insertion order == order of each category's first (best) item.
+    const byCategory = new Map<CommandCategory, Command[]>();
+    for (const cmd of filtered) {
+      const items = byCategory.get(cmd.category);
+      if (items) items.push(cmd);
+      else byCategory.set(cmd.category, [cmd]);
+    }
+    const groups = Array.from(byCategory, ([category, items]) => ({ category, items }));
+    if (!query.trim()) {
+      groups.sort((a, b) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category));
+    }
+    return groups;
+  }, [filtered, query]);
 
   // Flat list for keyboard navigation
   const flatItems = useMemo(() => grouped.flatMap(g => g.items), [grouped]);
@@ -700,19 +899,36 @@ export function CommandPalette() {
     return () => window.removeEventListener('keydown', handler);
   }, [open, setOpen]);
 
-  // Reset on open/close
+  // Reset on open; on close, return focus to where it was before opening
   useEffect(() => {
-    if (open) {
-      setQuery('');
-      setSelectedIndex(0);
-      requestAnimationFrame(() => inputRef.current?.focus());
-    }
+    if (!open) return;
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setQuery('');
+    setSelectedIndex(0);
+    // The portal has committed by now, so focus straight away (keystrokes typed
+    // right after Cmd+K must land in the box); the rAF is only a fallback.
+    inputRef.current?.focus();
+    const raf = requestAnimationFrame(() => {
+      if (document.activeElement !== inputRef.current) inputRef.current?.focus();
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      const previous = returnFocusRef.current;
+      returnFocusRef.current = null;
+      // The palette's own DOM is already gone here, so focus has fallen back to
+      // <body>. If something else (a dialog opened by the command) has claimed
+      // focus in the meantime, leave it alone.
+      const current = document.activeElement;
+      const focusUnclaimed = !current || current === document.body;
+      if (previous && previous.isConnected && focusUnclaimed) previous.focus();
+    };
   }, [open]);
 
   const executeAndClose = useCallback((cmd: Command) => {
     cmd.execute();
-    // Keep palette open for toggles, close for actions
-    if (!cmd.isActive) {
+    // Toggles stay open so several can be flipped in a row; actions and
+    // one-of-many selections close. (`isActive` only drives the checkmark.)
+    if (cmd.kind !== 'toggle') {
       setOpen(false);
     }
   }, [setOpen]);
@@ -743,6 +959,11 @@ export function CommandPalette() {
         e.stopPropagation();
         setOpen(false);
         break;
+      case 'Tab':
+        // Modal: the search box is the only tab stop, so keep focus on it.
+        e.preventDefault();
+        inputRef.current?.focus();
+        break;
     }
   }, [flatItems, selectedIndex, executeAndClose, setOpen]);
 
@@ -755,10 +976,14 @@ export function CommandPalette() {
       {/* Backdrop */}
       <div
         className="fixed inset-0 z-[90] bg-black/30 dark:bg-black/50"
+        aria-hidden="true"
         onClick={() => setOpen(false)}
       />
       {/* Palette */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
         className="fixed z-[91] top-[min(20%,120px)] left-1/2 -translate-x-1/2 w-[540px] max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl flex flex-col overflow-hidden"
         onKeyDown={onKeyDown}
       >
@@ -772,6 +997,14 @@ export function CommandPalette() {
             value={query}
             onChange={e => { setQuery(e.target.value); setSelectedIndex(0); }}
             placeholder="Type a command..."
+            aria-label="Search commands"
+            role="combobox"
+            aria-expanded={true}
+            aria-controls={listboxId}
+            aria-autocomplete="list"
+            aria-activedescendant={flatItems[selectedIndex] ? optionId(flatItems[selectedIndex]) : undefined}
+            autoComplete="off"
+            spellCheck={false}
             className="flex-1 bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none"
           />
           <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded">
@@ -780,79 +1013,91 @@ export function CommandPalette() {
         </div>
 
         {/* Results */}
-        <div ref={listRef} className="max-h-[min(60vh,400px)] overflow-y-auto py-1">
+        {/* mousedown is swallowed so clicking a row never pulls focus off the search box */}
+        <div
+          ref={listRef}
+          className="max-h-[min(60vh,400px)] overflow-y-auto py-1"
+          onMouseDown={e => e.preventDefault()}
+        >
           {flatItems.length === 0 && (
-            <div className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+            <div role="status" className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
               No matching commands
             </div>
           )}
-          {grouped.map(group => {
-            const categoryItems = group.items.map(cmd => {
-              const thisIndex = flatIndex++;
-              const isSelected = thisIndex === selectedIndex;
-              const active = cmd.isActive?.();
-              return (
-                <button
-                  key={cmd.id}
-                  ref={(el) => {
-                    if (el) itemRefs.current.set(thisIndex, el);
-                    else itemRefs.current.delete(thisIndex);
-                  }}
-                  type="button"
-                  onClick={() => executeAndClose(cmd)}
-                  onMouseEnter={() => setSelectedIndex(thisIndex)}
-                  className={`w-full flex items-center gap-3 px-4 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60 ${
-                    isSelected
-                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  {/* Command icon — accented when this command is the active one */}
-                  <span
-                    className={`w-4 h-4 shrink-0 flex items-center justify-center ${
-                      active
-                        ? 'text-blue-600 dark:text-blue-400'
-                        : 'text-slate-400 dark:text-slate-500'
+          <div id={listboxId} role="listbox" aria-label="Commands">
+            {grouped.map(group => {
+              const categoryItems = group.items.map(cmd => {
+                const thisIndex = flatIndex++;
+                const isSelected = thisIndex === selectedIndex;
+                const active = cmd.isActive?.();
+                return (
+                  <button
+                    key={cmd.id}
+                    id={optionId(cmd)}
+                    role="option"
+                    aria-selected={isSelected}
+                    aria-checked={active}
+                    tabIndex={-1}
+                    ref={(el) => {
+                      if (el) itemRefs.current.set(thisIndex, el);
+                      else itemRefs.current.delete(thisIndex);
+                    }}
+                    type="button"
+                    onClick={() => executeAndClose(cmd)}
+                    onMouseEnter={() => setSelectedIndex(thisIndex)}
+                    className={`w-full flex items-center gap-3 px-4 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/60 dark:focus-visible:ring-blue-400/60 ${
+                      isSelected
+                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                     }`}
                   >
-                    {cmd.icon ?? <OutlineIcon path={CATEGORY_ICON_PATHS[cmd.category]} />}
-                  </span>
-                  <span className={`flex-1 truncate ${active ? 'font-medium text-blue-600 dark:text-blue-400' : ''}`}>
-                    {cmd.label}
-                  </span>
-                  {active && (
-                    <svg
-                      className="w-3.5 h-3.5 shrink-0 text-blue-600 dark:text-blue-400"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={3}
-                      aria-hidden="true"
+                    {/* Command icon — accented when this command is the active one */}
+                    <span
+                      className={`w-4 h-4 shrink-0 flex items-center justify-center ${
+                        active
+                          ? 'text-blue-600 dark:text-blue-400'
+                          : 'text-slate-400 dark:text-slate-500'
+                      }`}
                     >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                  {cmd.shortcut && (
-                    <kbd className="px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded">
-                      {cmd.shortcut}
-                    </kbd>
-                  )}
-                  {cmd.hint && (
-                    <span className="text-xs text-slate-400 dark:text-slate-500">{cmd.hint()}</span>
-                  )}
-                </button>
-              );
-            });
+                      {cmd.icon ?? <OutlineIcon path={CATEGORY_ICON_PATHS[cmd.category]} />}
+                    </span>
+                    <span className={`flex-1 truncate ${active ? 'font-medium text-blue-600 dark:text-blue-400' : ''}`}>
+                      {cmd.label}
+                    </span>
+                    {active && (
+                      <svg
+                        className="w-3.5 h-3.5 shrink-0 text-blue-600 dark:text-blue-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={3}
+                        aria-hidden="true"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                    {cmd.shortcut && (
+                      <kbd className="px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded">
+                        {cmd.shortcut}
+                      </kbd>
+                    )}
+                    {cmd.hint && (
+                      <span className="text-xs text-slate-400 dark:text-slate-500">{cmd.hint()}</span>
+                    )}
+                  </button>
+                );
+              });
 
-            return (
-              <div key={group.category}>
-                <div className="px-4 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 dark:text-slate-400 uppercase">
-                  {group.category}
+              return (
+                <div key={group.category} role="group" aria-label={group.category}>
+                  <div role="presentation" className="px-4 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 dark:text-slate-400 uppercase">
+                    {group.category}
+                  </div>
+                  {categoryItems}
                 </div>
-                {categoryItems}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
         {/* Footer */}

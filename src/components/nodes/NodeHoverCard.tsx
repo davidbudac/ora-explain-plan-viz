@@ -1,12 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { ReactNode } from 'react';
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 
 /**
  * Progressive disclosure for the Minimal density preset: the node body is
  * stripped to one metric line, and everything it hides comes back in a floating
- * card after a short hover (or on keyboard focus).
+ * card after a short hover, on keyboard focus, or on tap for touch / pen input
+ * (a second tap on the same node closes it again).
  *
  * The card is portalled to <body> with fixed positioning derived from the node's
  * bounding rect — React Flow's zoom/pan transform and the pane's overflow
@@ -17,7 +18,7 @@ const HOVER_DELAY_MS = 250;
 const VIEWPORT_MARGIN = 8;
 const ANCHOR_GAP = 10;
 
-/** Touch/pen input never gets a hover card — there is no hover to disclose from. */
+/** Coarse-primary devices never get a *hover* card (taps open it instead). */
 function isCoarsePointer(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
   return window.matchMedia('(pointer: coarse)').matches;
@@ -29,8 +30,13 @@ export interface NodeHoverCardController {
   hoverProps: {
     onMouseEnter: () => void;
     onMouseLeave: () => void;
+    onPointerDown: (event: ReactPointerEvent) => void;
+    onClick: (event: ReactMouseEvent) => void;
   };
 }
+
+/** A tap that lands this soon after the card was dismissed by the same press toggles it closed. */
+const TAP_TOGGLE_WINDOW_MS = 800;
 
 /**
  * Hover/focus timing + dismissal for a single node's hover card.
@@ -74,6 +80,26 @@ export function useNodeHoverCard(enabled: boolean): NodeHoverCardController {
     close();
   }, [close]);
 
+  // Touch / pen: there is no hover, so a tap on the node opens the card. The
+  // open card's capture-phase pointerdown listener (below) closes it first and
+  // stamps the press, so a tap on the *same* node toggles it shut instead of
+  // immediately reopening it.
+  const lastPointerTypeRef = useRef<string>('mouse');
+  const dismissedByPressAtRef = useRef<number | null>(null);
+  const onPointerDown = useCallback((event: ReactPointerEvent) => {
+    lastPointerTypeRef.current = event.pointerType;
+  }, []);
+  const onClick = useCallback((event: ReactMouseEvent) => {
+    if (!enabled) return;
+    const pointerType = lastPointerTypeRef.current;
+    if (pointerType !== 'touch' && pointerType !== 'pen' && !isCoarsePointer()) return;
+    const dismissedAt = dismissedByPressAtRef.current;
+    dismissedByPressAtRef.current = null;
+    if (dismissedAt !== null && event.timeStamp - dismissedAt < TAP_TOGGLE_WINDOW_MS) return;
+    clearTimer();
+    openNow();
+  }, [enabled, clearTimer, openNow]);
+
   // Unmount (or a density switch) must not leave a pending open behind.
   useEffect(() => clearTimer, [enabled, clearTimer]);
 
@@ -89,10 +115,13 @@ export function useNodeHoverCard(enabled: boolean): NodeHoverCardController {
     if (!enabled || !anchorEl) return;
     const wrapper = anchorEl.closest('.react-flow__node');
     if (!(wrapper instanceof HTMLElement)) return;
-    const handleFocusIn = () => {
+    const handleFocusIn = (event: FocusEvent) => {
+      // The focused element may be the node wrapper itself or a control inside
+      // it (e.g. the subtree collapse button).
+      const target = event.target instanceof Element ? event.target : wrapper;
       let keyboard = true;
       try {
-        keyboard = wrapper.matches(':focus-visible');
+        keyboard = target.matches(':focus-visible');
       } catch {
         keyboard = true;
       }
@@ -114,22 +143,29 @@ export function useNodeHoverCard(enabled: boolean): NodeHoverCardController {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close();
     };
+    const onPointerDownAnywhere = (e: PointerEvent) => {
+      // Remember a press on this node so the tap that follows toggles closed.
+      if (anchorElRef.current && e.target instanceof Node && anchorElRef.current.contains(e.target)) {
+        dismissedByPressAtRef.current = e.timeStamp;
+      }
+      close();
+    };
     const capture = { capture: true } as const;
     window.addEventListener('wheel', close, { capture: true, passive: true });
     window.addEventListener('scroll', close, { capture: true, passive: true });
-    window.addEventListener('pointerdown', close, capture);
+    window.addEventListener('pointerdown', onPointerDownAnywhere, capture);
     window.addEventListener('keydown', onKeyDown, capture);
     window.addEventListener('resize', close);
     return () => {
       window.removeEventListener('wheel', close, capture);
       window.removeEventListener('scroll', close, capture);
-      window.removeEventListener('pointerdown', close, capture);
+      window.removeEventListener('pointerdown', onPointerDownAnywhere, capture);
       window.removeEventListener('keydown', onKeyDown, capture);
       window.removeEventListener('resize', close);
     };
   }, [anchorRect, close]);
 
-  return { anchorRef, anchorRect, hoverProps: { onMouseEnter, onMouseLeave } };
+  return { anchorRef, anchorRect, hoverProps: { onMouseEnter, onMouseLeave, onPointerDown, onClick } };
 }
 
 interface NodeHoverCardProps {

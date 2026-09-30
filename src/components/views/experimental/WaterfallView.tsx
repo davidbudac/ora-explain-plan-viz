@@ -5,6 +5,7 @@ import { computeRowFlow } from '../../../lib/rowFlow';
 import type { RowFlowEntry } from '../../../lib/rowFlow';
 import { formatNumberShort } from '../../../lib/format';
 import { matchesSearch } from '../../../lib/filtering';
+import { FOCUS_RING } from '../../ui';
 
 interface Tooltip {
   x: number;
@@ -13,13 +14,15 @@ interface Tooltip {
   lines: string[];
 }
 
-function factorLabel(entry: RowFlowEntry): { text: string; tone: 'amber' | 'red' } | null {
+function factorLabel(entry: RowFlowEntry): { text: string; plain: string; tone: 'amber' | 'red' } | null {
   if (entry.factor === undefined) return null;
   if (entry.factor < 0.1) {
-    return { text: `▼ ${Math.round(1 / entry.factor)}× filter`, tone: 'amber' };
+    const n = Math.round(1 / entry.factor);
+    return { text: `▼ ${n}× filter`, plain: `${n}× filter`, tone: 'amber' };
   }
   if (entry.factor > 10) {
-    return { text: `▲ ${Math.round(entry.factor)}× blow-up`, tone: 'red' };
+    const n = Math.round(entry.factor);
+    return { text: `▲ ${n}× blow-up`, plain: `${n}× blow-up`, tone: 'red' };
   }
   return null;
 }
@@ -148,10 +151,21 @@ export function WaterfallView() {
           const chip = factorLabel(entry);
           const showEst = entry.outputIsEstimate && flow.hasActuals;
 
+          const ariaLabel =
+            `#${node.id} ${node.operation}${node.objectName ? ` ${node.objectName}` : ''}: ` +
+            `${formatNumberShort(entry.output, { empty: '0' })} rows out` +
+            `${showEst ? ' (estimated)' : ''}` +
+            // Leaf scans read from storage, so "0 in" would be misleading
+            `${entry.kind === 'source' ? '' : `, ${formatNumberShort(entry.input, { empty: 'unknown' })} in`}` +
+            `${chip ? `, ${chip.plain}` : ''}`;
+
           return (
-            <div
+            <button
               key={node.id}
-              className={`flex items-center gap-2 rounded px-1 py-0.5 cursor-pointer ${
+              type="button"
+              aria-pressed={isSelected}
+              aria-label={ariaLabel}
+              className={`flex w-full items-center gap-2 rounded px-1 py-0.5 text-left cursor-pointer ${FOCUS_RING} ${
                 isSelected ? 'bg-blue-50 dark:bg-blue-950/40 ring-1 ring-blue-400' : ''
               } ${isFiltered ? '' : 'opacity-40'}`}
               onClick={(event) =>
@@ -174,8 +188,8 @@ export function WaterfallView() {
               onMouseMove={moveTooltip}
               onMouseLeave={() => scheduleTooltipUpdate(null)}
             >
-              <div
-                className={`w-[230px] shrink-0 truncate text-xs ${
+              <span
+                className={`block w-[230px] shrink-0 truncate text-xs ${
                   isFiltered
                     ? 'text-slate-700 dark:text-slate-200'
                     : 'text-slate-400 dark:text-slate-500'
@@ -185,11 +199,11 @@ export function WaterfallView() {
               >
                 {node.operation}
                 {node.objectName ? ` ${node.objectName}` : ''}
-              </div>
+              </span>
 
-              <div className="flex-1 min-w-0">
-                <div
-                  className="h-4 rounded-sm"
+              <span className="block flex-1 min-w-0">
+                <span
+                  className="block h-4 rounded-sm"
                   style={{
                     width: `${Math.max(barShare, entry.output > 0 ? 1.5 : 0)}%`,
                     backgroundColor: paint.fill,
@@ -198,7 +212,7 @@ export function WaterfallView() {
                     outline: isSearchMatch && !isSelected ? '1.5px dashed #3b82f6' : undefined,
                   }}
                 />
-              </div>
+              </span>
 
               {chip && (
                 <span
@@ -212,15 +226,15 @@ export function WaterfallView() {
                 </span>
               )}
 
-              <div className="w-[90px] shrink-0 text-right text-[11px] tabular-nums text-slate-600 dark:text-slate-300">
+              <span className="block w-[90px] shrink-0 text-right text-[11px] tabular-nums text-slate-600 dark:text-slate-300">
                 {formatNumberShort(entry.output, { empty: '0' })}
                 {showEst && (
                   <span className="ml-1 text-[10px] uppercase text-slate-500 dark:text-slate-400">
                     est
                   </span>
                 )}
-              </div>
-            </div>
+              </span>
+            </button>
           );
         })}
       </div>

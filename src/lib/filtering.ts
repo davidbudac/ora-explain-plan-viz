@@ -103,3 +103,51 @@ export function matchesFilters(
 
   return true;
 }
+
+/**
+ * The node-narrowing fields of {@link FilterState} — everything "Reset filters"
+ * clears. Display-only fields (showPredicates, animateEdges, scaleEdgeWidth,
+ * focusSelection, nodeDisplayOptions) are deliberately absent.
+ */
+export type FilterFieldKey =
+  | 'searchText'
+  | 'operationTypes'
+  | 'predicateTypes'
+  | 'minCost'
+  | 'maxCost'
+  | 'minActualRows'
+  | 'maxActualRows'
+  | 'minActualTime'
+  | 'maxActualTime'
+  | 'minCardinalityMismatch';
+
+/**
+ * A `setFilters` patch that returns every node-narrowing filter to its neutral
+ * value while leaving display settings untouched (same field set as the Filter
+ * panel's "Reset filters"). Returns fresh arrays on every call.
+ */
+export function neutralFilterPatch(): Pick<FilterState, FilterFieldKey> {
+  return {
+    searchText: '',
+    operationTypes: [],
+    predicateTypes: [],
+    minCost: 0,
+    maxCost: Infinity,
+    minActualRows: 0,
+    maxActualRows: Infinity,
+    minActualTime: 0,
+    maxActualTime: Infinity,
+    minCardinalityMismatch: 0,
+  };
+}
+
+/**
+ * True when any node-narrowing filter differs from its neutral value (see
+ * {@link neutralFilterPatch}); display-only fields never count. When this is
+ * false, {@link matchesFilters} accepts every node, so callers can use it to
+ * tell "no filter" apart from "a filter that matches nothing" — an empty
+ * `filteredNodeIds` set only means the latter when this returns true.
+ */
+export function isFilterActive(filters: FilterState): boolean {
+  return hasActiveFilters(filters);
+}

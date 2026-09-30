@@ -10,6 +10,7 @@ import {
   formatNumberShort,
 } from '../../../lib/format';
 import { matchesSearch } from '../../../lib/filtering';
+import { FOCUS_RING } from '../../ui';
 import { EmptyState } from './EmptyState';
 
 const ROW_HEIGHT = 24;
@@ -220,11 +221,16 @@ export function MorphView() {
     <div className="relative w-full h-full flex flex-col bg-white dark:bg-slate-900">
       {/* Controls row */}
       <div className="flex items-center gap-3 px-3 py-1.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90">
-        <div className="flex bg-slate-200/60 dark:bg-slate-800/80 rounded-lg p-0.5 border border-slate-300/40 dark:border-slate-700/50">
+        <div
+          role="group"
+          aria-label="Widths shown"
+          className="flex bg-slate-200/60 dark:bg-slate-800/80 rounded-lg p-0.5 border border-slate-300/40 dark:border-slate-700/50"
+        >
           <button
             type="button"
             onClick={() => setSide(false)}
-            className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${
+            aria-pressed={!showActual}
+            className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${FOCUS_RING} ${
               !showActual
                 ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
@@ -235,7 +241,8 @@ export function MorphView() {
           <button
             type="button"
             onClick={() => setSide(true)}
-            className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${
+            aria-pressed={showActual}
+            className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${FOCUS_RING} ${
               showActual
                 ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
@@ -247,7 +254,7 @@ export function MorphView() {
         <button
           type="button"
           onClick={replay}
-          className="px-2.5 py-1 text-[11px] font-semibold rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+          className={`px-2.5 py-1 text-[11px] font-semibold rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 ${FOCUS_RING}`}
         >
           Replay
         </button>

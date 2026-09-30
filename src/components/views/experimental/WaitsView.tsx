@@ -3,6 +3,7 @@ import { usePlan } from '../../../hooks/usePlanContext';
 import { aggregateActivityByLine, getWaitClassColor } from '../../../lib/ash';
 import { matchesSearch } from '../../../lib/filtering';
 import { EmptyState } from './EmptyState';
+import { FOCUS_RING } from '../../ui';
 
 interface Tooltip {
   x: number;
@@ -131,18 +132,23 @@ export function WaitsView() {
             ? `#${la.line} ${node.operation}${node.objectName ? ` ${node.objectName}` : ''}`
             : `#${la.line}`;
 
+          const classSummary = la.byClass.map((c) => `${c.waitClass} ${c.count}`).join(', ');
+
           return (
-            <div
+            <button
               key={la.line}
-              className={`flex items-center gap-2 rounded px-1 py-0.5 cursor-pointer ${
+              type="button"
+              aria-pressed={isSelected}
+              aria-label={`${labelText}: ${la.total} ASH sample${la.total === 1 ? '' : 's'} (${pct.toFixed(0)}%). ${classSummary}`}
+              className={`flex w-full items-center gap-2 rounded px-1 py-0.5 text-left cursor-pointer ${FOCUS_RING} ${
                 isSelected ? 'bg-blue-50 dark:bg-blue-950/40 ring-1 ring-blue-400' : ''
               } ${isFiltered ? '' : 'opacity-40'}`}
               onClick={(event) =>
                 selectNode(la.line, { additive: event.metaKey || event.ctrlKey })
               }
             >
-              <div
-                className={`w-[260px] shrink-0 truncate text-xs ${
+              <span
+                className={`block w-[260px] shrink-0 truncate text-xs ${
                   isFiltered
                     ? 'text-slate-700 dark:text-slate-200'
                     : 'text-slate-400 dark:text-slate-500'
@@ -150,16 +156,18 @@ export function WaitsView() {
                 title={labelText}
               >
                 {labelText}
-              </div>
+              </span>
 
-              <div className="flex-1 min-w-0">
-                <div
+              <span className="block flex-1 min-w-0">
+                <span
                   className="flex h-4 rounded-sm overflow-hidden"
                   style={{ width: `${Math.max(barShare * 100, la.total > 0 ? 2 : 0)}%` }}
                 >
                   {la.byClass.map((c) => (
-                    <div
+                    <span
                       key={c.waitClass}
+                      className="block"
+                      aria-hidden="true"
                       style={{
                         width: `${(c.count / la.total) * 100}%`,
                         backgroundColor: getWaitClassColor(c.waitClass),
@@ -180,13 +188,13 @@ export function WaitsView() {
                       onMouseLeave={() => scheduleTooltipUpdate(null)}
                     />
                   ))}
-                </div>
-              </div>
+                </span>
+              </span>
 
-              <div className="w-[150px] shrink-0 text-right text-[11px] tabular-nums text-slate-500 dark:text-slate-400">
+              <span className="block w-[150px] shrink-0 text-right text-[11px] tabular-nums text-slate-500 dark:text-slate-400">
                 {la.total} sample{la.total === 1 ? '' : 's'} ({pct.toFixed(0)}%)
-              </div>
-            </div>
+              </span>
+            </button>
           );
         })}
       </div>
