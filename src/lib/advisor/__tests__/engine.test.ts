@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { runAdvisor } from '../engine';
 import { DEFAULT_THRESHOLDS } from '../config';
+import { ALL_RULES } from '../rules';
 import { buildPlan, makeBundle, makeTable } from './helpers';
 
 describe('runAdvisor', () => {
@@ -101,5 +102,57 @@ describe('runAdvisor', () => {
   it('never throws when nodes are missing optional fields', () => {
     const plan = buildPlan({ id: 0, operation: 'SELECT STATEMENT', children: [{ id: 1, operation: 'TABLE ACCESS FULL' }] });
     expect(() => runAdvisor(plan, null)).not.toThrow();
+  });
+
+  describe('inactive adaptive-plan rows', () => {
+    const adaptivePlan = () => buildPlan({
+      id: 0,
+      operation: 'SELECT STATEMENT',
+      children: [
+        // inactive (unused alternative): would be a critical cardinality mismatch and a spill
+        { id: 1, operation: 'TABLE ACCESS FULL', rows: 100, actualRows: 50_000, tempUsed: DEFAULT_THRESHOLDS.spillCriticalBytes, inactive: true },
+        // active and equally bad
+        { id: 2, operation: 'TABLE ACCESS FULL', rows: 100, actualRows: 50_000 },
+      ],
+    });
+
+    it('produces no findings for inactive nodes', () => {
+      const report = runAdvisor(adaptivePlan(), null);
+      expect(report.findingsByNodeId.has(1)).toBe(false);
+      expect(report.findings.some((f) => f.nodeIds.includes(1))).toBe(false);
+      expect(report.findingsByNodeId.get(2)?.length).toBeGreaterThan(0);
+    });
+
+    it('hands rules a plan without inactive nodes', () => {
+      const seen: number[][] = [];
+      const rule = { id: 'probe', evaluate: (ctx: { plan: { allNodes: Array<{ id: number }> } }) => { seen.push(ctx.plan.allNodes.map((n) => n.id)); return []; } };
+      ALL_RULES.push(rule as never);
+      try {
+        runAdvisor(adaptivePlan(), null, { ...DEFAULT_THRESHOLDS });
+      } finally {
+        ALL_RULES.pop();
+      }
+      expect(seen).toEqual([[0, 2]]);
+    });
+
+    it('drops a finding that points only at an inactive node and strips inactive ids from mixed ones', () => {
+      const rule = {
+        id: 'probe',
+        evaluate: () => [
+          { ruleId: 'probe', severity: 'info', nodeIds: [1], title: 'only inactive', explanation: '', suggestion: '' },
+          { ruleId: 'probe', severity: 'info', nodeIds: [1, 2], title: 'mixed', explanation: '', suggestion: '' },
+          { ruleId: 'probe', severity: 'info', nodeIds: [], title: 'plan level', explanation: '', suggestion: '' },
+        ],
+      };
+      ALL_RULES.push(rule as never);
+      try {
+        const report = runAdvisor(adaptivePlan(), null, { ...DEFAULT_THRESHOLDS });
+        const titles = report.findings.filter((f) => f.ruleId === 'probe').map((f) => f.title).sort();
+        expect(titles).toEqual(['mixed', 'plan level']);
+        expect(report.findings.find((f) => f.title === 'mixed')?.nodeIds).toEqual([2]);
+      } finally {
+        ALL_RULES.pop();
+      }
+    });
   });
 });

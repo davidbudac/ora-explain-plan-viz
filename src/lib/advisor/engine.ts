@@ -32,7 +32,13 @@ function buildFindObject(bundle: MetadataBundle | null): FindObjectFn {
   };
 }
 
-function buildReport(plan: ParsedPlan, bundle: MetadataBundle | null, thresholds: AdvisorThresholds): AdvisorReport {
+function buildReport(fullPlan: ParsedPlan, bundle: MetadataBundle | null, thresholds: AdvisorThresholds): AdvisorReport {
+  // Adaptive-plan rows the optimizer did not use never ran: rules must not see them.
+  const inactiveIds = new Set(fullPlan.allNodes.filter((n) => n.inactive).map((n) => n.id));
+  const plan: ParsedPlan = inactiveIds.size > 0
+    ? { ...fullPlan, allNodes: fullPlan.allNodes.filter((n) => !n.inactive) }
+    : fullPlan;
+
   const ctx: RuleContext = {
     plan,
     bundle,
@@ -47,7 +53,16 @@ function buildReport(plan: ParsedPlan, bundle: MetadataBundle | null, thresholds
     if (rule.requiresMetadata && !bundle) continue;
     if (rule.requiresActualStats && !plan.hasActualStats) continue;
     try {
-      findings.push(...rule.evaluate(ctx));
+      for (const finding of rule.evaluate(ctx)) {
+        if (inactiveIds.size === 0 || finding.nodeIds.length === 0) {
+          findings.push(finding);
+          continue;
+        }
+        // A finding may still name an inactive node (e.g. through a child link): drop those ids,
+        // and the whole finding when nothing live is left.
+        const nodeIds = finding.nodeIds.filter((id) => !inactiveIds.has(id));
+        if (nodeIds.length > 0) findings.push(nodeIds.length === finding.nodeIds.length ? finding : { ...finding, nodeIds });
+      }
     } catch {
       // Rules must never throw on missing optional fields, but guard the
       // engine regardless so one broken rule can't take down the report.

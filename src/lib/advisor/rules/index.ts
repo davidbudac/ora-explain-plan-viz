@@ -9,6 +9,12 @@ import { spillToDiskRule } from './spillToDisk';
 import { statsIssuesRule } from './statsIssues';
 import { partitionPruningRule } from './partitionPruning';
 import { parallelSignalsRule } from './parallelSignals';
+import { perRowReexecutionRule } from './perRowReexecution';
+import { indexRowsDiscardedRule } from './indexRowsDiscarded';
+import { bufferEfficiencyRule } from './bufferEfficiency';
+import { planNotesRule } from './planNotes';
+import { functionOnIndexedColumnRule } from './functionOnIndexedColumn';
+import { hashJoinBuildSideRule } from './hashJoinBuildSide';
 
 export const ALL_RULES: AdvisorRule[] = [
   implicitConversionRule,
@@ -21,6 +27,12 @@ export const ALL_RULES: AdvisorRule[] = [
   statsIssuesRule,
   partitionPruningRule,
   parallelSignalsRule,
+  perRowReexecutionRule,
+  indexRowsDiscardedRule,
+  bufferEfficiencyRule,
+  planNotesRule,
+  functionOnIndexedColumnRule,
+  hashJoinBuildSideRule,
 ];
 
 export {
@@ -34,4 +46,10 @@ export {
   statsIssuesRule,
   partitionPruningRule,
   parallelSignalsRule,
+  perRowReexecutionRule,
+  indexRowsDiscardedRule,
+  bufferEfficiencyRule,
+  planNotesRule,
+  functionOnIndexedColumnRule,
+  hashJoinBuildSideRule,
 };
