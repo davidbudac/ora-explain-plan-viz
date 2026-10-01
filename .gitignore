@@ -32,3 +32,6 @@ evals/scenarios/*/
 
 # Playwright MCP scratch output
 .playwright-mcp/
+
+# Xcode build output and prototypes
+prototypes/
