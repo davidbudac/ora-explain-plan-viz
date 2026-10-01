@@ -9,6 +9,7 @@ import { APP_PALETTE_LABELS, APP_PALETTE_ORDER } from '../lib/types';
 import { DENSITY_PRESET_LABELS, DENSITY_PRESET_ORDER } from '../lib/density';
 import { isDbAgentEnabled } from '../lib/agent/client';
 import { rankCommands } from '../lib/paletteSearch';
+import { OVERVIEW_VIEW_MODES, SHOW_OVERVIEW_EVENT } from '../lib/overview';
 import { useToast } from './ui';
 import { runPngExport, shareFeedback } from '../lib/actionFeedback';
 import { openPlanFilePicker, isOpenFileShortcut, OPEN_FILE_SHORTCUT_LABEL } from '../lib/filePicker';
@@ -352,6 +353,20 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
           anyPlanParsed && viewMode === 'hierarchical' && !treeCompareEnabled && (!item.needsSelection || hasSelection),
       });
     }
+
+    // --- Analysis overview (the post-parse "where to look first" card) ---
+    commands.push({
+      id: 'show-analysis-overview',
+      label: 'Show analysis overview',
+      category: 'View',
+      kind: 'action',
+      keywords: ['analysis', 'overview', 'findings', 'summary', 'top', 'where', 'look', 'first', 'start'],
+      execute: () => {
+        if (!OVERVIEW_VIEW_MODES.has(viewMode)) setViewMode('hierarchical');
+        window.dispatchEvent(new Event(SHOW_OVERVIEW_EVENT));
+      },
+      isAvailable: () => parsedPlan !== null && !treeCompareEnabled,
+    });
 
     // --- Keyboard shortcuts help ---
     commands.push({

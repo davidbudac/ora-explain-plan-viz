@@ -13,11 +13,13 @@ import { TreeCompareView } from './views/TreeCompareView';
 import { PlanTextView } from './views/PlanTextView';
 import { Legend } from './Legend';
 import { NoMatchesBanner } from './NoMatchesBanner';
+import { AnalysisOverview } from './AnalysisOverview';
 import { MetadataView } from './metadata/MetadataView';
 import { ExperimentalView } from './views/experimental/ExperimentalView';
 import { AiReportView } from './views/AiReportView';
 import { AiReportPrototypeView } from './views/prototype/AiReportPrototypeView';
 import { isFilterActive, matchesFilters } from '../lib/filtering';
+import { OVERVIEW_VIEW_MODES } from '../lib/overview';
 import type { ViewMode } from '../lib/types';
 
 /** Views that dim / hide non-matching operations and so need the "nothing matches" banner. */
@@ -107,6 +109,7 @@ export function VisualizationTabs() {
         {viewMode === 'ai-report' && <AiReportPrototypeView />}
         {(viewMode === 'hierarchical' || viewMode === 'sankey' || viewMode === 'flame' || viewMode === 'tabular') && <Legend />}
         {FILTERED_VIEWS.has(viewMode) && <NoMatchesBanner visible={noMatches} top={top} />}
+        <AnalysisOverview active={OVERVIEW_VIEW_MODES.has(viewMode) && !sideBySide} top={top} />
       </div>
     </div>
   );
