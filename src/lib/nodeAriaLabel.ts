@@ -4,6 +4,9 @@
  * "#4 TABLE ACCESS FULL ORDERS, estimated 32 rows, actual 20K rows, cost 973, hotspot".
  */
 
+/** Hover text for the "inactive" tag/legend on adaptive-plan operations the optimizer skipped. */
+export const INACTIVE_NODE_TOOLTIP = 'Adaptive plan: the optimizer did not use this operation';
+
 export interface NodeAriaLabelInput {
   id: number;
   operation: string;
@@ -12,6 +15,8 @@ export interface NodeAriaLabelInput {
   actualRows?: number;
   cost?: number;
   actualTime?: number;
+  /** Adaptive-plan operation the optimizer did not use. */
+  inactive?: boolean;
 }
 
 export interface NodeAriaLabelOptions {
@@ -47,6 +52,7 @@ export function planNodeAriaLabel(node: NodeAriaLabelInput, options: NodeAriaLab
     parts.push(`time ${formatDuration(node.actualTime)}`);
   }
   if (node.cost !== undefined) parts.push(`cost ${formatCount(node.cost)}`);
+  if (node.inactive) parts.push('inactive (adaptive plan)');
   if (options.isHotspot) parts.push('hotspot');
   if (options.findingCount && options.findingCount > 0) {
     parts.push(`${options.findingCount} advisor finding${options.findingCount === 1 ? '' : 's'}`);

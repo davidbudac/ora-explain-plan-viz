@@ -462,6 +462,11 @@ export function InputPanel() {
                     PHV: {parsedPlan.planHashValue}
                   </span>
                 )}
+                {parsedPlan.childNumber !== undefined && (
+                  <span title="Cursor child number">
+                    Child {parsedPlan.childNumber}
+                  </span>
+                )}
               </div>
             )}
           </div>

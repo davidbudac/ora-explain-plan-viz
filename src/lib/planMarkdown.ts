@@ -117,6 +117,7 @@ function buildHeading(plan: ParsedPlan): string {
   const parts: string[] = [];
   if (plan.sqlId) parts.push(`SQL ID \`${plan.sqlId}\``);
   if (plan.planHashValue) parts.push(`plan hash value \`${plan.planHashValue}\``);
+  if (plan.childNumber !== undefined) parts.push(`child number ${plan.childNumber}`);
   return parts.length > 0 ? `### Execution plan — ${parts.join(', ')}` : '### Execution plan';
 }
 
