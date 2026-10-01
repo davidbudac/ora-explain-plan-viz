@@ -8,6 +8,7 @@
 import { detectFormat } from './parser/index';
 import type { DetectedFormat } from './parser/index';
 import { isActiveReport } from './parser/activeReport';
+import { TRUNCATED_REPORT_MESSAGE, WRAPPED_TABLE_MESSAGE, looksTruncatedXml, looksWrappedTable } from './parser/warnings';
 
 export type SupportedFormatId =
   | 'dbms_xplan'
@@ -126,9 +127,15 @@ export function describeDetectedFormat(format: DetectedFormat): string | null {
  * truncated copy); otherwise fall back to the supported-formats message.
  */
 export function describeParseFailure(input: string, detected: DetectedFormat = safeDetect(input)): string {
+  // XML that never closes is a cut-off CLOB — the usual cause is SQL*Plus' default SET LONG 80.
+  if (looksTruncatedXml(input)) return TRUNCATED_REPORT_MESSAGE;
+  if (looksWrappedTable(input)) return WRAPPED_TABLE_MESSAGE;
   const name = describeDetectedFormat(detected);
   if (name) {
     return `Looks like ${name} but no plan operations were found. Check that the copy includes the whole plan table.`;
+  }
+  if (/^\s*\|\s*\d+\s*\|/m.test(input)) {
+    return `Found plan-table rows but no header row ("| Id | Operation | …"), so the columns cannot be read. Copy the plan from its first separator line. ${SUPPORTED_FORMATS_SENTENCE}`;
   }
   return PARSE_FAILED_MESSAGE;
 }

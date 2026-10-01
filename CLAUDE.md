@@ -70,6 +70,7 @@ src/
 │       ├── jsonPlanParser.ts  # JSON plan parser (V$SQL_PLAN_STATISTICS_ALL / Datadog / xdd.sql)
 │       ├── xbiParser.ts       # Tanel Poder xbi.sql (eXplain Better) output parser
 │       ├── noteSection.ts     # DBMS_XPLAN "Note" section parser
+│       ├── warnings.ts        # Partial-parse diagnostics (`ParsedPlan.warnings`): unknown columns, unread sections, unparsed rows / id gaps, wrapped or cut-off paste (SET LONG / LINESIZE advice), SQL*Plus wrapper around XML
 │       ├── values.ts          # Shared value parsers: T/P/E suffixes, suffixed costs (`4823K (1)`), Used-Mem passes, CRLF/tab normalisation
 │       ├── predicateSection.ts # Shared predicate-section parser (Id-less access/filter/storage lines, balanced-paren completion)
 │       ├── advancedSections.ts # DBMS_XPLAN ADVANCED sections: Outline Data, Hint Report, Column Projection, Remote SQL, Peeked Binds
@@ -100,6 +101,7 @@ src/
 │   ├── NodeDetailPanel.tsx  # Node details, hotspots, annotations, cardinality analysis
 │   ├── SelectionBreadcrumb.tsx # Tree breadcrumb of the selected operation's path (crumbs select the ancestor) + 'Return to selected'
 │   ├── AnalysisOverview.tsx # Dismissible 'where to look first' card over Tree/Tabular/Sankey/Flame (once per loaded plan; palette reopens)
+│   ├── PlanWarningsNotice.tsx # Dismissible amber notice for `ParsedPlan.warnings` (rendered by InputPanel)
 │   ├── FindingsPanel.tsx    # Plan advisor findings (per-node + full list, togglable)
 │   ├── VisualizationTabs.tsx # View switcher (hierarchical, compare, sankey, flame, tabular, text, sql, metadata, monitor, experimental)
 │   ├── PlanTabs.tsx         # Plan A/B tab bar with compare button
@@ -235,6 +237,7 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Storage Predicates**: Id-less `filter()` / `access()` / `storage()` lines attach to the current operation; `storage` shows in the details panel, search, client report, node summary, TSV, compare and AI text
 - **Adaptive Plans**: inactive rows (`-` prefix; SQL Monitor XML `skp="1"`) are dimmed (tree: half opacity, dashed border, 'inactive' chip; tabular: muted italic + tag), stay selectable, and carry no work of their own in flame/Sankey; excluded from totals, hotspots, self numbers and the advisor. The cursor child number shows in the drawer (`Child N`), plan-tab tooltip and Markdown heading
 - **SQL Monitor ACTIVE Reports**: HTML reports from `REPORT_SQL_MONITOR(type=>'ACTIVE')` load via paste, drop or file picker; the loaded text (autosave, Recent, share links) is the inflated XML
+- **Partial-Parse Warnings**: `ParsedPlan.warnings` (`parser/warnings.ts`) flags unknown columns, unread sections, unparsed rows / id gaps, predicates for missing ids, a wrapped (`LINESIZE`) or cut-off (`SET LONG`) paste and a stripped SQL*Plus wrapper around XML; shown in the drawer (`PlanWarningsNotice`) and passed to the AI context. Bundled examples and fixtures must parse with no warnings (tested)
 - **SQL Monitor XML Extras**: `<info>` entries → notes + plan info, `<outline_data>` → outline hints, `<parallel_info>` per-server stats; the Monitor tab adds Plan info, Outline hints (copy all) and Parallel servers + skew
 - **Node Indicator Metrics**: Configurable node badges showing cost, A-Rows, A-Time, starts, or activity %
 - **Hot Node Detection**: Automatically highlights the node with the highest self time — ASH activity % for SQL Monitor plans that carry it (red ring + "Hotspot" badge)

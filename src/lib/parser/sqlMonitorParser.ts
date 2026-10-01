@@ -1,4 +1,4 @@
-import type { PlanNode, ParsedPlan, SqlMonitorMetadata, ActivityTimeline, ActivitySample } from '../types';
+import type { PlanNode, ParsedPlan, PlanWarning, SqlMonitorMetadata, ActivityTimeline, ActivitySample } from '../types';
 import { planRootCost } from '../analysis';
 import type { PlanParser, BindVariable } from './types';
 import { parseNoteSection } from './noteSection';
@@ -10,6 +10,15 @@ import {
   parseOutlineHints,
   parseParallelInfo,
 } from './sqlMonitorXmlExtras';
+import {
+  isIgnoredHeader,
+  isRejectedRow,
+  looksTruncatedXml,
+  stripXmlWrapper,
+  textTableWarnings,
+  truncatedXmlWarning,
+  xmlWrapperWarning,
+} from './warnings';
 import { alignColumnsToRow, pipeIndexes } from './rowAlign';
 import { parsePredicateSection, parseQueryBlockSection } from './predicateSection';
 import type { NodePredicates, NodeQueryBlock } from './predicateSection';
@@ -49,13 +58,18 @@ export const sqlMonitorTextParser: PlanParser = {
     const planHashValue = extractPlanHashValue(lines);
 
     // Parse the plan table with actual statistics
-    const tableData = parseSqlMonitorTable(lines);
+    const table = parseSqlMonitorTable(lines);
+    const tableData = table.rows;
 
     if (tableData.length === 0) {
+      const emptyWarnings = table.headerIndex >= 0
+        ? textTableWarnings({ lines, headerIndex: table.headerIndex, unknownColumns: [], rejectedLines: table.rejectedLines, nodeIds: [], predicateIds: [] })
+        : [];
       return {
         planHashValue,
         sqlId,
         childNumber,
+        warnings: emptyWarnings.length > 0 ? emptyWarnings : undefined,
         rootNode: null,
         allNodes: [],
         totalCost: 0,
@@ -87,6 +101,24 @@ export const sqlMonitorTextParser: PlanParser = {
     // Parse the trailing "Note" section, if present.
     const notes = parseNoteSection(lines);
 
+    const warnings: PlanWarning[] = textTableWarnings({
+      lines,
+      headerIndex: table.headerIndex,
+      unknownColumns: table.unknownColumns,
+      rejectedLines: table.rejectedLines,
+      nodeIds: allNodes.map(node => node.id),
+      predicateIds: [...predicates.keys()],
+    });
+    if (!SQL_MONITOR_MARKERS.test(input)) {
+      // Reached only through the bare "Id | Operation | … | A-Rows" clause of canParse.
+      warnings.unshift({
+        code: 'bare_a_rows_table',
+        severity: 'info',
+        message:
+          "No \"Plan hash value:\" line was found, so this A-Rows table was read as a SQL Monitor text report. Include the whole DBMS_XPLAN output (from the \"Plan hash value:\" line) to also get Buffers, memory columns and query blocks.",
+      });
+    }
+
     return {
       planHashValue,
       sqlId,
@@ -97,6 +129,7 @@ export const sqlMonitorTextParser: PlanParser = {
       maxRows: hasActualStats ? maxActualRows : maxRows,
       maxActualRows: hasActualStats ? maxActualRows : undefined,
       maxStarts: hasActualStats ? maxStarts : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
       source: 'sql_monitor_text',
       hasActualStats,
       totalElapsedTime,
@@ -124,8 +157,10 @@ export const sqlMonitorXmlParser: PlanParser = {
   },
 
   parse(input: string): ParsedPlan {
+    // SQL*Plus output usually wraps the document: a command echo above it, "1 row selected." below.
+    const wrapper = stripXmlWrapper(input);
     const domParser = new DOMParser();
-    const doc = domParser.parseFromString(input, 'text/xml');
+    const doc = domParser.parseFromString(wrapper.xml, 'text/xml');
 
     // Check for parse errors
     const parseError = doc.querySelector('parsererror');
@@ -137,6 +172,11 @@ export const sqlMonitorXmlParser: PlanParser = {
         maxRows: 0,
         source: 'sql_monitor_xml',
         hasActualStats: false,
+        warnings: [
+          looksTruncatedXml(input)
+            ? truncatedXmlWarning()
+            : { code: 'xml_unparseable', message: 'The XML is not well-formed, so no plan could be read from it.' },
+        ],
       };
     }
 
@@ -146,11 +186,10 @@ export const sqlMonitorXmlParser: PlanParser = {
       doc.querySelector('sql_monitor_report')
     );
 
-    if (isRealOracleFormat) {
-      return parseRealOracleXml(doc);
-    } else {
-      return parseLegacyXml(doc);
-    }
+    const plan = isRealOracleFormat ? parseRealOracleXml(doc) : parseLegacyXml(doc);
+    const ignored = xmlWrapperWarning(wrapper);
+    if (ignored) plan.warnings = [...(plan.warnings ?? []), ignored];
+    return plan;
   },
 };
 
@@ -231,8 +270,17 @@ interface SqlMonitorColumnPositions {
   activity?: { start: number; end: number };
 }
 
-function parseSqlMonitorTable(lines: string[]): RawSqlMonitorRow[] {
+interface SqlMonitorTable {
+  rows: RawSqlMonitorRow[];
+  headerIndex: number;
+  unknownColumns: string[];
+  rejectedLines: string[];
+}
+
+function parseSqlMonitorTable(lines: string[]): SqlMonitorTable {
   const rows: RawSqlMonitorRow[] = [];
+  const rejectedLines: string[] = [];
+  const unknownColumns: string[] = [];
 
   // Find the header line
   let headerLineIndex = -1;
@@ -248,7 +296,7 @@ function parseSqlMonitorTable(lines: string[]): RawSqlMonitorRow[] {
   }
 
   if (headerLineIndex === -1) {
-    return rows;
+    return { rows, headerIndex: -1, unknownColumns, rejectedLines };
   }
 
   // Some SQL Monitor reports use a two-line header where the second line holds
@@ -263,7 +311,7 @@ function parseSqlMonitorTable(lines: string[]): RawSqlMonitorRow[] {
   }
 
   // Parse column positions
-  const columns = parseSqlMonitorColumnPositions(headerLine, secondHeaderLine);
+  const columns = parseSqlMonitorColumnPositions(headerLine, secondHeaderLine, unknownColumns);
   const headerPipes = pipeIndexes(headerLine);
 
   // Parse data rows
@@ -290,17 +338,24 @@ function parseSqlMonitorTable(lines: string[]): RawSqlMonitorRow[] {
     }
 
     if (/^\|/.test(line)) {
-      const row = parseSqlMonitorDataRow(line, alignColumnsToRow(columns, headerPipes, line));
+      const aligned = alignColumnsToRow(columns, headerPipes, line);
+      const row = parseSqlMonitorDataRow(line, aligned);
       if (row) {
         rows.push(row);
+      } else if (isRejectedRow(line, line.substring(aligned.id.start, aligned.id.end))) {
+        rejectedLines.push(line);
       }
     }
   }
 
-  return rows;
+  return { rows, headerIndex: headerLineIndex, unknownColumns, rejectedLines };
 }
 
-function parseSqlMonitorColumnPositions(headerLine: string, secondHeaderLine: string = ''): SqlMonitorColumnPositions {
+function parseSqlMonitorColumnPositions(
+  headerLine: string,
+  secondHeaderLine: string = '',
+  unknownColumns: string[] = [],
+): SqlMonitorColumnPositions {
   const cols: SqlMonitorColumnPositions = {
     id: { start: 0, end: 0 },
     operation: { start: 0, end: 0 },
@@ -382,6 +437,10 @@ function parseSqlMonitorColumnPositions(headerLine: string, secondHeaderLine: st
       prevWriteKind = kind;
     } else if (segment === 'activity' || segment === 'activity %' || combined.includes('activity (%)')) {
       cols.activity = { start, end };
+    } else if (!isIgnoredHeader(combined)) {
+      const original = headerLine.substring(start, end).trim();
+      const subOriginal = secondHeaderLine ? secondHeaderLine.substring(start, Math.min(end, secondHeaderLine.length)).trim() : '';
+      unknownColumns.push(`${original} ${subOriginal}`.trim());
     }
   }
 

@@ -7,6 +7,9 @@ import { xbiParser } from './xbiParser';
 import { normalizeNewlines } from './values';
 import { computeEstimatedRowTotals, computeSelfCosts, computeSelfTimes } from '../analysis';
 
+const SUPPORTED_FORMATS_HINT =
+  'Supported: DBMS_XPLAN, SQL Monitor (text / XML / ACTIVE), V$SQL_PLAN JSON and xbi.sql output.';
+
 /**
  * List of available parsers in priority order.
  * JSON parser is checked first as it has the most unambiguous detection (starts with '[').
@@ -72,6 +75,15 @@ export function parsePlan(input: string): ParsedPlan {
 
   // Fallback to DBMS_XPLAN parser for unknown formats
   const plan = dbmsXplanParser.parse(input);
+  if (!plan.rootNode) {
+    plan.warnings = [
+      ...(plan.warnings ?? []),
+      {
+        code: 'unrecognised_format',
+        message: `The text matched none of the supported formats, so it was tried as DBMS_XPLAN output and no plan table was found. ${SUPPORTED_FORMATS_HINT}`,
+      },
+    ];
+  }
   return finalizePlan(plan);
 }
 

@@ -14,6 +14,8 @@
  * turns either into plain XML the SQL Monitor XML parser already understands.
  */
 
+import { TRUNCATION_ADVICE } from './warnings';
+
 /** Only the head of a paste is inspected for detection — the script tag sits near the top. */
 const DETECT_WINDOW = 20_000;
 
@@ -22,6 +24,8 @@ const FXTMODEL_MARK = /\bid\s*=\s*["']fxtmodel["']/i;
 const ENCODED_REPORT_TAG = /<report\b[^>]*\bencode\s*=\s*["']base64["']/i;
 const REPORT_OPEN = /<report\b([^>]*)>/i;
 const REPORT_ID = /<report_id\b[^>]*>[\s\S]*?<\/report_id>/i;
+
+export const ACTIVE_REPORT_TRUNCATED_ERROR = `The ACTIVE report looks cut off — its embedded data ends before the closing tag. ${TRUNCATION_ADVICE}`;
 
 export const ACTIVE_REPORT_DECODE_ERROR =
   "The ACTIVE report's embedded data could not be decoded — re-export it or use type => 'XML'.";
@@ -83,7 +87,8 @@ export async function decodeActiveReport(text: string): Promise<string> {
   const open = REPORT_OPEN.exec(model);
   const close = model.lastIndexOf('</report>');
   if (!open || close < open.index + open[0].length) {
-    throw new Error(ACTIVE_REPORT_DECODE_ERROR);
+    // An opened <report> that never closes is a cut-off CLOB (SQL*Plus default LONG 80 …).
+    throw new Error(open && close < 0 ? ACTIVE_REPORT_TRUNCATED_ERROR : ACTIVE_REPORT_DECODE_ERROR);
   }
 
   const attrs = open[1];

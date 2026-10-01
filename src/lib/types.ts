@@ -97,6 +97,20 @@ export interface HintSummary {
 export type PlanSource = 'dbms_xplan' | 'sql_monitor_text' | 'sql_monitor_xml' | 'json' | 'xbi';
 export type NodeIndicatorMetric = 'cost' | 'actualRows' | 'actualTime' | 'starts' | 'activityPercent';
 
+/**
+ * Something the parser could not read or had to guess at. The plan still loads, but the user
+ * is told what is missing (see `lib/parser/warnings.ts`). `code` is stable (tests, dismissal).
+ */
+export interface PlanWarning {
+  code: string;
+  /** Short plain-English sentence: what was lost and what to do about it. */
+  message: string;
+  /** Specifics (column names, row ids, ...) for the expanded view. */
+  detail?: string;
+  /** `info` = nothing was lost (e.g. noise was ignored); default `warn`. */
+  severity?: 'info' | 'warn';
+}
+
 export interface ParsedPlan {
   planHashValue?: string;
   rootNode: PlanNode | null;
@@ -139,6 +153,9 @@ export interface ParsedPlan {
 
   // Hint Report totals (DBMS_XPLAN ADVANCED, 19c+); per-hint detail is on `PlanNode.hints`.
   hintSummary?: HintSummary;
+
+  // Partial-parse diagnostics: dropped columns/sections, unreadable rows, a cut-off paste ...
+  warnings?: PlanWarning[];
 }
 
 /** One ASH sample from a SQL Monitor report-level <activity_detail> bucket. */
