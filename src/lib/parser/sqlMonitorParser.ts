@@ -3,6 +3,17 @@ import { planRootCost } from '../analysis';
 import type { PlanParser, BindVariable } from './types';
 import { parseNoteSection } from './noteSection';
 import {
+  normalizeObjectAlias,
+  isSkippedOperation,
+  parsePlanInfo,
+  planNotesFromInfo,
+  parseOutlineHints,
+  parseParallelInfo,
+} from './sqlMonitorXmlExtras';
+import { alignColumnsToRow, pipeIndexes } from './rowAlign';
+import { parsePredicateSection, parseQueryBlockSection } from './predicateSection';
+import type { NodePredicates, NodeQueryBlock } from './predicateSection';
+import {
   expandTableTabs,
   normalizeNewlines,
   parseByteSize,
@@ -34,6 +45,7 @@ export const sqlMonitorTextParser: PlanParser = {
 
     // Extract SQL ID if present
     const sqlId = extractSqlId(lines);
+    const childNumber = extractChildNumber(lines);
     const planHashValue = extractPlanHashValue(lines);
 
     // Parse the plan table with actual statistics
@@ -43,6 +55,7 @@ export const sqlMonitorTextParser: PlanParser = {
       return {
         planHashValue,
         sqlId,
+        childNumber,
         rootNode: null,
         allNodes: [],
         totalCost: 0,
@@ -53,16 +66,19 @@ export const sqlMonitorTextParser: PlanParser = {
     }
 
     // Parse predicate information (same format as DBMS_XPLAN)
-    const predicates = parsePredicates(lines);
+    const predicates = parsePredicateSection(lines);
+    const queryBlocks = parseQueryBlockSection(lines);
 
     // Build tree structure
-    const { rootNode, allNodes } = buildTree(tableData, predicates);
+    const { rootNode, allNodes } = buildTree(tableData, predicates, queryBlocks);
 
     // Calculate totals
     const totalCost = planRootCost(rootNode, allNodes);
-    const maxRows = Math.max(...allNodes.map(node => node.rows || 0));
-    const maxActualRows = Math.max(...allNodes.map(node => node.actualRows || 0), 0);
-    const maxStarts = Math.max(...allNodes.map(node => node.starts || 0), 0);
+    // Inactive adaptive-plan rows are not part of the executed plan: keep them out of the scales.
+    const activeNodes = allNodes.filter(node => !node.inactive);
+    const maxRows = Math.max(...activeNodes.map(node => node.rows || 0), 0);
+    const maxActualRows = Math.max(...activeNodes.map(node => node.actualRows || 0), 0);
+    const maxStarts = Math.max(...activeNodes.map(node => node.starts || 0), 0);
     const hasActualStats = allNodes.some(node => node.actualRows !== undefined);
 
     // A-Time is cumulative: root node's actualTime is the total elapsed time
@@ -74,6 +90,7 @@ export const sqlMonitorTextParser: PlanParser = {
     return {
       planHashValue,
       sqlId,
+      childNumber,
       rootNode,
       allNodes,
       totalCost,
@@ -159,6 +176,8 @@ interface RawSqlMonitorRow {
   ioWriteBytes?: number;
   activityPercent?: number;
   depth: number;
+  /** Adaptive-plan row marked '-' in the Id column. */
+  inactive: boolean;
 }
 
 function extractSqlId(lines: string[]): string | undefined {
@@ -170,6 +189,15 @@ function extractSqlId(lines: string[]): string | undefined {
     if (match) {
       return match[1];
     }
+  }
+  return undefined;
+}
+
+/** Cursor child number from a DISPLAY_CURSOR header ("SQL_ID  7ch0an9vx5ysp, child number 1"). */
+function extractChildNumber(lines: string[]): number | undefined {
+  for (const line of lines) {
+    const match = line.match(/^\s*SQL_ID\s+\w+\s*,\s*child\s+number\s+(\d+)/i);
+    if (match) return parseInt(match[1], 10);
   }
   return undefined;
 }
@@ -236,6 +264,7 @@ function parseSqlMonitorTable(lines: string[]): RawSqlMonitorRow[] {
 
   // Parse column positions
   const columns = parseSqlMonitorColumnPositions(headerLine, secondHeaderLine);
+  const headerPipes = pipeIndexes(headerLine);
 
   // Parse data rows
   for (let i = dataStartIndex; i < lines.length; i++) {
@@ -261,7 +290,7 @@ function parseSqlMonitorTable(lines: string[]): RawSqlMonitorRow[] {
     }
 
     if (/^\|/.test(line)) {
-      const row = parseSqlMonitorDataRow(line, columns);
+      const row = parseSqlMonitorDataRow(line, alignColumnsToRow(columns, headerPipes, line));
       if (row) {
         rows.push(row);
       }
@@ -367,6 +396,7 @@ function parseSqlMonitorDataRow(line: string, columns: SqlMonitorColumnPositions
   }
 
   const id = parseInt(idMatch[1], 10);
+  const inactive = /^-(?!>)/.test(idStr); // "->" marks the currently executing row, not a skipped one
 
   const operationRaw = line.substring(columns.operation.start, columns.operation.end);
   const depth = calculateDepth(operationRaw);
@@ -383,6 +413,7 @@ function parseSqlMonitorDataRow(line: string, columns: SqlMonitorColumnPositions
     operation,
     objectName,
     depth,
+    inactive,
   };
 
   if (columns.rows) {
@@ -471,80 +502,10 @@ function calculateDepth(operationStr: string): number {
   return Math.floor(spaces / 1);
 }
 
-function parsePredicates(lines: string[]): Map<number, { access?: string; filter?: string }> {
-  const predicates = new Map<number, { access?: string; filter?: string }>();
-
-  // Find predicate section
-  let inPredicateSection = false;
-  let currentId: number | null = null;
-  let currentType: 'access' | 'filter' | null = null;
-  let currentText = '';
-
-  for (const line of lines) {
-    if (/Predicate Information/i.test(line)) {
-      inPredicateSection = true;
-      continue;
-    }
-
-    if (!inPredicateSection) {
-      continue;
-    }
-
-    // Stop at next section or empty lines after predicates
-    if (/^[A-Z].*:$/i.test(line.trim()) && !/^\s*\d+\s*-/.test(line)) {
-      break;
-    }
-
-    // Parse predicate lines like "3 - access(...)" or "3 - filter(...)"
-    const predicateMatch = line.match(/^\s*(\d+)\s*-\s*(access|filter)\s*\((.+)\)?\s*$/i);
-    if (predicateMatch) {
-      // Save previous predicate if any
-      if (currentId !== null && currentType && currentText) {
-        const existing = predicates.get(currentId) || {};
-        existing[currentType] = currentText;
-        predicates.set(currentId, existing);
-      }
-
-      currentId = parseInt(predicateMatch[1], 10);
-      currentType = predicateMatch[2].toLowerCase() as 'access' | 'filter';
-      currentText = predicateMatch[3] || '';
-
-      // Handle case where predicate text is complete on this line
-      if (currentText.endsWith(')') || !line.includes('(')) {
-        const existing = predicates.get(currentId) || {};
-        existing[currentType] = currentText.replace(/\)$/, '');
-        predicates.set(currentId, existing);
-        currentId = null;
-        currentType = null;
-        currentText = '';
-      }
-    } else if (currentId !== null && currentType && line.trim()) {
-      // Continuation of multi-line predicate
-      currentText += ' ' + line.trim();
-      if (line.trim().endsWith(')')) {
-        const existing = predicates.get(currentId) || {};
-        existing[currentType] = currentText.replace(/\)$/, '');
-        predicates.set(currentId, existing);
-        currentId = null;
-        currentType = null;
-        currentText = '';
-      }
-    }
-  }
-
-  // Save any remaining predicate
-  if (currentId !== null && currentType && currentText) {
-    const existing = predicates.get(currentId) || {};
-    existing[currentType] = currentText.replace(/\)$/, '');
-    predicates.set(currentId, existing);
-  }
-
-  return predicates;
-}
-
 function buildTree(
   rows: RawSqlMonitorRow[],
-  predicates: Map<number, { access?: string; filter?: string }>
+  predicates: Map<number, NodePredicates>,
+  queryBlocks: Map<number, NodeQueryBlock>
 ): { rootNode: PlanNode | null; allNodes: PlanNode[] } {
   if (rows.length === 0) {
     return { rootNode: null, allNodes: [] };
@@ -555,6 +516,7 @@ function buildTree(
 
   for (const row of rows) {
     const preds = predicates.get(row.id);
+    const qb = queryBlocks.get(row.id);
     const node: PlanNode = {
       id: row.id,
       depth: row.depth,
@@ -577,6 +539,10 @@ function buildTree(
       activityPercent: row.activityPercent,
       accessPredicates: preds?.access,
       filterPredicates: preds?.filter,
+      storagePredicates: preds?.storage,
+      queryBlock: qb?.queryBlock,
+      objectAlias: qb?.objectAlias,
+      inactive: row.inactive || undefined,
       children: [],
     };
 
@@ -722,9 +688,11 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
 
   // Calculate totals
   const totalCost = planRootCost(rootNode, allNodes);
-  const maxRows = Math.max(...allNodes.map(node => node.actualRows || node.rows || 0), 0);
-  const maxActualRows = Math.max(...allNodes.map(node => node.actualRows || 0), 0);
-  const maxStarts = Math.max(...allNodes.map(node => node.starts || 0), 0);
+  // Operations an adaptive plan skipped (skp="1") stay in the tree but out of the totals
+  const activeNodes = allNodes.filter(node => !node.inactive);
+  const maxRows = Math.max(...activeNodes.map(node => node.actualRows || node.rows || 0), 0);
+  const maxActualRows = Math.max(...activeNodes.map(node => node.actualRows || 0), 0);
+  const maxStarts = Math.max(...activeNodes.map(node => node.starts || 0), 0);
   const hasActualStats = allNodes.some(node => node.actualRows !== undefined);
   // Global elapsed time in milliseconds (Oracle stores in microseconds)
   const totalElapsedTime = globalElapsedTimeUs
@@ -733,6 +701,12 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
 
   // Parse bind variables
   const bindVariables = parseBindVariables(doc);
+
+  // Plan <info> entries, Note-section equivalents, outline hints and PX session stats
+  const planInfo = parsePlanInfo(doc);
+  const notes = planNotesFromInfo(planInfo);
+  const outlineHints = parseOutlineHints(doc);
+  const parallelInfo = parseParallelInfo(doc);
 
   // Build rich monitor metadata
   const monitorMetadata: SqlMonitorMetadata = {
@@ -784,9 +758,14 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
     optimizerEnv: parseOptimizerEnv(doc),
 
     // Parallel execution
-    dop: parseIntOrUndef(target?.getAttribute('dop')),
-    pxServersRequested: getStatByName(globalStats, 'servers_requested'),
-    pxServersAllocated: getStatByName(globalStats, 'servers_allocated'),
+    dop: parseIntOrUndef(target?.getAttribute('dop')) ?? parallelInfo?.dop,
+    pxServersRequested:
+      getStatByName(globalStats, 'servers_requested') ?? parallelInfo?.serversRequested,
+    pxServersAllocated:
+      getStatByName(globalStats, 'servers_allocated') ?? parallelInfo?.serversAllocated,
+    parallelServers: parallelInfo && parallelInfo.servers.length > 0 ? parallelInfo.servers : undefined,
+    pxServerSets: parallelInfo?.serverSets,
+    pxServerGroups: parallelInfo?.serverGroups,
   };
 
   // Strip undefined values
@@ -812,6 +791,9 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
     bindVariables: bindVariables.length > 0 ? bindVariables : undefined,
     monitorMetadata: Object.keys(monitorMetadata).length > 0 ? monitorMetadata : undefined,
     activityTimeline,
+    notes,
+    planInfo,
+    outlineHints,
   };
 }
 
@@ -860,7 +842,7 @@ function parsePlanSection(doc: Document): Map<number, PlanEstimates> {
     // Object alias
     const alias = op.querySelector(':scope > object_alias');
     if (alias?.textContent) {
-      estimates.objectAlias = alias.textContent.trim();
+      estimates.objectAlias = normalizeObjectAlias(alias.textContent);
     }
 
     // Query block
@@ -1047,6 +1029,9 @@ function parseMonitorOperation(
     children: [],
   };
 
+  // Adaptive plan: operation skipped at runtime (skp="1")
+  if (isSkippedOperation(op)) node.inactive = true;
+
   // Parent ID
   const parentAttr = op.getAttribute('parent_id');
   if (parentAttr) {
@@ -1080,7 +1065,7 @@ function parsePlanOnlyOperation(op: Element): PlanNode | null {
     depth,
     operation,
     objectName,
-    objectAlias: op.querySelector(':scope > object_alias')?.textContent?.trim(),
+    objectAlias: normalizeObjectAlias(op.querySelector(':scope > object_alias')?.textContent),
     queryBlock: op.querySelector(':scope > qblock')?.textContent?.trim(),
     rows: getDirectChildInt(op, 'card'),
     bytes: getDirectChildInt(op, 'bytes'),
@@ -1100,6 +1085,8 @@ function parsePlanOnlyOperation(op: Element): PlanNode | null {
       else if (type === 'filter') node.filterPredicates = text;
     }
   });
+
+  if (isSkippedOperation(op)) node.inactive = true;
 
   // Build parent-child by depth (no parent_id in <plan> operations)
   // Parent relationships will be built by the tree builder based on depth+position

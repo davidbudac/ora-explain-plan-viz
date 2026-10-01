@@ -77,13 +77,14 @@ export function renderPlanTable(plan: ParsedPlan): string {
   return lines.join('\n');
 }
 
-/** Render the per-id access/filter predicate listing, DBMS_XPLAN style. */
+/** Render the per-id access/filter/storage predicate listing, DBMS_XPLAN style. */
 export function renderPredicates(plan: ParsedPlan): string {
   const lines: string[] = [];
   const nodes = [...plan.allNodes].sort((a, b) => a.id - b.id);
   for (const node of nodes) {
     if (node.accessPredicates) lines.push(`  ${node.id} - access(${node.accessPredicates})`);
     if (node.filterPredicates) lines.push(`  ${node.id} - filter(${node.filterPredicates})`);
+    if (node.storagePredicates) lines.push(`  ${node.id} - storage(${node.storagePredicates})`);
   }
   if (lines.length === 0) return '';
   return ['Predicate Information (identified by operation id):', ...lines].join('\n');

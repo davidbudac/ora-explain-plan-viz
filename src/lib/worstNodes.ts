@@ -21,7 +21,7 @@ export function computeWorstNodes(plan: ParsedPlan | null): WorstNodes {
   if (!plan) return { byCost: [], byTime: [], timeBy: 'time' };
 
   const byCost = plan.allNodes
-    .filter((n) => n.parentId !== undefined && n.selfCost !== undefined)
+    .filter((n) => n.parentId !== undefined && !n.inactive && n.selfCost !== undefined)
     .sort((a, b) => (b.selfCost ?? 0) - (a.selfCost ?? 0))
     .slice(0, WORST_COUNT);
 
