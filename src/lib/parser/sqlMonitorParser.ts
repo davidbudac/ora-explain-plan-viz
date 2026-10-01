@@ -2,6 +2,18 @@ import type { PlanNode, ParsedPlan, SqlMonitorMetadata, ActivityTimeline, Activi
 import { planRootCost } from '../analysis';
 import type { PlanParser, BindVariable } from './types';
 import { parseNoteSection } from './noteSection';
+import {
+  expandTableTabs,
+  normalizeNewlines,
+  parseByteSize,
+  parseCostCell,
+  parseCount,
+  parseTimeToMs,
+  parseUsedMem,
+} from './values';
+
+/** Header markers that only a SQL Monitor report carries. */
+const SQL_MONITOR_MARKERS = /SQL Monitoring Report|SQL Plan Monitoring Details|Global Stats/i;
 
 /**
  * Parser for Oracle SQL Monitor text report output.
@@ -10,16 +22,15 @@ import { parseNoteSection } from './noteSection';
 export const sqlMonitorTextParser: PlanParser = {
   canParse(input: string): boolean {
     // SQL Monitor text reports typically contain these markers
-    return (
-      /SQL Monitoring Report/i.test(input) ||
-      /SQL Plan Monitoring Details/i.test(input) ||
-      /Global Stats/i.test(input) ||
-      (/\|\s*Id\s*\|.*A-Rows/i.test(input)) // Has actual rows column
-    );
+    if (SQL_MONITOR_MARKERS.test(input)) return true;
+    // A bare table with an A-Rows column (hand-made input). With a "Plan hash value:"
+    // line it is DBMS_XPLAN.DISPLAY_CURSOR ALLSTATS output, which the DBMS_XPLAN
+    // parser reads faithfully (Buffers, OMem/1Mem/Used-Mem, query blocks, Pstart…).
+    return /\|\s*Id\s*\|.*A-Rows/i.test(input) && !/Plan\s+hash\s+value\s*:\s*\d+/i.test(input);
   },
 
   parse(input: string): ParsedPlan {
-    const lines = input.split('\n');
+    const lines = expandTableTabs(normalizeNewlines(input).split('\n'));
 
     // Extract SQL ID if present
     const sqlId = extractSqlId(lines);
@@ -375,17 +386,17 @@ function parseSqlMonitorDataRow(line: string, columns: SqlMonitorColumnPositions
   };
 
   if (columns.rows) {
-    const val = parseNumericValue(line.substring(columns.rows.start, columns.rows.end).trim());
+    const val = parseCount(line.substring(columns.rows.start, columns.rows.end).trim());
     if (val !== null) row.rows = val;
   }
 
   if (columns.cost) {
-    const val = parseNumericValue(line.substring(columns.cost.start, columns.cost.end).trim());
-    if (val !== null) row.cost = val;
+    const val = parseCostCell(line.substring(columns.cost.start, columns.cost.end));
+    if (val) row.cost = val.cost;
   }
 
   if (columns.aRows) {
-    const val = parseNumericValue(line.substring(columns.aRows.start, columns.aRows.end).trim());
+    const val = parseCount(line.substring(columns.aRows.start, columns.aRows.end).trim());
     if (val !== null) row.actualRows = val;
   }
 
@@ -396,27 +407,28 @@ function parseSqlMonitorDataRow(line: string, columns: SqlMonitorColumnPositions
   }
 
   if (columns.starts) {
-    const val = parseNumericValue(line.substring(columns.starts.start, columns.starts.end).trim());
+    const val = parseCount(line.substring(columns.starts.start, columns.starts.end).trim());
     if (val !== null) row.starts = val;
   }
 
   if (columns.memory) {
-    const val = parseMemoryValue(line.substring(columns.memory.start, columns.memory.end).trim());
-    if (val !== null) row.memoryUsed = val;
+    // Used-Mem may carry its pass count ("1385K (0)"); the count is ignored here
+    const val = parseUsedMem(line.substring(columns.memory.start, columns.memory.end));
+    if (val) row.memoryUsed = val.bytes;
   }
 
   if (columns.temp) {
-    const val = parseMemoryValue(line.substring(columns.temp.start, columns.temp.end).trim());
+    const val = parseByteSize(line.substring(columns.temp.start, columns.temp.end).trim());
     if (val !== null) row.tempUsed = val;
   }
 
   if (columns.tempEst) {
-    const val = parseMemoryValue(line.substring(columns.tempEst.start, columns.tempEst.end).trim());
+    const val = parseByteSize(line.substring(columns.tempEst.start, columns.tempEst.end).trim());
     if (val !== null) row.tempSpace = val;
   }
 
   if (columns.reads) {
-    const val = parseNumericValue(line.substring(columns.reads.start, columns.reads.end).trim());
+    const val = parseCount(line.substring(columns.reads.start, columns.reads.end).trim());
     if (val !== null) {
       row.physicalReads = val;
       row.ioReadRequests = val;
@@ -424,17 +436,17 @@ function parseSqlMonitorDataRow(line: string, columns: SqlMonitorColumnPositions
   }
 
   if (columns.readBytes) {
-    const val = parseMemoryValue(line.substring(columns.readBytes.start, columns.readBytes.end).trim());
+    const val = parseByteSize(line.substring(columns.readBytes.start, columns.readBytes.end).trim());
     if (val !== null) row.ioReadBytes = val;
   }
 
   if (columns.writeReqs) {
-    const val = parseNumericValue(line.substring(columns.writeReqs.start, columns.writeReqs.end).trim());
+    const val = parseCount(line.substring(columns.writeReqs.start, columns.writeReqs.end).trim());
     if (val !== null) row.ioWriteRequests = val;
   }
 
   if (columns.writeBytes) {
-    const val = parseMemoryValue(line.substring(columns.writeBytes.start, columns.writeBytes.end).trim());
+    const val = parseByteSize(line.substring(columns.writeBytes.start, columns.writeBytes.end).trim());
     if (val !== null) row.ioWriteBytes = val;
   }
 
@@ -457,64 +469,6 @@ function calculateDepth(operationStr: string): number {
     }
   }
   return Math.floor(spaces / 1);
-}
-
-function parseNumericValue(str: string): number | null {
-  const cleaned = str.replace(/,/g, '').trim();
-  if (!cleaned || cleaned === '') return null;
-
-  const suffixMatch = cleaned.match(/^([\d.]+)\s*([KMG])?$/i);
-  if (suffixMatch) {
-    let value = parseFloat(suffixMatch[1]);
-    const suffix = (suffixMatch[2] || '').toUpperCase();
-    if (suffix === 'K') value *= 1000;
-    else if (suffix === 'M') value *= 1000000;
-    else if (suffix === 'G') value *= 1000000000;
-    return Math.round(value);
-  }
-
-  const num = parseInt(cleaned, 10);
-  return isNaN(num) ? null : num;
-}
-
-function parseTimeToMs(timeStr: string): number | null {
-  if (!timeStr) return null;
-
-  // Format: HH:MM:SS.ss or SS.ss or similar
-  const hhmmssMatch = timeStr.match(/(\d+):(\d+):(\d+)(?:\.(\d+))?/);
-  if (hhmmssMatch) {
-    const hours = parseInt(hhmmssMatch[1], 10);
-    const minutes = parseInt(hhmmssMatch[2], 10);
-    const seconds = parseInt(hhmmssMatch[3], 10);
-    const fraction = hhmmssMatch[4] ? parseInt(hhmmssMatch[4], 10) / Math.pow(10, hhmmssMatch[4].length) : 0;
-    return (hours * 3600 + minutes * 60 + seconds + fraction) * 1000;
-  }
-
-  // Just seconds
-  const secMatch = timeStr.match(/([\d.]+)\s*(?:s|sec)?/i);
-  if (secMatch) {
-    return parseFloat(secMatch[1]) * 1000;
-  }
-
-  return null;
-}
-
-function parseMemoryValue(str: string): number | null {
-  const cleaned = str.replace(/,/g, '').trim();
-  if (!cleaned) return null;
-
-  const match = cleaned.match(/^([\d.]+)\s*([KMGT])?B?$/i);
-  if (match) {
-    let value = parseFloat(match[1]);
-    const suffix = (match[2] || '').toUpperCase();
-    if (suffix === 'K') value *= 1024;
-    else if (suffix === 'M') value *= 1024 * 1024;
-    else if (suffix === 'G') value *= 1024 * 1024 * 1024;
-    else if (suffix === 'T') value *= 1024 * 1024 * 1024 * 1024;
-    return Math.round(value);
-  }
-
-  return parseNumericValue(str);
 }
 
 function parsePredicates(lines: string[]): Map<number, { access?: string; filter?: string }> {

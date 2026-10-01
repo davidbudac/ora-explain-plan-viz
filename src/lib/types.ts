@@ -9,6 +9,9 @@ export interface PlanNode {
   operation: string;
   objectName?: string;
   alias?: string;
+  // Adaptive plan row the optimizer did not use ('-' Id prefix with +ADAPTIVE). Kept in the
+  // tree for its shape, excluded from totals, self cost/time and advisor findings.
+  inactive?: boolean;
 
   // Estimated statistics (from optimizer)
   rows?: number;
@@ -38,7 +41,13 @@ export interface PlanNode {
   estimatedRowsTotal?: number;
   selfCost?: number;         // cost of this operation only: max(0, cost − Σ children cost) — derived post-parse
   physicalReads?: number;    // physical read requests (count)
+  physicalWrites?: number;   // physical writes (DISPLAY_CURSOR Writes, V$SQL_PLAN_STATISTICS disk_writes)
   logicalReads?: number;     // buffer gets (count)
+  // Work areas (sorts, hash joins, ...). Estimates come from the optimizer, passes from the last execution.
+  estimatedOptimalMemory?: number;  // bytes — memory for an in-memory (optimal) run (ALLSTATS OMem)
+  estimatedOnePassMemory?: number;  // bytes — memory for a one-pass run (ALLSTATS 1Mem)
+  workareaPasses?: number;          // last execution: 0 = optimal, 1 = one-pass, >1 = multipass (Used-Mem "(n)")
+  workareaExecutions?: { optimal: number; onePass: number; multipass: number }; // ALLSTATS (not LAST) O/1/M column
   ioReadRequests?: number;   // I/O read requests (count)
   ioReadBytes?: number;      // I/O read bytes
   ioWriteRequests?: number;  // I/O write requests (count)
