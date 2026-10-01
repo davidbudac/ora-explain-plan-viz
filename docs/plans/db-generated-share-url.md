@@ -1,6 +1,6 @@
 # Plan: DB-to-URL — generate a shareable visualizer link directly from the database
 
-Status: **approved design, not yet implemented** (2026-07-05)
+Status: **implemented** (2026-07-10; app-side 2026-07-05 via `src/lib/url.ts`, DB script `scripts/plan_to_url.sql`)
 
 ## Context
 

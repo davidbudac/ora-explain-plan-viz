@@ -16,7 +16,7 @@ Or skip copy/paste: [`scripts/plan_to_url.sql`](../scripts/plan_to_url.sql) buil
 
 ### DBMS_XPLAN
 
-The standard Oracle execution plan output. Shows estimated rows, bytes, cost, and predicates. No runtime statistics.
+The standard Oracle execution plan output. Shows estimated rows, bytes, cost, and predicates. Plain `DISPLAY` / `EXPLAIN PLAN` output has estimates only; `DISPLAY_CURSOR` with `'ALLSTATS LAST'` format adds runtime statistics (actual rows, starts, time, I/O) when `STATISTICS_LEVEL = ALL` or the `/*+ GATHER_PLAN_STATISTICS */` hint was used during execution.
 
 **From the cursor cache** (plan must still be in memory):
 
