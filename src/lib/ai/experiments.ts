@@ -269,6 +269,60 @@ const RULE_EXPERIMENTS: Record<string, CandidateTemplate> = {
     rationale:
       'The statement ran at a lower DOP than requested; experiment with parallel_degree_policy / parallel_max_servers session settings.',
   },
+  'per-row-reexecution': {
+    kind: 'hint',
+    title: 'Unnest the per-row subquery or rewrite it as a join',
+    rationale:
+      'A subquery is started once per outer row; test the UNNEST hint (or the NO_UNNEST/ NO_PUSH_SUBQ counterparts to compare), rewrite it as a join or semi/anti-join, or wrap a deterministic PL/SQL function in a scalar subquery cache or RESULT_CACHE and compare the Starts of the inner side.',
+  },
+  'index-rows-discarded': {
+    kind: 'params',
+    title: 'Extend the index with the filter column in a scratch schema',
+    rationale:
+      'The index returns many rows that the table access then discards on a filter; in a scratch schema, create a variant of the index that also carries the filtering column (DDL experiment), re-gather statistics and compare rows and buffer gets of the table access.',
+  },
+  'buffer-gets-per-row': {
+    kind: 'params',
+    title: 'Test a tighter access path for the buffer-hungry access',
+    rationale:
+      'The access reads far more blocks than the rows it returns; in a scratch schema test a composite index covering the predicates (or a better-clustered/rebuilt index), or an INDEX hint on the more selective index, and compare buffer gets per row.',
+  },
+  'function-on-indexed-column': {
+    kind: 'params',
+    title: 'Add a function-based index or make the predicate sargable',
+    rationale:
+      'A function wraps an indexed column so the index cannot be used for access; test a function-based index on the same expression in a scratch schema, or rewrite the predicate to compare the bare column (for example a range instead of TRUNC(col)).',
+  },
+  'hash-join-build-side': {
+    kind: 'hint',
+    title: 'Swap the hash join inputs',
+    rationale:
+      'The larger input builds the hash table; test SWAP_JOIN_INPUTS(alias) on the join (or a LEADING hint that puts the smaller row source first) and compare memory use, temp spill and elapsed time.',
+  },
+  'note-dynamic-sampling': {
+    kind: 'hint',
+    title: 'Replace dynamic sampling with gathered statistics',
+    rationale:
+      'The optimizer sampled at parse time because statistics are missing or insufficient; gather statistics with DBMS_STATS (including column groups or histograms as needed) and compare the plan with and without a DYNAMIC_SAMPLING hint.',
+  },
+  'note-sql-plan-directive': {
+    kind: 'params',
+    title: 'Gather statistics to retire the SQL plan directive',
+    rationale:
+      'A SQL plan directive says the optimizer misestimated this query shape before; gather extended statistics (column groups) on the directive columns and re-explain to see whether the estimates and plan stabilise.',
+  },
+  'parallel-serial-feed': {
+    kind: 'hint',
+    title: 'Make the serial producer parallel',
+    rationale:
+      'A serial row source feeds the parallel servers; test PARALLEL(alias degree) on the serial table or index (or a PARALLEL_ENABLE function) and check that the S->P transition disappears.',
+  },
+  'px-skew': {
+    kind: 'hint',
+    title: 'Try other PQ distribution methods for the skewed set',
+    rationale:
+      'One PX server did much more work than its peers; test PQ_DISTRIBUTE(alias outer_distribution inner_distribution) with BROADCAST, NONE or HYBRID HASH variants on the joins feeding that server set and compare per-server elapsed time.',
+  },
 };
 
 export function buildExperimentCandidates(advisorReport: AdvisorReport | null): ExperimentCandidate[] {

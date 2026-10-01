@@ -15,6 +15,7 @@ import { bufferEfficiencyRule } from './bufferEfficiency';
 import { planNotesRule } from './planNotes';
 import { functionOnIndexedColumnRule } from './functionOnIndexedColumn';
 import { hashJoinBuildSideRule } from './hashJoinBuildSide';
+import { pxSkewRule } from './pxSkew';
 
 export const ALL_RULES: AdvisorRule[] = [
   implicitConversionRule,
@@ -33,6 +34,7 @@ export const ALL_RULES: AdvisorRule[] = [
   planNotesRule,
   functionOnIndexedColumnRule,
   hashJoinBuildSideRule,
+  pxSkewRule,
 ];
 
 export {
@@ -52,4 +54,5 @@ export {
   planNotesRule,
   functionOnIndexedColumnRule,
   hashJoinBuildSideRule,
+  pxSkewRule,
 };
