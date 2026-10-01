@@ -23,6 +23,7 @@ import { DdlBlock, formatHistogramLabel, formatDateShort } from './metadata/shar
 // scroll container, where an outset ring would be clipped: they use FOCUS_RING_INSET.
 import { CopyButton, FOCUS_RING, FOCUS_RING_INSET } from './ui';
 import { PanelResizeHandle } from './PanelEdgeTab';
+import { computeWorstNodes } from '../lib/worstNodes';
 
 const MULTI_SELECT_TIP = 'Tip: ⌘/Ctrl-click nodes to multi-select and create a group';
 
@@ -209,26 +210,7 @@ export function NoSelectionBody({ hideTitle = false }: { hideTitle?: boolean } =
   } = usePlan();
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
 
-  const worstNodes = useMemo(() => {
-    if (!parsedPlan) return { byCost: [], byTime: [] };
-
-    const nonRoot = parsedPlan.allNodes.filter(n => n.parentId !== undefined);
-
-    const byCost = [...nonRoot]
-      .sort((a, b) => (b.cost || 0) - (a.cost || 0))
-      .slice(0, 5);
-
-    // Rank by SELF time (own work, excluding children) — cumulative A-Time
-    // would surface one hot leaf plus its entire ancestor chain.
-    const byTime = parsedPlan.hasActualStats
-      ? [...nonRoot]
-          .filter(n => (n.selfTime ?? n.actualTime) !== undefined)
-          .sort((a, b) => (b.selfTime ?? b.actualTime ?? 0) - (a.selfTime ?? a.actualTime ?? 0))
-          .slice(0, 5)
-      : [];
-
-    return { byCost, byTime };
-  }, [parsedPlan]);
+  const worstNodes = useMemo(() => computeWorstNodes(parsedPlan), [parsedPlan]);
 
   return (
     <>
@@ -251,16 +233,15 @@ export function NoSelectionBody({ hideTitle = false }: { hideTitle?: boolean } =
         <>
           {/* Worst by A-Time */}
           {worstNodes.byTime.length > 0 && (
-            <Accordion title="Slowest Ops" subtitle="by self time">
+            <Accordion title="Slowest Ops" subtitle={worstNodes.timeBy === 'activity' ? 'by activity' : 'by self time'}>
               <div className="space-y-1">
                 {(() => {
-                  const maxSelf = worstNodes.byTime.reduce(
-                    (max, n) => Math.max(max, n.selfTime ?? n.actualTime ?? 0),
-                    0
-                  );
+                  const byActivity = worstNodes.timeBy === 'activity';
+                  const measure = (n: PlanNodeType) => (byActivity ? n.activityPercent : (n.selfTime ?? n.actualTime)) ?? 0;
+                  const maxMeasure = worstNodes.byTime.reduce((max, n) => Math.max(max, measure(n)), 0);
                   return worstNodes.byTime.map((n, rank) => {
-                    const self = n.selfTime ?? n.actualTime;
-                    const showTotal = n.selfTime !== undefined
+                    const showTotal = !byActivity
+                      && n.selfTime !== undefined
                       && n.actualTime !== undefined
                       && n.actualTime > n.selfTime;
                     return (
@@ -268,8 +249,8 @@ export function NoSelectionBody({ hideTitle = false }: { hideTitle?: boolean } =
                         key={n.id}
                         node={n}
                         rank={rank}
-                        ratio={maxSelf > 0 ? (self ?? 0) / maxSelf : 0}
-                        value={formatTimeCompact(self) ?? '—'}
+                        ratio={maxMeasure > 0 ? measure(n) / maxMeasure : 0}
+                        value={byActivity ? `${measure(n).toFixed(1)}%` : (formatTimeCompact(measure(n)) ?? '—')}
                         suffix={showTotal ? (
                           <span className="text-slate-400 dark:text-slate-500"> · {formatTimeCompact(n.actualTime)} total</span>
                         ) : undefined}
@@ -284,17 +265,20 @@ export function NoSelectionBody({ hideTitle = false }: { hideTitle?: boolean } =
 
           {/* Worst by Cost */}
           {worstNodes.byCost.length > 0 && (
-            <Accordion title="Highest Cost" defaultOpen={false}>
+            <Accordion title="Highest Cost" subtitle="own cost" defaultOpen={false}>
               <div className="space-y-1">
                 {(() => {
-                  const maxCost = worstNodes.byCost.reduce((max, n) => Math.max(max, n.cost ?? 0), 0);
+                  const maxCost = worstNodes.byCost.reduce((max, n) => Math.max(max, n.selfCost ?? 0), 0);
                   return worstNodes.byCost.map((n, rank) => (
                     <WorstNodeRow
                       key={n.id}
                       node={n}
                       rank={rank}
-                      ratio={maxCost > 0 ? (n.cost ?? 0) / maxCost : 0}
-                      value={n.cost !== undefined ? String(n.cost) : '—'}
+                      ratio={maxCost > 0 ? (n.selfCost ?? 0) / maxCost : 0}
+                      value={n.selfCost !== undefined ? String(n.selfCost) : '—'}
+                      suffix={n.cost !== undefined && n.selfCost !== undefined && n.cost > n.selfCost ? (
+                        <span className="text-slate-400 dark:text-slate-500"> · {n.cost} total</span>
+                      ) : undefined}
                       onSelect={selectNode}
                     />
                   ));
@@ -413,7 +397,7 @@ export function NodeDetailBody() {
   const [showGroupDialog, setShowGroupDialog] = useState(false);
   const isMultiSelection = selectedNodes.length > 1;
   const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : selectedPrimaryNode;
-  const aggregateSelection = isMultiSelection ? computeAggregateSelection(selectedNodes) : null;
+  const aggregateSelection = isMultiSelection ? computeAggregateSelection(selectedNodes, parsedPlan?.allNodes ?? []) : null;
 
   const usedIndexKeys = useMemo(() => {
     if (!metadataBundle || !parsedPlan) return new Set<string>();
@@ -497,15 +481,18 @@ export function NodeDetailBody() {
               style={{ width: `${Math.min(100, indicator.ratio * 100)}%` }}
             />
           </div>
+          {indicator.secondaryText && (
+            <div className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">{indicator.secondaryText}</div>
+          )}
         </Accordion>
 
         {parsedPlan?.hasActualStats && (
           <Accordion title="Execution Stats (Sum)">
             <div className="grid grid-cols-2 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden [&>*:last-child:nth-child(odd)]:col-span-2">
               <StatItem label="A-Rows" value={formatNumberShort(aggregateSelection.sumActualRows)} highlight="actual" />
-              <StatItem label="A-Time" value={formatTimeDetailed(aggregateSelection.sumActualTime)} highlight="actual" />
+              <StatItem label={aggregateSelection.actualTimeLabel} value={formatTimeDetailed(aggregateSelection.sumActualTime)} highlight="actual" />
               <StatItem label="Starts" value={formatNumberShort(aggregateSelection.sumStarts)} />
-              <StatItem label="Avg Activity" value={aggregateSelection.avgActivityPercent !== undefined ? `${aggregateSelection.avgActivityPercent.toFixed(1)}%` : undefined} />
+              <StatItem label="Activity" value={aggregateSelection.sumActivityPercent !== undefined ? `${aggregateSelection.sumActivityPercent.toFixed(1)}%` : undefined} />
             </div>
           </Accordion>
         )}
@@ -514,7 +501,7 @@ export function NodeDetailBody() {
           <div className="grid grid-cols-2 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden [&>*:last-child:nth-child(odd)]:col-span-2">
             <StatItem label={parsedPlan?.hasActualStats ? "E-Rows" : "Rows"} value={formatNumberShort(aggregateSelection.sumRows)} />
             <StatItem label="Bytes" value={formatBytes(aggregateSelection.sumBytes)} />
-            <StatItem label="Cost" value={formatNumberShort(aggregateSelection.sumCost)} />
+            <StatItem label="Own cost" value={formatNumberShort(aggregateSelection.sumCost)} />
             <StatItem label="Avg CPU %" value={aggregateSelection.avgCpuPercent !== undefined ? `${aggregateSelection.avgCpuPercent.toFixed(1)}%` : undefined} />
             <StatItem label="Temp Space" value={aggregateSelection.sumTempSpace > 0 ? formatBytes(aggregateSelection.sumTempSpace) : undefined} />
           </div>
@@ -614,6 +601,9 @@ export function NodeDetailBody() {
             style={{ width: `${Math.min(100, indicator.ratio * 100)}%` }}
           />
         </div>
+        {indicator.secondaryText && (
+          <div className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">{indicator.secondaryText}</div>
+        )}
       </Accordion>
 
       {/* Actual Statistics (SQL Monitor) */}
@@ -809,6 +799,8 @@ interface NodeDetailIndicator {
   referenceLabel: string;
   percentText: string;
   color: string;
+  /** Optional secondary line, e.g. the node's own (self) share of the total. */
+  secondaryText?: string;
 }
 
 function computeNodeDetailIndicator(
@@ -826,10 +818,14 @@ function computeNodeDetailIndicator(
   let valueLabel = 'Cost';
   let formattedValue = `${node.cost || 0}`;
   let referenceLabel = 'of total';
+  let secondaryText: string | undefined;
 
   switch (metric) {
     case 'cost':
       ratio = totalCost > 0 ? (node.cost || 0) / totalCost : 0;
+      if (node.selfCost !== undefined && totalCost > 0) {
+        secondaryText = `Own: ${Math.min(100, (node.selfCost / totalCost) * 100).toFixed(1)}% of total`;
+      }
       title = 'Cost Impact';
       valueLabel = 'Cost';
       formattedValue = `${node.cost || 0}`;
@@ -873,6 +869,7 @@ function computeNodeDetailIndicator(
     formattedValue,
     referenceLabel,
     percentText: (clampedRatio * 100).toFixed(1),
+    secondaryText,
     color: clampedRatio === 0 ? 'bg-slate-200 dark:bg-slate-700' : getMetricColor(clampedRatio),
   };
 }
@@ -881,11 +878,15 @@ interface AggregateSelectionStats {
   indicatorNode: PlanNodeType;
   sumRows: number;
   sumBytes: number;
+  /** Σ own (self) cost — cumulative cost would double count nested selections. */
   sumCost: number;
   sumActualRows: number;
+  /** Σ self time, or cumulative A-Time of the outermost selected nodes when self time is unavailable. */
   sumActualTime: number;
+  actualTimeLabel: string;
   sumStarts: number;
-  avgActivityPercent: number | undefined;
+  /** Σ ASH activity share (shares of distinct operations add up). */
+  sumActivityPercent: number | undefined;
   avgCpuPercent: number | undefined;
   sumTempSpace: number;
   sumMemoryUsed: number;
@@ -894,14 +895,19 @@ interface AggregateSelectionStats {
   sumLogicalReads: number;
 }
 
-function computeAggregateSelection(nodes: PlanNodeType[]): AggregateSelectionStats {
+function computeAggregateSelection(nodes: PlanNodeType[], allNodes: PlanNodeType[]): AggregateSelectionStats {
   const sumRows = sumNumbers(nodes.map((n) => n.rows));
   const sumBytes = sumNumbers(nodes.map((n) => n.bytes));
-  const sumCost = sumNumbers(nodes.map((n) => n.cost));
+  const sumCost = sumNumbers(nodes.map((n) => n.selfCost ?? n.cost));
   const sumActualRows = sumNumbers(nodes.map((n) => n.actualRows));
-  const sumActualTime = sumNumbers(nodes.map((n) => n.actualTime));
+  const hasSelfTime = nodes.every((n) => n.selfTime !== undefined);
+  const sumActualTime = hasSelfTime
+    ? sumNumbers(nodes.map((n) => n.selfTime))
+    : sumNumbers(outermostNodes(nodes, allNodes).map((n) => n.actualTime));
+  const actualTimeLabel = hasSelfTime ? 'Self time' : 'A-Time';
   const sumStarts = sumNumbers(nodes.map((n) => n.starts));
-  const avgActivityPercent = averageNumbers(nodes.map((n) => n.activityPercent));
+  const activityValues = nodes.map((n) => n.activityPercent).filter((v): v is number => v !== undefined);
+  const sumActivityPercent = activityValues.length > 0 ? sumNumbers(activityValues) : undefined;
   const avgCpuPercent = averageNumbers(nodes.map((n) => n.cpuPercent));
   const sumTempSpace = sumNumbers(nodes.map((n) => n.tempSpace));
   const sumMemoryUsed = sumNumbers(nodes.map((n) => n.memoryUsed));
@@ -919,15 +925,16 @@ function computeAggregateSelection(nodes: PlanNodeType[]): AggregateSelectionSta
       actualRows: sumActualRows,
       actualTime: sumActualTime,
       starts: sumStarts,
-      activityPercent: avgActivityPercent,
+      activityPercent: sumActivityPercent,
     },
     sumRows,
     sumBytes,
     sumCost,
     sumActualRows,
     sumActualTime,
+    actualTimeLabel,
     sumStarts,
-    avgActivityPercent,
+    sumActivityPercent,
     avgCpuPercent,
     sumTempSpace,
     sumMemoryUsed,
@@ -1337,6 +1344,18 @@ function IndexRow({ index, usedHere }: { index: ResolvedIndex; usedHere: boolean
       </div>
     </div>
   );
+}
+
+/** Selected nodes with no selected ancestor, so cumulative values are not double counted. */
+function outermostNodes(nodes: PlanNodeType[], allNodes: PlanNodeType[]): PlanNodeType[] {
+  const byId = new Map(allNodes.map((n) => [n.id, n]));
+  const selectedIds = new Set(nodes.map((n) => n.id));
+  return nodes.filter((n) => {
+    for (let p = n.parentId !== undefined ? byId.get(n.parentId) : undefined; p; p = p.parentId !== undefined ? byId.get(p.parentId) : undefined) {
+      if (selectedIds.has(p.id)) return false;
+    }
+    return true;
+  });
 }
 
 function sumNumbers(values: Array<number | undefined>): number {

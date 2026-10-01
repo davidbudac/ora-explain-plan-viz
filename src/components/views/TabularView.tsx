@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { usePlan } from '../../hooks/usePlanContext';
 import type { PlanNode } from '../../lib/types';
-import { formatNumberShort, formatBytes, formatTimeCompact, computeCardinalityRatio, formatCardinalityRatio, cardinalityRatioSeverity, formatPartitionRange } from '../../lib/format';
+import { formatNumberShort, formatBytes, formatTimeCompact, nodeCardinalityRatio, formatCardinalityRatio, cardinalityRatioSeverity, formatPartitionRange } from '../../lib/format';
 import { getHighlightColorDef } from '../../lib/annotations';
 import type { AnnotationGroup } from '../../lib/annotations';
 import { isFilterActive, matchesFilters } from '../../lib/filtering';
@@ -951,7 +951,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
               const costRatio = totalCost > 0 ? (node.cost ?? 0) / totalCost : 0;
               const timeRatio = timeShare(node.actualTime, timeDenominator);
               const timeShareTitle = `${(timeRatio * 100).toFixed(1)}% of total elapsed time`;
-              const cardRatio = computeCardinalityRatio(node.rows, node.actualRows);
+              const cardRatio = nodeCardinalityRatio(node);
               const cardSeverity = cardinalityRatioSeverity(cardRatio);
               const continuing = treeLineData.get(node.id) ?? new Set<number>();
               const highlight = effectiveAnnotations.nodeHighlights.get(node.id);

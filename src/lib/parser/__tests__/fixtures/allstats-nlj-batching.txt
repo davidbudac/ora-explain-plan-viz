@@ -1,0 +1,29 @@
+SQL_ID  0qfckaf95rtuc, child number 0
+-------------------------------------
+select /*+ gather_plan_statistics leading(o) use_nl(oi) index(oi)
+planviz_nlb */ count(oi.unit_price) from soe.orders o join
+soe.order_items oi on oi.order_id = o.order_id where o.customer_id
+between 1000 and 1100
+
+Plan hash value: 1529436896
+
+-------------------------------------------------------------------------------------------------------------------------
+| Id  | Operation                            | Name          | Starts | E-Rows | A-Rows |   A-Time   | Buffers | Reads  |
+-------------------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT                     |               |      1 |        |      1 |00:00:00.06 |   32752 |  31936 |
+|   1 |  SORT AGGREGATE                      |               |      1 |      1 |      1 |00:00:00.06 |   32752 |  31936 |
+|   2 |   NESTED LOOPS                       |               |      1 |    818 |    786 |00:00:00.04 |   32752 |  31936 |
+|   3 |    NESTED LOOPS                      |               |      1 |    830 |    786 |00:00:00.04 |   32579 |  31936 |
+|   4 |     PARTITION HASH ALL               |               |      1 |    166 |    167 |00:00:00.05 |   32239 |  31936 |
+|*  5 |      TABLE ACCESS FULL               | ORDERS        |     32 |    166 |    167 |00:00:00.04 |   32239 |  31936 |
+|*  6 |     INDEX RANGE SCAN                 | ITEM_ORDER_IX |    167 |      5 |    786 |00:00:00.01 |     340 |      0 |
+|   7 |    TABLE ACCESS BY GLOBAL INDEX ROWID| ORDER_ITEMS   |    786 |      5 |    786 |00:00:00.01 |     173 |      0 |
+-------------------------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   5 - filter(("O"."CUSTOMER_ID"<=1100 AND "O"."CUSTOMER_ID">=1000))
+   6 - access("OI"."ORDER_ID"="O"."ORDER_ID")
+
+                 786

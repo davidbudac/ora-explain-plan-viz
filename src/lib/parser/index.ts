@@ -4,7 +4,7 @@ import { dbmsXplanParser, extractDbmsXplanSegments } from './dbmsXplanParser';
 import { sqlMonitorTextParser, sqlMonitorXmlParser } from './sqlMonitorParser';
 import { jsonPlanParser } from './jsonPlanParser';
 import { xbiParser } from './xbiParser';
-import { computeSelfTimes } from '../analysis';
+import { computeEstimatedRowTotals, computeSelfCosts, computeSelfTimes } from '../analysis';
 
 /**
  * List of available parsers in priority order.
@@ -43,6 +43,14 @@ export function detectFormat(input: string): DetectedFormat {
   return 'unknown';
 }
 
+/** Post-parse derivations shared by every source (self times first; the rest are independent). */
+function finalizePlan(plan: ParsedPlan): ParsedPlan {
+  computeSelfTimes(plan);
+  computeEstimatedRowTotals(plan);
+  computeSelfCosts(plan);
+  return plan;
+}
+
 /**
  * Parse an execution plan from any supported format.
  * Automatically detects the format and uses the appropriate parser.
@@ -57,15 +65,13 @@ export function parsePlan(input: string): ParsedPlan {
   for (const { format: parserFormat, parser } of parsers) {
     if (parserFormat === format) {
       const plan = parser.parse(input);
-      computeSelfTimes(plan);
-      return plan;
+      return finalizePlan(plan);
     }
   }
 
   // Fallback to DBMS_XPLAN parser for unknown formats
   const plan = dbmsXplanParser.parse(input);
-  computeSelfTimes(plan);
-  return plan;
+  return finalizePlan(plan);
 }
 
 export const splitDbmsXplanPlanBatches = extractDbmsXplanSegments;

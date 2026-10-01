@@ -60,11 +60,13 @@ function MatchIcon({ type }: { type: MatchType }) {
   const colors: Record<MatchType, string> = {
     'exact-id': 'bg-green-500',
     'heuristic': 'bg-yellow-500',
+    'access-changed': 'bg-sky-500 dark:bg-sky-400',
     'unmatched': 'bg-slate-400 dark:bg-slate-500',
   };
   const titles: Record<MatchType, string> = {
     'exact-id': 'Exact ID match',
     'heuristic': 'Heuristic match (operation + object)',
+    'access-changed': 'Same object, access path changed',
     'unmatched': 'No match in other plan',
   };
   return (
@@ -506,11 +508,15 @@ export function CompareView() {
       <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400">
         <span className="flex items-center gap-1">
           <MatchIcon type="exact-id" />
-          {summary.matchedCount - matches.filter(m => m.matchType === 'heuristic').length} exact
+          {matches.filter(m => m.matchType === 'exact-id').length} exact
         </span>
         <span className="flex items-center gap-1">
           <MatchIcon type="heuristic" />
           {matches.filter(m => m.matchType === 'heuristic').length} heuristic
+        </span>
+        <span className="flex items-center gap-1">
+          <MatchIcon type="access-changed" />
+          {matches.filter(m => m.matchType === 'access-changed').length} access changed
         </span>
         <span className="flex items-center gap-1">
           <MatchIcon type="unmatched" />
@@ -587,6 +593,7 @@ export function CompareView() {
                 const { planANode: nodeA, planBNode: nodeB } = row.match;
                 const operation = nodeA?.operation ?? nodeB?.operation ?? '';
                 const objectName = nodeA?.objectName ?? nodeB?.objectName ?? '';
+                const operationChanged = !!nodeA && !!nodeB && nodeA.operation !== nodeB.operation;
                 const isExpanded = effectiveExpandedKey === row.key;
                 return (
                   <React.Fragment key={row.key}>
@@ -618,10 +625,18 @@ export function CompareView() {
                       </td>
                       <td className="px-2 py-1.5 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
                         <span className={`inline-block mr-1 text-slate-400 dark:text-slate-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▸</span>
-                        {operation}
+                        {operationChanged ? (
+                          <>
+                            <span className="text-blue-700 dark:text-blue-300">{nodeA.operation}</span>
+                            <span className="mx-1 text-slate-400 dark:text-slate-500" aria-label="changed to">→</span>
+                            <span className="text-violet-700 dark:text-violet-300">{nodeB.operation}</span>
+                          </>
+                        ) : operation}
                       </td>
                       <td className="px-2 py-1.5 text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                        {objectName}
+                        {nodeA?.objectName && nodeB?.objectName && nodeA.objectName !== nodeB.objectName
+                          ? `${nodeA.objectName} → ${nodeB.objectName}`
+                          : objectName}
                       </td>
                       {compareMetrics.map(metric => {
                         const delta = row.deltas[metric];

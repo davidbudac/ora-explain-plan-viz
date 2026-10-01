@@ -25,7 +25,7 @@ export interface PlanSlot {
 
 export type CompareMetric = 'cost' | 'rows' | 'bytes' | 'actualRows' | 'actualTime' | 'selfTime' | 'starts' | 'tempSpace' | 'memoryUsed';
 
-export type MatchType = 'exact-id' | 'heuristic' | 'unmatched';
+export type MatchType = 'exact-id' | 'heuristic' | 'access-changed' | 'unmatched';
 
 export interface NodeMatch {
   matchType: MatchType;
@@ -47,15 +47,59 @@ export interface ComparisonSummary {
   unmatchedBCount: number;
 }
 
-function getNodeSignature(node: PlanNode): string {
-  return `${node.operation.toUpperCase()}|${(node.objectName ?? '').toUpperCase()}`;
+function normalizeOperation(node: PlanNode): string {
+  return node.operation.toUpperCase().replace(/\s+/g, ' ').trim();
 }
 
-function operationsSimilar(a: PlanNode, b: PlanNode): boolean {
-  if (a.operation.toUpperCase() === b.operation.toUpperCase()) return true;
-  const firstWordA = a.operation.split(' ')[0].toUpperCase();
-  const firstWordB = b.operation.split(' ')[0].toUpperCase();
-  return firstWordA === firstWordB;
+function normalizeObject(node: PlanNode): string {
+  return (node.objectName ?? '').toUpperCase();
+}
+
+function normalizeAlias(node: PlanNode): string {
+  return (node.objectAlias ?? '').toUpperCase();
+}
+
+function getNodeSignature(node: PlanNode): string {
+  return `${normalizeOperation(node)}|${normalizeObject(node)}`;
+}
+
+/** 0 when both nodes carry the same alias (e.g. E@SEL$1), 1 otherwise. */
+function aliasPenalty(a: PlanNode, b: PlanNode): number {
+  const aliasA = normalizeAlias(a);
+  return aliasA !== '' && aliasA === normalizeAlias(b) ? 0 : 1;
+}
+
+/**
+ * Same object, different operation: aliases must be equal when both nodes have
+ * one, otherwise fall back to the object name. Nodes without an object never match.
+ */
+function sameObject(a: PlanNode, b: PlanNode): boolean {
+  const aliasA = normalizeAlias(a);
+  const aliasB = normalizeAlias(b);
+  if (aliasA !== '' && aliasB !== '') return aliasA === aliasB;
+  const objectA = normalizeObject(a);
+  return objectA !== '' && objectA === normalizeObject(b);
+}
+
+function rankLess(a: number[], b: number[]): boolean {
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return a[i] < b[i];
+  }
+  return false;
+}
+
+/** Index of the candidate with the lowest rank tuple (lexicographic); first wins ties. */
+function pickBest(candidates: PlanNode[], rank: (candidate: PlanNode) => number[]): number {
+  let bestIdx = 0;
+  let bestRank = rank(candidates[0]);
+  for (let i = 1; i < candidates.length; i++) {
+    const r = rank(candidates[i]);
+    if (rankLess(r, bestRank)) {
+      bestIdx = i;
+      bestRank = r;
+    }
+  }
+  return bestIdx;
 }
 
 export function matchNodes(planA: ParsedPlan, planB: ParsedPlan): NodeMatch[] {
@@ -65,20 +109,20 @@ export function matchNodes(planA: ParsedPlan, planB: ParsedPlan): NodeMatch[] {
 
   const bNodesById = new Map(planB.allNodes.map(n => [n.id, n]));
 
-  // Pass 1: Exact ID match with operation similarity check
+  // Pass 1: same id AND same operation AND same object
   for (const aNode of planA.allNodes) {
     const bNode = bNodesById.get(aNode.id);
-    if (bNode && !matchedBIds.has(bNode.id) && operationsSimilar(aNode, bNode)) {
+    if (bNode && !matchedBIds.has(bNode.id) && getNodeSignature(aNode) === getNodeSignature(bNode)) {
       matches.push({ matchType: 'exact-id', planANode: aNode, planBNode: bNode });
       matchedAIds.add(aNode.id);
       matchedBIds.add(bNode.id);
     }
   }
 
-  // Pass 2: Heuristic match for remaining nodes by operation+object signature
-  const unmatchedB = planB.allNodes.filter(n => !matchedBIds.has(n.id));
+  // Pass 2: heuristic match by operation+object signature (alias, then closest depth)
   const sigMapB = new Map<string, PlanNode[]>();
-  for (const bNode of unmatchedB) {
+  for (const bNode of planB.allNodes) {
+    if (matchedBIds.has(bNode.id)) continue;
     const sig = getNodeSignature(bNode);
     const list = sigMapB.get(sig) ?? [];
     list.push(bNode);
@@ -87,21 +131,10 @@ export function matchNodes(planA: ParsedPlan, planB: ParsedPlan): NodeMatch[] {
 
   for (const aNode of planA.allNodes) {
     if (matchedAIds.has(aNode.id)) continue;
-    const sig = getNodeSignature(aNode);
-    const candidates = sigMapB.get(sig);
+    const candidates = sigMapB.get(getNodeSignature(aNode));
     if (!candidates || candidates.length === 0) continue;
 
-    // Pick candidate with closest depth
-    let bestIdx = 0;
-    let bestDist = Math.abs(candidates[0].depth - aNode.depth);
-    for (let i = 1; i < candidates.length; i++) {
-      const dist = Math.abs(candidates[i].depth - aNode.depth);
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestIdx = i;
-      }
-    }
-
+    const bestIdx = pickBest(candidates, c => [aliasPenalty(aNode, c), Math.abs(c.depth - aNode.depth)]);
     const bestMatch = candidates[bestIdx];
     matches.push({ matchType: 'heuristic', planANode: aNode, planBNode: bestMatch });
     matchedAIds.add(aNode.id);
@@ -109,7 +142,25 @@ export function matchNodes(planA: ParsedPlan, planB: ParsedPlan): NodeMatch[] {
     candidates.splice(bestIdx, 1);
   }
 
-  // Pass 3: Unmatched nodes
+  // Pass 3: same object, changed operation (e.g. FULL scan -> INDEX access)
+  const remainingB = planB.allNodes.filter(n => !matchedBIds.has(n.id));
+  for (const aNode of planA.allNodes) {
+    if (matchedAIds.has(aNode.id)) continue;
+    const candidates = remainingB.filter(b => !matchedBIds.has(b.id) && sameObject(aNode, b));
+    if (candidates.length === 0) continue;
+
+    // Prefer the same object name (an alias is shared by a table and its index), then closest depth
+    const bestIdx = pickBest(candidates, c => [
+      normalizeObject(c) === normalizeObject(aNode) ? 0 : 1,
+      Math.abs(c.depth - aNode.depth),
+    ]);
+    const bestMatch = candidates[bestIdx];
+    matches.push({ matchType: 'access-changed', planANode: aNode, planBNode: bestMatch });
+    matchedAIds.add(aNode.id);
+    matchedBIds.add(bestMatch.id);
+  }
+
+  // Unmatched nodes
   for (const aNode of planA.allNodes) {
     if (!matchedAIds.has(aNode.id)) {
       matches.push({ matchType: 'unmatched', planANode: aNode, planBNode: null });
@@ -121,9 +172,9 @@ export function matchNodes(planA: ParsedPlan, planB: ParsedPlan): NodeMatch[] {
     }
   }
 
-  // Sort: exact-id first (by Plan A id), then heuristic, then unmatched
+  // Sort: exact-id first (by Plan A id), then heuristic, access-changed, then unmatched
+  const typeOrder: Record<MatchType, number> = { 'exact-id': 0, 'heuristic': 1, 'access-changed': 2, 'unmatched': 3 };
   matches.sort((a, b) => {
-    const typeOrder: Record<MatchType, number> = { 'exact-id': 0, 'heuristic': 1, 'unmatched': 2 };
     const typeA = typeOrder[a.matchType];
     const typeB = typeOrder[b.matchType];
     if (typeA !== typeB) return typeA - typeB;

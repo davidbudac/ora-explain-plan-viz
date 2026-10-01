@@ -32,6 +32,11 @@ export interface PlanNode {
   starts?: number;           // number of execution starts
   memoryUsed?: number;       // bytes
   tempUsed?: number;         // actual temp space in bytes
+  // Optimizer estimate of rows over ALL starts (E-Rows × executions) — derived post-parse
+  // (analysis.ts computeEstimatedRowTotals). Undefined when comparing it with A-Rows is
+  // meaningless (never started, early termination). Use nodeCardinalityRatio (format.ts).
+  estimatedRowsTotal?: number;
+  selfCost?: number;         // cost of this operation only: max(0, cost − Σ children cost) — derived post-parse
   physicalReads?: number;    // physical read requests (count)
   logicalReads?: number;     // buffer gets (count)
   ioReadRequests?: number;   // I/O read requests (count)

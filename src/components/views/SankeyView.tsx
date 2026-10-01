@@ -681,12 +681,13 @@ function getMetricValue(node: PlanNode, metric: string): number {
   switch (metric) {
     case 'cost':
       return Math.max(node.cost || 1, 1);
-    case 'actualRows': {
-      // A-Rows multiplied by Starts for total data volume
-      const actualRows = node.actualRows || node.rows || 1;
-      const starts = node.starts || 1;
-      return Math.max(actualRows * starts, 1);
-    }
+    case 'actualRows':
+      // A-Rows is already cumulative over all starts; without actuals use the
+      // total estimate (E-Rows × starts).
+      return Math.max(
+        node.actualRows ?? node.estimatedRowsTotal ?? (node.rows ?? 1) * (node.starts ?? 1),
+        1
+      );
     case 'actualTime':
       return Math.max(node.actualTime || 1, 1);
     case 'rows':
@@ -701,7 +702,7 @@ function getMetricShortLabel(metric: string, hasActualStats: boolean): string {
     case 'cost':
       return 'Cost';
     case 'actualRows':
-      return 'Rows × Starts';
+      return 'Total rows';
     case 'actualTime':
       return 'A-Time';
     case 'rows':
@@ -755,7 +756,7 @@ function getMetricLabel(metric: string, hasActualStats: boolean): string {
     case 'cost':
       return 'Cost';
     case 'actualRows':
-      return 'Total Rows (A-Rows × Starts)';
+      return 'Total rows (all starts)';
     case 'actualTime':
       return 'A-Time';
     default:

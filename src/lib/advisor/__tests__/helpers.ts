@@ -1,3 +1,4 @@
+import { computeEstimatedRowTotals } from '../../analysis';
 import type { ParsedPlan, PlanNode, PlanSource, SqlMonitorMetadata } from '../../types';
 import type { MetadataBundle, MetadataObject, TableObject, IndexObject, ColumnStats } from '../../metadata/bundle';
 
@@ -49,7 +50,7 @@ export function buildPlan(
     return node;
   };
   const rootNode = build(spec, 0);
-  return {
+  const plan: ParsedPlan = {
     rootNode,
     allNodes,
     totalCost: 0,
@@ -58,6 +59,9 @@ export function buildPlan(
     hasActualStats: options.hasActualStats ?? allNodes.some((n) => n.actualRows !== undefined),
     monitorMetadata: options.monitorMetadata,
   };
+  // Mirror the post-parse pass so rules see estimatedRowsTotal like they do in the app.
+  computeEstimatedRowTotals(plan);
+  return plan;
 }
 
 export function byId(plan: ParsedPlan, id: number): PlanNode {

@@ -180,7 +180,7 @@ export function ViewControls({ includeTreeLayout = true, labelled = false }: { i
       { value: 'cost', label: 'Cost' },
       ...(hasActualStats
         ? ([
-            { value: 'actualRows', label: 'Rows × Starts', title: 'Total rows (A-Rows × Starts)' },
+            { value: 'actualRows', label: 'Total rows', title: 'Total rows over all starts (A-Rows is already cumulative)' },
             { value: 'actualTime', label: 'A-Time' },
           ] as SegmentOption<SankeyMetric>[])
         : []),

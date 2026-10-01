@@ -1,4 +1,5 @@
 import type { PlanNode, ParsedPlan } from '../types';
+import { planRootCost } from '../analysis';
 import type { PlanParser } from './types';
 import { parseNoteSection } from './noteSection';
 
@@ -9,6 +10,7 @@ interface RawPlanRow {
   alias?: string;
   rows?: number;
   bytes?: number;
+  tempSpace?: number;
   cost?: number;
   cpuPercent?: number;
   time?: string;
@@ -27,6 +29,7 @@ interface ColumnPositions {
   name: { start: number; end: number };
   rows?: { start: number; end: number };
   bytes?: { start: number; end: number };
+  tempSpace?: { start: number; end: number };
   cost?: { start: number; end: number };
   time?: { start: number; end: number };
   pstart?: { start: number; end: number };
@@ -82,7 +85,7 @@ export const dbmsXplanParser: PlanParser = {
     const { rootNode, allNodes } = buildTree(tableData, predicates, queryBlocks);
 
     // Calculate totals
-    const totalCost = allNodes.reduce((sum, node) => sum + (node.cost || 0), 0);
+    const totalCost = planRootCost(rootNode, allNodes);
     const maxRows = Math.max(...allNodes.map(node => node.rows || 0));
 
     // Parse the trailing "Note" section, if present.
@@ -342,6 +345,8 @@ function parseColumnPositions(headerLine: string): ColumnPositions {
       cols.rows = { start, end };
     } else if (segment === 'bytes' || segment === 'e-bytes') {
       cols.bytes = { start, end };
+    } else if (segment === 'tempspc' || segment === 'e-temp') {
+      cols.tempSpace = { start, end };
     } else if (segment.includes('cost')) {
       cols.cost = { start, end };
     } else if (segment === 'time' || segment === 'e-time') {
@@ -392,6 +397,7 @@ function parseDataRow(line: string, columns: ColumnPositions): RawPlanRow | null
   // Extract optional numeric columns
   let rows: number | undefined;
   let bytes: number | undefined;
+  let tempSpace: number | undefined;
   let cost: number | undefined;
   let cpuPercent: number | undefined;
   let time: string | undefined;
@@ -406,6 +412,11 @@ function parseDataRow(line: string, columns: ColumnPositions): RawPlanRow | null
     const bytesStr = line.substring(columns.bytes.start, columns.bytes.end).trim();
     const bytesVal = parseNumericValue(bytesStr);
     if (bytesVal !== null) bytes = bytesVal;
+  }
+
+  if (columns.tempSpace) {
+    const tempVal = parseByteSize(line.substring(columns.tempSpace.start, columns.tempSpace.end).trim());
+    if (tempVal !== null) tempSpace = tempVal;
   }
 
   if (columns.cost) {
@@ -456,6 +467,7 @@ function parseDataRow(line: string, columns: ColumnPositions): RawPlanRow | null
     objectName,
     rows,
     bytes,
+    tempSpace,
     cost,
     cpuPercent,
     time,
@@ -481,6 +493,14 @@ function calculateDepth(operationStr: string): number {
   }
   // Typically each level is 1-2 spaces of indentation
   return Math.floor(spaces / 1);
+}
+
+/** Byte size with 1024-based K/M/G/T suffixes, as DBMS_XPLAN prints TempSpc (e.g. "2048K"). */
+function parseByteSize(str: string): number | null {
+  const match = str.replace(/,/g, '').trim().match(/^([\d.]+)\s*([KMGT])?B?$/i);
+  if (!match) return null;
+  const power = 'KMGT'.indexOf((match[2] || '').toUpperCase()) + 1;
+  return Math.round(parseFloat(match[1]) * Math.pow(1024, power));
 }
 
 function parseNumericValue(str: string): number | null {
@@ -641,6 +661,7 @@ function buildTree(
       alias: row.alias,
       rows: row.rows,
       bytes: row.bytes,
+      tempSpace: row.tempSpace,
       cost: row.cost,
       cpuPercent: row.cpuPercent,
       time: row.time,

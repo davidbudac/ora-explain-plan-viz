@@ -22,15 +22,14 @@ function rawValue(node: PlanNode, metric: FlameMetric): number {
       return node.actualTime ?? 0;
     case 'cost':
       return node.cost ?? 0;
-    case 'actualRows': {
-      // Matches SankeyView: A-Rows is per-execution; multiply by starts for
-      // total data volume, falling back to estimated rows if A-Rows absent.
-      const actualRows = node.actualRows ?? node.rows ?? 0;
-      const starts = node.starts ?? 1;
-      return actualRows * starts;
-    }
+    case 'actualRows':
+      // Oracle's A-Rows is already cumulative over all starts, so it is used
+      // as-is. Without it, fall back to the total estimate (E-Rows × starts).
+      return node.actualRows ?? node.estimatedRowsTotal ?? node.rows ?? 0;
     case 'rows':
-      return node.rows ?? 0;
+      // Total estimate over all starts (E-Rows × starts), comparable with the
+      // cumulative A-Rows; per-start E-Rows is the fallback.
+      return node.estimatedRowsTotal ?? node.rows ?? 0;
     default:
       return 0;
   }

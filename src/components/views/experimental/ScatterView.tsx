@@ -3,7 +3,7 @@ import { usePlan } from '../../../hooks/usePlanContext';
 import type { PlanNode } from '../../../lib/types';
 import {
   cardinalityRatioSeverity,
-  computeCardinalityRatio,
+  nodeCardinalityRatio,
   formatCardinalityRatio,
   formatNumberShort,
   formatTimeDetailed,
@@ -105,8 +105,8 @@ export function ScatterView() {
   const points = useMemo(() => {
     if (!parsedPlan) return [] as { node: PlanNode; x: number; y: number }[];
     return parsedPlan.allNodes
-      .filter((n) => n.rows !== undefined && n.actualRows !== undefined)
-      .map((n) => ({ node: n, x: Math.max(n.rows as number, 1), y: Math.max(n.actualRows as number, 1) }));
+      .filter((n) => n.estimatedRowsTotal !== undefined && n.actualRows !== undefined)
+      .map((n) => ({ node: n, x: Math.max(n.estimatedRowsTotal as number, 1), y: Math.max(n.actualRows as number, 1) }));
   }, [parsedPlan]);
 
   // Shared log domain across both axes → the diagonal is meaningful.
@@ -137,10 +137,12 @@ export function ScatterView() {
   );
 
   const buildTooltip = useCallback((node: PlanNode, clientX: number, clientY: number) => {
-    const ratio = computeCardinalityRatio(node.rows, node.actualRows);
+    const ratio = nodeCardinalityRatio(node);
     const title = node.objectName ? `${node.operation} (${node.objectName})` : node.operation;
     const lines = [
-      `E-Rows: ${formatNumberShort(node.rows, { empty: '—' })}`,
+      `E-Rows (per start): ${formatNumberShort(node.rows, { empty: '—' })}`,
+      `Starts: ${formatNumberShort(node.starts, { empty: '—' })}`,
+      `Est. total rows: ${formatNumberShort(node.estimatedRowsTotal, { empty: '—' })}`,
       `A-Rows: ${formatNumberShort(node.actualRows, { empty: '—' })}`,
       `Ratio: ${formatCardinalityRatio(ratio) ?? '—'}`,
       `Self time: ${formatTimeDetailed(node.selfTime, { empty: '—' })}`,
@@ -223,7 +225,7 @@ export function ScatterView() {
         {!ready ? (
           <div className="h-full flex items-center justify-center text-xs text-slate-400 dark:text-slate-500">
             {points.length === 0
-              ? 'No nodes have both estimated and actual row counts.'
+              ? 'No nodes have both an estimated total and actual row count.'
               : 'Sizing…'}
           </div>
         ) : (
@@ -286,7 +288,7 @@ export function ScatterView() {
               textAnchor="middle"
               fontWeight={600}
             >
-              E-Rows (estimated)
+              Est. rows (E-Rows × starts)
             </text>
             <text
               x={14}
@@ -303,13 +305,13 @@ export function ScatterView() {
             {/* Points */}
             <g clipPath={`url(#${clipId})`}>
               {points.map(({ node }) => {
-                const cx = sx(Math.max(node.rows as number, 1));
+                const cx = sx(Math.max(node.estimatedRowsTotal as number, 1));
                 const cy = syPix(Math.max(node.actualRows as number, 1));
                 const r = radiusFor(node.selfTime);
                 const inScope = filteredNodeIds.has(node.id);
                 const isSelected = selectedNodeIdSet.has(node.id);
                 const isSearchMatch = searchText.trim() !== '' && matchesSearch(node, searchText);
-                const severity = cardinalityRatioSeverity(computeCardinalityRatio(node.rows, node.actualRows));
+                const severity = cardinalityRatioSeverity(nodeCardinalityRatio(node));
 
                 const fill = inScope ? SEVERITY_FILL[severity] : isDark ? '#475569' : '#94a3b8';
                 const fillOpacity = inScope ? 0.8 : 0.28;

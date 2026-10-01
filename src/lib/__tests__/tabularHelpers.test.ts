@@ -97,13 +97,14 @@ describe('nextSortState / ariaSortFor', () => {
 
 describe('buildTabularTsv', () => {
   const nodes: PlanNode[] = [
-    node({ id: 0, depth: 0, operation: 'SELECT STATEMENT', rows: 10, cost: 5, actualRows: 12, actualTime: 30 }),
+    node({ id: 0, depth: 0, operation: 'SELECT STATEMENT', rows: 10, estimatedRowsTotal: 10, cost: 5, actualRows: 12, actualTime: 30 }),
     node({
       id: 1,
       depth: 1,
       operation: 'TABLE ACCESS FULL',
       objectName: 'EMP',
       rows: 10,
+      estimatedRowsTotal: 10,
       cost: 5,
       actualRows: 1000,
       actualTime: 25.5,
@@ -117,7 +118,7 @@ describe('buildTabularTsv', () => {
     const lines = tsv.split('\n');
     expect(lines).toHaveLength(3);
     expect(lines[0].split('\t')).toEqual([
-      'Id', 'Operation', 'Object', 'E-Rows', 'Cost', 'A-Rows', 'A-Time (ms)', 'A-Rows / E-Rows', 'Access Predicates', 'Filter Predicates',
+      'Id', 'Operation', 'Object', 'E-Rows', 'Cost', 'A-Rows', 'A-Time (ms)', 'A-Rows / Est. total rows', 'Access Predicates', 'Filter Predicates',
     ]);
     const row1 = lines[2].split('\t');
     expect(row1[0]).toBe('1');

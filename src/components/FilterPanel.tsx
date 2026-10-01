@@ -3,7 +3,7 @@ import { usePlan } from '../hooks/usePlanContext';
 import { OPERATION_CATEGORIES, getOperationCategory } from '../lib/types';
 import type { PredicateType } from '../lib/types';
 import { matchesSearch, hasActiveFilters } from '../lib/filtering';
-import { computeCardinalityRatio, formatNumberShort, formatTimeCompact } from '../lib/format';
+import { nodeCardinalityRatio, formatNumberShort, formatTimeCompact } from '../lib/format';
 import { FOCUS_RING } from './ui';
 import { PanelResizeHandle } from './PanelEdgeTab';
 
@@ -199,7 +199,7 @@ export function FilterPanelBody() {
     if (!parsedPlan || !parsedPlan.hasActualStats) return [];
     const vals: number[] = [];
     for (const node of parsedPlan.allNodes) {
-      const ratio = computeCardinalityRatio(node.rows, node.actualRows);
+      const ratio = nodeCardinalityRatio(node);
       if (ratio !== undefined) {
         const deviation = ratio >= 1 ? ratio : 1 / ratio;
         vals.push(Math.min(deviation, 100)); // clamp to slider max
