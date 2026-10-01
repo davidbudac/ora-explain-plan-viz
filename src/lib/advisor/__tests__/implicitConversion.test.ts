@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { implicitConversionRule } from '../rules/implicitConversion';
 import { DEFAULT_THRESHOLDS } from '../config';
 import { buildPlan } from './helpers';
+import { SAMPLE_PLANS } from '../../../examples';
+import { parsePlan } from '../../parser';
+import { runAdvisor } from '../engine';
 import type { RuleContext } from '../types';
 
 function makeCtx(plan: ReturnType<typeof buildPlan>): RuleContext {
@@ -51,3 +54,14 @@ describe('implicitConversionRule', () => {
     expect(findings[0].explanation).toContain('TO_NUMBER(B)');
   });
 });
+
+describe('implicit-conversion on bundled examples', () => {
+  it('does not flag the DESC sort key in the Window Sort Spill example', () => {
+    const sample = SAMPLE_PLANS.find((p) => p.name === 'Window Sort Spill')!;
+    const plan = parsePlan(sample.data);
+    expect(plan.allNodes.some((n) => /INTERNAL_FUNCTION/.test(n.filterPredicates ?? ''))).toBe(true);
+    const report = runAdvisor(plan, null);
+    expect(report.findings.filter((f) => f.ruleId === 'implicit-conversion')).toEqual([]);
+  });
+});
+
