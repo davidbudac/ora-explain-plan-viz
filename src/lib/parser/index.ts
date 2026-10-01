@@ -4,7 +4,11 @@ import { dbmsXplanParser, extractDbmsXplanSegments } from './dbmsXplanParser';
 import { sqlMonitorTextParser, sqlMonitorXmlParser } from './sqlMonitorParser';
 import { jsonPlanParser } from './jsonPlanParser';
 import { xbiParser } from './xbiParser';
+import { normalizeNewlines } from './values';
 import { computeEstimatedRowTotals, computeSelfCosts, computeSelfTimes } from '../analysis';
+
+const SUPPORTED_FORMATS_HINT =
+  'Supported: DBMS_XPLAN, SQL Monitor (text / XML / ACTIVE), V$SQL_PLAN JSON and xbi.sql output.';
 
 /**
  * List of available parsers in priority order.
@@ -34,7 +38,7 @@ function stripWrappingQuotes(input: string): string {
 }
 
 export function detectFormat(input: string): DetectedFormat {
-  const cleaned = stripWrappingQuotes(input);
+  const cleaned = stripWrappingQuotes(normalizeNewlines(input));
   for (const { format, parser } of parsers) {
     if (parser.canParse(cleaned)) {
       return format;
@@ -59,7 +63,7 @@ function finalizePlan(plan: ParsedPlan): ParsedPlan {
  * @returns Parsed plan structure with source metadata
  */
 export function parsePlan(input: string): ParsedPlan {
-  input = stripWrappingQuotes(input);
+  input = stripWrappingQuotes(normalizeNewlines(input));
   const format = detectFormat(input);
 
   for (const { format: parserFormat, parser } of parsers) {
@@ -71,13 +75,22 @@ export function parsePlan(input: string): ParsedPlan {
 
   // Fallback to DBMS_XPLAN parser for unknown formats
   const plan = dbmsXplanParser.parse(input);
+  if (!plan.rootNode) {
+    plan.warnings = [
+      ...(plan.warnings ?? []),
+      {
+        code: 'unrecognised_format',
+        message: `The text matched none of the supported formats, so it was tried as DBMS_XPLAN output and no plan table was found. ${SUPPORTED_FORMATS_HINT}`,
+      },
+    ];
+  }
   return finalizePlan(plan);
 }
 
 export const splitDbmsXplanPlanBatches = extractDbmsXplanSegments;
 
 export function parsePlans(input: string): ParsedPlan[] {
-  return splitDbmsXplanPlanBatches(input)
+  return splitDbmsXplanPlanBatches(normalizeNewlines(input))
     .map((batch) => parsePlan(batch))
     .filter((plan) => Boolean(plan.rootNode));
 }

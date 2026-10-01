@@ -10,6 +10,7 @@ interface NodeSpec {
   actualRows?: number;
   starts?: number;
   estimatedRowsTotal?: number;
+  inactive?: boolean;
   children?: NodeSpec[];
 }
 
@@ -25,6 +26,7 @@ function buildNode(spec: NodeSpec, depth = 0, parentId?: number): PlanNode {
     starts: spec.starts,
     estimatedRowsTotal: spec.estimatedRowsTotal,
     parentId,
+    inactive: spec.inactive,
     children: [],
   };
   node.children = (spec.children ?? []).map((c) => buildNode(c, depth + 1, spec.id));
@@ -292,5 +294,50 @@ describe('computeFlameLayout', () => {
     expect(values.get(0)).toBe(10);
     expect(values.get(1)).toBe(5);
     expect(values.get(2)).toBe(5);
+  });
+});
+
+describe('adaptive plans: inactive operations', () => {
+  const adaptive = () =>
+    buildNode({
+      id: 0,
+      actualTime: 100,
+      cost: 50,
+      children: [
+        {
+          id: 1,
+          actualTime: 90,
+          cost: 40,
+          inactive: true, // not used; carries estimates only
+          children: [
+            { id: 2, actualTime: 60, cost: 30 }, // active, under the inactive join
+            { id: 3, inactive: true, cost: 25, rows: 500, actualTime: 5 },
+          ],
+        },
+        { id: 4, actualTime: 10, cost: 5 },
+      ],
+    });
+
+  it('gives inactive nodes no value of their own, so only active descendants roll up through them', () => {
+    const time = rollupMetric(adaptive(), 'actualTime');
+    expect(time.get(3)).toBe(0);
+    expect(time.get(1)).toBe(60); // = active child 2, not its own 90
+    expect(time.get(0)).toBe(100);
+
+    const cost = rollupMetric(adaptive(), 'cost');
+    expect(cost.get(3)).toBe(0);
+    expect(cost.get(1)).toBe(30);
+    expect(cost.get(0)).toBe(50);
+  });
+
+  it('shows an inactive node with zero self value and keeps the active descendant sized', () => {
+    const rects = computeFlameLayout(adaptive(), 'actualTime', { width: 1000 });
+    expect(byId(rects, 1).selfValue).toBe(0);
+    expect(byId(rects, 3).selfValue).toBe(0);
+    const width = (id: number) => byId(rects, id).x1 - byId(rects, id).x0;
+    expect(width(1)).toBeCloseTo(600, 5); // = the active descendant's 60 of 100
+    expect(width(3)).toBeLessThanOrEqual(2); // the unused leaf is a hairline at most
+    expect(width(2) + width(3)).toBeCloseTo(width(1), 5);
+    expect(width(2)).toBeGreaterThan(590);
   });
 });

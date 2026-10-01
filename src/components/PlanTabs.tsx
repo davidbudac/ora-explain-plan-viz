@@ -76,6 +76,7 @@ export function PlanTabs({ compact = false }: PlanTabsProps) {
         {plans.map((slot, index) => {
           const isActive = index === activePlanIndex && viewMode !== 'compare';
           const phv = slot.parsedPlan?.planHashValue;
+          const childNumber = slot.parsedPlan?.childNumber;
           const name = slot.customLabel || slot.label;
           const activateTab = () => {
             setActivePlan(index);
@@ -119,7 +120,7 @@ export function PlanTabs({ compact = false }: PlanTabsProps) {
                   onClick={activateTab}
                   onDoubleClick={() => setEditingIndex(index)}
                   aria-current={isActive ? 'true' : undefined}
-                  title={`${name}${phv ? ` — PHV ${phv}` : ''}${slot.parsedPlan ? '' : ' (empty)'} · double-click to rename`}
+                  title={`${name}${phv ? ` — PHV ${phv}${childNumber !== undefined ? ` · child ${childNumber}` : ''}` : ''}${slot.parsedPlan ? '' : ' (empty)'} · double-click to rename`}
                   className={`flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 text-xs font-semibold rounded-md ${FOCUS_RING_INSET}`}
                 >
                   <span className="select-none">{name}</span>

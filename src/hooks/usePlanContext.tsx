@@ -10,11 +10,12 @@ import { matchesFilters } from '../lib/filtering';
 import { computeHottestNodeId } from '../lib/analysis';
 import { DENSITY_PRESETS, matchDensityPreset } from '../lib/density';
 import type { DensityPreset, DensitySelection } from '../lib/density';
-import { getPlanFromUrl, getGzipPlanParamFromHash, clearPlanFromUrl, buildShareLink, decodeGzipPlanParam, classifyDecodedPlanText, getSharedViewMode } from '../lib/url';
+import { getPlanFromUrl, getGzipPlanParamFromHash, clearPlanFromUrl, buildShareLink, decodeGzipPlanParam, classifyDecodedPlanText, getSharedViewMode, parseDeepLinkParams, buildShareWorkspace, readShareWorkspace, readSharedSelection, SHARE_FILTER_DEFAULTS } from '../lib/url';
 import type { SharePlanEntry, UrlPlanData } from '../lib/url';
 import { describeParseFailure } from '../lib/formats';
 import { looksLikeMetadataBundle } from '../lib/metadata/bundle';
 import { planDrop, readDroppedFiles } from '../lib/dropFiles';
+import { isActiveReport, decodeActiveReport, ACTIVE_REPORT_DECODE_ERROR } from '../lib/parser/activeReport';
 import {
   SESSION_KEY,
   loadSession,
@@ -905,8 +906,6 @@ interface PlanContextValue {
   // Backward-compatible derived values from active plan
   /** Source text of the active slot's loaded plan (unchanged by typing in the drawer). */
   rawInput: string;
-  /** What the drawer textarea holds for the active slot; Parse parses this. */
-  draftInput: string;
   parsedPlan: ParsedPlan | null;
   selectedNodeId: number | null;
   selectedNodeIds: number[];
@@ -1093,8 +1092,45 @@ interface PlanContextValue {
 
 const PlanContext = createContext<PlanContextValue | null>(null);
 
+/**
+ * What the drawer textarea holds for the active slot (Parse parses this).
+ * Deliberately its own context: it changes on every keystroke, and keeping it
+ * out of `PlanContextValue` means typing re-renders only the textarea's owner,
+ * not every `usePlan()` consumer.
+ */
+const DraftInputContext = createContext<string>('');
+
+/**
+ * Whether two plan arrays are the same for every consumer that is not the
+ * input textarea: slot by slot, ignoring `draftInput` (the one field that
+ * changes per keystroke).
+ */
+function plansEqualIgnoringDraft(a: PlanSlot[], b: PlanSlot[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = b[i];
+    if (x === y) continue;
+    for (const key of Object.keys(x) as Array<keyof PlanSlot>) {
+      if (key !== 'draftInput' && x[key] !== y[key]) return false;
+    }
+    for (const key of Object.keys(y) as Array<keyof PlanSlot>) {
+      if (key !== 'draftInput' && !(key in x)) return false;
+    }
+  }
+  return true;
+}
+
 export function PlanProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(planReducer, undefined, getInitialState);
+  // The slots every consumer and callback sees. Same array identity until
+  // something other than the drawer's draft text changes (see
+  // `plansEqualIgnoringDraft`); only `activeSlot`/`stateRef` read live drafts.
+  const [stablePlans, setStablePlans] = useState(state.plans);
+  if (stablePlans !== state.plans && !plansEqualIgnoringDraft(stablePlans, state.plans)) {
+    setStablePlans(state.plans);
+  }
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const exportPngFnRef = useRef<(() => Promise<void>) | null>(null);
   // Session-only UI state (not persisted to settings)
@@ -1431,7 +1467,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         return { ok: false, error: err instanceof Error ? err.message : 'Could not parse metadata bundle.' };
       }
-      const decision = pairBundleWithSlots(bundle, state.plans);
+      const decision = pairBundleWithSlots(bundle, stablePlans);
       if (decision.kind === 'no-targets') {
         return { ok: false, error: decision.reason };
       }
@@ -1450,16 +1486,16 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       });
       return { ok: true, pairedSlotIndex: decision.slotIndex, warning };
     },
-    [state.plans],
+    [stablePlans],
   );
 
   const attachMetadataBundleToSlot = useCallback(
     (bundle: MetadataBundle, index: number): { ok: true; warning: string | null } | { ok: false; error: string } => {
-      const slot = state.plans[index];
+      const slot = stablePlans[index];
       if (!slot || !slot.parsedPlan) {
         return { ok: false, error: 'Selected slot has no loaded plan.' };
       }
-      const decision = pairBundleWithSlots(bundle, state.plans);
+      const decision = pairBundleWithSlots(bundle, stablePlans);
       let warning: string | null = null;
       if (decision.kind === 'auto-attach' && decision.slotIndex === index) {
         warning = decision.warning;
@@ -1482,7 +1518,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'ATTACH_METADATA_BUNDLE', payload: { index, bundle, warning } });
       return { ok: true, warning };
     },
-    [state.plans],
+    [stablePlans],
   );
 
   const detachMetadataBundle = useCallback((index: number) => {
@@ -1494,7 +1530,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       const results: Array<{ index: number; warning: string | null }> = [];
       const bundleSqlId = bundle.plan_ref.sql_id;
       const bundlePlanHash = bundle.plan_ref.plan_hash_value;
-      state.plans.forEach((slot, index) => {
+      stablePlans.forEach((slot, index) => {
         if (!slot.parsedPlan) return;
         let warning: string | null = null;
         const slotSqlId = slot.parsedPlan.sqlId;
@@ -1513,7 +1549,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       });
       return results;
     },
-    [state.plans],
+    [stablePlans],
   );
 
   // ---------------------------------------------------------------------------
@@ -1649,7 +1685,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const hasMultiplePlans = state.plans.length > 1;
+  const hasMultiplePlans = stablePlans.length > 1;
 
   const nodeById = useMemo(() => {
     if (!parsedPlan) return new Map<number, PlanNode>();
@@ -1708,6 +1744,15 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   // Load plan from URL param or default example on first mount
   const hasLoadedDefaultRef = useRef(false);
+  // `?node=<id>` from the address bar: selected once the active plan is parsed
+  // (unknown ids are ignored). Consumed by the effect below.
+  const pendingNodeRef = useRef<number | null>(null);
+  useEffect(() => {
+    const id = pendingNodeRef.current;
+    if (id === null || !parsedPlan) return;
+    pendingNodeRef.current = null;
+    if (nodeById.has(id)) dispatch({ type: 'SELECT_NODE', payload: { id } });
+  }, [parsedPlan, nodeById]);
 
   const applyUrlPlanData = useCallback((urlData: UrlPlanData) => {
     if (urlData.type === 'legacy') {
@@ -1741,7 +1786,20 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      dispatch({ type: 'REPLACE_PLANS', payload: { plans: restoredPlans, activePlanIndex: 0 } });
+      // Shared workspace state (selection, active plan, compare pair, filters).
+      // Absent in older links; each field is validated against the loaded plans.
+      const workspace = readShareWorkspace(urlData.payload, restoredPlans.length);
+      for (let i = 0; i < restoredPlans.length && i < plans.length; i++) {
+        const parsed = restoredPlans[i].parsedPlan;
+        if (!parsed) continue;
+        const known = new Set(parsed.allNodes.map((node) => node.id));
+        const selected = readSharedSelection(plans[i]).filter((id) => known.has(id));
+        if (selected.length > 0) {
+          restoredPlans[i] = { ...restoredPlans[i], selectedNodeId: selected[selected.length - 1], selectedNodeIds: selected };
+        }
+      }
+
+      dispatch({ type: 'REPLACE_PLANS', payload: { plans: restoredPlans, activePlanIndex: workspace?.activePlan ?? 0 } });
       const parsedCount = restoredPlans.filter((slot) => slot.parsedPlan).length;
       dispatch({
         type: 'SET_INPUT_PANEL_COLLAPSED',
@@ -1750,6 +1808,15 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       const sharedView = restorableViewMode(getSharedViewMode(urlData.payload), parsedCount);
       if (sharedView) {
         dispatch({ type: 'SET_VIEW_MODE', payload: sharedView });
+      }
+      if (workspace?.compare && parsedCount >= 2) {
+        dispatch({ type: 'SET_COMPARE_PLAN_INDICES', payload: workspace.compare.pair });
+        if (workspace.compare.metrics) dispatch({ type: 'SET_COMPARE_METRICS', payload: workspace.compare.metrics });
+        if (workspace.compare.tree) dispatch({ type: 'SET_TREE_COMPARE_ENABLED', payload: true });
+      }
+      if (workspace) {
+        // The link's analysis filters replace whatever the recipient had.
+        dispatch({ type: 'SET_FILTERS', payload: { ...SHARE_FILTER_DEFAULTS, ...workspace.filters } });
       }
       for (const slot of restoredPlans) {
         if (!slot.parsedPlan) continue;
@@ -1883,11 +1950,20 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     // From here on state changes are autosaved (restore below happens first).
     sessionReadyRef.current = true;
 
+    const deepLink = typeof window === 'undefined' ? null : parseDeepLinkParams(window.location.search);
+    // `?q=` fills the filter search box; `?node=` selects once a plan is on screen.
+    const applyDeepLinkExtras = (planIsLoading: boolean) => {
+      if (!deepLink) return;
+      if (deepLink.q !== null) dispatch({ type: 'SET_FILTERS', payload: { searchText: deepLink.q } });
+      if (deepLink.node !== null && planIsLoading) pendingNodeRef.current = deepLink.node;
+    };
+
     // Check URL for shared plan first (legacy ?plan= wins for back-compat)
     const urlData = getPlanFromUrl();
     if (urlData) {
-      clearPlanFromUrl();
+      clearPlanFromUrl({ includeDeepLinks: true });
       applyUrlPlanData(urlData);
+      applyDeepLinkExtras(true);
       return;
     }
 
@@ -1896,9 +1972,12 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     // handled by hasLoadedDefaultRef being set before any async work.
     const gzParam = getGzipPlanParamFromHash();
     if (gzParam) {
-      clearPlanFromUrl();
+      clearPlanFromUrl({ includeDeepLinks: true });
       void decodeGzipPlanParam(gzParam)
-        .then((text) => applyUrlPlanData(classifyDecodedPlanText(text)))
+        .then((text) => {
+          applyUrlPlanData(classifyDecodedPlanText(text));
+          applyDeepLinkExtras(true);
+        })
         .catch(() => dispatch({
           type: 'SET_ERROR',
           payload: 'The shared plan link is corrupt or truncated. Ask for a fresh link or paste the plan text directly.',
@@ -1906,15 +1985,13 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Marketing/deep-link params: `?example=<name>` and `?view=<tab>`.
+    // Marketing/deep-link params: `?example=<name>`, `?view=<tab>`, `?node=<id>`, `?q=<text>`.
     // Applied only when there's no shared-plan URL to restore (handled above).
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
+    if (!deepLink) return;
 
     let loadedFromUrl = false;
-    const exampleParam = params.get('example');
-    if (exampleParam) {
-      const sample = findSampleByUrlParam(exampleParam);
+    if (deepLink.example) {
+      const sample = findSampleByUrlParam(deepLink.example);
       if (sample) {
         importPlanInput(sample.data, { metadataText: sample.metadata, recent: false, view: sample.view });
         loadedFromUrl = true;
@@ -1923,9 +2000,11 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     }
 
     // No plan in the URL: bring back the previous session, if any.
+    let restored = false;
     if (!loadedFromUrl) {
       const saved = loadSession();
       if (saved && restoreSession(saved)) {
+        restored = true;
         toastApi.show({
           tone: 'info',
           message: 'Restored your previous session',
@@ -1935,14 +2014,16 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const viewParam = params.get('view');
-    if (viewParam) {
-      const mode = parseViewModeFromUrlParam(viewParam);
+    if (deepLink.view) {
+      const mode = parseViewModeFromUrlParam(deepLink.view);
       // `compare` requires two loaded plans and is intentionally not supported via URL param.
       if (mode && mode !== 'compare') {
         dispatch({ type: 'SET_VIEW_MODE', payload: mode });
       }
     }
+    applyDeepLinkExtras(loadedFromUrl || restored);
+    // Drop the params once consumed so a reload or a share link does not replay them.
+    clearPlanFromUrl({ includeDeepLinks: true });
   }, [applyUrlPlanData, importPlanInput, restoreSession, startFresh, toastApi]);
 
   // Persist settings when they change (debounced)
@@ -2004,8 +2085,20 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const parsePlan = useCallback(async (text?: string) => {
     const { plans, activePlanIndex } = stateRef.current;
     const slot = plans[activePlanIndex];
-    const draft = text ?? slot?.draftInput ?? slot?.rawInput ?? '';
+    let draft = text ?? slot?.draftInput ?? slot?.rawInput ?? '';
     if (!draft.trim()) return;
+    // A SQL Monitor ACTIVE (HTML) report is decoded to its XML first, so the
+    // loaded text (autosave, Recent, share links) is the XML, not the HTML.
+    let decodedActive = false;
+    if (isActiveReport(draft)) {
+      try {
+        draft = await decodeActiveReport(draft);
+        decodedActive = true;
+      } catch (err) {
+        reportError(err instanceof Error ? err.message : ACTIVE_REPORT_DECODE_ERROR, { draft });
+        return;
+      }
+    }
     // A pasted gather-script output is not a plan — route it to the bundle
     // pipeline; on success the drawer goes back to showing the plan text.
     if (looksLikeMetadataBundle(draft)) {
@@ -2018,8 +2111,11 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_INPUT_PANEL_COLLAPSED', payload: true });
       return;
     }
-    await guardedImport(draft, 'Parsing the new text');
-  }, [attachBundleText, guardedImport]);
+    const outcome = await guardedImport(draft, 'Parsing the new text');
+    if (decodedActive && outcome?.ok) {
+      toastApi.show({ tone: 'info', title: 'Decoded SQL Monitor ACTIVE report', message: 'The embedded XML report was extracted and loaded.' });
+    }
+  }, [attachBundleText, guardedImport, reportError, toastApi]);
 
   const loadAndParsePlan = useCallback(
     async (input: string, metadataText?: string, options?: LoadPlanOptions): Promise<boolean> => {
@@ -2306,12 +2402,12 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   }, [confirm]);
 
   const getAnnotationsForPlan = useCallback((index: number): AnnotationState => {
-    return state.plans[index]?.annotations ?? createEmptyAnnotationState();
-  }, [state.plans]);
+    return stablePlans[index]?.annotations ?? createEmptyAnnotationState();
+  }, [stablePlans]);
 
   const exportAnnotatedPlan = useCallback(() => {
     if (!parsedPlan) return;
-    const activeBundle = state.plans[state.activePlanIndex]?.metadataBundle ?? null;
+    const activeBundle = stablePlans[state.activePlanIndex]?.metadataBundle ?? null;
     const exportData: AnnotatedPlanExport = {
       version: activeBundle ? 2 : 1,
       exportedAt: new Date().toISOString(),
@@ -2319,11 +2415,11 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       planSource: parsedPlan.source,
       planHashValue: parsedPlan.planHashValue,
       sqlId: parsedPlan.sqlId,
-      annotations: serializeAnnotations(state.plans[state.activePlanIndex]?.annotations ?? createEmptyAnnotationState()),
+      annotations: serializeAnnotations(stablePlans[state.activePlanIndex]?.annotations ?? createEmptyAnnotationState()),
       ...(activeBundle ? { metadataBundle: activeBundle } : {}),
     };
     downloadAnnotatedPlan(exportData);
-  }, [parsedPlan, rawInput, state.plans, state.activePlanIndex]);
+  }, [parsedPlan, rawInput, stablePlans, state.activePlanIndex]);
 
   /**
    * Load an already-validated annotated-plan export into the active slot (no
@@ -2415,7 +2511,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   /** Drop / file-picker entry point: plan, bundle, annotated export, or a mix. */
   const loadFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
-    const { files: texts, errors } = await readDroppedFiles(files);
+    const { files: texts, errors, decoded } = await readDroppedFiles(files);
     if (texts.length === 0) {
       reportError(errors[0] ?? 'Could not read the dropped file.');
       return;
@@ -2431,6 +2527,9 @@ export function PlanProvider({ children }: { children: ReactNode }) {
           recent: { label: drop.name },
         });
         if (!outcome?.ok) return;
+        if (decoded.includes(drop.name)) {
+          toastApi.show({ tone: 'info', title: 'Decoded SQL Monitor ACTIVE report', message: 'The embedded XML report was extracted and loaded.' });
+        }
         if (drop.bundleText && outcome.bundle === 'attached') {
           showBundleNotice({ tone: 'ok', text: `Loaded "${drop.name}" with metadata bundle "${drop.bundleName}".` });
         }
@@ -2463,7 +2562,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   const sharePlan = useCallback(async (): Promise<{ ok: true; url: string; warning?: string; copied: boolean } | { ok: false; error: string }> => {
     // Only loaded plans are shared (rawInput is the loaded text, never a draft).
-    const slotsWithInput = state.plans.filter(slot => slot.rawInput && slot.parsedPlan);
+    const slotsWithInput = stablePlans.filter(slot => slot.rawInput && slot.parsedPlan);
     if (slotsWithInput.length === 0) {
       return { ok: false, error: 'No plan to share.' };
     }
@@ -2472,11 +2571,22 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       rawInput: slot.rawInput,
       ...(hasAnnotations(slot.annotations) ? { annotations: serializeAnnotations(slot.annotations) } : {}),
       ...(slot.metadataBundle ? { metadataBundle: slot.metadataBundle } : {}),
+      ...(slot.selectedNodeIds.length > 0 ? { selectedNodeIds: slot.selectedNodeIds } : {}),
     }));
+    // Read from the ref (not render state) so the callback identity stays stable.
+    const current = stateRef.current;
+    const workspace = buildShareWorkspace({
+      keptIndices: slotsWithInput.map((slot) => stablePlans.indexOf(slot)),
+      activePlanIndex: current.activePlanIndex,
+      comparePlanIndices: current.comparePlanIndices,
+      compareMetrics: current.compareMetrics,
+      treeCompareEnabled: current.treeCompareEnabled,
+      filters: current.filters,
+    });
 
     // Full payload (incl. bundles + active view) → without bundles when the
     // link would pass ~32k chars → stripped SQL Monitor XML as a last resort.
-    const result = await buildShareLink(entries, { viewMode: state.viewMode });
+    const result = await buildShareLink(entries, { viewMode: state.viewMode, workspace });
     const warning = result.ok && result.warnings.length > 0 ? result.warnings.join(' ') : undefined;
 
     if (result.ok) {
@@ -2492,7 +2602,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       return { ok: true, url: result.url, warning, copied };
     }
     return result;
-  }, [state.plans, state.viewMode]);
+  }, [stablePlans, state.viewMode]);
 
   // Perform a share and publish the outcome as a dismissable notice, so every
   // entry point (header button, command palette) gives consistent, recoverable
@@ -2526,10 +2636,18 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   const getFilteredNodes = useCallback((): PlanNode[] => filteredNodes, [filteredNodes]);
 
-  const value: PlanContextValue = {
+  const activeAnnotations = useMemo(
+    () => stablePlans[state.activePlanIndex]?.annotations ?? createEmptyAnnotationState(),
+    [stablePlans, state.activePlanIndex],
+  );
+  const hasUnsavedAnnotations = useMemo(
+    () => stablePlans.some((slot) => hasAnnotations(slot.annotations)),
+    [stablePlans],
+  );
+
+  const value = useMemo<PlanContextValue>(() => ({
     // Backward-compatible derived values
     rawInput,
-    draftInput,
     parsedPlan,
     selectedNodeId,
     selectedNodeIds,
@@ -2556,7 +2674,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     visualizationMaximized: state.visualizationMaximized,
 
     // Multi-plan state
-    plans: state.plans,
+    plans: stablePlans,
     activePlanIndex: state.activePlanIndex,
     comparePlanIndices: state.comparePlanIndices,
     hasMultiplePlans,
@@ -2636,8 +2754,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setVisualizationMaximized,
 
     // Annotations (derived from active plan slot)
-    annotations: state.plans[state.activePlanIndex]?.annotations ?? createEmptyAnnotationState(),
-    hasUnsavedAnnotations: state.plans.some(slot => hasAnnotations(slot.annotations)),
+    annotations: activeAnnotations,
+    hasUnsavedAnnotations,
     getAnnotationsForPlan,
 
     // Multi-plan actions
@@ -2683,9 +2801,150 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     treeViewActionsRef,
     treeViewState,
     setTreeViewState,
-  };
+  }), [
+    rawInput,
+    parsedPlan,
+    selectedNodeId,
+    selectedNodeIds,
+    error,
+    metadataBundle,
+    metadataBundleWarning,
+    state.viewMode,
+    state.sankeyMetric,
+    state.flameMetric,
+    state.experimentalSubView,
+    state.nodeIndicatorMetric,
+    state.colorScheme,
+    state.palette,
+    state.theme,
+    state.filters,
+    state.legendVisible,
+    state.inputPanelCollapsed,
+    state.filterPanelCollapsed,
+    state.detailPanelCollapsed,
+    state.focusMode,
+    state.treeCompareEnabled,
+    state.visualizationMaximized,
+    stablePlans,
+    state.activePlanIndex,
+    state.comparePlanIndices,
+    hasMultiplePlans,
+    state.compareMetrics,
+    setInput,
+    parsePlan,
+    loadAndParsePlan,
+    loadExample,
+    loadFiles,
+    attachBundleText,
+    bundleNotice,
+    dismissBundleNotice,
+    pendingBundleChoice,
+    resolveBundleChoice,
+    requestClearPlan,
+    requestClearAnnotations,
+    requestRemovePlanSlot,
+    recentPlans,
+    openRecentPlan,
+    removeRecentPlan,
+    startFresh,
+    loadMetadataBundle,
+    attachMetadataBundleToSlot,
+    applyMetadataToAllSlots,
+    detachMetadataBundle,
+    selectNode,
+    selectNodeForPlan,
+    setViewMode,
+    setTreeCompareEnabled,
+    setSankeyMetric,
+    setFlameMetric,
+    setExperimentalSubView,
+    setNodeIndicatorMetric,
+    setColorScheme,
+    setPalette,
+    setTheme,
+    setFilters,
+    clearPlan,
+    getSelectedNode,
+    getFilteredNodes,
+    selectedNode,
+    selectedNodes,
+    filteredNodes,
+    filteredNodeIds,
+    nodeById,
+    hottestNodeId,
+    advisorReport,
+    state.highlightStyle,
+    setHighlightStyle,
+    highlightBrush,
+    setHighlightBrush,
+    state.hotspotsEnabled,
+    setHotspotsEnabled,
+    state.showAdvisorSuggestions,
+    setShowAdvisorSuggestions,
+    setLegendVisible,
+    densitySelection,
+    applyDensityPreset,
+    commandPaletteOpen,
+    setCommandPaletteOpen,
+    shortcutsOverlayOpen,
+    setShortcutsOverlayOpen,
+    metadataPopoutOpen,
+    setMetadataPopoutOpen,
+    baselineDialogOpen,
+    setBaselineDialogOpen,
+    reportDialogOpen,
+    setReportDialogOpen,
+    connectPanelOpen,
+    setConnectPanelOpen,
+    setInputPanelCollapsed,
+    setFilterPanelCollapsed,
+    setDetailPanelCollapsed,
+    setFocusMode,
+    setVisualizationMaximized,
+    activeAnnotations,
+    hasUnsavedAnnotations,
+    getAnnotationsForPlan,
+    addPlanSlot,
+    removePlanSlot,
+    renamePlanSlot,
+    setActivePlan,
+    setComparePlanIndices,
+    swapComparePlans,
+    setCompareMetrics,
+    setNodeAnnotation,
+    removeNodeAnnotation,
+    setNodeHighlight,
+    removeNodeHighlight,
+    setNodeAnnotationForPlan,
+    removeNodeAnnotationForPlan,
+    setNodeHighlightForPlan,
+    removeNodeHighlightForPlan,
+    paintNodeWithBrush,
+    addAnnotationGroup,
+    updateAnnotationGroup,
+    removeAnnotationGroup,
+    exportAnnotatedPlan,
+    importAnnotatedPlan,
+    clearAnnotations,
+    sharePlan,
+    share,
+    shareNotice,
+    dismissShareNotice,
+    exportPngFnRef,
+    treeLayoutDirection,
+    setTreeLayoutDirection,
+    treeMinimap,
+    setTreeMinimap,
+    treeViewActionsRef,
+    treeViewState,
+    setTreeViewState,
+  ]);
 
-  return <PlanContext.Provider value={value}>{children}</PlanContext.Provider>;
+  return (
+    <PlanContext.Provider value={value}>
+      <DraftInputContext.Provider value={draftInput}>{children}</DraftInputContext.Provider>
+    </PlanContext.Provider>
+  );
 }
 
 export function usePlan() {
@@ -2694,4 +2953,9 @@ export function usePlan() {
     throw new Error('usePlan must be used within a PlanProvider');
   }
   return context;
+}
+
+/** The drawer textarea's current text for the active plan slot (re-renders per keystroke). */
+export function useDraftInput(): string {
+  return useContext(DraftInputContext);
 }

@@ -1,7 +1,55 @@
+import type { PlanNode } from '../../types';
+import type { TableObject } from '../../metadata/bundle';
 import type { AdvisorRule, Finding, RuleContext } from '../types';
 import { extractPredicateColumns } from '../../metadata/predicateColumns';
 
 const FULL_SCAN_RE = /TABLE ACCESS (STORAGE )?FULL/;
+const PARTITION_ITERATOR_RE = /^(?:PX )?PARTITION\b/i;
+const PARTITION_ALL_RE = /\bALL\b/i;
+/** Pstop of an interval-partitioned table that is not pruned. */
+const INTERVAL_MAX_PARTITION = 1_048_575;
+
+/**
+ * What part of a partitioned table a full scan reads:
+ *  - whole: every partition (or the table is not partitioned)
+ *  - pruned: a subset; `partitions` is how many, when the plan says so
+ *  - unknown: the plan carries no partition information to tell
+ */
+type ScanScope = { kind: 'whole' } | { kind: 'unknown' } | { kind: 'pruned'; partitions?: number };
+
+function partitionIteratorOf(node: PlanNode, byId: Map<number, PlanNode>): PlanNode | undefined {
+  let parent = node.parentId !== undefined ? byId.get(node.parentId) : undefined;
+  while (parent && /^PX BLOCK/i.test(parent.operation)) {
+    parent = parent.parentId !== undefined ? byId.get(parent.parentId) : undefined;
+  }
+  return parent && PARTITION_ITERATOR_RE.test(parent.operation) ? parent : undefined;
+}
+
+function scanScope(node: PlanNode, table: TableObject, byId: Map<number, PlanNode>): ScanScope {
+  if (!table.stats.partitioned) return { kind: 'whole' };
+
+  const iterator = partitionIteratorOf(node, byId);
+  const pstart = node.pstart ?? iterator?.pstart;
+  const pstop = node.pstop ?? iterator?.pstop;
+  if (!iterator && pstart === undefined && pstop === undefined) return { kind: 'unknown' };
+
+  if (iterator && PARTITION_ALL_RE.test(iterator.operation)) return { kind: 'whole' };
+
+  const partitionCount = table.stats.partition_count;
+  const start = pstart !== undefined && /^\d+$/.test(pstart.trim()) ? Number(pstart) : undefined;
+  const stop = pstop !== undefined && /^\d+$/.test(pstop.trim()) ? Number(pstop) : undefined;
+  if (start === 1 && stop !== undefined && (stop >= INTERVAL_MAX_PARTITION || (partitionCount !== undefined && stop >= partitionCount))) {
+    return { kind: 'whole' };
+  }
+
+  // Subpartition numbering makes Pstart/Pstop counts unreliable.
+  const composite = !!table.stats.subpartition_type && table.stats.subpartition_type !== 'NONE';
+  if (iterator && /\bSINGLE\b/i.test(iterator.operation) && !composite) return { kind: 'pruned', partitions: 1 };
+  if (start !== undefined && stop !== undefined && stop >= start && !composite) {
+    return { kind: 'pruned', partitions: stop - start + 1 };
+  }
+  return { kind: 'pruned' };
+}
 
 export const selectiveFullScanRule: AdvisorRule = {
   id: 'selective-full-scan',
@@ -13,12 +61,35 @@ export const selectiveFullScanRule: AdvisorRule = {
       ftsFallbackMaxRowsPerStart, ftsFallbackMinGetsPerStart, maxFindingsPerRule,
     } = ctx.thresholds;
 
+    const byId = new Map(ctx.plan.allNodes.map((n) => [n.id, n]));
+
     for (const node of ctx.plan.allNodes) {
       if (!FULL_SCAN_RE.test(node.operation.toUpperCase())) continue;
       if (!node.accessPredicates && !node.filterPredicates) continue;
+      if (node.starts === 0) continue;
 
       const match = ctx.findObject(node.objectName);
-      const tableRows = match && match.object.type === 'TABLE' ? match.object.stats.num_rows ?? undefined : undefined;
+      const table = match && match.object.type === 'TABLE' ? match.object : undefined;
+      // Rows the scan could read: the whole table, or for a pruned scan of a partitioned table an
+      // even-partition share of it. Without the partition count a pruned scan has no usable
+      // denominator, so only the measured buffer-gets fallback below can judge it.
+      let tableRows = table?.stats.num_rows ?? undefined;
+      let partitionNote = '';
+      if (table && tableRows !== undefined) {
+        const scope = scanScope(node, table, byId);
+        const partitionCount = table.stats.partition_count;
+        if (scope.kind === 'unknown') {
+          tableRows = undefined;
+        } else if (scope.kind === 'pruned') {
+          if (scope.partitions !== undefined && partitionCount !== undefined && partitionCount > 0) {
+            const scanned = Math.min(scope.partitions, partitionCount);
+            tableRows = Math.round((tableRows * scanned) / partitionCount);
+            partitionNote = ` (${scanned.toLocaleString()} of ${partitionCount.toLocaleString()} partitions; estimated as table rows x partitions scanned / partition count, assuming evenly sized partitions)`;
+          } else {
+            tableRows = undefined;
+          }
+        }
+      }
       const returned = node.actualRows ?? node.rows;
 
       let finding: Finding | null = null;
@@ -33,7 +104,7 @@ export const selectiveFullScanRule: AdvisorRule = {
             severity: isCritical ? 'critical' : 'warning',
             nodeIds: [node.id],
             title: `Selective full scan on ${node.operation}`,
-            explanation: `Full scan of a table with ${tableRows.toLocaleString()} rows returned only ${returned.toLocaleString()} rows (${(selectivity * 100).toFixed(3)}% selectivity).`,
+            explanation: `Full scan of ${partitionNote ? `about ${tableRows.toLocaleString()} rows in the partitions scanned${partitionNote}` : `a table with ${tableRows.toLocaleString()} rows`} returned only ${returned.toLocaleString()} rows (${(selectivity * 100).toFixed(3)}% selectivity).`,
             suggestion: columns.length > 0
               ? `Consider an index on ${columns.join(', ')} to avoid scanning the entire table for this filter.`
               : 'Consider an index on the filtered column(s) to avoid scanning the entire table.',

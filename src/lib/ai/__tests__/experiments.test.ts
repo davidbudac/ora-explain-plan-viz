@@ -149,4 +149,25 @@ describe('buildExperimentCandidates', () => {
     expect(candidates[0].id).toBe('exp-dop-downgrade-plan');
     expect(candidates[0].kind).toBe('params');
   });
+
+  it('has experiments for the per-row, index, join, notes and parallel rules', () => {
+    const ids = [
+      'per-row-reexecution', 'index-rows-discarded', 'buffer-gets-per-row', 'function-on-indexed-column',
+      'hash-join-build-side', 'note-dynamic-sampling', 'note-sql-plan-directive', 'parallel-serial-feed', 'px-skew',
+    ];
+    const candidates = buildExperimentCandidates(makeReport(ids.map((ruleId) => finding({ ruleId, nodeIds: [4] }))));
+    expect(candidates.map((c) => c.id)).toEqual(ids.map((id) => `exp-${id}-4`));
+    expect(candidates.find((c) => c.id === 'exp-hash-join-build-side-4')).toMatchObject({ kind: 'hint' });
+    expect(candidates.find((c) => c.id === 'exp-hash-join-build-side-4')?.rationale).toContain('SWAP_JOIN_INPUTS');
+    expect(candidates.find((c) => c.id === 'exp-px-skew-4')?.rationale).toContain('PQ_DISTRIBUTE');
+    expect(candidates.find((c) => c.id === 'exp-function-on-indexed-column-4')?.kind).toBe('params');
+  });
+
+  it('leaves informational notes without an experiment unmapped', () => {
+    const candidates = buildExperimentCandidates(makeReport([
+      finding({ ruleId: 'note-sql-baseline', nodeIds: [] }),
+      finding({ ruleId: 'note-adaptive-plan', nodeIds: [] }),
+    ]));
+    expect(candidates).toEqual([]);
+  });
 });

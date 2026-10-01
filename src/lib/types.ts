@@ -9,6 +9,9 @@ export interface PlanNode {
   operation: string;
   objectName?: string;
   alias?: string;
+  // Adaptive plan row the optimizer did not use ('-' Id prefix with +ADAPTIVE). Kept in the
+  // tree for its shape, excluded from totals, self cost/time and advisor findings.
+  inactive?: boolean;
 
   // Estimated statistics (from optimizer)
   rows?: number;
@@ -38,7 +41,13 @@ export interface PlanNode {
   estimatedRowsTotal?: number;
   selfCost?: number;         // cost of this operation only: max(0, cost − Σ children cost) — derived post-parse
   physicalReads?: number;    // physical read requests (count)
+  physicalWrites?: number;   // physical writes (DISPLAY_CURSOR Writes, V$SQL_PLAN_STATISTICS disk_writes)
   logicalReads?: number;     // buffer gets (count)
+  // Work areas (sorts, hash joins, ...). Estimates come from the optimizer, passes from the last execution.
+  estimatedOptimalMemory?: number;  // bytes — memory for an in-memory (optimal) run (ALLSTATS OMem)
+  estimatedOnePassMemory?: number;  // bytes — memory for a one-pass run (ALLSTATS 1Mem)
+  workareaPasses?: number;          // last execution: 0 = optimal, 1 = one-pass, >1 = multipass (Used-Mem "(n)")
+  workareaExecutions?: { optimal: number; onePass: number; multipass: number }; // ALLSTATS (not LAST) O/1/M column
   ioReadRequests?: number;   // I/O read requests (count)
   ioReadBytes?: number;      // I/O read bytes
   ioWriteRequests?: number;  // I/O write requests (count)
@@ -54,14 +63,53 @@ export interface PlanNode {
   // Predicates and metadata
   accessPredicates?: string;
   filterPredicates?: string;
+  storagePredicates?: string;  // Exadata smart-scan predicates (`storage(...)`)
   queryBlock?: string;
   objectAlias?: string;
+  // DBMS_XPLAN ADVANCED sections, per operation
+  projection?: string;         // Column Projection Information (wrapped lines joined with a space)
+  remoteSql?: string;          // Remote SQL Information (statement sent over a database link)
+  hints?: PlanHint[];          // Hint Report entries for this operation
   parentId?: number;
   children: PlanNode[];
 }
 
+/** One entry of the DBMS_XPLAN Hint Report (19c+), attached to the operation it was reported on. */
+export interface PlanHint {
+  text: string;
+  /** `used` = no status letter; `unused` = U; `error` = E (syntax error); `other` = any other letter. */
+  status: 'used' | 'unused' | 'error' | 'other';
+  /** The raw status letter (U, E, …) when one was printed. */
+  code?: string;
+  /** Text after ` / ` in the entry, e.g. "hint on view cannot be pushed into view". */
+  reason?: string;
+  queryBlock?: string;
+  alias?: string;
+}
+
+/** Hint Report totals: `Total hints for statement: 3 (U - Unused (1), E - Syntax error (2))`. */
+export interface HintSummary {
+  total: number;
+  unused: number;
+  errors: number;
+}
+
 export type PlanSource = 'dbms_xplan' | 'sql_monitor_text' | 'sql_monitor_xml' | 'json' | 'xbi';
 export type NodeIndicatorMetric = 'cost' | 'actualRows' | 'actualTime' | 'starts' | 'activityPercent';
+
+/**
+ * Something the parser could not read or had to guess at. The plan still loads, but the user
+ * is told what is missing (see `lib/parser/warnings.ts`). `code` is stable (tests, dismissal).
+ */
+export interface PlanWarning {
+  code: string;
+  /** Short plain-English sentence: what was lost and what to do about it. */
+  message: string;
+  /** Specifics (column names, row ids, ...) for the expanded view. */
+  detail?: string;
+  /** `info` = nothing was lost (e.g. noise was ignored); default `warn`. */
+  severity?: 'info' | 'warn';
+}
 
 export interface ParsedPlan {
   planHashValue?: string;
@@ -79,6 +127,7 @@ export interface ParsedPlan {
 
   // Additional SQL Monitor metadata
   sqlId?: string;
+  childNumber?: number;       // cursor child number (DISPLAY_CURSOR header "SQL_ID x, child number N")
   sqlText?: string;
   totalElapsedTime?: number;  // total execution time in milliseconds
 
@@ -93,6 +142,20 @@ export interface ParsedPlan {
 
   // Report-level ASH timeline (Active Session History), from <activity_detail>
   activityTimeline?: ActivityTimeline;
+
+  // Raw plan <info type=...> entries from SQL Monitor XML (type -> value), e.g. dop, db_version,
+  // parse_schema, plan_hash_full. The ones the Note section models are also folded into `notes`.
+  planInfo?: Record<string, string>;
+
+  // Optimizer outline hints, one hint per entry, verbatim (e.g. `FULL(@"SEL$1" "O"@"SEL$1")`).
+  // From SQL Monitor XML <outline_data> (and DBMS_XPLAN ADVANCED output).
+  outlineHints?: string[];
+
+  // Hint Report totals (DBMS_XPLAN ADVANCED, 19c+); per-hint detail is on `PlanNode.hints`.
+  hintSummary?: HintSummary;
+
+  // Partial-parse diagnostics: dropped columns/sections, unreadable rows, a cut-off paste ...
+  warnings?: PlanWarning[];
 }
 
 /** One ASH sample from a SQL Monitor report-level <activity_detail> bucket. */
@@ -111,6 +174,28 @@ export interface ActivityTimeline {
   bucketIntervalSecs: number;
   bucketCount: number;
   samples: ActivitySample[];
+}
+
+/** One parallel execution session from SQL Monitor XML <parallel_info>. Times in milliseconds. */
+export interface ParallelServer {
+  /** Oracle process name: `p000`, `PX Coordinator`, ... */
+  name: string;
+  /** True for the query coordinator session (it belongs to no server set). */
+  isCoordinator?: boolean;
+  /** PX server set number (1 = producers/consumers of the first DFO, ...). */
+  set?: number;
+  group?: number;
+  serverNum?: number;
+  instance?: number;
+  sessionId?: number;
+  sessionSerial?: number;
+  elapsedMs?: number;
+  cpuMs?: number;
+  ioWaitMs?: number;
+  otherWaitMs?: number;
+  bufferGets?: number;
+  readReqs?: number;
+  readBytes?: number;
 }
 
 export interface SqlMonitorMetadata {
@@ -154,9 +239,13 @@ export interface SqlMonitorMetadata {
   dop?: number;
   pxServersRequested?: number;
   pxServersAllocated?: number;
+  // Per-session parallel stats (from <parallel_info>), coordinator first when present
+  parallelServers?: ParallelServer[];
+  pxServerSets?: number;
+  pxServerGroups?: number;
 }
 
-export type PredicateType = 'access' | 'filter' | 'none';
+export type PredicateType = 'access' | 'filter' | 'storage' | 'none';
 
 export interface NodeDisplayOptions {
   showRows: boolean;

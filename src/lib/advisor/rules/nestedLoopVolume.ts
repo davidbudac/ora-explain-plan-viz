@@ -1,4 +1,33 @@
+import type { PlanNode } from '../../types';
+import type { AdvisorThresholds } from '../config';
 import type { AdvisorRule, Finding, RuleContext } from '../types';
+import { liveChildren, liveDescendants } from './shared';
+
+interface NestedLoopVolume {
+  probes: number;
+  volume: number;
+  critical: boolean;
+}
+
+/** Probe count and inner volume of a high-volume nested loop, or undefined when it is not one. */
+export function nestedLoopVolume(node: PlanNode, thresholds: AdvisorThresholds): NestedLoopVolume | undefined {
+  if (!node.operation.toUpperCase().startsWith('NESTED LOOPS')) return undefined;
+  const children = liveChildren(node);
+  if (children.length < 2) return undefined;
+
+  const outer = children[0];
+  const inner = children[1];
+  const probes = inner.starts ?? outer.actualRows;
+  const volume = inner.actualRows;
+  if (probes === undefined || volume === undefined) return undefined;
+
+  if (!(probes >= thresholds.nlStartsWarn && volume >= thresholds.nlInnerRowsWarn)) return undefined;
+  return {
+    probes,
+    volume,
+    critical: probes >= thresholds.nlStartsCritical && volume >= thresholds.nlInnerRowsCritical,
+  };
+}
 
 export const nestedLoopVolumeRule: AdvisorRule = {
   id: 'nested-loop-volume',
@@ -6,31 +35,26 @@ export const nestedLoopVolumeRule: AdvisorRule = {
 
   evaluate(ctx: RuleContext): Finding[] {
     const findings: Finding[] = [];
-    const { nlStartsWarn, nlStartsCritical, nlInnerRowsWarn, nlInnerRowsCritical, maxFindingsPerRule } = ctx.thresholds;
+    const { maxFindingsPerRule } = ctx.thresholds;
 
     for (const node of ctx.plan.allNodes) {
-      if (!node.operation.toUpperCase().startsWith('NESTED LOOPS')) continue;
-      if (node.children.length < 2) continue;
+      const vol = nestedLoopVolume(node, ctx.thresholds);
+      if (!vol) continue;
 
-      const outer = node.children[0];
-      const inner = node.children[1];
-      const probes = inner.starts ?? outer.actualRows;
-      const volume = inner.actualRows;
-
-      if (probes === undefined || volume === undefined) continue;
-
-      const isWarn = probes >= nlStartsWarn && volume >= nlInnerRowsWarn;
-      if (!isWarn) continue;
-
-      const isCritical = probes >= nlStartsCritical && volume >= nlInnerRowsCritical;
+      // Each probe of a remote inner side is a network round trip, which is worse than the local volume suggests.
+      const inner = liveChildren(node)[1];
+      const remote = [inner, ...liveDescendants(inner)].some((n) => n.operation.toUpperCase().startsWith('REMOTE'));
+      const remoteNote = remote ? ' The inner side includes a REMOTE operation, so every probe is a network round trip to the remote database.' : '';
 
       findings.push({
         ruleId: 'nested-loop-volume',
-        severity: isCritical ? 'critical' : 'warning',
+        severity: vol.critical ? 'critical' : 'warning',
         nodeIds: [node.id],
         title: `High-volume nested loop on ${node.operation}`,
-        explanation: `The inner row source was probed ${probes.toLocaleString()} times and produced ${volume.toLocaleString()} total rows (A-Rows is cumulative across all probes).`,
-        suggestion: 'Consider whether a hash join would perform fewer total logical reads than repeatedly probing the inner row source at this volume.',
+        explanation: `The inner row source was probed ${vol.probes.toLocaleString()} times and produced ${vol.volume.toLocaleString()} total rows (A-Rows is cumulative across all probes).${remoteNote}`,
+        suggestion: remote
+          ? 'Consider a hash join (for example with the DRIVING_SITE hint or by pulling the remote rows into a local temporary result) so the remote side is read once instead of once per outer row.'
+          : 'Consider whether a hash join would perform fewer total logical reads than repeatedly probing the inner row source at this volume.',
       });
 
       if (findings.length >= maxFindingsPerRule) break;

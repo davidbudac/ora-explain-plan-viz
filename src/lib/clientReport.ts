@@ -369,7 +369,7 @@ function buildCardinalitySection(input: ClientReportInput): string {
 }
 
 function buildPredicatesSection(plan: ParsedPlan): string {
-  const nodes = plan.allNodes.filter((n) => n.accessPredicates || n.filterPredicates);
+  const nodes = plan.allNodes.filter((n) => n.accessPredicates || n.filterPredicates || n.storagePredicates);
   if (nodes.length === 0) return '';
   const rows = nodes
     .map((node) => {
@@ -379,6 +379,9 @@ function buildPredicatesSection(plan: ParsedPlan): string {
       }
       if (node.filterPredicates) {
         preds.push(`<div><span class="pred-kind">filter</span> <code>${escapeHtml(node.filterPredicates)}</code></div>`);
+      }
+      if (node.storagePredicates) {
+        preds.push(`<div><span class="pred-kind">storage</span> <code>${escapeHtml(node.storagePredicates)}</code></div>`);
       }
       return `<tr><td class="mono">${escapeHtml(nodeLabel(node))}</td><td>${preds.join('')}</td></tr>`;
     })

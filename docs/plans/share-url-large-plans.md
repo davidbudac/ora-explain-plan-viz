@@ -1,6 +1,6 @@
 # Plan: Share-via-URL for large plans (gzip + hash fragment)
 
-Status: **approved design, not yet implemented** (2026-07-05)
+Status: **implemented** (2026-07-05; app-side gzip codec and share-button write path in `src/lib/url.ts` and `src/hooks/usePlanContext.tsx`)
 
 ## Context
 

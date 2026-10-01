@@ -22,7 +22,7 @@ src/
 │   ├── settings.ts      # User settings persistence (localStorage); exports `defaultNodeDisplayOptions` / `defaultBehaviourOptions`
 │   ├── filtering.ts     # Node filtering logic (search, predicates, cost/rows/time/cardinality ranges)
 │   ├── format.ts        # Number/time/bytes formatting + cardinality ratio utilities
-│   ├── analysis.ts      # Plan tree walking + hotspot/hottest-node detection helpers
+│   ├── analysis.ts      # Plan tree walking + hotspot/hottest-node detection helpers; `effectiveChildren` (skips inactive adaptive rows) feeds self cost/time
 │   ├── planSignals.ts   # Plan-level signal detection (partition pruning, parallelism, spills)
 │   ├── density.ts       # Layout density presets (Minimal / Compact / Detailed node-display levels)
 │   ├── clipboard.ts     # Clipboard copy helper (async API + fallback)
@@ -30,7 +30,17 @@ src/
 │   ├── clientReport.ts  # Client report builder (self-contained HTML doc: plan, notes, findings)
 │   ├── severityStyles.ts # Shared severity color/badge styles (advisor findings)
 │   ├── flameLayout.ts   # Flame graph layout (metric rollup, self-value, zoom)
-│   ├── url.ts           # Shareable-URL encode/decode (gzip) for plan state
+│   ├── treeLayout.ts    # Pure tree layout (positions, TB/LR, collapse) split out of HierarchicalView
+│   ├── treeNavigation.ts # Memoizable same-depth index for the tree's prev/next-sibling arrow keys
+│   ├── sankeyLabels.ts  # Sankey label collision pass (uniform-grid bucketing)
+│   ├── selectionStats.ts # Multi-select aggregates: Σ self cost/time/buffers/reads, max A-Rows/Starts (not meaningless cumulative sums)
+│   ├── breadcrumb.ts    # Selected-operation path items for the tree breadcrumb (long paths collapse)
+│   ├── overview.ts      # Analysis overview items ('where to look first': top advisor findings → hottest op → worst mismatch)
+│   ├── outlineHints.ts  # Outline-hint / Hint Report formatting (statement summary, 'Copy as hint block')
+│   ├── planMarkdown.ts  # Copy plan as Markdown (heading, SQL fence, operations table, predicates, notes)
+│   ├── filePicker.ts    # Programmatic 'Open plan file…' picker (File menu, palette, Cmd/Ctrl+O) → context `loadFiles`
+│   ├── pwa.ts           # Service-worker registration (production only) + 'New version available' toast
+│   ├── url.ts           # Shareable-URL encode/decode (gzip) for plan state (+ versioned `workspace` block) and `?example=&view=&node=&q=` deep-link params
 │   ├── annotations.ts   # Annotation system (notes, highlights, groups, export/import)
 │   ├── compare.ts       # Plan comparison engine (node matching, delta calculations)
 │   ├── ash.ts           # ASH wait-class colors + per-line/per-bucket activity aggregation
@@ -51,7 +61,7 @@ src/
 │   ├── ai/              # AI plan analysis: types, plan/context serialization, prompts, findings parser, secrets (sessionStorage keys), provider layer (anthropic / openaiCompat / agent / hosted / sse), chat follow-up support (streamChat), testCase.ts (deterministic test-case script builder), experiments.ts (SQL Patch script + advisor-driven experiment candidates)
 │   ├── agent/           # DB-connector client (`client.ts`, the only HTTP module) + `connectGuide.ts` (walkthrough step logic, start command, friendly errors)
 │   ├── parser.ts        # Legacy parser (kept for compatibility)
-│   ├── advisor/         # Plan advisor: runAdvisor engine + 10 heuristic rules (findings)
+│   ├── advisor/         # Plan advisor: runAdvisor engine + 17 heuristic rules in `rules/index.ts` (findings; inactive adaptive rows are invisible to every rule)
 │   ├── metadata/        # Schema-metadata bundles, indexes, gather-script, pairing/lookup helpers
 │   └── parser/          # Modular parser system
 │       ├── index.ts           # Parser orchestration, format detection (json/xml/text/xbi/dbms_xplan)
@@ -61,13 +71,20 @@ src/
 │       ├── jsonPlanParser.ts  # JSON plan parser (V$SQL_PLAN_STATISTICS_ALL / Datadog / xdd.sql)
 │       ├── xbiParser.ts       # Tanel Poder xbi.sql (eXplain Better) output parser
 │       ├── noteSection.ts     # DBMS_XPLAN "Note" section parser
+│       ├── warnings.ts        # Partial-parse diagnostics (`ParsedPlan.warnings`): unknown columns, unread sections, unparsed rows / id gaps, wrapped or cut-off paste (SET LONG / LINESIZE advice), SQL*Plus wrapper around XML
+│       ├── values.ts          # Shared value parsers: T/P/E suffixes, suffixed costs (`4823K (1)`), Used-Mem passes, CRLF/tab normalisation
+│       ├── predicateSection.ts # Shared predicate-section parser (Id-less access/filter/storage lines, balanced-paren completion)
+│       ├── advancedSections.ts # DBMS_XPLAN ADVANCED sections: Outline Data, Hint Report, Column Projection, Remote SQL, Peeked Binds
+│       ├── rowAlign.ts        # Cuts plan-table rows at their own pipes when they don't line up with the header
+│       ├── sqlMonitorXmlExtras.ts # SQL Monitor XML extras: `<info>` plan info, `<outline_data>`, `<parallel_info>` per-server stats (+ `pxSkew`)
+│       ├── activeReport.ts    # SQL Monitor ACTIVE (HTML) reports: inflates the zlib+base64 fxtmodel payload to SQL Monitor XML
 │       └── __tests__/         # Parser unit tests (vitest + jsdom)
 ├── examples/            # Sample plan files loaded via Vite glob import
 │   ├── index.ts              # Auto-loader using NN-category-Name.txt convention
 │   ├── descriptions.ts       # One-line "what this example teaches" blurbs; `featured` ones go on the start screen
 │   └── *.txt                 # Example plan files (DBMS_XPLAN and SQL Monitor)
 ├── hooks/
-│   ├── usePlanContext.tsx   # Global state management (React Context, multi-plan support)
+│   ├── usePlanContext.tsx   # Global state management (React Context, multi-plan support); memoized value, per-keystroke draft in `DraftInputContext` / `useDraftInput()`
 │   ├── useAiAnalysis.tsx    # AI analysis state (React Context: dialog, run/stream/cancel, report)
 │   ├── useNarrowWorkspace.ts # `(max-width: 1100px)` media query → responsive workspace (docked panels become sheets)
 │   └── useTopBarMode.ts     # Top-bar compaction state (labels collapsed, plan tabs compact/squeezed) written by the view ribbon
@@ -84,6 +101,9 @@ src/
 │   ├── ConnectPanel.tsx     # DB Connect walkthrough (start connector → token → database → pick a statement) with live status diagram; only with VITE_ENABLE_DB_AGENT=1
 │   ├── FilterPanel.tsx      # Filter by operation type, cost, search, predicates, cardinality mismatch
 │   ├── NodeDetailPanel.tsx  # Node details, hotspots, annotations, cardinality analysis
+│   ├── SelectionBreadcrumb.tsx # Tree breadcrumb of the selected operation's path (crumbs select the ancestor) + 'Return to selected'
+│   ├── AnalysisOverview.tsx # Dismissible 'where to look first' card over Tree/Tabular/Sankey/Flame (once per loaded plan; palette reopens)
+│   ├── PlanWarningsNotice.tsx # Dismissible amber notice for `ParsedPlan.warnings` (rendered by InputPanel)
 │   ├── FindingsPanel.tsx    # Plan advisor findings (per-node + full list, togglable)
 │   ├── VisualizationTabs.tsx # View switcher (hierarchical, compare, sankey, flame, tabular, text, sql, metadata, monitor, experimental)
 │   ├── PlanTabs.tsx         # Plan A/B tab bar with compare button
@@ -132,6 +152,9 @@ src/
 ├── main.tsx
 └── index.css            # Tailwind imports + dark mode styles
 
+public/                  # Static assets: `manifest.webmanifest` (relative start_url/scope), `sw.js` (service worker, `__BUILD_ID__` stamped by vite.config.ts), product icons
+.github/workflows/       # `ci.yml` (lint + typecheck + tests on PRs and main), `deploy.yml` (build + deploy on push to main)
+
 evals/                   # AI eval harness (Node + tsx + oracledb thin; NOT part of the Vite build)
 ├── run.ts               # Repro-fidelity backtest (plan shape match in a scratch schema)
 ├── analyze.ts           # Analysis-quality backtest (findings vs known injected faults)
@@ -154,6 +177,11 @@ npm run build
 
 # Preview production build
 npm run preview
+
+# Lint / type check (`tsc -b`) / tests — the same three steps CI runs
+npm run lint
+npm run typecheck
+npm test
 ```
 
 ## Testing
@@ -166,6 +194,9 @@ npx vitest run --environment jsdom
 
 # Run tests in watch mode
 npx vitest --environment jsdom
+
+# Large-plan benchmark (seeded 2,000-operation plan)
+npx vitest bench --environment jsdom --run src/lib/__tests__/largePlan.bench.ts
 
 # Run a specific test file
 npx vitest run --environment jsdom src/lib/parser/__tests__/sqlMonitorXml.test.ts
@@ -186,6 +217,8 @@ src/
 └── examples/__tests__/       # Example loader / descriptions / sidecar-metadata tests
 ```
 
+`.github/workflows/ci.yml` runs lint, typecheck and `npm test` on every PR and on pushes to `main`. Parser fixtures in `src/lib/parser/__tests__/fixtures/` are **real Oracle 19c captures** (`allstats-*`, `advanced-allstats-19c`, `sql-monitor-active-19c.html`, SQL Monitor XML), not hand-written — keep them that way and say so when adding one; `src/lib/__tests__/largePlan.test.ts` uses a seeded 2,000-operation generated plan.
+
 Tests are excluded from the production build via `tsconfig.app.json` exclude patterns. Test files use the `*.test.ts(x)` convention and live in `__tests__/` directories alongside the code they test.
 
 ## Features
@@ -200,8 +233,14 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Monitor Details View**: SQL Monitor XML report detail — activity breakdown (CPU / I/O Wait / PL/SQL / Other) plus Execution Summary, Session & Environment, SQL Text, Bind Variables, Resource Consumption, and Optimizer Environment sections
 - **Tree / Tabular Compare**: When two plans are loaded, the Tree and Tabular tabs switch to side-by-side dual-pane variants with an active-plan accent
 - **Experimental Tab**: five research views behind one tab — optimizer calibration scatter (E-Rows vs A-Rows, log-log), execution timeline Gantt (per-op first/last active + ASH wait-class cells), wasted-work waterfall (rows read vs returned), estimate→actual icicle morph, and per-line wait-class composition. SQL Monitor XML parser extracts `<activity_detail>` bucketed ASH samples and per-op `first_active`/`last_active` offsets to power them
-- **Multiple Input Formats**: DBMS_XPLAN, SQL Monitor text, SQL Monitor XML, JSON plan (V$SQL_PLAN_STATISTICS_ALL), and Tanel Poder xbi.sql output
-- **Runtime Statistics**: Display A-Rows, E-Rows, A-Time, and Starts from SQL Monitor
+- **Multiple Input Formats**: DBMS_XPLAN (incl. DISPLAY_CURSOR ALLSTATS and ADVANCED), SQL Monitor text, SQL Monitor XML, SQL Monitor ACTIVE (HTML), JSON plan (V$SQL_PLAN_STATISTICS_ALL), and Tanel Poder xbi.sql output
+- **Runtime Statistics**: A-Rows, E-Rows, A-Time and Starts from SQL Monitor and DISPLAY_CURSOR ALLSTATS; the DBMS_XPLAN parser also maps Buffers, Reads, Writes, OMem / 1Mem / Used-Mem (+ pass count), O/1/M and Used-Tmp
+- **ADVANCED Sections**: Outline Data (SQL tab block with 'Copy as hint block'), Hint Report (per-operation used / unused / syntax-error hints + statement summary), Column Projection and Remote SQL per operation (details panel), Peeked Binds (→ bind variables: drawer, test-case builder, report). AI context carries 'Hints & outline'
+- **Storage Predicates**: Id-less `filter()` / `access()` / `storage()` lines attach to the current operation; `storage` shows in the details panel, search, client report, node summary, TSV, compare and AI text
+- **Adaptive Plans**: inactive rows (`-` prefix; SQL Monitor XML `skp="1"`) are dimmed (tree: half opacity, dashed border, 'inactive' chip; tabular: muted italic + tag), stay selectable, and carry no work of their own in flame/Sankey; excluded from totals, hotspots, self numbers and the advisor. The cursor child number shows in the drawer (`Child N`), plan-tab tooltip and Markdown heading
+- **SQL Monitor ACTIVE Reports**: HTML reports from `REPORT_SQL_MONITOR(type=>'ACTIVE')` load via paste, drop or file picker; the loaded text (autosave, Recent, share links) is the inflated XML
+- **Partial-Parse Warnings**: `ParsedPlan.warnings` (`parser/warnings.ts`) flags unknown columns, unread sections, unparsed rows / id gaps, predicates for missing ids, a wrapped (`LINESIZE`) or cut-off (`SET LONG`) paste and a stripped SQL*Plus wrapper around XML; shown in the drawer (`PlanWarningsNotice`) and passed to the AI context. Bundled examples and fixtures must parse with no warnings (tested)
+- **SQL Monitor XML Extras**: `<info>` entries → notes + plan info, `<outline_data>` → outline hints, `<parallel_info>` per-server stats; the Monitor tab adds Plan info, Outline hints (copy all) and Parallel servers + skew
 - **Node Indicator Metrics**: Configurable node badges showing cost, A-Rows, A-Time, starts, or activity %
 - **Hot Node Detection**: Automatically highlights the node with the highest self time — ASH activity % for SQL Monitor plans that carry it (red ring + "Hotspot" badge)
 - **Hotspots Summary Panel**: When no node is selected, shows top 5 nodes by self time (or activity %), own cost, and worst cardinality mismatches (clickable to navigate; `lib/worstNodes.ts`)
@@ -209,7 +248,7 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 
 ### Analysis
 - **Plan Comparison**: Load two plans side-by-side with node matching (exact ID, heuristic, access-path changed), delta calculations, and improvement/regression indicators across 9 metrics (cost, rows, bytes, A-Rows, A-Time, self time, starts, temp space, memory)
-- **Plan Advisor**: Heuristic findings engine (`runAdvisor`) with 10 rules — cardinality mismatch, implicit conversion, cartesian merge join, nested-loop volume, parallel signals, partition pruning, selective full scan, spill-to-disk, stats issues, and unused index — surfaced per-node and as a ranked list; suggestion hints are togglable (off by default)
+- **Plan Advisor**: Heuristic findings engine (`runAdvisor`) with 17 rules (ids in `advisor/rules/index.ts`): `cardinality-mismatch` (flags the lowest operation whose inputs were right, not every inheriting ancestor), `implicit-conversion`, `merge-join-cartesian` (no BUFFER SORT double count), `nested-loop-volume`, `parallel-signals` (P→S and S→P), `px-skew` (SQL Monitor per-server stats, plan-level), `partition-no-pruning` (ALL warns only with a predicate on the partition key), `selective-full-scan` (scaled by partitions scanned), `spill-to-disk` (folds in one-pass/multipass), `stats-issues`, `index-exists-unused` (alias-aware, ignores non-sargable predicates), `per-row-reexecution`, `index-rows-discarded`, `buffer-gets-per-row`, `plan-notes` (`note-*`), `function-on-indexed-column` (needs metadata), `hash-join-build-side` — surfaced per-node and as a ranked list; suggestion hints are togglable (off by default); `RULE_EXPERIMENTS` (`ai/experiments.ts`) has entries for the newer rules
 - **AI Plan Analysis**: Optional LLM-powered analysis (single plan or A/B compare) via an Anthropic, OpenAI-compatible, local-agent, or hosted (oraplanviz cloud account token) provider — streamed markdown report in an AI tab with findings linked to plan nodes. Privacy: nothing leaves the browser until the user clicks Run, and only to the provider they chose; API keys live in sessionStorage only (`src/lib/ai/secrets.ts`), never in localStorage settings or share URLs
 - **AI Test Case Builder**: With a plan + attached metadata bundle, builds a deterministic synthetic-repro skeleton (`src/lib/ai/testCase.ts` — empty DDL, DBMS_STATS stats/histograms, optimizer env, binds, EXPLAIN PLAN verification) that the AI amends into a runnable scratch-schema script with realistic binds, an optional data generator, and alternative-plan experiments (`src/lib/ai/experiments.ts` — SQL Patch script + advisor-driven experiment candidates); SQL fences in the report get per-block copy/download
 - **AI Follow-up Chat**: After a completed AI report, a chat section in the AI tab lets the user ask follow-up questions (multi-turn via `streamChat`); when the DB agent feature is enabled, SQL blocks in test-case reports and chat replies get a "Run via agent" button that executes against the agent's scratch test connection only after explicit per-script user approval (script preview + destructive-statement warning) — nothing ever auto-runs or auto-sends
@@ -239,7 +278,10 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Export/Import**: Save annotated plans as JSON files, load them back with validation
 
 ### Navigation & Filtering
-- **Multi-Node Selection**: Cmd/Ctrl-click for multi-select with aggregated statistics
+- **Multi-Node Selection**: Cmd/Ctrl-click for multi-select; aggregates sum *self* cost/time/buffers/reads and show max A-Rows / Starts (`selectionStats.ts`)
+- **Selection Breadcrumb**: Tree view shows the selected operation's path (crumbs select the ancestor; long paths collapse) with 'Return to selected' (`SelectionBreadcrumb.tsx`)
+- **Open Plan File / Copy as Markdown**: File menu, palette and Cmd/Ctrl+O open a file picker that feeds the same `loadFiles` as a full-window drop; 'Copy plan as Markdown' (File menu, palette) copies a ticket-ready heading + SQL + operations table + predicates + notes
+- **Deep Links**: `?example=&view=&node=<id>&q=<text>` — `?node=` selects an operation once the plan loads, `?q=` sets the search; all deep-link params are stripped from the address bar after use
 - **Keyboard Navigation**: Arrow keys to navigate parent/child/sibling nodes (rotated in the left-to-right layout: ← parent, → first child, ↑/↓ siblings), Escape to deselect
 - **Copy-to-Clipboard**: Copy buttons on access and filter predicates in the detail panel
 - **Filter Panel**: Filter by operation type, cost threshold, search text, predicate type, actual stats ranges, and cardinality mismatch; "Reset filters" clears only filter fields, never display settings (density, predicates, edge animation, focus selection)
@@ -257,6 +299,8 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Maximize Visualization**: Toggle a fullscreen visualization mode (F) that hides the surrounding panels, keeping a slim tabs-only bar
 - **Focus Mode**: Toggle (Z, persisted) that hides both side panels for a full-width canvas, replaced by a floating pill (search, Filters, a View chip with the same per-view controls as the toolbar, Legend, Findings) and a selection-driven inspector card; composes with maximize, skipped in the compare workspace
 - **Density Presets**: Minimal / Compact / Detailed node density (`src/lib/density.ts`), picked from the toolbar's Nodes select; Customize… fine-tunes node fields and behaviour toggles, and its "Reset defaults" restores `defaultNodeDisplayOptions` + `defaultBehaviourOptions` from `settings.ts`. **Compact is the default** for new users: a readable overview card with operation, object, Est./Actual rows and cost (no predicate chips or partition info — those live in the details panel), rendered by a dedicated branch in `PlanNode.tsx` with matching node heights and tighter row spacing in `HierarchicalView.tsx`. `defaultNodeDisplayOptions` is derived from `DENSITY_PRESETS.compact`; saved preferences are preserved. Minimal reduces nodes to operation, object, one mono metric line, and an amber warning dot for collapsed signals; hovering (250ms) opens a portal card with the full Est/Act grid, badges, and predicates. Detailed shows everything including predicate text
+- **Analysis Overview**: After a plan loads, a dismissible card (`AnalysisOverview.tsx`) over the Tree/Tabular/Sankey/Flame views lists the top 3 advisor findings (falling back to the hottest operation and the worst cardinality mismatch; the mismatch fallback is skipped when the advisor already reports `cardinality-mismatch`), each with Focus and, where evidence needs it, 'Attach metadata…'. Once per loaded plan; `showAnalysisOverview` setting turns it off; palette 'Show analysis overview' reopens it; bottom bar on narrow screens, top-left in focus mode
+- **Offline / Installable PWA**: manifest + service worker (`public/`), product icon; the app opens offline once visited; an update shows a 'New version available' toast with Reload
 - **Command Palette**: Cmd/Ctrl-K palette with ranked search (`paletteSearch.ts`: whole-word/prefix hits beat incidental substrings), commands typed as action / toggle / select (toggles show their state), views, color schemes, palettes, tree actions, and a "Load example: …" command per bundled example
 - **Help Menu**: Top-bar Help menu — keyboard shortcuts (also `?`), the "getting a plan" guide, and the GitHub repo
 - **Keyboard Shortcuts Overlay**: Help overlay listing available shortcuts per view
@@ -266,7 +310,7 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Confirmations**: Destructive actions ask first through the shared confirm dialog (`useConfirm`): clearing or removing a plan, discarding annotations on re-parse/import, clearing annotations, replacing an attached metadata bundle, and closing a dialog with typed input
 - **Toasts**: Outcomes that are otherwise invisible — share link copied, PNG downloaded or failed (`lib/actionFeedback.ts`), copy/download failures, session restore, unused dropped files — are reported via `useToast` / `toast`
 - **Shared Dialog / a11y Primitives**: All modals use `ui/Dialog` (labelled `role="dialog"`, focus trap + restore, Escape, dirty-close guard); menus use `useMenuKeyboard` (arrows, Home/End, Escape); one `FOCUS_RING` recipe; tree nodes carry a one-sentence `aria-label` (`nodeAriaLabel.ts`); an app-level `ErrorBoundary` shows a copyable error report
-- **Share via URL**: Encode the current plans (with annotations, the active view, and metadata bundles while the URL stays under ~32k chars) into a gzip-compressed shareable link via the share dialog
+- **Share via URL**: Encode the current plans (with annotations, the active view, a versioned `workspace` block — active plan, per-plan selection, compare pair + metrics + side-by-side tree mode, non-default analysis filters — and metadata bundles while the URL stays under ~32k chars) into a gzip-compressed shareable link via the share dialog; older links still load
 - **Color Schemes**: 8 data-paint options — High Contrast, Semantic (default), Est ⇄ Act, Icon Rail, Ticker, plus three node-identity schemes that restyle the node card itself: Stripe (category spine), Tinted (card carries a quiet category tint), and Terminal (square corners, mono titles, hard offset shadow)
 - **App Palettes**: Slate (default), Graphite, Teal, Violet, and Paper — a third appearance axis next to theme and color scheme that re-skins neutral surfaces and accent via CSS variable overrides (`html[data-palette=…]` in `index.css`); data colors (category, severity) are untouched
 - **Settings Persistence**: View preferences saved to localStorage
@@ -277,7 +321,7 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 ## Supported Input Formats
 
 ### DBMS_XPLAN Output
-Standard Oracle DBMS_XPLAN.DISPLAY output:
+Standard Oracle DBMS_XPLAN.DISPLAY output (also `DISPLAY_CURSOR` with `ALLSTATS`, whose runtime columns — Starts, A-Rows, A-Time, Buffers, Reads, Writes, OMem/1Mem/Used-Mem, O/1/M, Used-Tmp — are parsed here, not by the SQL Monitor parser; and `ADVANCED` sections):
 
 ```
 Plan hash value: 1234567890
@@ -320,6 +364,9 @@ The parser handles the **real Oracle XML format** with separate `<plan>` (optimi
 - Operation names combine `name` + `options` attributes (e.g., `TABLE ACCESS` + `FULL`)
 - A legacy simplified XML format is also supported for backward compatibility
 
+### SQL Monitor ACTIVE (HTML)
+The HTML page from `REPORT_SQL_MONITOR(type=>'ACTIVE')`. The data sits in `<script id="fxtmodel">` as zlib+base64 (some variants uncompressed); `parser/activeReport.ts` inflates it with `DecompressionStream` and the SQL Monitor XML parser takes over. The resulting XML (not the HTML) becomes the loaded plan text.
+
 ## Architecture Notes
 
 ### Multi-Plan State
@@ -329,7 +376,7 @@ The context (`usePlanContext.tsx`) uses a `PlanSlot[]` array to support 1-2 simu
 `rawInput` is the text of the **loaded** (parsed) plan; `draftInput` is what the input textarea currently holds. Editing the textarea only changes the draft; Parse (or a recognisable paste) loads it, re-parsing unchanged text is a no-op, and a pasted metadata bundle is routed to the attach flow and the draft reset to the loaded text. Loads that would discard annotations ask first.
 
 ### Session Persistence & Sharing
-`lib/session.ts` owns two localStorage keys: `oraplanviz.session.v1` (autosaved workspace: slots with plan text, custom label, metadata bundle, annotations; active plan; view mode) and `oraplanviz.recent.v1` (Recent plans). All access is try/catch-guarded and size-capped. A share URL (`lib/url.ts`) takes precedence over a saved session on load; its payload carries each plan's text and annotations, the view mode, and the metadata bundles (dropped, with a warning, when the URL would get too long).
+`lib/session.ts` owns two localStorage keys: `oraplanviz.session.v1` (autosaved workspace: slots with plan text, custom label, metadata bundle, annotations; active plan; view mode) and `oraplanviz.recent.v1` (Recent plans). All access is try/catch-guarded and size-capped. A share URL (`lib/url.ts`) takes precedence over a saved session on load; its payload carries each plan's text and annotations, the view mode, a versioned `workspace` block (`ShareWorkspaceState`, `v` field; read tolerantly so old links load), and the metadata bundles (dropped, with a warning, when the URL would get too long).
 
 ### Metadata Bundle Attach Flow
 `attachBundleText` (paste, drop, Gather dialog) pairs a bundle with the loaded plans (`metadata/pairing.ts`). An ambiguous or SQL_ID-less bundle opens the pairing chooser (`pendingBundleChoice`, rendered by App); the returned promise resolves only when the chooser settles — true once attached, false when cancelled or superseded — so callers such as the Gather dialog can clear their input on success.
@@ -344,9 +391,19 @@ The comparison system (`compare.ts`) matches nodes in passes:
 ### Plan Numbers (post-parse derivations)
 `parsePlan` (`lib/parser/index.ts`) runs `computeSelfTimes`, `computeEstimatedRowTotals` and `computeSelfCosts` (`lib/analysis.ts`) on every plan. Oracle semantics to preserve:
 - **E-Rows is per start, A-Rows is cumulative.** Compare A-Rows only with `estimatedRowsTotal` via `nodeCardinalityRatio(node)` (`lib/format.ts`); never `actualRows / rows`. The total is E-Rows × Starts, except: inside a PX slave set and not on a NESTED LOOPS/FILTER probe side → E-Rows (Starts counts slaves/granules); under a partition iterator → the topmost iterator's Starts (child Starts count partitions); a rowid fetch fed by an NLJ-batching or batched-rowid nested loop → the Starts of the index that supplies the rowids (verified on 19c, fixtures in `lib/parser/__tests__/fixtures/allstats-*.txt`); Starts = 0 or a COUNT STOPKEY cut-off → undefined (no signal). Ratios floor both sides at 1, so they are never 0 or ∞.
+- **Inactive adaptive rows** (`PlanNode.inactive`) are excluded from totals, hotspot ranking and the advisor. `analysis.effectiveChildren(node)` skips an inactive child and yields the live nodes below it; self cost/time/buffers use it. Self buffers/reads = node − Σ effective children, floored at 0 (`selectionStats.ts` `selfOf`).
 - **Cost is cumulative.** `ParsedPlan.totalCost` is the root's cost (`planRootCost`), so cost shares top out at 100% at the root; `selfCost` = cost − Σ children's cost.
 - **A-Rows needs no × Starts** anywhere (flame, Sankey, row totals).
 - **Temp**: `tempSpace` is the optimizer estimate (TempSpc / E-Temp / JSON `temp_space`); `tempUsed` is actual spill (Used-Tmp, SQL Monitor Temp).
+
+### Context Performance
+The plan context value is one `useMemo`. The input drawer's per-keystroke draft lives in its own `DraftInputContext` (read with `useDraftInput()`), so `plans` keeps its identity while only a draft changes. New code that needs the live draft text must use `useDraftInput()` — `plans[i].draftInput` is not kept fresh per keystroke (the memo ignores that field). `PlanNode` is `memo`'d on its `data` prop (it reads no context); `HierarchicalView` applies selection in a separate cheap pass instead of rebuilding node data, and the advisor caches per plan object (the second call in the tree is a cache hit). The Sankey rebuilds its layout only on plan/metric/size/zoom/theme changes; selection, search and filter update attributes in place.
+
+### Parsing Conventions
+Object/query-block aliases are normalised without quotes (text and SQL Monitor XML parsers) so they compare equal across formats. Text parsers normalise CRLF and expand tabs in plan-table lines (SQL*Plus prints tabs by default). `-` rows in adaptive plans are inactive; `->` is the SQL Monitor 'executing' marker, not an inactive row.
+
+### Service Worker
+`public/sw.js` is registered only in production builds (`pwa.ts`). Hashed `assets/` are cache-first; the app shell (scope root / `index.html`) is network-first with a cached fallback; shell + entry assets are precached on install. It never intercepts non-GET, cross-origin (AI providers, fonts) or DB-agent requests, and plan data never touches the cache. vite.config.ts stamps `__BUILD_ID__` so each deploy gets a new cache; cache matches ignore `Vary`.
 
 ### Annotation System
 Annotations (`annotations.ts`) are an in-memory overlay per plan slot, persisted only as part of the session autosave (and share links). They include per-node notes/highlights and named groups. Export produces a versioned JSON with plan metadata for validation on re-import. A highlight is `{ nodeId, color, style? }` — `style` is optional so older saves still load (they render with the global `highlightStyle`); import validation rejects an unknown `style` in an export file, and `deserializeAnnotations` drops one. The context's node-scoped setters have `…ForPlan(planIndex, …)` variants (tree-compare panes each render their own plan) and `paintNodeWithBrush(planIndex, nodeId)` is a reducer-level toggle against the current brush (`highlightBrush` = persisted colour + `highlightStyle`).

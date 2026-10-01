@@ -64,6 +64,7 @@ beforeEach(() => {
   ctx.metric = 'rows';
   ctx.selectedNodeIds = [];
   ctx.filteredNodeIds = new Set([0, 1, 2, 3, 4, 5, 6]);
+  ctx.filters = { searchText: '' };
   ctx.selectNode.mockReset();
   resizeCallbacks = [];
   paneWidth = 900;
@@ -184,6 +185,82 @@ describe('SankeyView', () => {
     expect(nodeRect(3).getAttribute('aria-pressed')).toBe('false');
   });
 
+  describe('restyle vs rebuild', () => {
+    const rerender = async () => {
+      await act(async () => {
+        r.rerender(<SankeyView />);
+      });
+    };
+    let r: ReturnType<typeof render>;
+    const draw2 = async () => {
+      await act(async () => {
+        r = render(<SankeyView />);
+      });
+    };
+
+    it('selection restyles the existing elements instead of rebuilding them', async () => {
+      await draw2();
+      const before = nodeRects();
+      const rect3 = before[3];
+      rect3.focus();
+
+      ctx.selectedNodeIds = [Number(rect3.dataset.nodeId)];
+      ctx.selectNode.mockReset();
+      await rerender();
+
+      const after = nodeRects();
+      expect(after).toHaveLength(before.length);
+      after.forEach((el, i) => expect(el).toBe(before[i])); // same DOM nodes
+      const id = Number(rect3.dataset.nodeId);
+      expect(nodeRect(id).getAttribute('aria-pressed')).toBe('true');
+      expect(nodeRect(id).getAttribute('stroke')).toBe('#3b82f6');
+      expect(nodeRect(id).getAttribute('stroke-width')).toBe('3');
+      expect(document.activeElement).toBe(rect3);
+
+      ctx.selectedNodeIds = [];
+      await rerender();
+      expect(nodeRect(id).getAttribute('aria-pressed')).toBe('false');
+      expect(nodeRect(id).hasAttribute('stroke')).toBe(false);
+    });
+
+    it('search highlights matches with a dashed stroke without rebuilding', async () => {
+      await draw2();
+      const before = nodeRects();
+      ctx.filters = { searchText: 'ORDER_ITEMS_IX' };
+      await rerender();
+      nodeRects().forEach((el, i) => expect(el).toBe(before[i]));
+      expect(nodeRect(5).getAttribute('stroke-dasharray')).toBe('4 2');
+      expect(nodeRect(5).getAttribute('stroke-width')).toBe('2');
+      expect(nodeRect(4).hasAttribute('stroke-dasharray')).toBe(false);
+      ctx.filters = { searchText: '' };
+    });
+
+    it('filter dimming restyles nodes and links in place', async () => {
+      await draw2();
+      const before = nodeRects();
+      const paths = Array.from(svg().querySelectorAll('path'));
+      expect(paths.length).toBeGreaterThan(0);
+      ctx.filteredNodeIds = new Set([0, 1, 2]);
+      await rerender();
+      nodeRects().forEach((el, i) => expect(el).toBe(before[i]));
+      expect(nodeRect(4).getAttribute('opacity')).toBe('0.4');
+      expect(nodeRect(2).getAttribute('opacity')).toBe('1');
+      const after = Array.from(svg().querySelectorAll('path'));
+      after.forEach((el, i) => expect(el).toBe(paths[i]));
+      // A link between two dimmed operations is muted, one between kept operations is not
+      const opacities = new Set(after.map((p) => p.getAttribute('stroke-opacity')));
+      expect(opacities).toEqual(new Set(['0.5', '0.2']));
+    });
+
+    it('still rebuilds when the metric changes', async () => {
+      await draw2();
+      const before = nodeRect(4);
+      ctx.metric = 'cost';
+      await rerender();
+      expect(nodeRect(4)).not.toBe(before);
+    });
+  });
+
   it('re-fits when the pane is resized (e.g. a side panel opens)', async () => {
     await draw();
     expect(svg().getAttribute('width')).toBe('900');
@@ -209,5 +286,28 @@ describe('SankeyView', () => {
     });
     expect(document.querySelector('[role="alert"]')).toBeNull();
     expect(nodeRects()).toHaveLength(7);
+  });
+
+  it('passes flow through inactive adaptive-plan operations instead of sizing them by their own estimate', async () => {
+    setRoot(
+      node(0, 'SELECT STATEMENT', undefined, [
+        // Not used by the optimizer: a 1000-row estimate that never ran, over one active child
+        node(1, 'HASH JOIN', 1000, [
+          node(2, 'TABLE ACCESS FULL', 100, [], { objectName: 'A' }),
+          node(3, 'TABLE ACCESS FULL', 500, [], { objectName: 'B', inactive: true }),
+        ], { inactive: true }),
+        node(4, 'TABLE ACCESS FULL', 100, [], { objectName: 'C' }),
+      ]),
+    );
+    ctx.filteredNodeIds = new Set([0, 1, 2, 3, 4]);
+    await draw();
+    const h = (id: number) => Number(nodeRect(id).getAttribute('height'));
+    // Node 1 carries only its active descendant's 100 rows (+ the 1-row floor of the unused leaf), like node 4
+    expect(h(1) / h(4)).toBeGreaterThan(0.9);
+    expect(h(1) / h(4)).toBeLessThan(1.2);
+    // The unused leaf is a sliver, not 500 rows
+    expect(h(3)).toBeLessThan(h(2) / 5);
+    // Its own value is not reported
+    expect(nodeRect(1).getAttribute('aria-label')).not.toContain('Rows 1K');
   });
 });

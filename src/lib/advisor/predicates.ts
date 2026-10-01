@@ -84,3 +84,69 @@ export function findImplicitConversions(access?: string, filter?: string): Conve
   if (filter) hits.push(...scan(filter, 'filter'));
   return hits;
 }
+
+export interface ColumnRef {
+  /** Table alias the column is qualified with ("E" in "E"."ENAME"), when present. */
+  alias?: string;
+  column: string;
+}
+
+function parseColumnRef(qualified: string): ColumnRef {
+  const parts = qualified.split('.').map((p) => (p.startsWith('"') && p.endsWith('"') ? p.slice(1, -1) : p));
+  const column = parts[parts.length - 1];
+  const alias = parts.length >= 2 ? parts[parts.length - 2] : undefined;
+  return alias === undefined ? { column } : { alias, column };
+}
+
+/**
+ * Columns referenced by predicates. Oracle prints every column reference quoted
+ * ("E"."SAL"), while functions, keywords and bind variables are not, so quoted
+ * identifier runs are columns. Literals are blanked first so quotes inside them
+ * can't produce false hits. Results are de-duplicated by alias + column.
+ */
+export function extractQuotedColumns(...predicates: Array<string | undefined>): ColumnRef[] {
+  const seen = new Set<string>();
+  const refs: ColumnRef[] = [];
+  for (const predicate of predicates) {
+    if (!predicate) continue;
+    for (const match of maskLiterals(predicate).matchAll(new RegExp(QUALIFIED_COLUMN, 'g'))) {
+      const ref = parseColumnRef(match[0]);
+      const key = `${ref.alias ?? ''}.${ref.column}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      refs.push(ref);
+    }
+  }
+  return refs;
+}
+
+export interface FunctionWrapHit extends ColumnRef {
+  fn: string;
+  fragment: string;
+  source: 'access' | 'filter';
+}
+
+// Functions that hide a column from a plain B-tree index on it. The wrapped column
+// has to be the first argument (NVL("COL", 0), SUBSTR("COL", 1, 3), TRUNC("D", 'MM')).
+const WRAPPING_FUNCTIONS = [
+  'UPPER', 'LOWER', 'INITCAP', 'TRUNC', 'ROUND', 'NVL', 'NVL2', 'COALESCE', 'SUBSTR', 'INSTR',
+  'LENGTH', 'TRIM', 'LTRIM', 'RTRIM', 'REPLACE', 'LPAD', 'RPAD', 'TO_CHAR', 'TO_DATE', 'TO_NUMBER',
+  'TO_TIMESTAMP', 'FLOOR', 'CEIL', 'DECODE', 'ADD_MONTHS',
+];
+const WRAPPING_FN_RE = new RegExp(`\\b(${WRAPPING_FUNCTIONS.join('|')})\\(\\s*(${QUALIFIED_COLUMN})\\s*[,)]`, 'g');
+
+/** Columns that appear as the first argument of a function in a predicate (UPPER("E"."ENAME")='X'). */
+export function findFunctionWrappedColumns(access?: string, filter?: string): FunctionWrapHit[] {
+  const hits: FunctionWrapHit[] = [];
+  const scanOne = (predicate: string | undefined, source: 'access' | 'filter') => {
+    if (!predicate) return;
+    // Mask literals so a function-looking string inside a literal can't match; the column
+    // regex only needs the quoted identifiers, which maskLiterals leaves intact.
+    for (const match of maskLiterals(predicate).matchAll(WRAPPING_FN_RE)) {
+      hits.push({ fn: match[1], ...parseColumnRef(match[2]), fragment: `${match[1]}(${match[2]}${match[0].endsWith(',') ? ', …' : ''})`, source });
+    }
+  };
+  scanOne(access, 'access');
+  scanOne(filter, 'filter');
+  return hits;
+}

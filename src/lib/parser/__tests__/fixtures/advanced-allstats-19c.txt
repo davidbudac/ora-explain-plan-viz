@@ -1,0 +1,241 @@
+SQL_ID  gvujs4tz2rfwx, child number 0
+-------------------------------------
+select /*+ gather_plan_statistics planviz_advanced index(o)
+no_such_hint(x) */ o.owner, count(*) from dba_objects o where
+o.object_id > :b1 and o.owner = :b2 group by o.owner
+
+Plan hash value: 207901466
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Id  | Operation                               | Name              | Starts | E-Rows |E-Bytes| Cost (%CPU)| E-Time   | A-Rows |   A-Time   | Buffers |  OMem |  1Mem | Used-Mem |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT                        |                   |      1 |        |       |   390 (100)|          |      1 |00:00:00.03 |   10506 |       |       |          |
+|   1 |  SORT GROUP BY NOSORT                   |                   |      1 |      1 |    14 |   390   (1)| 00:00:01 |      1 |00:00:00.03 |   10506 |       |       |          |
+|   2 |   VIEW                                  | DBA_OBJECTS       |      1 |   2852 | 39928 |   390   (1)| 00:00:01 |  53685 |00:00:00.05 |   10506 |       |       |          |
+|   3 |    UNION-ALL                            |                   |      1 |        |       |            |          |  53685 |00:00:00.04 |   10506 |       |       |          |
+|*  4 |     FILTER                              |                   |      1 |        |       |            |          |  53685 |00:00:00.04 |   10506 |       |       |          |
+|*  5 |      HASH JOIN                          |                   |      1 |   3089 |   461K|   339   (1)| 00:00:01 |  53685 |00:00:00.02 |    1244 |  1610K|  1610K| 1538K (0)|
+|   6 |       INDEX FULL SCAN                   | I_USER2           |      1 |    133 |  3325 |     1   (0)| 00:00:01 |    133 |00:00:00.01 |       1 |       |       |          |
+|   7 |       NESTED LOOPS                      |                   |      1 |   3089 |   386K|   338   (1)| 00:00:01 |  53685 |00:00:00.01 |    1243 |       |       |          |
+|   8 |        TABLE ACCESS BY INDEX ROWID      | USER$             |      1 |      1 |    18 |     1   (0)| 00:00:01 |      1 |00:00:00.01 |       2 |       |       |          |
+|*  9 |         INDEX UNIQUE SCAN               | I_USER1           |      1 |      1 |       |     0   (0)|          |      1 |00:00:00.01 |       1 |       |       |          |
+|* 10 |        TABLE ACCESS FULL                | OBJ$              |      1 |   3089 |   331K|   337   (1)| 00:00:01 |  53685 |00:00:00.01 |    1241 |       |       |          |
+|  11 |      NESTED LOOPS                       |                   |   1724 |      1 |    32 |     4   (0)| 00:00:01 |      0 |00:00:00.01 |    7317 |       |       |          |
+|  12 |       NESTED LOOPS                      |                   |   1724 |      1 |    23 |     3   (0)| 00:00:01 |      0 |00:00:00.01 |    7317 |       |       |          |
+|  13 |        TABLE ACCESS BY INDEX ROWID      | IND$              |   1724 |      1 |    10 |     2   (0)| 00:00:01 |   1724 |00:00:00.01 |    3502 |       |       |          |
+|* 14 |         INDEX UNIQUE SCAN               | I_IND1            |   1724 |      1 |       |     1   (0)| 00:00:01 |   1724 |00:00:00.01 |    1774 |       |       |          |
+|* 15 |        TABLE ACCESS CLUSTER             | TAB$              |   1724 |      1 |    13 |     1   (0)| 00:00:01 |      0 |00:00:00.01 |    3815 |       |       |          |
+|* 16 |       INDEX RANGE SCAN                  | I_OBJ1            |      0 |      1 |     9 |     1   (0)| 00:00:01 |      0 |00:00:00.01 |       0 |       |       |          |
+|* 17 |      TABLE ACCESS CLUSTER               | TAB$              |   1572 |      1 |    13 |     2   (0)| 00:00:01 |   1572 |00:00:00.01 |    1936 |       |       |          |
+|* 18 |       INDEX UNIQUE SCAN                 | I_OBJ#            |   1572 |      1 |       |     1   (0)| 00:00:01 |   1572 |00:00:00.01 |     130 |       |       |          |
+|* 19 |      TABLE ACCESS BY INDEX ROWID        | SEQ$              |    215 |      1 |     8 |     1   (0)| 00:00:01 |    215 |00:00:00.01 |       8 |       |       |          |
+|* 20 |       INDEX UNIQUE SCAN                 | I_SEQ1            |    215 |      1 |       |     0   (0)|          |    215 |00:00:00.01 |       4 |       |       |          |
+|* 21 |      TABLE ACCESS BY INDEX ROWID BATCHED| USER_EDITIONING$  |      1 |      1 |     6 |     2   (0)| 00:00:01 |      0 |00:00:00.01 |       1 |       |       |          |
+|* 22 |       INDEX RANGE SCAN                  | I_USER_EDITIONING |      1 |      2 |       |     1   (0)| 00:00:01 |      0 |00:00:00.01 |       1 |       |       |          |
+|* 23 |      TABLE ACCESS BY INDEX ROWID BATCHED| USER_EDITIONING$  |      0 |      1 |     6 |     2   (0)| 00:00:01 |      0 |00:00:00.01 |       0 |       |       |          |
+|* 24 |       INDEX RANGE SCAN                  | I_USER_EDITIONING |      0 |      2 |       |     1   (0)| 00:00:01 |      0 |00:00:00.01 |       0 |       |       |          |
+|  25 |      NESTED LOOPS SEMI                  |                   |      0 |      1 |    29 |     2   (0)| 00:00:01 |      0 |00:00:00.01 |       0 |       |       |          |
+|* 26 |       INDEX SKIP SCAN                   | I_USER2           |      0 |      1 |    20 |     1   (0)| 00:00:01 |      0 |00:00:00.01 |       0 |       |       |          |
+|* 27 |       INDEX RANGE SCAN                  | I_OBJ4            |      0 |      1 |     9 |     1   (0)| 00:00:01 |      0 |00:00:00.01 |       0 |       |       |          |
+|* 28 |     FILTER                              |                   |      1 |        |       |            |          |      0 |00:00:00.01 |       0 |       |       |          |
+|  29 |      NESTED LOOPS                       |                   |      0 |      1 |    20 |     2   (0)| 00:00:01 |      0 |00:00:00.01 |       0 |       |       |          |
+|  30 |       TABLE ACCESS BY INDEX ROWID       | USER$             |      0 |      1 |    18 |     1   (0)| 00:00:01 |      0 |00:00:00.01 |       0 |       |       |          |
+|* 31 |        INDEX UNIQUE SCAN                | I_USER1           |      0 |      1 |       |     0   (0)|          |      0 |00:00:00.01 |       0 |       |       |          |
+|* 32 |       INDEX RANGE SCAN                  | I_LINK1           |      0 |      1 |     2 |     1   (0)| 00:00:01 |      0 |00:00:00.01 |       0 |       |       |          |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Query Block Name / Object Alias (identified by operation id):
+-------------------------------------------------------------
+
+   1 - SEL$1
+   2 - SET$1        / O@SEL$1
+   3 - SET$1
+   4 - SEL$E029B2FF
+   6 - SEL$E029B2FF / U@SEL$5
+   8 - SEL$E029B2FF / U@SEL$2
+   9 - SEL$E029B2FF / U@SEL$2
+  10 - SEL$E029B2FF / O@SEL$5
+  11 - SEL$11
+  13 - SEL$11       / I@SEL$11
+  14 - SEL$11       / I@SEL$11
+  15 - SEL$11       / T@SEL$11
+  16 - SEL$11       / IO@SEL$11
+  17 - SEL$12       / T@SEL$12
+  18 - SEL$12       / T@SEL$12
+  19 - SEL$13       / S@SEL$13
+  20 - SEL$13       / S@SEL$13
+  21 - SEL$8        / UE@SEL$8
+  22 - SEL$8        / UE@SEL$8
+  23 - SEL$9        / UE@SEL$9
+  24 - SEL$9        / UE@SEL$9
+  25 - SEL$10
+  26 - SEL$10       / U2@SEL$10
+  27 - SEL$10       / O2@SEL$10
+  28 - SEL$14
+  30 - SEL$14       / U@SEL$14
+  31 - SEL$14       / U@SEL$14
+  32 - SEL$14       / L@SEL$14
+
+Outline Data
+-------------
+
+  /*+
+      BEGIN_OUTLINE_DATA
+      IGNORE_OPTIM_EMBEDDED_HINTS
+      OPTIMIZER_FEATURES_ENABLE('19.1.0')
+      DB_VERSION('19.1.0')
+      ALL_ROWS
+      OUTLINE_LEAF(@"SEL$3")
+      OUTLINE_LEAF(@"SEL$4")
+      OUTLINE_LEAF(@"SEL$11")
+      OUTLINE_LEAF(@"SEL$12")
+      OUTLINE_LEAF(@"SEL$13")
+      OUTLINE_LEAF(@"SEL$6")
+      OUTLINE_LEAF(@"SEL$7")
+      OUTLINE_LEAF(@"SEL$8")
+      OUTLINE_LEAF(@"SEL$9")
+      OUTLINE_LEAF(@"SEL$10")
+      OUTLINE_LEAF(@"SEL$E029B2FF")
+      MERGE(@"SEL$5" >"SEL$2")
+      OUTLINE_LEAF(@"SEL$14")
+      OUTLINE_LEAF(@"SET$1")
+      OUTLINE_LEAF(@"SEL$1")
+      OUTLINE(@"SEL$2")
+      OUTLINE(@"SEL$5")
+      NO_ACCESS(@"SEL$1" "O"@"SEL$1")
+      INDEX_RS_ASC(@"SEL$14" "U"@"SEL$14" ("USER$"."NAME"))
+      INDEX(@"SEL$14" "L"@"SEL$14" ("LINK$"."OWNER#" "LINK$"."NAME"))
+      LEADING(@"SEL$14" "U"@"SEL$14" "L"@"SEL$14")
+      USE_NL(@"SEL$14" "L"@"SEL$14")
+      INDEX_RS_ASC(@"SEL$E029B2FF" "U"@"SEL$2" ("USER$"."NAME"))
+      FULL(@"SEL$E029B2FF" "O"@"SEL$5")
+      INDEX(@"SEL$E029B2FF" "U"@"SEL$5" ("USER$"."USER#" "USER$"."TYPE#" "USER$"."SPARE1" "USER$"."SPARE2"))
+      LEADING(@"SEL$E029B2FF" "U"@"SEL$2" "O"@"SEL$5" "U"@"SEL$5")
+      USE_NL(@"SEL$E029B2FF" "O"@"SEL$5")
+      USE_HASH(@"SEL$E029B2FF" "U"@"SEL$5")
+      SWAP_JOIN_INPUTS(@"SEL$E029B2FF" "U"@"SEL$5")
+      ORDER_SUBQ(@"SEL$E029B2FF" "SEL$11" "SEL$12" "SEL$13" "SEL$8" "SEL$9" "SEL$10")
+      PQ_FILTER(@"SEL$E029B2FF" SERIAL)
+      INDEX_SS(@"SEL$10" "U2"@"SEL$10" ("USER$"."USER#" "USER$"."TYPE#" "USER$"."SPARE1" "USER$"."SPARE2"))
+      INDEX(@"SEL$10" "O2"@"SEL$10" ("OBJ$"."DATAOBJ#" "OBJ$"."TYPE#" "OBJ$"."OWNER#"))
+      LEADING(@"SEL$10" "U2"@"SEL$10" "O2"@"SEL$10")
+      USE_NL(@"SEL$10" "O2"@"SEL$10")
+      PARTIAL_JOIN(@"SEL$10" "O2"@"SEL$10")
+      INDEX_RS_ASC(@"SEL$9" "UE"@"SEL$9" ("USER_EDITIONING$"."USER#"))
+      BATCH_TABLE_ACCESS_BY_ROWID(@"SEL$9" "UE"@"SEL$9")
+      INDEX_RS_ASC(@"SEL$8" "UE"@"SEL$8" ("USER_EDITIONING$"."USER#"))
+      BATCH_TABLE_ACCESS_BY_ROWID(@"SEL$8" "UE"@"SEL$8")
+      INDEX_RS_ASC(@"SEL$7" "EO"@"SEL$7" ("OBJ$"."OBJ#" "OBJ$"."OWNER#" "OBJ$"."TYPE#"))
+      BATCH_TABLE_ACCESS_BY_ROWID(@"SEL$7" "EO"@"SEL$7")
+      INDEX_RS_ASC(@"SEL$6" "UE"@"SEL$6" ("USER_EDITIONING$"."USER#"))
+      BATCH_TABLE_ACCESS_BY_ROWID(@"SEL$6" "UE"@"SEL$6")
+      INDEX_RS_ASC(@"SEL$13" "S"@"SEL$13" ("SEQ$"."OBJ#"))
+      INDEX(@"SEL$12" "T"@"SEL$12" "I_OBJ#")
+      INDEX_RS_ASC(@"SEL$11" "I"@"SEL$11" ("IND$"."OBJ#"))
+      CLUSTER(@"SEL$11" "T"@"SEL$11")
+      INDEX(@"SEL$11" "IO"@"SEL$11" ("OBJ$"."OBJ#" "OBJ$"."OWNER#" "OBJ$"."TYPE#"))
+      LEADING(@"SEL$11" "I"@"SEL$11" "T"@"SEL$11" "IO"@"SEL$11")
+      USE_NL(@"SEL$11" "T"@"SEL$11")
+      USE_NL(@"SEL$11" "IO"@"SEL$11")
+      INDEX_RS_ASC(@"SEL$4" "S"@"SEL$4" ("SUM$"."OBJ#"))
+      INDEX_RS_ASC(@"SEL$3" "S"@"SEL$3" ("SUM$"."OBJ#"))
+      END_OUTLINE_DATA
+  */
+
+Peeked Binds (identified by position):
+--------------------------------------
+
+   1 - :1 (NUMBER): 20
+   2 - :2 (VARCHAR2(30), CSID=873): 'SYS'
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   4 - filter(((("O"."TYPE#"<>1 AND "O"."TYPE#"<>2 AND "O"."TYPE#"<>6) OR ("O"."TYPE#"=1 AND  IS NULL) OR ("O"."TYPE#"=2 AND =1) OR ("O"."TYPE#"=6 AND =1)) AND
+              (BITAND("U"."SPARE1",16)=0 OR BITAND("O"."FLAGS",1048576)=1048576 OR ("O"."TYPE#"<>88 AND  IS NULL) OR ( IS NOT NULL AND
+              ((SYS_CONTEXT('userenv','current_edition_name')='ORA$BASE' AND "U"."TYPE#"<>2) OR ("U"."TYPE#"=2 AND "U"."SPARE2"=TO_NUMBER(SYS_CONTEXT('userenv','current_edition_id')))
+              OR  IS NOT NULL)))))
+   5 - access("O"."OWNER#"="U"."USER#")
+   9 - access("U"."NAME"=:B2)
+  10 - filter(("O"."SPARE3"="U"."USER#" AND "O"."OBJ#">:B1 AND "O"."NAME"<>'_NEXT_OBJECT' AND "O"."NAME"<>'_default_auditing_options_' AND "O"."TYPE#"<>10 AND
+              "O"."LINKNAME" IS NULL AND BITAND("O"."FLAGS",128)=0))
+  14 - access("I"."OBJ#"=:B1)
+  15 - filter(("I"."BO#"="T"."OBJ#" AND BITAND("T"."PROPERTY",36893488147419103232)=36893488147419103232))
+  16 - access("IO"."OBJ#"="I"."BO#" AND "IO"."TYPE#"=2)
+       filter("IO"."TYPE#"=2)
+  17 - filter(BITAND("T"."PROPERTY",36893488147419103232)=0)
+  18 - access("T"."OBJ#"=:B1)
+  19 - filter((BITAND("S"."FLAGS",1024)=0 OR "S"."FLAGS" IS NULL))
+  20 - access("S"."OBJ#"=:B1)
+  21 - filter("TYPE#"=:B1)
+  22 - access("UE"."USER#"=:B1)
+  23 - filter("UE"."TYPE#"=:B1)
+  24 - access("UE"."USER#"=:B1)
+  26 - access("U2"."TYPE#"=2 AND "U2"."SPARE2"=TO_NUMBER(SYS_CONTEXT('userenv','current_edition_id')))
+       filter(("U2"."TYPE#"=2 AND "U2"."SPARE2"=TO_NUMBER(SYS_CONTEXT('userenv','current_edition_id'))))
+  27 - access("O2"."DATAOBJ#"=:B1 AND "O2"."TYPE#"=88 AND "O2"."OWNER#"="U2"."USER#")
+  28 - filter(NULL IS NOT NULL)
+  31 - access("U"."NAME"=:B2)
+  32 - access("L"."OWNER#"="U"."USER#")
+
+Column Projection Information (identified by operation id):
+-----------------------------------------------------------
+
+   1 - (#keys=1) "O"."OWNER"[VARCHAR2,128], COUNT(*)[22]
+   2 - "O"."OWNER"[VARCHAR2,128]
+   3 - STRDEF[128]
+   4 - "U"."NAME"[VARCHAR2,128]
+   5 - (#keys=1) "U"."SPARE2"[NUMBER,22], "U"."TYPE#"[NUMBER,22], "U"."SPARE1"[NUMBER,22], "U"."NAME"[VARCHAR2,128], "O"."OBJ#"[NUMBER,22], "O"."SPARE3"[NUMBER,22],
+       "O"."TYPE#"[NUMBER,22], "O"."FLAGS"[NUMBER,22]
+   6 - "U"."USER#"[NUMBER,22], "U"."TYPE#"[NUMBER,22], "U"."SPARE1"[NUMBER,22], "U"."SPARE2"[NUMBER,22]
+   7 - "U"."NAME"[VARCHAR2,128], "O"."OBJ#"[NUMBER,22], "O"."OWNER#"[NUMBER,22], "O"."TYPE#"[NUMBER,22], "O"."FLAGS"[NUMBER,22], "O"."SPARE3"[NUMBER,22]
+   8 - "U"."USER#"[NUMBER,22], "U"."NAME"[VARCHAR2,128]
+   9 - "U".ROWID[ROWID,10], "U"."NAME"[VARCHAR2,128]
+  10 - "O"."OBJ#"[NUMBER,22], "O"."OWNER#"[NUMBER,22], "O"."TYPE#"[NUMBER,22], "O"."FLAGS"[NUMBER,22], "O"."SPARE3"[NUMBER,22]
+  12 - "I"."BO#"[NUMBER,22]
+  13 - "I".ROWID[ROWID,10], "I"."BO#"[NUMBER,22]
+  14 - "I".ROWID[ROWID,10]
+  15 - "T"."OBJ#"[NUMBER,22], "T"."PROPERTY"[NUMBER,22]
+  17 - "T".ROWID[ROWID,10], "T"."OBJ#"[NUMBER,22], "T"."PROPERTY"[NUMBER,22]
+  18 - "T".ROWID[ROWID,10]
+  20 - "S".ROWID[ROWID,10]
+  22 - "UE".ROWID[ROWID,10]
+  24 - "UE".ROWID[ROWID,10]
+  26 - "U2"."USER#"[NUMBER,22]
+  28 - "U"."NAME"[VARCHAR2,128]
+  29 - "U"."NAME"[VARCHAR2,128]
+  30 - "U"."USER#"[NUMBER,22], "U"."NAME"[VARCHAR2,128]
+  31 - "U".ROWID[ROWID,10], "U"."NAME"[VARCHAR2,128]
+
+Hint Report (identified by operation id / Query Block Name / Object Alias):
+Total hints for statement: 3 (U - Unused (1), E - Syntax error (2))
+---------------------------------------------------------------------------
+
+   1 -  SEL$1
+         E -  no_such_hint
+         E -  planviz_advanced
+
+   1 -  SEL$1 / O@SEL$1
+         U -  index(o) / hint on view cannot be pushed into view
+
+Query Block Registry:
+---------------------
+
+  <q o="2" f="y"><n><![CDATA[SEL$7]]></n><f><h><t><![CDATA[EO]]></t><s><![CDATA[SEL$7]]></s></h></f></q>
+  <q o="2" f="y"><n><![CDATA[SEL$12]]></n><f><h><t><![CDATA[T]]></t><s><![CDATA[SEL$12]]></s></h></f></q>
+  <q o="2" f="y"><n><![CDATA[SEL$11]]></n><f><h><t><![CDATA[I]]></t><s><![CDATA[SEL$11]]></s></h><h><t><![CDATA[IO]]></t><s><![CDATA[SEL$11]]></s></h><h><t><![CDATA[T]]></t
+        ><s><![CDATA[SEL$11]]></s></h></f></q>
+  <q o="2" f="y"><n><![CDATA[SEL$6]]></n><f><h><t><![CDATA[UE]]></t><s><![CDATA[SEL$6]]></s></h></f></q>
+  <q o="2" f="y"><n><![CDATA[SET$1]]></n><f><h><t><![CDATA[NULL_HALIAS]]></t><s><![CDATA[SET$1]]></s></h></f></q>
+  <q o="2" f="y"><n><![CDATA[SEL$4]]></n><f><h><t><![CDATA[S]]></t><s><![CDATA[SEL$4]]></s></h></f></q>
+  <q o="2" f="y"><n><![CDATA[SEL$8]]></n><f><h><t><![CDATA[UE]]></t><s><![CDATA[SEL$8]]></s></h></f></q>
+  <q o="2" f="y"><n><![CDATA[SEL$1]]></n><f><h><t><![CDATA[O]]></t><s><![CDATA[SEL$1]]></s></h></f></q>
+  <q o="2" f="y"><n><![CDATA[SEL$13]]></n><f><h><t><![CDATA[S]]></t><s><![CDATA[SEL$13]]></s></h></f></q>
+  <q o="2" f="y"><n><![CDATA[SEL$10]]></n><f><h><t><![CDATA[O2]]></t><s><![CDATA[SEL$10]]></s></h><h><t><![CDATA[U2]]></t><s><![CDATA[SEL$10]]></s></h></f></q>
+  <q o="2"><n><![CDATA[SEL$2]]></n><f><h><t><![CDATA[O]]></t><s><![CDATA[SEL$2]]></s></h><h><t><![CDATA[U]]></t><s><![CDATA[SEL$2]]></s></h></f></q>
+  <q o="18" f="y" h="y"><n><![CDATA[SEL$E029B2FF]]></n><p><![CDATA[SEL$2]]></p><i><o><t>VW</t><v><![CDATA[SEL$5]]></v></o></i><f><h><t><![CDATA[U]]></t><s><![CDATA[SEL$2]]>
+        </s></h><h><t><![CDATA[O]]></t><s><![CDATA[SEL$5]]></s></h><h><t><![CDATA[U]]></t><s><![CDATA[SEL$5]]></s></h></f></q>
+  <q o="2"><n><![CDATA[SEL$5]]></n><f><h><t><![CDATA[O]]></t><s><![CDATA[SEL$5]]></s></h><h><t><![CDATA[U]]></t><s><![CDATA[SEL$5]]></s></h></f></q>
+  <q o="2" f="y"><n><![CDATA[SEL$3]]></n><f><h><t><![CDATA[S]]></t><s><![CDATA[SEL$3]]></s></h></f></q>
+  <q o="2" f="y"><n><![CDATA[SEL$14]]></n><f><h><t><![CDATA[L]]></t><s><![CDATA[SEL$14]]></s></h><h><t><![CDATA[U]]></t><s><![CDATA[SEL$14]]></s></h></f></q>
+  <q o="2" f="y"><n><![CDATA[SEL$9]]></n><f><h><t><![CDATA[UE]]></t><s><![CDATA[SEL$9]]></s></h></f></q>

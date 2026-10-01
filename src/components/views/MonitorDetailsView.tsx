@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { usePlan } from '../../hooks/usePlanContext';
-import type { SqlMonitorMetadata } from '../../lib/types';
+import type { SqlMonitorMetadata, ParallelServer } from '../../lib/types';
+import { pxSkew } from '../../lib/parser/sqlMonitorXmlExtras';
+import type { PxSetSkew, SkewMetric } from '../../lib/parser/sqlMonitorXmlExtras';
 import { formatNumberShort, formatBytes, formatTimeDetailed } from '../../lib/format';
 import hljs from 'highlight.js/lib/core';
 import sql from 'highlight.js/lib/languages/sql';
@@ -82,6 +84,105 @@ function TimeBreakdownBar({ meta }: { meta: SqlMonitorMetadata }) {
   );
 }
 
+// Raw <info> types that are bookkeeping noise rather than information for a reader.
+const HIDDEN_PLAN_INFO = new Set(['nodeid/pflags']);
+
+const TH = 'pb-1.5 pr-4 font-medium';
+const TH_NUM = 'pb-1.5 pr-4 font-medium text-right';
+const TD_NUM = 'py-1 pr-4 font-mono text-right text-slate-800 dark:text-slate-200';
+
+function skewLabel(metric: SkewMetric | undefined): string | undefined {
+  if (!metric || metric.ratio === undefined) return undefined;
+  return `${metric.ratio.toFixed(2)}x`;
+}
+
+/** Amber once the busiest server did at least twice the set's average work. */
+function skewClass(metric: SkewMetric | undefined): string {
+  return metric?.ratio !== undefined && metric.ratio >= 2
+    ? 'text-amber-600 dark:text-amber-400 font-semibold'
+    : 'text-slate-600 dark:text-slate-300';
+}
+
+function ParallelServersTable({ servers, meta }: { servers: ParallelServer[]; meta: SqlMonitorMetadata }) {
+  const ms = (v: number | undefined) => (v === undefined ? '—' : formatTimeDetailed(v) ?? '0ms');
+  const num = (v: number | undefined) => (v === undefined ? '—' : formatNumberShort(v));
+  const coordinator = servers.filter((s) => s.isCoordinator);
+  const skewBySet = new Map<number, PxSetSkew>(pxSkew(servers).map((k) => [k.set, k]));
+  const sets = [...skewBySet.keys()];
+
+  const row = (s: ParallelServer, i: number) => (
+    <tr key={`${s.name}-${s.sessionId ?? i}`} className={i % 2 === 0 ? '' : 'bg-slate-50 dark:bg-slate-800/30'}>
+      <td className="py-1 pr-4 font-mono font-medium text-slate-700 dark:text-slate-300">{s.name}</td>
+      <td className="py-1 pr-4 font-mono text-slate-500 dark:text-slate-400">{s.set ?? '—'}</td>
+      <td className={TD_NUM}>{ms(s.elapsedMs)}</td>
+      <td className={TD_NUM}>{ms(s.cpuMs)}</td>
+      <td className={TD_NUM}>{ms(s.ioWaitMs)}</td>
+      <td className={TD_NUM}>{num(s.bufferGets)}</td>
+    </tr>
+  );
+
+  const summary = [
+    meta.dop !== undefined ? `DOP ${meta.dop}` : undefined,
+    meta.pxServersRequested !== undefined || meta.pxServersAllocated !== undefined
+      ? `servers ${meta.pxServersAllocated ?? '?'} allocated / ${meta.pxServersRequested ?? '?'} requested`
+      : undefined,
+    meta.pxServerSets !== undefined ? `${meta.pxServerSets} server set${meta.pxServerSets === 1 ? '' : 's'}` : undefined,
+  ].filter(Boolean).join(' · ');
+
+  return (
+    <div className="space-y-2">
+      {summary && <p className="text-xs text-slate-500 dark:text-slate-400">{summary}</p>}
+      <div className="overflow-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+              <th className={TH}>Server</th>
+              <th className={TH}>Set</th>
+              <th className={TH_NUM}>Elapsed</th>
+              <th className={TH_NUM}>CPU</th>
+              <th className={TH_NUM}>I/O wait</th>
+              <th className={TH_NUM}>Buffer gets</th>
+            </tr>
+          </thead>
+          <tbody>
+            {coordinator.map(row)}
+            {sets.map((set) => {
+              const skew = skewBySet.get(set)!;
+              const members = servers.filter((s) => s.set === set);
+              return (
+                <ParallelSetRows key={set} set={set} skew={skew} rows={members.map(row)} />
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ParallelSetRows({ set, skew, rows }: { set: number; skew: PxSetSkew; rows: React.ReactNode[] }) {
+  const elapsed = skewLabel(skew.elapsed);
+  const gets = skewLabel(skew.bufferGets);
+  return (
+    <>
+      {rows}
+      <tr className="border-t border-slate-200 dark:border-slate-700">
+        <td colSpan={2} className="py-1 pr-4 text-[11px] text-slate-500 dark:text-slate-400">
+          Set {set}: max vs avg ({skew.serverCount} servers)
+        </td>
+        <td className={`py-1 pr-4 font-mono text-right ${skewClass(skew.elapsed)}`} title="Slowest server's elapsed time / set average">
+          {elapsed ?? '—'}
+        </td>
+        <td />
+        <td />
+        <td className={`py-1 pr-4 font-mono text-right ${skewClass(skew.bufferGets)}`} title="Busiest server's buffer gets / set average">
+          {gets ?? '—'}
+        </td>
+      </tr>
+    </>
+  );
+}
+
 export function MonitorDetailsView() {
   const { parsedPlan } = usePlan();
   const meta = parsedPlan?.monitorMetadata;
@@ -120,6 +221,9 @@ export function MonitorDetailsView() {
   }
 
   const binds = parsedPlan.bindVariables;
+  const planInfo = Object.entries(parsedPlan.planInfo ?? {}).filter(([key]) => !HIDDEN_PLAN_INFO.has(key));
+  const outlineHints = parsedPlan.outlineHints;
+  const parallelServers = meta.parallelServers;
 
   return (
     <div className="h-full overflow-auto bg-slate-50 dark:bg-slate-950 p-4 space-y-4">
@@ -227,6 +331,13 @@ export function MonitorDetailsView() {
         </Section>
       )}
 
+      {/* Parallel Servers */}
+      {parallelServers && parallelServers.length > 0 && (
+        <Section title="Parallel Servers">
+          <ParallelServersTable servers={parallelServers} meta={meta} />
+        </Section>
+      )}
+
       {/* Optimizer Environment */}
       {meta.optimizerEnv && Object.keys(meta.optimizerEnv).length > 0 && (
         <Section title="Optimizer Environment">
@@ -247,6 +358,46 @@ export function MonitorDetailsView() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </Section>
+      )}
+
+      {/* Plan Info */}
+      {planInfo.length > 0 && (
+        <Section title="Plan Info">
+          <div className="overflow-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                  <th className="pb-1.5 pr-4 font-medium">Type</th>
+                  <th className="pb-1.5 font-medium">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {planInfo.map(([key, val], i) => (
+                  <tr key={key} className={i % 2 === 0 ? '' : 'bg-slate-50 dark:bg-slate-800/30'}>
+                    <td className="py-1 pr-4 font-mono text-slate-700 dark:text-slate-300">{key}</td>
+                    <td className="py-1 font-mono text-slate-800 dark:text-slate-200 break-all">{val}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+      )}
+
+      {/* Outline Hints */}
+      {outlineHints && outlineHints.length > 0 && (
+        <Section title="Outline Hints">
+          <div className="space-y-2">
+            <div className="flex justify-end">
+              <CopyButton text={outlineHints.join('\n')} label="Copy all" className="border border-slate-300 dark:border-slate-600" />
+            </div>
+            <ul className="max-h-64 overflow-auto rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-3 space-y-0.5">
+              {outlineHints.map((hint, i) => (
+                <li key={i} className="text-xs font-mono text-slate-800 dark:text-slate-200 break-all">{hint}</li>
+              ))}
+            </ul>
           </div>
         </Section>
       )}

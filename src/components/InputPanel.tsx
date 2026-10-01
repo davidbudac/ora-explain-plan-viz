@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { ClipboardEvent as ReactClipboardEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { usePlan } from '../hooks/usePlanContext';
+import { usePlan, useDraftInput } from '../hooks/usePlanContext';
 import type { PendingBundleChoice } from '../hooks/usePlanContext';
 import { getSourceDisplayName } from '../lib/parser';
 import { formatNumberShort } from '../lib/format';
@@ -14,6 +14,7 @@ import { getDopDowngrade } from '../lib/planSignals';
 import type { ParsedPlan } from '../lib/types';
 import { isDbAgentEnabled } from '../lib/agent/client';
 import { ConnectPanel } from './ConnectPanel';
+import { PlanWarningsNotice } from './PlanWarningsNotice';
 import { BrandMark, HeaderActions } from './Header';
 import { MaximizeButton, PlanTabsCluster, SqlIdTitle, ViewTabStrip } from './NavRibbon';
 import { TOP_BAR_LABEL_ATTR, useTopBarMode } from '../hooks/useTopBarMode';
@@ -74,16 +75,19 @@ export function ExampleBadges({ sample }: { sample: SamplePlan }) {
 
 export function InputPanel() {
   const {
-    draftInput, setInput, parsePlan, loadExample, clearPlan, requestClearPlan, removePlanSlot,
+    setInput, parsePlan, loadExample, clearPlan, requestClearPlan, removePlanSlot,
     error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed,
     hasMultiplePlans, plans, activePlanIndex, metadataBundle, metadataBundleWarning, detachMetadataBundle,
     connectPanelOpen: showConnectPanel, setConnectPanelOpen: setShowConnectPanel,
     bundleNotice, dismissBundleNotice, recentPlans, openRecentPlan, removeRecentPlan,
   } = usePlan();
+  const draftInput = useDraftInput();
   const { labelsCollapsed } = useTopBarMode();
   const [showSampleMenu, setShowSampleMenu] = useState(false);
   const [showParseHint, setShowParseHint] = useState(false);
   const [titleTextHidden, setTitleTextHidden] = useState(false);
+  // Parse warnings are dismissed per loaded plan; a re-parse produces a new plan and shows them again.
+  const [dismissedWarningsFor, setDismissedWarningsFor] = useState<ParsedPlan | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const menuWrapRef = useRef<HTMLDivElement>(null);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
@@ -461,6 +465,11 @@ export function InputPanel() {
                     PHV: {parsedPlan.planHashValue}
                   </span>
                 )}
+                {parsedPlan.childNumber !== undefined && (
+                  <span title="Cursor child number">
+                    Child {parsedPlan.childNumber}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -470,6 +479,16 @@ export function InputPanel() {
 
       {/* Bundle status is shown outside the collapsible content so drops onto
           the collapsed header still get visible feedback. */}
+      {parsedPlan?.warnings && parsedPlan.warnings.length > 0 && dismissedWarningsFor !== parsedPlan && (
+        <div className="px-3 pb-2">
+          <PlanWarningsNotice
+            key={`${parsedPlan.planHashValue ?? ''}:${parsedPlan.warnings.map((w) => w.code).join(',')}`}
+            warnings={parsedPlan.warnings}
+            onDismiss={() => setDismissedWarningsFor(parsedPlan)}
+          />
+        </div>
+      )}
+
       {bundleNotice && (
         <div className="px-3 pb-2">
           <div

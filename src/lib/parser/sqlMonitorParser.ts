@@ -1,7 +1,39 @@
-import type { PlanNode, ParsedPlan, SqlMonitorMetadata, ActivityTimeline, ActivitySample } from '../types';
+import type { PlanNode, ParsedPlan, PlanWarning, SqlMonitorMetadata, ActivityTimeline, ActivitySample } from '../types';
 import { planRootCost } from '../analysis';
 import type { PlanParser, BindVariable } from './types';
 import { parseNoteSection } from './noteSection';
+import {
+  normalizeObjectAlias,
+  isSkippedOperation,
+  parsePlanInfo,
+  planNotesFromInfo,
+  parseOutlineHints,
+  parseParallelInfo,
+} from './sqlMonitorXmlExtras';
+import {
+  isIgnoredHeader,
+  isRejectedRow,
+  looksTruncatedXml,
+  stripXmlWrapper,
+  textTableWarnings,
+  truncatedXmlWarning,
+  xmlWrapperWarning,
+} from './warnings';
+import { alignColumnsToRow, pipeIndexes } from './rowAlign';
+import { parsePredicateSection, parseQueryBlockSection } from './predicateSection';
+import type { NodePredicates, NodeQueryBlock } from './predicateSection';
+import {
+  expandTableTabs,
+  normalizeNewlines,
+  parseByteSize,
+  parseCostCell,
+  parseCount,
+  parseTimeToMs,
+  parseUsedMem,
+} from './values';
+
+/** Header markers that only a SQL Monitor report carries. */
+const SQL_MONITOR_MARKERS = /SQL Monitoring Report|SQL Plan Monitoring Details|Global Stats/i;
 
 /**
  * Parser for Oracle SQL Monitor text report output.
@@ -10,28 +42,34 @@ import { parseNoteSection } from './noteSection';
 export const sqlMonitorTextParser: PlanParser = {
   canParse(input: string): boolean {
     // SQL Monitor text reports typically contain these markers
-    return (
-      /SQL Monitoring Report/i.test(input) ||
-      /SQL Plan Monitoring Details/i.test(input) ||
-      /Global Stats/i.test(input) ||
-      (/\|\s*Id\s*\|.*A-Rows/i.test(input)) // Has actual rows column
-    );
+    if (SQL_MONITOR_MARKERS.test(input)) return true;
+    // A bare table with an A-Rows column (hand-made input). With a "Plan hash value:"
+    // line it is DBMS_XPLAN.DISPLAY_CURSOR ALLSTATS output, which the DBMS_XPLAN
+    // parser reads faithfully (Buffers, OMem/1Mem/Used-Mem, query blocks, Pstart…).
+    return /\|\s*Id\s*\|.*A-Rows/i.test(input) && !/Plan\s+hash\s+value\s*:\s*\d+/i.test(input);
   },
 
   parse(input: string): ParsedPlan {
-    const lines = input.split('\n');
+    const lines = expandTableTabs(normalizeNewlines(input).split('\n'));
 
     // Extract SQL ID if present
     const sqlId = extractSqlId(lines);
+    const childNumber = extractChildNumber(lines);
     const planHashValue = extractPlanHashValue(lines);
 
     // Parse the plan table with actual statistics
-    const tableData = parseSqlMonitorTable(lines);
+    const table = parseSqlMonitorTable(lines);
+    const tableData = table.rows;
 
     if (tableData.length === 0) {
+      const emptyWarnings = table.headerIndex >= 0
+        ? textTableWarnings({ lines, headerIndex: table.headerIndex, unknownColumns: [], rejectedLines: table.rejectedLines, nodeIds: [], predicateIds: [] })
+        : [];
       return {
         planHashValue,
         sqlId,
+        childNumber,
+        warnings: emptyWarnings.length > 0 ? emptyWarnings : undefined,
         rootNode: null,
         allNodes: [],
         totalCost: 0,
@@ -42,16 +80,19 @@ export const sqlMonitorTextParser: PlanParser = {
     }
 
     // Parse predicate information (same format as DBMS_XPLAN)
-    const predicates = parsePredicates(lines);
+    const predicates = parsePredicateSection(lines);
+    const queryBlocks = parseQueryBlockSection(lines);
 
     // Build tree structure
-    const { rootNode, allNodes } = buildTree(tableData, predicates);
+    const { rootNode, allNodes } = buildTree(tableData, predicates, queryBlocks);
 
     // Calculate totals
     const totalCost = planRootCost(rootNode, allNodes);
-    const maxRows = Math.max(...allNodes.map(node => node.rows || 0));
-    const maxActualRows = Math.max(...allNodes.map(node => node.actualRows || 0), 0);
-    const maxStarts = Math.max(...allNodes.map(node => node.starts || 0), 0);
+    // Inactive adaptive-plan rows are not part of the executed plan: keep them out of the scales.
+    const activeNodes = allNodes.filter(node => !node.inactive);
+    const maxRows = Math.max(...activeNodes.map(node => node.rows || 0), 0);
+    const maxActualRows = Math.max(...activeNodes.map(node => node.actualRows || 0), 0);
+    const maxStarts = Math.max(...activeNodes.map(node => node.starts || 0), 0);
     const hasActualStats = allNodes.some(node => node.actualRows !== undefined);
 
     // A-Time is cumulative: root node's actualTime is the total elapsed time
@@ -60,15 +101,35 @@ export const sqlMonitorTextParser: PlanParser = {
     // Parse the trailing "Note" section, if present.
     const notes = parseNoteSection(lines);
 
+    const warnings: PlanWarning[] = textTableWarnings({
+      lines,
+      headerIndex: table.headerIndex,
+      unknownColumns: table.unknownColumns,
+      rejectedLines: table.rejectedLines,
+      nodeIds: allNodes.map(node => node.id),
+      predicateIds: [...predicates.keys()],
+    });
+    if (!SQL_MONITOR_MARKERS.test(input)) {
+      // Reached only through the bare "Id | Operation | … | A-Rows" clause of canParse.
+      warnings.unshift({
+        code: 'bare_a_rows_table',
+        severity: 'info',
+        message:
+          "No \"Plan hash value:\" line was found, so this A-Rows table was read as a SQL Monitor text report. Include the whole DBMS_XPLAN output (from the \"Plan hash value:\" line) to also get Buffers, memory columns and query blocks.",
+      });
+    }
+
     return {
       planHashValue,
       sqlId,
+      childNumber,
       rootNode,
       allNodes,
       totalCost,
       maxRows: hasActualStats ? maxActualRows : maxRows,
       maxActualRows: hasActualStats ? maxActualRows : undefined,
       maxStarts: hasActualStats ? maxStarts : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
       source: 'sql_monitor_text',
       hasActualStats,
       totalElapsedTime,
@@ -96,8 +157,10 @@ export const sqlMonitorXmlParser: PlanParser = {
   },
 
   parse(input: string): ParsedPlan {
+    // SQL*Plus output usually wraps the document: a command echo above it, "1 row selected." below.
+    const wrapper = stripXmlWrapper(input);
     const domParser = new DOMParser();
-    const doc = domParser.parseFromString(input, 'text/xml');
+    const doc = domParser.parseFromString(wrapper.xml, 'text/xml');
 
     // Check for parse errors
     const parseError = doc.querySelector('parsererror');
@@ -109,6 +172,11 @@ export const sqlMonitorXmlParser: PlanParser = {
         maxRows: 0,
         source: 'sql_monitor_xml',
         hasActualStats: false,
+        warnings: [
+          looksTruncatedXml(input)
+            ? truncatedXmlWarning()
+            : { code: 'xml_unparseable', message: 'The XML is not well-formed, so no plan could be read from it.' },
+        ],
       };
     }
 
@@ -118,11 +186,10 @@ export const sqlMonitorXmlParser: PlanParser = {
       doc.querySelector('sql_monitor_report')
     );
 
-    if (isRealOracleFormat) {
-      return parseRealOracleXml(doc);
-    } else {
-      return parseLegacyXml(doc);
-    }
+    const plan = isRealOracleFormat ? parseRealOracleXml(doc) : parseLegacyXml(doc);
+    const ignored = xmlWrapperWarning(wrapper);
+    if (ignored) plan.warnings = [...(plan.warnings ?? []), ignored];
+    return plan;
   },
 };
 
@@ -148,6 +215,8 @@ interface RawSqlMonitorRow {
   ioWriteBytes?: number;
   activityPercent?: number;
   depth: number;
+  /** Adaptive-plan row marked '-' in the Id column. */
+  inactive: boolean;
 }
 
 function extractSqlId(lines: string[]): string | undefined {
@@ -159,6 +228,15 @@ function extractSqlId(lines: string[]): string | undefined {
     if (match) {
       return match[1];
     }
+  }
+  return undefined;
+}
+
+/** Cursor child number from a DISPLAY_CURSOR header ("SQL_ID  7ch0an9vx5ysp, child number 1"). */
+function extractChildNumber(lines: string[]): number | undefined {
+  for (const line of lines) {
+    const match = line.match(/^\s*SQL_ID\s+\w+\s*,\s*child\s+number\s+(\d+)/i);
+    if (match) return parseInt(match[1], 10);
   }
   return undefined;
 }
@@ -192,8 +270,17 @@ interface SqlMonitorColumnPositions {
   activity?: { start: number; end: number };
 }
 
-function parseSqlMonitorTable(lines: string[]): RawSqlMonitorRow[] {
+interface SqlMonitorTable {
+  rows: RawSqlMonitorRow[];
+  headerIndex: number;
+  unknownColumns: string[];
+  rejectedLines: string[];
+}
+
+function parseSqlMonitorTable(lines: string[]): SqlMonitorTable {
   const rows: RawSqlMonitorRow[] = [];
+  const rejectedLines: string[] = [];
+  const unknownColumns: string[] = [];
 
   // Find the header line
   let headerLineIndex = -1;
@@ -209,7 +296,7 @@ function parseSqlMonitorTable(lines: string[]): RawSqlMonitorRow[] {
   }
 
   if (headerLineIndex === -1) {
-    return rows;
+    return { rows, headerIndex: -1, unknownColumns, rejectedLines };
   }
 
   // Some SQL Monitor reports use a two-line header where the second line holds
@@ -224,7 +311,8 @@ function parseSqlMonitorTable(lines: string[]): RawSqlMonitorRow[] {
   }
 
   // Parse column positions
-  const columns = parseSqlMonitorColumnPositions(headerLine, secondHeaderLine);
+  const columns = parseSqlMonitorColumnPositions(headerLine, secondHeaderLine, unknownColumns);
+  const headerPipes = pipeIndexes(headerLine);
 
   // Parse data rows
   for (let i = dataStartIndex; i < lines.length; i++) {
@@ -250,17 +338,24 @@ function parseSqlMonitorTable(lines: string[]): RawSqlMonitorRow[] {
     }
 
     if (/^\|/.test(line)) {
-      const row = parseSqlMonitorDataRow(line, columns);
+      const aligned = alignColumnsToRow(columns, headerPipes, line);
+      const row = parseSqlMonitorDataRow(line, aligned);
       if (row) {
         rows.push(row);
+      } else if (isRejectedRow(line, line.substring(aligned.id.start, aligned.id.end))) {
+        rejectedLines.push(line);
       }
     }
   }
 
-  return rows;
+  return { rows, headerIndex: headerLineIndex, unknownColumns, rejectedLines };
 }
 
-function parseSqlMonitorColumnPositions(headerLine: string, secondHeaderLine: string = ''): SqlMonitorColumnPositions {
+function parseSqlMonitorColumnPositions(
+  headerLine: string,
+  secondHeaderLine: string = '',
+  unknownColumns: string[] = [],
+): SqlMonitorColumnPositions {
   const cols: SqlMonitorColumnPositions = {
     id: { start: 0, end: 0 },
     operation: { start: 0, end: 0 },
@@ -342,6 +437,10 @@ function parseSqlMonitorColumnPositions(headerLine: string, secondHeaderLine: st
       prevWriteKind = kind;
     } else if (segment === 'activity' || segment === 'activity %' || combined.includes('activity (%)')) {
       cols.activity = { start, end };
+    } else if (!isIgnoredHeader(combined)) {
+      const original = headerLine.substring(start, end).trim();
+      const subOriginal = secondHeaderLine ? secondHeaderLine.substring(start, Math.min(end, secondHeaderLine.length)).trim() : '';
+      unknownColumns.push(`${original} ${subOriginal}`.trim());
     }
   }
 
@@ -356,6 +455,7 @@ function parseSqlMonitorDataRow(line: string, columns: SqlMonitorColumnPositions
   }
 
   const id = parseInt(idMatch[1], 10);
+  const inactive = /^-(?!>)/.test(idStr); // "->" marks the currently executing row, not a skipped one
 
   const operationRaw = line.substring(columns.operation.start, columns.operation.end);
   const depth = calculateDepth(operationRaw);
@@ -372,20 +472,21 @@ function parseSqlMonitorDataRow(line: string, columns: SqlMonitorColumnPositions
     operation,
     objectName,
     depth,
+    inactive,
   };
 
   if (columns.rows) {
-    const val = parseNumericValue(line.substring(columns.rows.start, columns.rows.end).trim());
+    const val = parseCount(line.substring(columns.rows.start, columns.rows.end).trim());
     if (val !== null) row.rows = val;
   }
 
   if (columns.cost) {
-    const val = parseNumericValue(line.substring(columns.cost.start, columns.cost.end).trim());
-    if (val !== null) row.cost = val;
+    const val = parseCostCell(line.substring(columns.cost.start, columns.cost.end));
+    if (val) row.cost = val.cost;
   }
 
   if (columns.aRows) {
-    const val = parseNumericValue(line.substring(columns.aRows.start, columns.aRows.end).trim());
+    const val = parseCount(line.substring(columns.aRows.start, columns.aRows.end).trim());
     if (val !== null) row.actualRows = val;
   }
 
@@ -396,27 +497,28 @@ function parseSqlMonitorDataRow(line: string, columns: SqlMonitorColumnPositions
   }
 
   if (columns.starts) {
-    const val = parseNumericValue(line.substring(columns.starts.start, columns.starts.end).trim());
+    const val = parseCount(line.substring(columns.starts.start, columns.starts.end).trim());
     if (val !== null) row.starts = val;
   }
 
   if (columns.memory) {
-    const val = parseMemoryValue(line.substring(columns.memory.start, columns.memory.end).trim());
-    if (val !== null) row.memoryUsed = val;
+    // Used-Mem may carry its pass count ("1385K (0)"); the count is ignored here
+    const val = parseUsedMem(line.substring(columns.memory.start, columns.memory.end));
+    if (val) row.memoryUsed = val.bytes;
   }
 
   if (columns.temp) {
-    const val = parseMemoryValue(line.substring(columns.temp.start, columns.temp.end).trim());
+    const val = parseByteSize(line.substring(columns.temp.start, columns.temp.end).trim());
     if (val !== null) row.tempUsed = val;
   }
 
   if (columns.tempEst) {
-    const val = parseMemoryValue(line.substring(columns.tempEst.start, columns.tempEst.end).trim());
+    const val = parseByteSize(line.substring(columns.tempEst.start, columns.tempEst.end).trim());
     if (val !== null) row.tempSpace = val;
   }
 
   if (columns.reads) {
-    const val = parseNumericValue(line.substring(columns.reads.start, columns.reads.end).trim());
+    const val = parseCount(line.substring(columns.reads.start, columns.reads.end).trim());
     if (val !== null) {
       row.physicalReads = val;
       row.ioReadRequests = val;
@@ -424,17 +526,17 @@ function parseSqlMonitorDataRow(line: string, columns: SqlMonitorColumnPositions
   }
 
   if (columns.readBytes) {
-    const val = parseMemoryValue(line.substring(columns.readBytes.start, columns.readBytes.end).trim());
+    const val = parseByteSize(line.substring(columns.readBytes.start, columns.readBytes.end).trim());
     if (val !== null) row.ioReadBytes = val;
   }
 
   if (columns.writeReqs) {
-    const val = parseNumericValue(line.substring(columns.writeReqs.start, columns.writeReqs.end).trim());
+    const val = parseCount(line.substring(columns.writeReqs.start, columns.writeReqs.end).trim());
     if (val !== null) row.ioWriteRequests = val;
   }
 
   if (columns.writeBytes) {
-    const val = parseMemoryValue(line.substring(columns.writeBytes.start, columns.writeBytes.end).trim());
+    const val = parseByteSize(line.substring(columns.writeBytes.start, columns.writeBytes.end).trim());
     if (val !== null) row.ioWriteBytes = val;
   }
 
@@ -459,138 +561,10 @@ function calculateDepth(operationStr: string): number {
   return Math.floor(spaces / 1);
 }
 
-function parseNumericValue(str: string): number | null {
-  const cleaned = str.replace(/,/g, '').trim();
-  if (!cleaned || cleaned === '') return null;
-
-  const suffixMatch = cleaned.match(/^([\d.]+)\s*([KMG])?$/i);
-  if (suffixMatch) {
-    let value = parseFloat(suffixMatch[1]);
-    const suffix = (suffixMatch[2] || '').toUpperCase();
-    if (suffix === 'K') value *= 1000;
-    else if (suffix === 'M') value *= 1000000;
-    else if (suffix === 'G') value *= 1000000000;
-    return Math.round(value);
-  }
-
-  const num = parseInt(cleaned, 10);
-  return isNaN(num) ? null : num;
-}
-
-function parseTimeToMs(timeStr: string): number | null {
-  if (!timeStr) return null;
-
-  // Format: HH:MM:SS.ss or SS.ss or similar
-  const hhmmssMatch = timeStr.match(/(\d+):(\d+):(\d+)(?:\.(\d+))?/);
-  if (hhmmssMatch) {
-    const hours = parseInt(hhmmssMatch[1], 10);
-    const minutes = parseInt(hhmmssMatch[2], 10);
-    const seconds = parseInt(hhmmssMatch[3], 10);
-    const fraction = hhmmssMatch[4] ? parseInt(hhmmssMatch[4], 10) / Math.pow(10, hhmmssMatch[4].length) : 0;
-    return (hours * 3600 + minutes * 60 + seconds + fraction) * 1000;
-  }
-
-  // Just seconds
-  const secMatch = timeStr.match(/([\d.]+)\s*(?:s|sec)?/i);
-  if (secMatch) {
-    return parseFloat(secMatch[1]) * 1000;
-  }
-
-  return null;
-}
-
-function parseMemoryValue(str: string): number | null {
-  const cleaned = str.replace(/,/g, '').trim();
-  if (!cleaned) return null;
-
-  const match = cleaned.match(/^([\d.]+)\s*([KMGT])?B?$/i);
-  if (match) {
-    let value = parseFloat(match[1]);
-    const suffix = (match[2] || '').toUpperCase();
-    if (suffix === 'K') value *= 1024;
-    else if (suffix === 'M') value *= 1024 * 1024;
-    else if (suffix === 'G') value *= 1024 * 1024 * 1024;
-    else if (suffix === 'T') value *= 1024 * 1024 * 1024 * 1024;
-    return Math.round(value);
-  }
-
-  return parseNumericValue(str);
-}
-
-function parsePredicates(lines: string[]): Map<number, { access?: string; filter?: string }> {
-  const predicates = new Map<number, { access?: string; filter?: string }>();
-
-  // Find predicate section
-  let inPredicateSection = false;
-  let currentId: number | null = null;
-  let currentType: 'access' | 'filter' | null = null;
-  let currentText = '';
-
-  for (const line of lines) {
-    if (/Predicate Information/i.test(line)) {
-      inPredicateSection = true;
-      continue;
-    }
-
-    if (!inPredicateSection) {
-      continue;
-    }
-
-    // Stop at next section or empty lines after predicates
-    if (/^[A-Z].*:$/i.test(line.trim()) && !/^\s*\d+\s*-/.test(line)) {
-      break;
-    }
-
-    // Parse predicate lines like "3 - access(...)" or "3 - filter(...)"
-    const predicateMatch = line.match(/^\s*(\d+)\s*-\s*(access|filter)\s*\((.+)\)?\s*$/i);
-    if (predicateMatch) {
-      // Save previous predicate if any
-      if (currentId !== null && currentType && currentText) {
-        const existing = predicates.get(currentId) || {};
-        existing[currentType] = currentText;
-        predicates.set(currentId, existing);
-      }
-
-      currentId = parseInt(predicateMatch[1], 10);
-      currentType = predicateMatch[2].toLowerCase() as 'access' | 'filter';
-      currentText = predicateMatch[3] || '';
-
-      // Handle case where predicate text is complete on this line
-      if (currentText.endsWith(')') || !line.includes('(')) {
-        const existing = predicates.get(currentId) || {};
-        existing[currentType] = currentText.replace(/\)$/, '');
-        predicates.set(currentId, existing);
-        currentId = null;
-        currentType = null;
-        currentText = '';
-      }
-    } else if (currentId !== null && currentType && line.trim()) {
-      // Continuation of multi-line predicate
-      currentText += ' ' + line.trim();
-      if (line.trim().endsWith(')')) {
-        const existing = predicates.get(currentId) || {};
-        existing[currentType] = currentText.replace(/\)$/, '');
-        predicates.set(currentId, existing);
-        currentId = null;
-        currentType = null;
-        currentText = '';
-      }
-    }
-  }
-
-  // Save any remaining predicate
-  if (currentId !== null && currentType && currentText) {
-    const existing = predicates.get(currentId) || {};
-    existing[currentType] = currentText.replace(/\)$/, '');
-    predicates.set(currentId, existing);
-  }
-
-  return predicates;
-}
-
 function buildTree(
   rows: RawSqlMonitorRow[],
-  predicates: Map<number, { access?: string; filter?: string }>
+  predicates: Map<number, NodePredicates>,
+  queryBlocks: Map<number, NodeQueryBlock>
 ): { rootNode: PlanNode | null; allNodes: PlanNode[] } {
   if (rows.length === 0) {
     return { rootNode: null, allNodes: [] };
@@ -601,6 +575,7 @@ function buildTree(
 
   for (const row of rows) {
     const preds = predicates.get(row.id);
+    const qb = queryBlocks.get(row.id);
     const node: PlanNode = {
       id: row.id,
       depth: row.depth,
@@ -623,6 +598,10 @@ function buildTree(
       activityPercent: row.activityPercent,
       accessPredicates: preds?.access,
       filterPredicates: preds?.filter,
+      storagePredicates: preds?.storage,
+      queryBlock: qb?.queryBlock,
+      objectAlias: qb?.objectAlias,
+      inactive: row.inactive || undefined,
       children: [],
     };
 
@@ -768,9 +747,11 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
 
   // Calculate totals
   const totalCost = planRootCost(rootNode, allNodes);
-  const maxRows = Math.max(...allNodes.map(node => node.actualRows || node.rows || 0), 0);
-  const maxActualRows = Math.max(...allNodes.map(node => node.actualRows || 0), 0);
-  const maxStarts = Math.max(...allNodes.map(node => node.starts || 0), 0);
+  // Operations an adaptive plan skipped (skp="1") stay in the tree but out of the totals
+  const activeNodes = allNodes.filter(node => !node.inactive);
+  const maxRows = Math.max(...activeNodes.map(node => node.actualRows || node.rows || 0), 0);
+  const maxActualRows = Math.max(...activeNodes.map(node => node.actualRows || 0), 0);
+  const maxStarts = Math.max(...activeNodes.map(node => node.starts || 0), 0);
   const hasActualStats = allNodes.some(node => node.actualRows !== undefined);
   // Global elapsed time in milliseconds (Oracle stores in microseconds)
   const totalElapsedTime = globalElapsedTimeUs
@@ -779,6 +760,12 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
 
   // Parse bind variables
   const bindVariables = parseBindVariables(doc);
+
+  // Plan <info> entries, Note-section equivalents, outline hints and PX session stats
+  const planInfo = parsePlanInfo(doc);
+  const notes = planNotesFromInfo(planInfo);
+  const outlineHints = parseOutlineHints(doc);
+  const parallelInfo = parseParallelInfo(doc);
 
   // Build rich monitor metadata
   const monitorMetadata: SqlMonitorMetadata = {
@@ -830,9 +817,14 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
     optimizerEnv: parseOptimizerEnv(doc),
 
     // Parallel execution
-    dop: parseIntOrUndef(target?.getAttribute('dop')),
-    pxServersRequested: getStatByName(globalStats, 'servers_requested'),
-    pxServersAllocated: getStatByName(globalStats, 'servers_allocated'),
+    dop: parseIntOrUndef(target?.getAttribute('dop')) ?? parallelInfo?.dop,
+    pxServersRequested:
+      getStatByName(globalStats, 'servers_requested') ?? parallelInfo?.serversRequested,
+    pxServersAllocated:
+      getStatByName(globalStats, 'servers_allocated') ?? parallelInfo?.serversAllocated,
+    parallelServers: parallelInfo && parallelInfo.servers.length > 0 ? parallelInfo.servers : undefined,
+    pxServerSets: parallelInfo?.serverSets,
+    pxServerGroups: parallelInfo?.serverGroups,
   };
 
   // Strip undefined values
@@ -858,6 +850,9 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
     bindVariables: bindVariables.length > 0 ? bindVariables : undefined,
     monitorMetadata: Object.keys(monitorMetadata).length > 0 ? monitorMetadata : undefined,
     activityTimeline,
+    notes,
+    planInfo,
+    outlineHints,
   };
 }
 
@@ -906,7 +901,7 @@ function parsePlanSection(doc: Document): Map<number, PlanEstimates> {
     // Object alias
     const alias = op.querySelector(':scope > object_alias');
     if (alias?.textContent) {
-      estimates.objectAlias = alias.textContent.trim();
+      estimates.objectAlias = normalizeObjectAlias(alias.textContent);
     }
 
     // Query block
@@ -1093,6 +1088,9 @@ function parseMonitorOperation(
     children: [],
   };
 
+  // Adaptive plan: operation skipped at runtime (skp="1")
+  if (isSkippedOperation(op)) node.inactive = true;
+
   // Parent ID
   const parentAttr = op.getAttribute('parent_id');
   if (parentAttr) {
@@ -1126,7 +1124,7 @@ function parsePlanOnlyOperation(op: Element): PlanNode | null {
     depth,
     operation,
     objectName,
-    objectAlias: op.querySelector(':scope > object_alias')?.textContent?.trim(),
+    objectAlias: normalizeObjectAlias(op.querySelector(':scope > object_alias')?.textContent),
     queryBlock: op.querySelector(':scope > qblock')?.textContent?.trim(),
     rows: getDirectChildInt(op, 'card'),
     bytes: getDirectChildInt(op, 'bytes'),
@@ -1146,6 +1144,8 @@ function parsePlanOnlyOperation(op: Element): PlanNode | null {
       else if (type === 'filter') node.filterPredicates = text;
     }
   });
+
+  if (isSkippedOperation(op)) node.inactive = true;
 
   // Build parent-child by depth (no parent_id in <plan> operations)
   // Parent relationships will be built by the tree builder based on depth+position

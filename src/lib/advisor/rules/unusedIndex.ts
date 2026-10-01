@@ -1,6 +1,6 @@
 import type { AdvisorRule, Finding, RuleContext } from '../types';
-import { extractPredicateColumns } from '../../metadata/predicateColumns';
 import { resolveIndexesForBlock } from '../../metadata/indexes';
+import { analyzeColumnUses, resolveNodeAlias, tableNameOf } from './sargable';
 
 const FULL_SCAN_RE = /TABLE ACCESS (STORAGE )?FULL/;
 
@@ -21,9 +21,15 @@ export const unusedIndexRule: AdvisorRule = {
       const match = ctx.findObject(node.objectName);
       if (!match || match.object.type !== 'TABLE') continue;
 
-      const predCols = extractPredicateColumns(node.accessPredicates, node.filterPredicates)
-        .filter((c) => Object.prototype.hasOwnProperty.call(match.object.columns, c));
-      if (predCols.length === 0) continue;
+      // Only columns of this operation's own alias that a predicate can drive an index with:
+      // join keys of other aliases, function-wrapped columns, <>, leading-wildcard LIKE and OR
+      // chains across columns are ignored.
+      const alias = resolveNodeAlias(node, tableNameOf(node.objectName));
+      const uses = analyzeColumnUses([node.accessPredicates, node.filterPredicates], alias)
+        .filter((u) => Object.prototype.hasOwnProperty.call(match.object.columns, u.column));
+      const sargableCols = uses.filter((u) => u.kind === 'sargable').map((u) => u.column);
+      const nullCols = uses.filter((u) => u.kind === 'is-null').map((u) => u.column);
+      if (sargableCols.length === 0 && nullCols.length === 0) continue;
 
       const { indexes } = resolveIndexesForBlock(match, bundle);
 
@@ -33,14 +39,19 @@ export const unusedIndexRule: AdvisorRule = {
         if (idx.object.stats.visibility !== 'VISIBLE') continue;
 
         const leadingColumn = idx.object.columns[0];
-        if (!leadingColumn || !predCols.includes(leadingColumn)) continue;
+        if (!leadingColumn) continue;
+        // IS NULL only reaches rows a B-tree stores: a composite key (or a bitmap index) keeps NULL
+        // leading values, a single-column B-tree does not.
+        const nullsIndexed = idx.object.columns.length > 1 || idx.object.stats.uniqueness === 'BITMAP';
+        const predCols = nullsIndexed ? [...sargableCols, ...nullCols] : sargableCols;
+        if (!predCols.includes(leadingColumn)) continue;
 
         findings.push({
           ruleId: 'index-exists-unused',
           severity: 'warning',
           nodeIds: [node.id],
           title: `Unused index ${idx.key} on ${node.operation}`,
-          explanation: `Index ${idx.key} leads with column ${leadingColumn}, which appears in this node's predicates (${predCols.join(', ')}), but the plan does not use it.`,
+          explanation: `Index ${idx.key} leads with column ${leadingColumn}, which appears in a usable predicate on this node (${predCols.join(', ')}), but the plan does not use it.`,
           suggestion: 'The optimizer may have priced this index out (low selectivity, stale stats, or a cheaper full scan) — verify with stats/histograms before assuming it is a missing-index problem.',
         });
 

@@ -107,3 +107,25 @@ describe('renderNotes', () => {
     expect(renderNotes(estimatePlan())).toBe('');
   });
 });
+
+describe('renderHints', () => {
+  it('lists hint report entries, outline hints and remote SQL, and is empty without them', async () => {
+    const { renderHints } = await import('../planText');
+    const { parsePlan } = await import('../../parser');
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const plan = parsePlan(
+      readFileSync(resolve(__dirname, '../../parser/__tests__/fixtures/advanced-allstats-19c.txt'), 'utf8'),
+    );
+    const text = renderHints(plan);
+    expect(text).toContain('Hint Report (3 total, 1 unused, 2 syntax errors):');
+    expect(text).toContain('1 - SEL$1 / O@SEL$1: index(o) [UNUSED] - hint on view cannot be pushed into view');
+    expect(text).toContain('1 - SEL$1: no_such_hint [SYNTAX ERROR]');
+    expect(text).toContain('Outline hints:');
+    expect(text).toContain('  IGNORE_OPTIM_EMBEDDED_HINTS');
+
+    plan.allNodes.forEach((n) => { n.hints = undefined; });
+    plan.outlineHints = undefined;
+    expect(renderHints(plan)).toBe('');
+  });
+});

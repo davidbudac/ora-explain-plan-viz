@@ -17,6 +17,9 @@ export interface FlameLayoutOptions {
 }
 
 function rawValue(node: PlanNode, metric: FlameMetric): number {
+  // Adaptive-plan operations the optimizer did not use did no work: they carry no
+  // value of their own, so only their active descendants roll up through them.
+  if (node.inactive) return 0;
   switch (metric) {
     case 'actualTime':
       return node.actualTime ?? 0;

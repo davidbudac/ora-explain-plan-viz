@@ -22,4 +22,10 @@ describe('planNodeAriaLabel', () => {
     );
     expect(label).toBe('#2 HASH JOIN, time 1.5 seconds, 2 advisor findings, collapsed, 1 hidden operation');
   });
+
+  it('marks adaptive-plan operations the optimizer did not use', () => {
+    const label = planNodeAriaLabel({ id: 27, operation: 'HASH JOIN', cost: 10, inactive: true });
+    expect(label).toBe('#27 HASH JOIN, cost 10, inactive (adaptive plan)');
+    expect(planNodeAriaLabel({ id: 27, operation: 'HASH JOIN', cost: 10 })).not.toContain('inactive');
+  });
 });

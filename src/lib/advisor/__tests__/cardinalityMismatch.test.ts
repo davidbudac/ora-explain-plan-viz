@@ -100,4 +100,68 @@ describe('cardinalityMismatchRule', () => {
       expect(cardinalityMismatchRule.evaluate(makeCtx(plan))).toHaveLength(0);
     });
   });
+
+  describe('root-cause selection', () => {
+    // 4 NESTED LOOPS (10x off) <- 3 HASH JOIN (10x off) <- 2 TABLE ACCESS FULL (10x off, the real culprit)
+    const chain = (leafActual: number) => buildPlan({
+      id: 0, operation: 'SELECT STATEMENT', rows: 1000, actualRows: 1000, starts: 1, children: [{
+        id: 1, operation: 'NESTED LOOPS', rows: 1000, actualRows: 10_000, starts: 1, children: [{
+          id: 2, operation: 'HASH JOIN', rows: 1000, actualRows: 10_000, starts: 1, children: [
+            { id: 3, operation: 'TABLE ACCESS FULL', rows: 1000, actualRows: leafActual, starts: 1 },
+            { id: 4, operation: 'TABLE ACCESS FULL', rows: 1000, actualRows: 1000, starts: 1 },
+          ],
+        }, { id: 5, operation: 'INDEX UNIQUE SCAN', rows: 1, actualRows: 10_000, starts: 10_000 }],
+      }],
+    });
+
+    it('flags only the lowest operation whose inputs are accurate, not the ancestors that inherit it', () => {
+      const findings = cardinalityMismatchRule.evaluate(makeCtx(chain(10_000)));
+      expect(findings.map((f) => f.nodeIds[0])).toEqual([3]);
+      expect(findings[0].explanation).toContain('2 operations above it');
+    });
+
+    it('flags an operation whose own estimate is wrong although its inputs were right', () => {
+      // Leaves are accurate; the join multiplies by 10 more than estimated.
+      const findings = cardinalityMismatchRule.evaluate(makeCtx(chain(1000)));
+      expect(findings.map((f) => f.nodeIds[0])).toEqual([2]);
+      expect(findings[0].explanation).toContain('inputs were estimated accurately');
+      expect(findings[0].explanation).toContain('1 operation above it');
+    });
+
+    it('treats a leaf as a root cause even when it has no ancestors off', () => {
+      const plan = buildPlan({
+        id: 0, operation: 'SELECT STATEMENT', rows: 1000, actualRows: 1000, children: [
+          { id: 1, operation: 'TABLE ACCESS FULL', rows: 100, actualRows: 5000, starts: 1 },
+        ],
+      });
+      const findings = cardinalityMismatchRule.evaluate(makeCtx(plan));
+      expect(findings).toHaveLength(1);
+      expect(findings[0].explanation).not.toContain('above it');
+    });
+
+    it('does not count an ancestor beyond one whose estimate is right again', () => {
+      const plan = buildPlan({
+        id: 0, operation: 'SELECT STATEMENT', rows: 10, actualRows: 10_000, starts: 1, children: [{
+          id: 1, operation: 'SORT AGGREGATE', rows: 1, actualRows: 1, starts: 1, children: [
+            { id: 2, operation: 'TABLE ACCESS FULL', rows: 100, actualRows: 5000, starts: 1 },
+          ],
+        }],
+      });
+      const findings = cardinalityMismatchRule.evaluate(makeCtx(plan));
+      expect(findings.map((f) => f.nodeIds[0]).sort()).toEqual([0, 2]);
+      expect(findings.find((f) => f.nodeIds[0] === 2)?.explanation).not.toContain('above it');
+    });
+
+    it('treats a child below the row-delta floor as accurate', () => {
+      // Child: 5 -> 60 rows (12x but only 55 rows apart: noise). Parent: 100 -> 5,000.
+      const plan = buildPlan({
+        id: 0, operation: 'SELECT STATEMENT', children: [{
+          id: 1, operation: 'HASH JOIN', rows: 100, actualRows: 5000, starts: 1, children: [
+            { id: 2, operation: 'TABLE ACCESS FULL', rows: 5, actualRows: 60, starts: 1 },
+          ],
+        }],
+      });
+      expect(cardinalityMismatchRule.evaluate(makeCtx(plan)).map((f) => f.nodeIds[0])).toEqual([1]);
+    });
+  });
 });

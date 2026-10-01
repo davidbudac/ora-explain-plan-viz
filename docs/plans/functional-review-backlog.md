@@ -6,7 +6,7 @@ day before (39f6ce1) covered visual polish, so this review left that out. Three 
 passes looked at the code, and every headline finding was confirmed in the source.
 
 **Phase 1 — "fix the numbers" — is done** (`fix/plan-numbers`, merged to `main`). The
-semantics are documented in `CLAUDE.md` under "Plan Numbers". Everything below is open.
+semantics are documented in `CLAUDE.md` under "Plan Numbers". Phases 2–5 were worked on `fix/functional-backlog` (2026-10-01); what is still open is unticked below.
 
 ---
 
@@ -23,9 +23,11 @@ semantics are documented in `CLAUDE.md` under "Plan Numbers". Everything below i
 
 ## Phase 2 — Parse real Oracle output faithfully
 
+Done on branch fix/functional-backlog (2026-10-01): ALLSTATS routing + runtime columns, Id-less/storage predicates, query blocks, adaptive plans, text robustness, ADVANCED sections, XML extras, ACTIVE reports, JSON fixes; only partial-parse warnings remain.
+
 Ranked by how often a DBA would hit each one.
 
-- [ ] **DISPLAY_CURSOR `ALLSTATS LAST` goes to the SQL Monitor text parser.** Any header with
+- [x] **DISPLAY_CURSOR `ALLSTATS LAST` goes to the SQL Monitor text parser.** Any header with
   `A-Rows` matches `sqlMonitorParser.ts` `canParse`, so:
   - the `Buffers` column is dropped (map it to `logicalReads`);
   - `OMem`, `1Mem` and `Used-Mem` all map to `memoryUsed`, so the last one wins;
@@ -38,99 +40,116 @@ Ranked by how often a DBA would hit each one.
   the runtime columns (Starts, E-Rows, A-Rows, A-Time, Buffers, Reads, Writes, OMem, 1Mem,
   Used-Mem, Used-Tmp), sharing value parsers. The real 19c fixtures in
   `src/lib/parser/__tests__/fixtures/allstats-*.txt` are a starting point.
-- [ ] **A predicate line without an Id is dropped.** Oracle prints `filter(...)` under
+- [x] **A predicate line without an Id is dropped.** Oracle prints `filter(...)` under
   `access(...)` without a leading Id, and Exadata prints `storage(...)` the same way
   (`dbmsXplanParser.ts` `parsePredicates`, and the same logic in the SQL Monitor parser).
-- [ ] **Query Block / Object Alias never attaches on real output.** The parser stops at the
+- [x] **Query Block / Object Alias never attaches on real output.** The parser stops at the
   blank line after the dashes (`dbmsXplanParser.ts` `parseQueryBlocks`). Examples 25 and 26
   have that blank line; 01 and 02 don't, which is why it went unnoticed.
-- [ ] **Adaptive plans.** Inactive rows (`-` prefix) and STATISTICS COLLECTOR show as live
+- [x] **Adaptive plans.** Inactive rows (`-` prefix) and STATISTICS COLLECTOR show as live
   operations and are counted in totals. Add `inactive?: boolean`, exclude those rows from
   totals, and dim or hide them.
-- [ ] **Text robustness.**
+- [x] **Text robustness.**
   - Normalise CRLF at parse entry; file drops keep `\r`, which breaks Notes.
   - Support T/P/E size suffixes.
   - Parse suffixed costs (`4823K`).
   - Count tabs in indentation.
-- [ ] **Multi-child and AWR pastes.** The `SQL_ID …, child number N` header of plan N+1 ends up
+- [x] **Multi-child and AWR pastes.** The `SQL_ID …, child number N` header of plan N+1 ends up
   in segment N, so SQL_ID and SQL text slide onto the wrong plan. The child number is never
   captured.
-- [ ] **ADVANCED sections.** Outline Data, Hint Report, Column Projection, Remote SQL and Peeked
+
+  Done: the segment split (7042e70) and `ParsedPlan.childNumber`, shown in the drawer, plan-tab
+  tooltip and Markdown heading.
+- [x] **ADVANCED sections.** Outline Data, Hint Report, Column Projection, Remote SQL and Peeked
   Binds from text output are ignored. SQL Monitor XML `<info>` notes, outline hints and
   `<parallel_info>` per-server stats are ignored too.
-- [ ] **SQL Monitor ACTIVE (HTML) reports.** Support base64/zlib-compressed XML via
+- [x] **SQL Monitor ACTIVE (HTML) reports.** Support base64/zlib-compressed XML via
   `DecompressionStream`, which is already used for `#gz` links.
-- [ ] **Partial-parse warnings.** Add `plan.warnings[]` and show them, covering dropped columns
+- [x] **Partial-parse warnings.** Add `plan.warnings[]` and show them, covering dropped columns
   or sections, the wrong parser route, a truncated CLOB (suggest `SET LONG`), and XML with a
   SQL*Plus preamble. Today these all fail silently or give a generic message.
-- [ ] **JSON parser.**
+
+  Done: `parser/warnings.ts` (12 codes, incl. wrapped `LINESIZE` and cut-off pastes), shown by
+  `PlanWarningsNotice` in the drawer and passed to the AI context. A SQL*Plus wrapper around XML
+  is now stripped so the report parses. No bundled example or fixture warns (tested).
+- [x] **JSON parser.**
   - The CPU% formula is wrong.
   - Starts defaults to the DOP.
   - Partition and PX keys aren't read.
-- [ ] **Docs contradiction.** `docs/input-formats.md:19` says DBMS_XPLAN has "No runtime
+- [x] **Docs contradiction.** `docs/input-formats.md:19` says DBMS_XPLAN has "No runtime
   statistics".
 
 ## Phase 3 — CI and large-plan performance
 
-- [ ] **Add a PR CI job** running `npm run lint`, `npx vitest run --environment jsdom` and
+Done on branch fix/functional-backlog (2026-10-01): PR CI job, `test`/`typecheck` scripts, memoized context + `DraftInputContext`, `PlanNode` memo, Sankey restyle, advisor cache check, 2k-op fixture + bench, `HierarchicalView` hot paths.
+
+- [x] **Add a PR CI job** running `npm run lint`, `npx vitest run --environment jsdom` and
   `tsc -b`. Add `test` and `typecheck` scripts to `package.json`. Today `deploy.yml` only builds
   and deploys on push to `main`.
-- [ ] **Memoize the plan-context value** (`usePlanContext.tsx`, the provider value), or split it
+- [x] **Memoize the plan-context value** (`usePlanContext.tsx`, the provider value), or split it
   into data and actions. All ~46 consumers re-render on every keystroke.
-- [ ] **Re-check `PlanNode`.** It is deliberately not memoized, and the comment explaining why is
+- [x] **Re-check `PlanNode`.** It is deliberately not memoized, and the comment explaining why is
   stale. Re-evaluate `React.memo`.
-- [ ] **Sankey.** Restyle the diagram on selection or search instead of tearing it down and
+- [x] **Sankey.** Restyle the diagram on selection or search instead of tearing it down and
   re-laying it out. The quadratic label-collision check needs a spatial grid or a cap.
-- [ ] **Run the advisor once per plan.** It runs both in `usePlanContext` and in
+- [x] **Run the advisor once per plan.** It runs both in `usePlanContext` and in
   `HierarchicalView`.
-- [ ] **Add a generated 2,000-operation plan** as a test fixture and performance benchmark. The
+- [x] **Add a generated 2,000-operation plan** as a test fixture and performance benchmark. The
   largest example today has 22 operations.
-- [ ] **Smaller hot paths in `HierarchicalView`:**
+- [x] **Smaller hot paths in `HierarchicalView`:**
   - all nodes and aria labels are rebuilt on every selection;
   - an O(n·groups) annotation lookup;
   - keyboard navigation filters the whole plan on each arrow press.
 
 ## Phase 4 — Advisor rules a DBA expects
 
-- [ ] **Root-cause cardinality.** Flag the lowest operation whose inputs are accurate but whose
+Done on branch fix/functional-backlog (2026-10-01): every item below (17 rules now); new rule ids are listed in `CLAUDE.md`.
+
+- [x] **Root-cause cardinality.** Flag the lowest operation whose inputs are accurate but whose
   own estimate is off, instead of the whole ancestor chain.
-- [ ] **Per-row re-execution.** Flag FILTER or scalar subqueries and nested-loop inner sides
+- [x] **Per-row re-execution.** Flag FILTER or scalar subqueries and nested-loop inner sides
   with high Starts, and REMOTE operations inside nested loops.
-- [ ] **Rows discarded after an index.** Flag when index A-Rows is much larger than the
+- [x] **Rows discarded after an index.** Flag when index A-Rows is much larger than the
   TABLE ACCESS BY ROWID A-Rows (the filter column is missing from the index).
-- [ ] **Buffers per row and per start.** Needs the Phase 2 Buffers parsing.
-- [ ] **Findings from Notes.** Dynamic sampling, adaptive plan, SQL plan directives and SQL
+- [x] **Buffers per row and per start.** Needs the Phase 2 Buffers parsing.
+- [x] **Findings from Notes.** Dynamic sampling, adaptive plan, SQL plan directives and SQL
   profile/baseline/patch are already parsed in `noteSection.ts`, but no rule uses them.
-- [ ] **Work-area passes.** Flag one-pass and multipass sorts and hashes, from the Used-Mem
+- [x] **Work-area passes.** Flag one-pass and multipass sorts and hashes, from the Used-Mem
   pass count or SQL Monitor.
-- [ ] **Functions wrapping indexed columns** (UPPER, TRUNC, NVL, SUBSTR).
-- [ ] **Hash join build side larger than the probe side.**
-- [ ] **Parallel.**
+- [x] **Functions wrapping indexed columns** (UPPER, TRUNC, NVL, SUBSTR).
+- [x] **Hash join build side larger than the probe side.**
+- [x] **Parallel.**
   - Flag S->P serialization.
   - Flag skew from per-server stats.
   - The current P->S check can never fire.
-- [ ] **Partition `ALL`.** Only flag it when there is a predicate on the partition key.
-- [ ] **Existing rule fixes.**
+- [x] **Partition `ALL`.** Only flag it when there is a predicate on the partition key.
+- [x] **Existing rule fixes.**
   - The cartesian rule overcounts: BUFFER SORT A-Rows is already N×M.
   - `selective-full-scan` uses whole-table num_rows for partitioned tables.
   - `index-exists-unused` ignores non-sargable predicates and the table alias.
-- [ ] **Multi-select aggregates.** Check the remaining aggregate labels after the Phase 1
+- [x] **Multi-select aggregates.** Check the remaining aggregate labels after the Phase 1
   self-cost and self-time change.
 
 ## Phase 5 — Workflow and housekeeping
 
-- [ ] **"Open plan file" button.** Today drag-and-drop is the only way to load a plan file.
-- [ ] **"Copy plan as Markdown"**, for tickets and chats.
-- [ ] **Deep links.** Add `?node=` and filters, and allow compare mode in `#gz` share links
+Done on branch fix/functional-backlog (2026-10-01): open-file, Markdown copy, deep links + workspace share block, breadcrumb, analysis overview, PWA, version, stale docs, `prototypes/` ignore; branch pruning and `changelog_claude.md` stay open (need a decision).
+
+- [x] **"Open plan file" button.** Today drag-and-drop is the only way to load a plan file.
+- [x] **"Copy plan as Markdown"**, for tickets and chats.
+- [x] **Deep links.** Add `?node=` and filters, and allow compare mode in `#gz` share links
   (codex suggestion #7). Also add a "return to selected" breadcrumb for large plans
   (suggestion #9).
-- [ ] **Post-parse findings overview** (codex suggestion #1).
-- [ ] **Offline / installable PWA** (manifest and service worker).
-- [ ] **Version.** `package.json` still says `0.0.0`, while `v1.1.0` is tagged.
-- [ ] **Stale plan docs.** `docs/plans/db-generated-share-url.md` and
+
+  Done: `?node=` and `?q=` deep links, a versioned `workspace` block in share links (compare pair,
+  metrics, tree mode, selection, non-default analysis filters), and the selection breadcrumb.
+  There is no general `?filter=` query param — filters travel only inside share links.
+- [x] **Post-parse findings overview** (codex suggestion #1).
+- [x] **Offline / installable PWA** (manifest and service worker).
+- [x] **Version.** `package.json` still says `0.0.0`, while `v1.1.0` is tagged.
+- [x] **Stale plan docs.** `docs/plans/db-generated-share-url.md` and
   `share-url-large-plans.md` say "not implemented", but both features exist.
 - [ ] **Branch pruning.** About 30 stale local and remote branches. Deleting them needs
   explicit approval.
 - [ ] **`changelog_claude.md`.** It was abandoned in March 2026; revive it or remove it.
-- [ ] **Ignore `prototypes/`.** It holds Xcode build output and is untracked. Add it to
+- [x] **Ignore `prototypes/`.** It holds Xcode build output and is untracked. Add it to
   `.gitignore` on the main line.

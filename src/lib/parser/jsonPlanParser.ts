@@ -177,6 +177,49 @@ function getStr(row: Record<string, unknown>, ...keys: string[]): string | undef
   return undefined;
 }
 
+// OTHER_TAG values -> DBMS_XPLAN's IN-OUT column codes
+const IN_OUT_CODES: Record<string, string> = {
+  SERIAL_FROM_REMOTE: 'R->S',
+  SERIAL_TO_PARALLEL: 'S->P',
+  PARALLEL_FROM_SERIAL: 'S->P',
+  PARALLEL_TO_SERIAL: 'P->S',
+  PARALLEL_TO_PARALLEL: 'P->P',
+  PARALLEL_COMBINED_WITH_PARENT: 'PCWP',
+  PARALLEL_COMBINED_WITH_CHILD: 'PCWC',
+  SERIAL: '',
+};
+
+/**
+ * DBMS_XPLAN's %CPU: share of the cost that is not I/O, rounded. CPU_COST is in
+ * CPU cycles, not cost units, so it cannot be compared with IO_COST directly.
+ */
+function cpuPercentFromCost(cost: number | undefined, ioCost: number | undefined): number | undefined {
+  if (cost === undefined || ioCost === undefined) return undefined;
+  if (cost <= 0) return 0;
+  return Math.min(100, Math.max(0, Math.round(((cost - ioCost) * 100) / cost)));
+}
+
+/** Buffers as DISPLAY_CURSOR reports them: consistent gets + current gets. */
+function getBufferGets(row: Record<string, unknown>): number | undefined {
+  for (const prefix of ['actual_', 'last_', '']) {
+    const cr = getInt(row, `${prefix}cr_buffer_gets`);
+    const cu = getInt(row, `${prefix}cu_buffer_gets`);
+    if (cr !== undefined || cu !== undefined) return (cr ?? 0) + (cu ?? 0);
+  }
+  return getInt(row, 'buffer_gets', 'logical_reads');
+}
+
+/** LAST_EXECUTION: 'OPTIMAL' -> 0, 'ONE PASS' / '1 PASS' -> 1, 'n PASSES' -> n. */
+function parseWorkareaPasses(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  const text = String(value).trim().toUpperCase();
+  if (text === 'OPTIMAL') return 0;
+  if (/^(ONE|1)[\s_-]*PASS$/.test(text)) return 1;
+  const m = /^(\d+)\s*PASSES$/.exec(text);
+  return m ? parseInt(m[1], 10) : undefined;
+}
+
 function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
   const id = getInt(row, 'id');
   if (id === undefined) return null;
@@ -198,24 +241,24 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
   const rows = getInt(row, 'cardinality', 'rows', 'e_rows');
   const bytes = getInt(row, 'bytes');
   const cost = getInt(row, 'cost');
-  const cpuCost = getInt(row, 'cpu_cost');
   const ioCost = getInt(row, 'io_cost');
 
   // Actual runtime stats
   // V$SQL_PLAN_STATISTICS_ALL uses last_* prefix
   const actualRows = getInt(row, 'actual_rows', 'last_output_rows', 'output_rows', 'a_rows');
   const starts = getInt(row, 'actual_starts', 'last_starts', 'starts');
+  // Workarea sizes (LAST_MEMORY_USED, ESTIMATED_*_SIZE) are bytes in these views,
+  // although the Oracle reference says KB (verified on 19c against DBMS_XPLAN OMem/1Mem/Used-Mem).
   const memoryUsed = getInt(row, 'actual_memory_used', 'last_memory_used', 'max_memory', 'used_mem');
+  // LAST_TEMPSEG_SIZE is bytes.
   const tempUsed = getInt(row, 'actual_tempseg_size', 'last_tempseg_size', 'max_tempseg_size', 'used_tmp');
   const physicalReads = getInt(row, 'actual_disk_reads', 'last_disk_reads', 'physical_reads');
-  const logicalReads = getInt(row, 'actual_cr_buffer_gets', 'last_cr_buffer_gets', 'buffer_gets', 'logical_reads');
+  const physicalWrites = getInt(row, 'actual_disk_writes', 'last_disk_writes', 'disk_writes', 'physical_writes');
+  const logicalReads = getBufferGets(row);
 
   // Elapsed time: V$SQL_PLAN_STATISTICS_ALL stores in microseconds
   const elapsedTimeUs = getNum(row, 'actual_elapsed_time', 'last_elapsed_time', 'elapsed_time');
   const actualTime = elapsedTimeUs !== undefined ? elapsedTimeUs / 1000 : undefined;
-
-  // Parallel degree
-  const parallelDegree = getInt(row, 'actual_parallel_degree', 'last_degree', 'degree');
 
   // Predicates
   const accessPredicates = getStr(row, 'access_predicates');
@@ -227,6 +270,27 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
   // Temp space from optimizer (estimate; actual spill is tempUsed)
   const tempSpace = getInt(row, 'temp_space');
 
+  // Partition / parallel execution columns (V$SQL_PLAN: PARTITION_START/STOP,
+  // OBJECT_NODE, OTHER_TAG, DISTRIBUTION), or the DBMS_XPLAN short names
+  const pstart = getStr(row, 'partition_start', 'pstart');
+  const pstop = getStr(row, 'partition_stop', 'pstop');
+  const tq = getStr(row, 'object_node', 'tq');
+  const otherTag = getStr(row, 'other_tag', 'in_out');
+  const inOut = otherTag ? (IN_OUT_CODES[otherTag.toUpperCase()] ?? otherTag) || undefined : undefined;
+  const pqDistrib = getStr(row, 'distribution', 'pq_distrib');
+
+  // Workarea (V$SQL_PLAN_STATISTICS_ALL), bytes (see above)
+  const estimatedOptimalMemory = getInt(row, 'estimated_optimal_size');
+  const estimatedOnePassMemory = getInt(row, 'estimated_onepass_size');
+  const workareaPasses = parseWorkareaPasses(row['last_execution']);
+  const optimalExecs = getInt(row, 'optimal_executions');
+  const onePassExecs = getInt(row, 'onepass_executions');
+  const multipassExecs = getInt(row, 'multipasses_executions');
+  const workareaExecutions =
+    optimalExecs !== undefined || onePassExecs !== undefined || multipassExecs !== undefined
+      ? { optimal: optimalExecs ?? 0, onePass: onePassExecs ?? 0, multipass: multipassExecs ?? 0 }
+      : undefined;
+
   const node: PlanNode = {
     id,
     depth,
@@ -237,8 +301,18 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
     rows,
     bytes,
     cost,
-    cpuPercent: cpuCost && ioCost ? Math.round((cpuCost / (cpuCost + ioCost)) * 100) : undefined,
+    cpuPercent: cpuPercentFromCost(cost, ioCost),
     tempSpace,
+    pstart,
+    pstop,
+    tq,
+    inOut,
+    pqDistrib,
+    estimatedOptimalMemory,
+    estimatedOnePassMemory,
+    workareaPasses,
+    workareaExecutions,
+    physicalWrites,
     actualRows,
     actualTime,
     starts,
@@ -250,11 +324,6 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
     filterPredicates,
     children: [],
   };
-
-  // Parallel degree stored in starts if degree > 1 (informational)
-  if (parallelDegree && parallelDegree > 1 && !node.starts) {
-    node.starts = parallelDegree;
-  }
 
   // Parent ID
   const parentId = getInt(row, 'parent_id');

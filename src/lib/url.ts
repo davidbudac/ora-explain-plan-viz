@@ -1,6 +1,8 @@
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string';
 import type { SerializedAnnotationState } from './annotations';
-import type { ViewMode } from './types';
+import type { FilterState, PredicateType, ViewMode } from './types';
+import { ALL_COMPARE_METRICS } from './compare';
+import type { CompareMetric } from './compare';
 
 const URL_PARAM = 'plan';
 const HASH_PARAM = 'gz';
@@ -13,14 +15,84 @@ const LEGACY_MAX_URL_LENGTH = 8000;
 /** Metadata bundles ride along only while the share URL stays under this length. */
 export const SHARE_BUNDLE_MAX_URL_LENGTH = 32_000;
 
-/** Query params used by marketing/deep links (`?example=22&view=sankey`). */
-const DEEP_LINK_PARAMS = ['example', 'view'];
+/** Query params used by marketing/deep links (`?example=22&view=sankey&node=4&q=hash`). */
+const DEEP_LINK_PARAMS = ['example', 'view', 'node', 'q'];
+
+export interface DeepLinkParams {
+  example: string | null;
+  view: string | null;
+  /** Operation id to select once the plan loads (null when absent or not a non-negative integer). */
+  node: number | null;
+  /** Text for the filter panel's search box. */
+  q: string | null;
+}
+
+/** Parse the deep-link query params (`?example=&view=&node=&q=`) from a query string. */
+export function parseDeepLinkParams(search: string): DeepLinkParams {
+  const params = new URLSearchParams(search);
+  const rawNode = params.get('node');
+  const node = rawNode !== null && /^\d{1,9}$/.test(rawNode.trim()) ? Number(rawNode.trim()) : null;
+  const q = params.get('q');
+  return {
+    example: params.get('example') || null,
+    view: params.get('view') || null,
+    node,
+    q: q && q.trim() ? q : null,
+  };
+}
 
 export interface SharePlanEntry {
   rawInput: string;
   annotations?: SerializedAnnotationState;
   /** Attached ora-plan-metadata bundle (the parsed JSON object), when it fits. */
   metadataBundle?: unknown;
+  /** Operation ids selected in this plan at share time. */
+  selectedNodeIds?: number[];
+}
+
+/** Current version of the {@link ShareWorkspaceState} block. */
+export const SHARE_WORKSPACE_VERSION = 1;
+
+/** The analysis filters a share link carries (display options stay personal). */
+export type ShareFilters = Partial<Pick<FilterState,
+  | 'operationTypes' | 'minCost' | 'maxCost' | 'searchText' | 'predicateTypes'
+  | 'minActualRows' | 'maxActualRows' | 'minActualTime' | 'maxActualTime' | 'minCardinalityMismatch'
+>>;
+
+/** Defaults for {@link ShareFilters}; only fields that differ travel in a link. */
+export const SHARE_FILTER_DEFAULTS: Required<ShareFilters> = {
+  operationTypes: [],
+  minCost: 0,
+  maxCost: Infinity,
+  searchText: '',
+  predicateTypes: [],
+  minActualRows: 0,
+  maxActualRows: Infinity,
+  minActualTime: 0,
+  maxActualTime: Infinity,
+  minCardinalityMismatch: 0,
+};
+
+/**
+ * Small, versioned workspace state riding in a share link beside the plans:
+ * which plan/operation the sender was looking at, the compared pair + metrics,
+ * and the active filters. Theme, palette and density are personal and never
+ * shared. Every field is optional so older links (no block) and newer ones
+ * (extra fields) both load.
+ */
+export interface ShareWorkspaceState {
+  v: number;
+  /** Active plan index (into `plans`). */
+  activePlan?: number;
+  compare?: {
+    /** Compared plan pair (indices into `plans`). */
+    pair: [number, number];
+    metrics?: CompareMetric[];
+    /** Side-by-side dual-pane tree/tabular mode. */
+    tree?: boolean;
+  };
+  /** Only the filter fields that differ from {@link SHARE_FILTER_DEFAULTS}. */
+  filters?: ShareFilters;
 }
 
 /**
@@ -32,6 +104,8 @@ export interface SharePayload {
   plans: SharePlanEntry[];
   /** Active visualization tab at share time. */
   viewMode?: string;
+  /** Selection, compare pair and filters at share time (absent in older links). */
+  workspace?: ShareWorkspaceState;
   /** @deprecated Global annotations from older shares — migrated to per-plan on load */
   annotations?: SerializedAnnotationState;
 }
@@ -91,7 +165,7 @@ export function getGzipPlanParamFromHash(): string | null {
  * Remove the ?plan= query param and #gz= hash param from the URL without
  * triggering navigation. Preserves any other hash params.
  *
- * With `includeDeepLinks`, also drops `?example=` / `?view=` — used once the
+ * With `includeDeepLinks`, also drops `?example=` / `?view=` / `?node=` / `?q=` — used once the
  * plan they pointed at has been replaced or cleared, so a reload does not
  * resurrect it.
  */
@@ -293,6 +367,8 @@ export function getSharedViewMode(payload: SharePayload): ViewMode | null {
 
 export interface ShareLinkOptions {
   viewMode?: ViewMode;
+  /** Selection / compare / filter state to carry (see {@link buildShareWorkspace}). */
+  workspace?: ShareWorkspaceState;
   /** Injected for tests; defaults to `buildShareUrl`. */
   build?: (payload: SharePayload) => Promise<ShareResult>;
   /** Max URL length that still carries metadata bundles. */
@@ -306,12 +382,14 @@ export type ShareLinkResult =
 function toPayload(
   plans: SharePlanEntry[],
   viewMode: ViewMode | undefined,
+  workspace: ShareWorkspaceState | undefined,
   opts: { includeBundles: boolean; transform?: (text: string) => string },
 ): SharePayload {
   const payload: SharePayload = {
     plans: plans.map((plan) => {
       const entry: SharePlanEntry = { rawInput: opts.transform ? opts.transform(plan.rawInput) : plan.rawInput };
       if (plan.annotations) entry.annotations = plan.annotations;
+      if (plan.selectedNodeIds && plan.selectedNodeIds.length > 0) entry.selectedNodeIds = plan.selectedNodeIds;
       if (opts.includeBundles && plan.metadataBundle !== undefined && plan.metadataBundle !== null) {
         entry.metadataBundle = plan.metadataBundle;
       }
@@ -321,6 +399,7 @@ function toPayload(
   if (viewMode && (SHAREABLE_VIEW_MODES as readonly string[]).includes(viewMode)) {
     payload.viewMode = viewMode;
   }
+  if (workspace) payload.workspace = workspace;
   return payload;
 }
 
@@ -339,7 +418,7 @@ export async function buildShareLink(plans: SharePlanEntry[], options: ShareLink
 
   let result: ShareResult | null = null;
   if (hasBundles) {
-    const withBundles = await build(toPayload(plans, options.viewMode, { includeBundles: true }));
+    const withBundles = await build(toPayload(plans, options.viewMode, options.workspace, { includeBundles: true }));
     if (withBundles.ok && withBundles.url.length <= bundleMax) {
       result = withBundles;
     } else {
@@ -348,12 +427,12 @@ export async function buildShareLink(plans: SharePlanEntry[], options: ShareLink
   }
 
   if (!result) {
-    result = await build(toPayload(plans, options.viewMode, { includeBundles: false }));
+    result = await build(toPayload(plans, options.viewMode, options.workspace, { includeBundles: false }));
   }
 
   if (!result.ok) {
     const stripped = await build(
-      toPayload(plans, options.viewMode, { includeBundles: false, transform: stripUnusedXmlSections }),
+      toPayload(plans, options.viewMode, options.workspace, { includeBundles: false, transform: stripUnusedXmlSections }),
     );
     if (!stripped.ok) return stripped;
     result = stripped;
@@ -362,4 +441,125 @@ export async function buildShareLink(plans: SharePlanEntry[], options: ShareLink
 
   if (result.warning) warnings.push(result.warning);
   return { ok: true, url: result.url, warnings };
+}
+
+// ---------------------------------------------------------------------------
+// Workspace state (selection, compare pair, filters)
+// ---------------------------------------------------------------------------
+
+const MAX_SHARED_SELECTION = 200;
+const SHARED_FILTER_KEYS = Object.keys(SHARE_FILTER_DEFAULTS) as Array<keyof ShareFilters>;
+
+function sameFilterValue(a: unknown, b: unknown): boolean {
+  return Array.isArray(a) && Array.isArray(b)
+    ? a.length === b.length && a.every((value, i) => value === b[i])
+    : a === b;
+}
+
+/** The analysis-filter fields of `filters` that differ from the defaults (undefined when none). */
+export function diffShareFilters(filters: FilterState): ShareFilters | undefined {
+  const diff: Record<string, unknown> = {};
+  for (const key of SHARED_FILTER_KEYS) {
+    if (!sameFilterValue(filters[key], SHARE_FILTER_DEFAULTS[key])) diff[key] = filters[key];
+  }
+  return Object.keys(diff).length > 0 ? (diff as ShareFilters) : undefined;
+}
+
+/**
+ * Build the workspace block for a share link. `keptIndices` lists the slot
+ * indices that actually become `plans` entries (unparsed slots are not
+ * shared), so every index is remapped into payload positions.
+ */
+export function buildShareWorkspace(input: {
+  keptIndices: number[];
+  activePlanIndex: number;
+  comparePlanIndices: [number, number];
+  compareMetrics: CompareMetric[];
+  treeCompareEnabled: boolean;
+  filters: FilterState;
+}): ShareWorkspaceState {
+  const { keptIndices } = input;
+  const workspace: ShareWorkspaceState = { v: SHARE_WORKSPACE_VERSION };
+
+  const active = keptIndices.indexOf(input.activePlanIndex);
+  if (active > 0) workspace.activePlan = active;
+
+  const left = keptIndices.indexOf(input.comparePlanIndices[0]);
+  const right = keptIndices.indexOf(input.comparePlanIndices[1]);
+  if (keptIndices.length >= 2 && left >= 0 && right >= 0 && left !== right) {
+    workspace.compare = { pair: [left, right], metrics: [...input.compareMetrics] };
+    if (input.treeCompareEnabled) workspace.compare.tree = true;
+  }
+
+  const filters = diffShareFilters(input.filters);
+  if (filters) workspace.filters = filters;
+  return workspace;
+}
+
+function isIndex(value: unknown, count: number): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < count;
+}
+
+function readFilters(raw: unknown): ShareFilters | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const src = raw as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  const numericKeys = [
+    'minCost', 'maxCost', 'minActualRows', 'maxActualRows', 'minActualTime', 'maxActualTime', 'minCardinalityMismatch',
+  ] as const;
+  for (const key of numericKeys) {
+    const value = src[key];
+    if (typeof value === 'number' && value >= 0) out[key] = value;
+  }
+  if (typeof src.searchText === 'string') out.searchText = src.searchText;
+  if (Array.isArray(src.operationTypes)) {
+    out.operationTypes = src.operationTypes.filter((v): v is string => typeof v === 'string');
+  }
+  if (Array.isArray(src.predicateTypes)) {
+    const allowed: PredicateType[] = ['access', 'filter', 'none'];
+    out.predicateTypes = src.predicateTypes.filter((v): v is PredicateType => allowed.includes(v as PredicateType));
+  }
+  return Object.keys(out).length > 0 ? (out as ShareFilters) : undefined;
+}
+
+/**
+ * Tolerantly read the workspace block of a decoded payload for `planCount`
+ * plans. Unknown fields, out-of-range indices and wrongly typed values are
+ * dropped rather than failing the whole link; returns null for older links.
+ */
+export function readShareWorkspace(payload: SharePayload, planCount: number): ShareWorkspaceState | null {
+  const raw = payload.workspace as unknown;
+  if (!raw || typeof raw !== 'object') return null;
+  const src = raw as Record<string, unknown>;
+  const workspace: ShareWorkspaceState = { v: typeof src.v === 'number' ? src.v : SHARE_WORKSPACE_VERSION };
+
+  if (isIndex(src.activePlan, planCount)) workspace.activePlan = src.activePlan;
+
+  const compare = src.compare as Record<string, unknown> | undefined;
+  if (compare && typeof compare === 'object' && Array.isArray(compare.pair)) {
+    const [left, right] = compare.pair as unknown[];
+    if (isIndex(left, planCount) && isIndex(right, planCount) && left !== right) {
+      workspace.compare = { pair: [left, right] };
+      if (Array.isArray(compare.metrics)) {
+        const metrics = compare.metrics.filter(
+          (m): m is CompareMetric => (ALL_COMPARE_METRICS as unknown[]).includes(m),
+        );
+        if (metrics.length > 0) workspace.compare.metrics = metrics;
+      }
+      if (compare.tree === true) workspace.compare.tree = true;
+    }
+  }
+
+  const filters = readFilters(src.filters);
+  if (filters) workspace.filters = filters;
+  return workspace;
+}
+
+/** Selected operation ids of a shared plan entry (integers only, capped). */
+export function readSharedSelection(entry: SharePlanEntry): number[] {
+  const raw = entry.selectedNodeIds as unknown;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((id): id is number => typeof id === 'number' && Number.isInteger(id) && id >= 0)
+    .slice(0, MAX_SHARED_SELECTION);
 }
