@@ -367,7 +367,7 @@ pre code.hljs {
   }
 }
 
-/* Entrance animations for the ui/ primitives (Dialog, Toast). Only declared
+/* Entrance animations for the ui/ primitives (Dialog, Toast) and the tree's node hover toolbar. Only declared
    when the user has not asked for reduced motion, so they simply do not exist
    otherwise. */
 @keyframes ui-toast-in {
@@ -380,9 +380,15 @@ pre code.hljs {
   to { opacity: 1; transform: none; }
 }
 
+@keyframes ui-node-toolbar-in {
+  from { opacity: 0; transform: translateY(3px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .ui-toast-enter { animation: ui-toast-in 160ms ease-out; }
   .ui-dialog-enter { animation: ui-dialog-in 140ms ease-out; }
+  .node-toolbar-enter { animation: ui-node-toolbar-in 110ms ease-out; }
 }
 
 /* Respect the OS "reduce motion" preference: stop decorative loops and make

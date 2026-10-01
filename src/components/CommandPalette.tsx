@@ -165,6 +165,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     highlightStyle,
     parsedPlan,
     plans,
+    activePlanIndex,
     visualizationMaximized,
     inputPanelCollapsed,
     filterPanelCollapsed,
@@ -188,6 +189,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     setSankeyMetric,
     setNodeIndicatorMetric,
     setHighlightStyle,
+    paintNodeWithBrush,
     setVisualizationMaximized,
     setInputPanelCollapsed,
     setFilterPanelCollapsed,
@@ -211,6 +213,8 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     setFlameMetric,
   } = usePlan();
   const hasSelection = selectedNodes.length > 0;
+  // Painting needs exactly one target; a multi-selection is ambiguous.
+  const singleSelectedNodeId = selectedNodes.length === 1 ? selectedNodes[0].id : null;
 
   const anyPlanParsed = plans.some(p => p.parsedPlan);
   const hasActualStats = parsedPlan?.hasActualStats ?? false;
@@ -560,18 +564,32 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
       });
     }
 
-    // Highlight styles
+    // Highlight brush: the style the tree's hover toolbar paints with (also the
+    // fallback for legacy highlights saved without a style of their own).
     for (const [style, label] of Object.entries(HIGHLIGHT_STYLE_LABELS) as [HighlightStyle, string][]) {
       commands.push({
         id: `highlight-style-${style}`,
-        label: `${label} highlight style`,
-        category: 'Theme',
+        label: `Highlight brush style: ${label}`,
+        category: 'Annotations',
         kind: 'select',
-        keywords: ['highlight', 'style', label.toLowerCase(), 'annotation'],
+        keywords: ['highlight', 'brush', 'paint', 'style', label.toLowerCase(), 'annotation'],
         execute: () => setHighlightStyle(style),
         isActive: () => highlightStyle === style,
       });
     }
+
+    // Paint the selected node with the current brush (toggle: painting again clears it)
+    commands.push({
+      id: 'paint-selected-node',
+      label: 'Paint selected node with highlight brush',
+      category: 'Annotations',
+      kind: 'action',
+      keywords: ['highlight', 'brush', 'paint', 'colour', 'color', 'annotation', 'selected', 'node'],
+      execute: () => {
+        if (singleSelectedNodeId !== null) paintNodeWithBrush(activePlanIndex, singleSelectedNodeId);
+      },
+      isAvailable: () => parsedPlan !== null && singleSelectedNodeId !== null,
+    });
 
     // --- Export & Share ---
     commands.push({
@@ -777,6 +795,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     toggleNodeDisplayOption, enableAllDisplayOptions, disableAllDisplayOptions,
     treeLayoutDirection, setTreeLayoutDirection, treeMinimap, setTreeMinimap, loadExample,
     treeActions, hasSelection, flameMetric, setFlameMetric,
+    singleSelectedNodeId, paintNodeWithBrush, activePlanIndex,
   ]);
 }
 
