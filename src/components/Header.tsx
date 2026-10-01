@@ -6,6 +6,8 @@ import { hasAnnotations } from '../lib/annotations';
 import { FOCUS_RING, FOCUS_RING_INSET, useMenuKeyboard, useToast } from './ui';
 import { runPngExport, PNG_EXPORT_UNAVAILABLE_HINT } from '../lib/actionFeedback';
 import { TOP_BAR_LABEL_ATTR, useTopBarMode } from '../hooks/useTopBarMode';
+import { openPlanFilePicker, OPEN_FILE_SHORTCUT_LABEL } from '../lib/filePicker';
+import { copyPlanAsMarkdown } from '../lib/planMarkdown';
 
 const ICON_BTN =
   `h-8 w-8 flex items-center justify-center rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`;
@@ -138,6 +140,8 @@ const ICON_PATHS = {
   external: 'M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14',
   back: 'M15 19l-7-7 7-7',
   forward: 'M9 5l7 7-7 7',
+  clipboard: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
+  folder: 'M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z',
 } as const;
 
 /**
@@ -354,6 +358,7 @@ export function HeaderActions() {
     hasUnsavedAnnotations,
     exportAnnotatedPlan,
     importAnnotatedPlan,
+    loadFiles,
     exportPngFnRef,
     share,
     shareNotice,
@@ -408,6 +413,14 @@ export function HeaderActions() {
     fileInputRef.current?.click();
   }, []);
 
+  const handleOpenPlanFile = useCallback(() => {
+    openPlanFilePicker((files) => { void loadFiles(files); });
+  }, [loadFiles]);
+
+  const handleCopyMarkdown = useCallback(() => {
+    if (parsedPlan) void copyPlanAsMarkdown(parsedPlan, toast.show);
+  }, [parsedPlan, toast]);
+
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -437,6 +450,14 @@ export function HeaderActions() {
   const fileItems = (close: () => void) => (
     <>
       <MenuSectionHeader>Import</MenuSectionHeader>
+      <MenuItem
+        icon={<ItemIcon d={ICON_PATHS.folder} />}
+        title="Load a plan, SQL Monitor report, JSON plan or metadata bundle from a file — same as dropping it on the window"
+        onSelect={() => { close(); handleOpenPlanFile(); }}
+      >
+        <span className="flex-1">Open plan file…</span>
+        <kbd className="text-[10px] text-slate-400 dark:text-slate-500">{OPEN_FILE_SHORTCUT_LABEL}</kbd>
+      </MenuItem>
       <MenuItem icon={<ItemIcon d={ICON_PATHS.upload} />} onSelect={() => { close(); handleLoad(); }}>
         <span>Load annotated plan (.json)</span>
       </MenuItem>
@@ -453,6 +474,13 @@ export function HeaderActions() {
           )}
         </MenuItem>
       )}
+      <MenuItem
+        icon={<ItemIcon d={ICON_PATHS.clipboard} />}
+        disabled={parsedPlan === null}
+        onSelect={() => { close(); handleCopyMarkdown(); }}
+      >
+        <span>Copy plan as Markdown</span>
+      </MenuItem>
       <MenuItem
         icon={<ItemIcon d={ICON_PATHS.camera} />}
         disabled={!canExportPng || exporting}
