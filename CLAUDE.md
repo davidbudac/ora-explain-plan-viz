@@ -184,6 +184,22 @@ npm run typecheck
 npm test
 ```
 
+## Showcase Site
+
+`site/` is a static showcase: `index.html` (landing page) and `docs.html` (documentation), with media in `site/assets/`. Every push to `main` runs `.github/workflows/deploy.yml`, which publishes the app to https://davidbudac.github.io/ora-explain-plan-viz/ and copies `site/` to `/welcome/` (https://davidbudac.github.io/ora-explain-plan-viz/welcome/, docs at `/welcome/docs.html`). The site text is hand-written, so when a user-facing feature ships or changes, update `site/docs.html` (and the landing cards if relevant) in the same change.
+
+Showcase media is regenerated with `scripts/capture-showcase.mjs`. It needs the dev server, a headless Chrome started with `--remote-debugging-port=9222 --hide-scrollbars`, and ffmpeg:
+
+```bash
+node scripts/capture-showcase.mjs http://localhost:5199/ 9222 site/assets [shot,shot,...]
+```
+
+- The Bash sandbox blocks localhost and Chrome, so run the dev server, Chrome and the script unsandboxed.
+- A run of every shot stalls after `annotate`. The likely cause, not yet confirmed, is that the share dialog or the unsaved-annotations prompt blocks the next navigation. Run the remaining shots separately, e.g. `hero,timeline`.
+- The `sankey` shot also writes `sankey.gif`, which the site doesn't use. Delete it.
+- The compare shots use examples 27 and 28 at a 1680×900 viewport, so the Compare tab isn't squeezed into the overflow menu. These are two different SQL statements, so the dashboard shows a "Comparing different SQL statements" banner. A real before/after example pair would make a better shot.
+- Look at every PNG and a few frames of every GIF before committing. The script parks the pointer and clears any text selection before each screenshot, but GIF frames can still show the hover toolbar or leftover selection.
+
 ## Testing
 
 Tests use [Vitest](https://vitest.dev/) with jsdom for DOM API support (DOMParser, etc.). `vitest.config.ts` uses the automatic JSX runtime (no per-file pragma needed), loads `vitest.setup.ts` (real jsdom Web Storage on Node ≥ 22), and excludes `.claude/**` (agent worktrees) and `prototypes/**` besides the vitest defaults. Component tests render with the minimal helpers in `src/components/ui/__tests__/testUtils.tsx` (no Testing Library).
