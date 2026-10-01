@@ -2,7 +2,8 @@ import type { FilterState, ViewMode, SankeyMetric, FlameMetric, ExperimentalSubV
 import { APP_PALETTE_ORDER } from './types';
 import { DENSITY_PRESETS } from './density';
 import type { CompareMetric } from './compare';
-import type { HighlightStyle } from './annotations';
+import type { HighlightColor, HighlightStyle } from './annotations';
+import { isHighlightColor, isHighlightStyle } from './annotations';
 import type { AiProviderId, AiSectionId } from './ai/types';
 import { DEFAULT_ANTHROPIC_MODEL } from './ai/prompts';
 
@@ -56,8 +57,11 @@ export interface UserSettings {
   // Comparison metrics
   compareMetrics: CompareMetric[];
 
-  // Highlight style
+  // Highlight brush (the tree's hover toolbar paints with it). The brush *style*
+  // is `highlightStyle`, which also stays the fallback for legacy highlights
+  // saved without a style of their own.
   highlightStyle: HighlightStyle;
+  highlightBrushColor: HighlightColor;
 
   // Tree view layout
   treeLayoutDirection: TreeLayoutDirection;
@@ -119,6 +123,7 @@ const defaultSettings: UserSettings = {
   nodeDisplayOptions: defaultNodeDisplayOptions,
   compareMetrics: ['cost', 'actualRows', 'actualTime'],
   highlightStyle: 'circle',
+  highlightBrushColor: 'red',
   treeLayoutDirection: 'TB',
   treeMinimap: 'auto',
   aiProvider: 'anthropic',
@@ -170,6 +175,14 @@ export function loadSettings(theme?: Theme): UserSettings {
     // Drop experimental sub-views that no longer exist (removed views fall back to the default)
     if (parsed.experimentalSubView && !VALID_EXPERIMENTAL_SUB_VIEWS.includes(parsed.experimentalSubView)) {
       delete parsed.experimentalSubView;
+    }
+
+    // Drop unknown highlight brush values (fall back to the defaults)
+    if (parsed.highlightStyle !== undefined && !isHighlightStyle(parsed.highlightStyle)) {
+      delete parsed.highlightStyle;
+    }
+    if (parsed.highlightBrushColor !== undefined && !isHighlightColor(parsed.highlightBrushColor)) {
+      delete parsed.highlightBrushColor;
     }
 
     // Drop unknown tree layout values (fall back to the defaults)

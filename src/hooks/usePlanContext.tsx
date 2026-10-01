@@ -28,8 +28,8 @@ import {
 } from '../lib/session';
 import type { RecentPlan, SavedSession } from '../lib/session';
 import { useConfirm, useToast } from '../components/ui';
-import type { AnnotationState, AnnotationGroup, HighlightColor, HighlightStyle, AnnotatedPlanExport } from '../lib/annotations';
-import { createEmptyAnnotationState, hasAnnotations, serializeAnnotations, deserializeAnnotations, validateExport, downloadAnnotatedPlan, generateGroupId } from '../lib/annotations';
+import type { AnnotationState, AnnotationGroup, HighlightBrush, HighlightColor, HighlightStyle, AnnotatedPlanExport } from '../lib/annotations';
+import { createEmptyAnnotationState, hasAnnotations, serializeAnnotations, deserializeAnnotations, validateExport, downloadAnnotatedPlan, generateGroupId, highlightMatchesBrush } from '../lib/annotations';
 import type { MetadataBundle } from '../lib/metadata/bundle';
 import { parseBundle, emptyBundleWarning } from '../lib/metadata/bundle';
 import { copyToClipboard } from '../lib/clipboard';
@@ -163,8 +163,10 @@ interface PlanState {
   focusMode: boolean;
   visualizationMaximized: boolean;
   _preMaxPanelState: { filter: boolean; detail: boolean } | null;
-  // Highlight style
+  // Highlight brush: `highlightStyle` is the brush style (and the render
+  // fallback for legacy highlights saved without a style of their own).
   highlightStyle: HighlightStyle;
+  highlightBrushColor: HighlightColor;
   // Metadata-bundle attach feedback (session-only)
   bundleNotice: BundleNotice | null;
   pendingBundleChoice: PendingBundleChoice | null;
@@ -208,10 +210,15 @@ type PlanAction =
   | { type: 'SWAP_COMPARE_PLAN_INDICES' }
   | { type: 'SET_COMPARE_METRICS'; payload: CompareMetric[] }
   | { type: 'SET_HIGHLIGHT_STYLE'; payload: HighlightStyle }
-  | { type: 'SET_NODE_ANNOTATION'; payload: { nodeId: number; text: string } }
-  | { type: 'REMOVE_NODE_ANNOTATION'; payload: number }
-  | { type: 'SET_NODE_HIGHLIGHT'; payload: { nodeId: number; color: HighlightColor } }
-  | { type: 'REMOVE_NODE_HIGHLIGHT'; payload: number }
+  | { type: 'SET_HIGHLIGHT_BRUSH'; payload: Partial<HighlightBrush> }
+  // Node-scoped annotation actions target `planIndex` (the tree-compare panes
+  // each render their own plan); without it they act on the active plan.
+  | { type: 'SET_NODE_ANNOTATION'; payload: { nodeId: number; text: string; planIndex?: number } }
+  | { type: 'REMOVE_NODE_ANNOTATION'; payload: { nodeId: number; planIndex?: number } }
+  | { type: 'SET_NODE_HIGHLIGHT'; payload: { nodeId: number; color: HighlightColor; style?: HighlightStyle; planIndex?: number } }
+  | { type: 'REMOVE_NODE_HIGHLIGHT'; payload: { nodeId: number; planIndex?: number } }
+  /** Toggle: clears the node's highlight if it already matches the brush, else paints the brush. */
+  | { type: 'PAINT_NODE_HIGHLIGHT'; payload: { planIndex: number; nodeId: number } }
   | { type: 'ADD_ANNOTATION_GROUP'; payload: Omit<AnnotationGroup, 'id'> }
   | { type: 'UPDATE_ANNOTATION_GROUP'; payload: AnnotationGroup }
   | { type: 'REMOVE_ANNOTATION_GROUP'; payload: string }
@@ -412,6 +419,7 @@ const getInitialState = (): PlanState => {
     theme: initialTheme,
     filters: applySettingsToFilters(initialFilters, settings),
     highlightStyle: settings.highlightStyle ?? 'circle',
+    highlightBrushColor: settings.highlightBrushColor ?? 'red',
     hotspotsEnabled: settings.hotspotsEnabled ?? true,
     showAdvisorSuggestions: settings.showAdvisorSuggestions ?? false,
     legendVisible: settings.legendVisible,
@@ -438,6 +446,11 @@ function updatePlanSlot(state: PlanState, index: number, updater: (slot: PlanSlo
     slotIndex === index ? updater(slot) : slot
   );
   return { ...state, plans };
+}
+
+/** Updates `planIndex`'s slot, or the active one when no index is given. */
+function updateTargetSlot(state: PlanState, planIndex: number | undefined, updater: (slot: PlanSlot) => PlanSlot): PlanState {
+  return planIndex === undefined ? updateActiveSlot(state, updater) : updatePlanSlot(state, planIndex, updater);
 }
 
 function updateSlotSelection(slot: PlanSlot, id: number | null, additive?: boolean): PlanSlot {
@@ -612,6 +625,14 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
     case 'SET_HIGHLIGHT_STYLE':
       return { ...state, highlightStyle: action.payload };
 
+    case 'SET_HIGHLIGHT_BRUSH': {
+      const { color, style } = action.payload;
+      const nextColor = color ?? state.highlightBrushColor;
+      const nextStyle = style ?? state.highlightStyle;
+      if (nextColor === state.highlightBrushColor && nextStyle === state.highlightStyle) return state;
+      return { ...state, highlightBrushColor: nextColor, highlightStyle: nextStyle };
+    }
+
     case 'SET_HOTSPOTS_ENABLED':
       return { ...state, hotspotsEnabled: action.payload };
 
@@ -712,8 +733,8 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
       return { ...state, compareMetrics: action.payload };
 
     case 'SET_NODE_ANNOTATION': {
-      const { nodeId, text } = action.payload;
-      return updateActiveSlot(state, slot => {
+      const { nodeId, text, planIndex } = action.payload;
+      return updateTargetSlot(state, planIndex, slot => {
         const newAnnotations = new Map(slot.annotations.nodeAnnotations);
         const now = new Date().toISOString();
         const existing = newAnnotations.get(nodeId);
@@ -728,26 +749,44 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
     }
 
     case 'REMOVE_NODE_ANNOTATION': {
-      return updateActiveSlot(state, slot => {
+      return updateTargetSlot(state, action.payload.planIndex, slot => {
         const newAnnotations = new Map(slot.annotations.nodeAnnotations);
-        newAnnotations.delete(action.payload);
+        newAnnotations.delete(action.payload.nodeId);
         return { ...slot, annotations: { ...slot.annotations, nodeAnnotations: newAnnotations } };
       });
     }
 
     case 'SET_NODE_HIGHLIGHT': {
-      const { nodeId, color } = action.payload;
-      return updateActiveSlot(state, slot => {
+      const { nodeId, color, style, planIndex } = action.payload;
+      return updateTargetSlot(state, planIndex, slot => {
         const newHighlights = new Map(slot.annotations.nodeHighlights);
-        newHighlights.set(nodeId, { nodeId, color });
+        // Every highlight remembers its own style: an explicit one wins, a
+        // colour-only change keeps the node's current style, and a brand-new
+        // highlight takes the brush style.
+        const existing = newHighlights.get(nodeId);
+        newHighlights.set(nodeId, { nodeId, color, style: style ?? existing?.style ?? state.highlightStyle });
         return { ...slot, annotations: { ...slot.annotations, nodeHighlights: newHighlights } };
       });
     }
 
     case 'REMOVE_NODE_HIGHLIGHT': {
-      return updateActiveSlot(state, slot => {
+      return updateTargetSlot(state, action.payload.planIndex, slot => {
         const newHighlights = new Map(slot.annotations.nodeHighlights);
-        newHighlights.delete(action.payload);
+        newHighlights.delete(action.payload.nodeId);
+        return { ...slot, annotations: { ...slot.annotations, nodeHighlights: newHighlights } };
+      });
+    }
+
+    case 'PAINT_NODE_HIGHLIGHT': {
+      const { planIndex, nodeId } = action.payload;
+      const brush: HighlightBrush = { color: state.highlightBrushColor, style: state.highlightStyle };
+      return updatePlanSlot(state, planIndex, slot => {
+        const newHighlights = new Map(slot.annotations.nodeHighlights);
+        if (highlightMatchesBrush(newHighlights.get(nodeId), brush, state.highlightStyle)) {
+          newHighlights.delete(nodeId);
+        } else {
+          newHighlights.set(nodeId, { nodeId, color: brush.color, style: brush.style });
+        }
         return { ...slot, annotations: { ...slot.annotations, nodeHighlights: newHighlights } };
       });
     }
@@ -960,8 +999,12 @@ interface PlanContextValue {
   nodeById: Map<number, PlanNode>;
   hottestNodeId: number | null;
   advisorReport: AdvisorReport | null;
+  /** Brush style — also the render fallback for legacy highlights without their own style. */
   highlightStyle: HighlightStyle;
   setHighlightStyle: (style: HighlightStyle) => void;
+  /** The hover toolbar's highlight brush: colour (persisted) + style (`highlightStyle`). */
+  highlightBrush: HighlightBrush;
+  setHighlightBrush: (patch: Partial<HighlightBrush>) => void;
   hotspotsEnabled: boolean;
   setHotspotsEnabled: (enabled: boolean) => void;
   showAdvisorSuggestions: boolean;
@@ -1003,11 +1046,20 @@ interface PlanContextValue {
   swapComparePlans: () => void;
   setCompareMetrics: (metrics: CompareMetric[]) => void;
 
-  // Annotation methods
+  // Annotation methods. The plain variants act on the active plan; the
+  // `…ForPlan` variants address a specific plan (tree-compare panes each render
+  // their own) without changing which plan is active.
   setNodeAnnotation: (nodeId: number, text: string) => void;
   removeNodeAnnotation: (nodeId: number) => void;
-  setNodeHighlight: (nodeId: number, color: HighlightColor) => void;
+  /** Without `style`, a node keeps its current style (new highlights take the brush style). */
+  setNodeHighlight: (nodeId: number, color: HighlightColor, style?: HighlightStyle) => void;
   removeNodeHighlight: (nodeId: number) => void;
+  setNodeAnnotationForPlan: (planIndex: number, nodeId: number, text: string) => void;
+  removeNodeAnnotationForPlan: (planIndex: number, nodeId: number) => void;
+  setNodeHighlightForPlan: (planIndex: number, nodeId: number, color: HighlightColor, style?: HighlightStyle) => void;
+  removeNodeHighlightForPlan: (planIndex: number, nodeId: number) => void;
+  /** One-click brush: clears the node's highlight if it already matches the brush, else paints it. */
+  paintNodeWithBrush: (planIndex: number, nodeId: number) => void;
   addAnnotationGroup: (group: Omit<AnnotationGroup, 'id'>) => void;
   updateAnnotationGroup: (group: AnnotationGroup) => void;
   removeAnnotationGroup: (id: string) => void;
@@ -1900,6 +1952,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         colorScheme: state.colorScheme,
         palette: state.palette,
         highlightStyle: state.highlightStyle,
+        highlightBrushColor: state.highlightBrushColor,
         hotspotsEnabled: state.hotspotsEnabled,
         showAdvisorSuggestions: state.showAdvisorSuggestions,
         legendVisible: state.legendVisible,
@@ -1925,6 +1978,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     state.colorScheme,
     state.palette,
     state.highlightStyle,
+    state.highlightBrushColor,
     state.hotspotsEnabled,
     state.showAdvisorSuggestions,
     state.legendVisible,
@@ -2082,6 +2136,15 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_HIGHLIGHT_STYLE', payload: style });
   }, []);
 
+  const highlightBrush = useMemo<HighlightBrush>(
+    () => ({ color: state.highlightBrushColor, style: state.highlightStyle }),
+    [state.highlightBrushColor, state.highlightStyle],
+  );
+
+  const setHighlightBrush = useCallback((patch: Partial<HighlightBrush>) => {
+    dispatch({ type: 'SET_HIGHLIGHT_BRUSH', payload: patch });
+  }, []);
+
   const setHotspotsEnabled = useCallback((enabled: boolean) => {
     dispatch({ type: 'SET_HOTSPOTS_ENABLED', payload: enabled });
   }, []);
@@ -2148,15 +2211,38 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const removeNodeAnnotation = useCallback((nodeId: number) => {
-    dispatch({ type: 'REMOVE_NODE_ANNOTATION', payload: nodeId });
+    dispatch({ type: 'REMOVE_NODE_ANNOTATION', payload: { nodeId } });
   }, []);
 
-  const setNodeHighlight = useCallback((nodeId: number, color: HighlightColor) => {
-    dispatch({ type: 'SET_NODE_HIGHLIGHT', payload: { nodeId, color } });
+  const setNodeHighlight = useCallback((nodeId: number, color: HighlightColor, style?: HighlightStyle) => {
+    dispatch({ type: 'SET_NODE_HIGHLIGHT', payload: { nodeId, color, style } });
   }, []);
 
   const removeNodeHighlight = useCallback((nodeId: number) => {
-    dispatch({ type: 'REMOVE_NODE_HIGHLIGHT', payload: nodeId });
+    dispatch({ type: 'REMOVE_NODE_HIGHLIGHT', payload: { nodeId } });
+  }, []);
+
+  const setNodeAnnotationForPlan = useCallback((planIndex: number, nodeId: number, text: string) => {
+    dispatch({ type: 'SET_NODE_ANNOTATION', payload: { nodeId, text, planIndex } });
+  }, []);
+
+  const removeNodeAnnotationForPlan = useCallback((planIndex: number, nodeId: number) => {
+    dispatch({ type: 'REMOVE_NODE_ANNOTATION', payload: { nodeId, planIndex } });
+  }, []);
+
+  const setNodeHighlightForPlan = useCallback(
+    (planIndex: number, nodeId: number, color: HighlightColor, style?: HighlightStyle) => {
+      dispatch({ type: 'SET_NODE_HIGHLIGHT', payload: { nodeId, color, style, planIndex } });
+    },
+    [],
+  );
+
+  const removeNodeHighlightForPlan = useCallback((planIndex: number, nodeId: number) => {
+    dispatch({ type: 'REMOVE_NODE_HIGHLIGHT', payload: { nodeId, planIndex } });
+  }, []);
+
+  const paintNodeWithBrush = useCallback((planIndex: number, nodeId: number) => {
+    dispatch({ type: 'PAINT_NODE_HIGHLIGHT', payload: { planIndex, nodeId } });
   }, []);
 
   const addAnnotationGroup = useCallback((group: Omit<AnnotationGroup, 'id'>) => {
@@ -2513,6 +2599,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     advisorReport,
     highlightStyle: state.highlightStyle,
     setHighlightStyle,
+    highlightBrush,
+    setHighlightBrush,
     hotspotsEnabled: state.hotspotsEnabled,
     setHotspotsEnabled,
     showAdvisorSuggestions: state.showAdvisorSuggestions,
@@ -2557,6 +2645,11 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     removeNodeAnnotation,
     setNodeHighlight,
     removeNodeHighlight,
+    setNodeAnnotationForPlan,
+    removeNodeAnnotationForPlan,
+    setNodeHighlightForPlan,
+    removeNodeHighlightForPlan,
+    paintNodeWithBrush,
     addAnnotationGroup,
     updateAnnotationGroup,
     removeAnnotationGroup,

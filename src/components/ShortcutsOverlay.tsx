@@ -26,6 +26,7 @@ const SHORTCUT_GROUPS: { title: string; items: { keys: string[]; description: st
       { keys: ['↑', '↓'], description: 'Left-to-right layout: previous / next sibling' },
       { keys: ['Arrows'], description: 'Arrowing into a collapsed node expands it' },
       { keys: ['Chevron'], description: 'Click the chevron on a node to collapse / expand its subtree' },
+      { keys: ['Shift+F10'], description: 'Show actions for the focused operation (highlight, note, zoom, copy) — hovering a node shows them too' },
     ],
   },
   {
