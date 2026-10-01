@@ -12,6 +12,7 @@ import {
   isDbAgentEnabled,
   normalizeBaseUrl,
   recentSql,
+  verifyToken,
 } from '../agent/client';
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -255,5 +256,47 @@ describe('compareAgentVersions', () => {
 
   it('current MIN_AGENT_VERSION is a valid dotted version', () => {
     expect(MIN_AGENT_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+});
+
+describe('verifyToken', () => {
+  const config = { baseUrl: 'http://127.0.0.1:8521', token: 'tok' };
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('probes /api/test/log with the Bearer token and resolves true on 200', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ entries: [] }));
+
+    await expect(verifyToken(config)).resolves.toBe(true);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://127.0.0.1:8521/api/test/log');
+    expect((init?.headers as Record<string, string>).Authorization).toBe('Bearer tok');
+  });
+
+  it('treats 404 (agent < 0.2.0, token already accepted) as valid', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'Not found' }, 404));
+    await expect(verifyToken(config)).resolves.toBe(true);
+  });
+
+  it('resolves false on 401', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'Missing or invalid bearer token' }, 401));
+    await expect(verifyToken(config)).resolves.toBe(false);
+  });
+
+  it('rethrows other failures (server error, unreachable agent)', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'boom' }, 500));
+    await expect(verifyToken(config)).rejects.toMatchObject({ name: 'AgentError', status: 500 });
+
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await expect(verifyToken(config)).rejects.toMatchObject({ name: 'AgentError', status: null });
   });
 });

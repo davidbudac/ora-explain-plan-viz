@@ -49,6 +49,7 @@ src/
 │   ├── planText.ts      # Plan Text view helpers (line → operation id, search matches, highlight segments)
 │   ├── fileExport.ts    # Download / print-window helpers that report failure via toasts and return success
 │   ├── ai/              # AI plan analysis: types, plan/context serialization, prompts, findings parser, secrets (sessionStorage keys), provider layer (anthropic / openaiCompat / agent / hosted / sse), chat follow-up support (streamChat), testCase.ts (deterministic test-case script builder), experiments.ts (SQL Patch script + advisor-driven experiment candidates)
+│   ├── agent/           # DB-connector client (`client.ts`, the only HTTP module) + `connectGuide.ts` (walkthrough step logic, start command, friendly errors)
 │   ├── parser.ts        # Legacy parser (kept for compatibility)
 │   ├── advisor/         # Plan advisor: runAdvisor engine + 10 heuristic rules (findings)
 │   ├── metadata/        # Schema-metadata bundles, indexes, gather-script, pairing/lookup helpers
@@ -80,6 +81,7 @@ src/
 │   ├── NoMatchesBanner.tsx  # Floating "filters match nothing" notice with a filter-only reset
 │   ├── viewIcons.tsx        # Icons for the view tabs
 │   ├── InputPanel.tsx       # Owns the single top bar (brand, SQL-ID drawer handle, plan/view tabs, DB Connect, Load Example/Recent, actions) + the input drawer; also the bundle-pairing chooser
+│   ├── ConnectPanel.tsx     # DB Connect walkthrough (start connector → token → database → pick a statement) with live status diagram; only with VITE_ENABLE_DB_AGENT=1
 │   ├── FilterPanel.tsx      # Filter by operation type, cost, search, predicates, cardinality mismatch
 │   ├── NodeDetailPanel.tsx  # Node details, hotspots, annotations, cardinality analysis
 │   ├── FindingsPanel.tsx    # Plan advisor findings (per-node + full list, togglable)
@@ -356,7 +358,19 @@ companion (adjacent repo `../oraplanviz-db-connector`). The whole feature is
 build-time gated on `VITE_ENABLE_DB_AGENT=1` (`isDbAgentEnabled()`); the
 GitHub Pages build never sets it. `ConnectPanel.tsx` renders inside
 `InputPanel` (open state lives in the plan context as `connectPanelOpen`, so
-the command palette can open it). Plans load via
+the command palette can open it). The panel is a guided four-step walkthrough
+— **Start the connector** (copyable install/start commands, health polled every
+3 s until found) → **Paste the access token** (auto-verified with
+`verifyToken()`, i.e. an authed `GET /api/test/log`: 401 = bad, 2xx/404 = ok) →
+**Connect to your database** (skipped when the agent reports `connected`) →
+**Pick a statement** (Recent statements / By SQL ID tabs) — plus a collapsed
+optional test connection, under a live browser ⇄ connector ⇄ database status
+diagram. Its pure logic (step state machine `computeConnectSteps`, the start
+command with `--port`/`--allow-origin` for this page's origin, friendly error
+text) lives in `lib/agent/connectGuide.ts`. The connector is not on PyPI yet:
+install commands use `pipx install git+https://github.com/davidbudac/oraplanviz-db-connector.git`.
+User-facing setup docs: the connector README's Quick start and `site/docs.html#db-connector`
+— keep the step names in sync with the panel. Plans load via
 `fetchPlanWithMetadata()` → `loadAndParsePlan(text, metadataText)`; the
 metadata bundle is the same `ora-plan-metadata` contract as
 `scripts/gather_plan_metadata.sql`, and a failed gather degrades to a plain
