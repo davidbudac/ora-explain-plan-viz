@@ -1382,6 +1382,7 @@ function HierarchicalViewContent({
   return (
     <div
       ref={containerRef}
+      data-tour="tree"
       className={`relative w-full h-full min-h-[320px] min-w-0 overflow-hidden motion-safe:transition-opacity motion-safe:duration-150 ${
         layoutReady ? 'opacity-100' : 'opacity-0'
       }`}

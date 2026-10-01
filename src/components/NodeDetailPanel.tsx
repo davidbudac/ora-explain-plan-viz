@@ -108,6 +108,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart, onResizeBy, minWidt
         onClick={() => setIsCollapsed(false)}
         aria-label="Show details"
         aria-expanded={false}
+        data-tour="details"
         title="Show details"
         className={`h-full w-[26px] shrink-0 flex flex-col items-center pt-2.5 gap-2.5 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`}
       >
@@ -124,6 +125,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart, onResizeBy, minWidt
   return (
     <div
       id={DETAIL_PANEL_ID}
+      data-tour="details"
       className="relative shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 overflow-y-auto"
       style={{ width: panelWidth }}
     >

@@ -135,6 +135,7 @@ const ICON_PATHS = {
   share: 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z',
   focus: 'M4 8V6a2 2 0 012-2h2m8 0h2a2 2 0 012 2v2m0 8v2a2 2 0 01-2 2h-2m-8 0H6a2 2 0 01-2-2v-2 M14 12a2 2 0 11-4 0 2 2 0 014 0z',
   search: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+  tour: 'M5 3v18M5 4h11l-2 4 2 4H5',
   keyboard: 'M4 7h16a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V8a1 1 0 011-1z M7 10h.01M11 10h.01M15 10h.01M8 14h8',
   book: 'M12 6.253v13C10.832 18.477 9.246 18 7.5 18S4.168 18.477 3 19.253v-13C4.168 5.477 5.754 5 7.5 5s3.332.477 4.5 1.253zm0 0C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
   external: 'M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14',
@@ -368,6 +369,7 @@ export function HeaderActions() {
     setCommandPaletteOpen,
     setReportDialogOpen,
     setShortcutsOverlayOpen,
+    startWalkthrough,
     setBaselineDialogOpen,
     focusMode,
     setFocusMode,
@@ -545,6 +547,9 @@ export function HeaderActions() {
 
   const helpItems = (close: () => void) => (
     <>
+      <MenuItem icon={<ItemIcon d={ICON_PATHS.tour} />} onSelect={() => { close(); void startWalkthrough(); }}>
+        <span className="flex-1">Walkthrough</span>
+      </MenuItem>
       <MenuItem icon={<ItemIcon d={ICON_PATHS.keyboard} />} onSelect={() => { close(); setShortcutsOverlayOpen(true); }}>
         <span className="flex-1">Keyboard shortcuts</span>
         <kbd className="text-[10px] text-slate-400 dark:text-slate-500">?</kbd>
@@ -573,7 +578,7 @@ export function HeaderActions() {
   if (!compact) {
     const labelProps = { [TOP_BAR_LABEL_ATTR]: '' };
     return (
-      <div className="flex items-center gap-1.5 shrink-0">
+      <div data-tour="actions" className="flex items-center gap-1.5 shrink-0">
         <HeaderMenu label="File" title="Import / export" labelCollapsed={labelsCollapsed} icon={<ItemIcon d={ICON_PATHS.file} />}>
           {fileItems}
         </HeaderMenu>
@@ -641,6 +646,7 @@ export function HeaderActions() {
           type="button"
           onClick={() => setCommandPaletteOpen(true)}
           aria-label="Open command palette"
+          data-tour="palette"
           aria-keyshortcuts={IS_MAC ? 'Meta+K' : 'Control+K'}
           className={`h-8 px-2 flex items-center gap-1.5 rounded-md border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`}
           title={`Command palette (${PALETTE_SHORTCUT}) — search every action and setting`}
@@ -671,7 +677,7 @@ export function HeaderActions() {
   const sectionTitle: Record<Exclude<CompactView, 'root'>, string> = { file: 'File', appearance: 'Appearance', help: 'Help' };
 
   return (
-    <div className="relative shrink-0" ref={containerRef}>
+    <div data-tour="actions" className="relative shrink-0" ref={containerRef}>
       {fileInput}
       <button
         ref={triggerRef}
