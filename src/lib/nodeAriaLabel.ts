@@ -4,6 +4,8 @@
  * "#4 TABLE ACCESS FULL ORDERS, estimated 32 rows, actual 20K rows, cost 973, hotspot".
  */
 
+import { effectiveExecutions } from './format';
+
 /** Hover text for the "inactive" tag/legend on adaptive-plan operations the optimizer skipped. */
 export const INACTIVE_NODE_TOOLTIP = 'Adaptive plan: the optimizer did not use this operation';
 
@@ -12,6 +14,8 @@ export interface NodeAriaLabelInput {
   operation: string;
   objectName?: string;
   rows?: number;
+  /** Estimate over all executions (`estimatedRowsTotal`). */
+  estimatedRowsTotal?: number;
   actualRows?: number;
   cost?: number;
   actualTime?: number;
@@ -43,7 +47,12 @@ export function planNodeAriaLabel(node: NodeAriaLabelInput, options: NodeAriaLab
   const head = `#${node.id} ${node.operation}${node.objectName ? ` ${node.objectName}` : ''}`;
   const parts: string[] = [head];
   if (node.rows !== undefined) {
-    parts.push(`estimated ${formatCount(node.rows)} rows`);
+    const executions = options.hasActualStats ? effectiveExecutions(node) : undefined;
+    parts.push(
+      executions !== undefined
+        ? `estimated ${formatCount(node.rows)} rows per execution × ${executions.toLocaleString('en-US')} executions`
+        : `estimated ${formatCount(node.rows)} rows`,
+    );
   }
   if (options.hasActualStats && node.actualRows !== undefined) {
     parts.push(`actual ${formatCount(node.actualRows)} rows`);

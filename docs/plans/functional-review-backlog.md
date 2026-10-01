@@ -12,7 +12,7 @@ semantics are documented in `CLAUDE.md` under "Plan Numbers". Phases 2–5 were 
 
 ## Open question from Phase 1
 
-- [ ] **Per-start estimates on node cards.** Compact tree nodes still show the per-start
+- [x] **Per-start estimates on node cards.** Compact tree nodes still show the per-start
   `Est. rows 4` next to the cumulative `Actual 80K` without a mismatch badge. That is correct,
   but it invites the naive comparison. Options:
   - show the total estimate;
@@ -20,6 +20,8 @@ semantics are documented in `CLAUDE.md` under "Plan Numbers". Phases 2–5 were 
   - add a tooltip only.
 
   This needs a design decision.
+
+  Done: node cards now show `E-Rows × executions` (e.g. `4 × 20K`, `formatEstimatedRows` in `lib/format.ts`, derived from `estimatedRowsTotal`) with an explanatory tooltip; details panel and aria label follow.
 
 ## Phase 2 — Parse real Oracle output faithfully
 
@@ -150,6 +152,7 @@ Done on branch fix/functional-backlog (2026-10-01): open-file, Markdown copy, de
   `share-url-large-plans.md` say "not implemented", but both features exist.
 - [ ] **Branch pruning.** About 30 stale local and remote branches. Deleting them needs
   explicit approval.
-- [ ] **`changelog_claude.md`.** It was abandoned in March 2026; revive it or remove it.
+- [x] **`changelog_claude.md`.** It was abandoned in March 2026; revive it or remove it.
+  Done: removed (2026-10-01). Git history and this backlog cover what it tracked.
 - [x] **Ignore `prototypes/`.** It holds Xcode build output and is untracked. Add it to
   `.gitignore` on the main line.
