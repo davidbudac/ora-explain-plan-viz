@@ -38,6 +38,12 @@ export const DEFAULT_THRESHOLDS = {
   // hash table stops being trivially small for the default work area.
   hashBuildMinRows: 100_000,
   hashBuildProbeRatio: 10,
+  // PX skew: busiest server of a set vs the set's average. Needs material work in the set (summed
+  // over its servers) so a 20 ms query that happens to be 3x lopsided does not light up.
+  pxSkewWarn: 2,
+  pxSkewCritical: 4,
+  pxSkewMinElapsedMs: 1_000,
+  pxSkewMinBufferGets: 100_000,
   maxFindingsPerRule: 5,
 } as const;
 

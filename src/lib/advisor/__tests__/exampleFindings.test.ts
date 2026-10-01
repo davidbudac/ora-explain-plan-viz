@@ -15,6 +15,7 @@ const TRACKED = new Set([
   'buffer-gets-per-row',
   'function-on-indexed-column',
   'hash-join-build-side',
+  'px-skew',
   'note-dynamic-sampling',
   'note-sql-plan-directive',
   'note-adaptive-plan',
@@ -44,8 +45,8 @@ describe('advisor findings on the bundled examples', () => {
 
   it('keeps the new rules quiet on examples where they do not apply', () => {
     // Only these rules are new; nothing in the bundled examples is a per-row subquery, a discarded-index
-    // read, a buffer hog, a wrapped indexed column or an oversized build side.
-    const NEW = ['per-row-reexecution', 'index-rows-discarded', 'buffer-gets-per-row', 'function-on-indexed-column', 'hash-join-build-side'];
+    // read, a buffer hog, a wrapped indexed column an oversized build side or a skewed PX server set (example 27's four servers per set are within ~1.3x).
+    const NEW = ['per-row-reexecution', 'index-rows-discarded', 'buffer-gets-per-row', 'function-on-indexed-column', 'hash-join-build-side', 'px-skew'];
     for (const sample of SAMPLE_PLANS) {
       const hits = trackedFindings(sample.name).filter((f) => NEW.some((id) => f.includes(`:${id}@`)));
       expect(hits, sample.name).toEqual([]);
