@@ -7,6 +7,7 @@
  */
 import { classifyDroppedFile } from './metadata/dropClassify';
 import { validateExport } from './annotations';
+import { isActiveReport, decodeActiveReport } from './parser/activeReport';
 import type { AnnotatedPlanExport } from './annotations';
 
 export type DroppedFileKind =
@@ -148,17 +149,37 @@ export function dragHasFiles(dataTransfer: DataTransfer | null): boolean {
   return Array.from(dataTransfer.types ?? []).includes('Files');
 }
 
-/** Read every file of a drop as text; per-file read errors become error entries. */
-export async function readDroppedFiles(files: File[]): Promise<{ files: DroppedTextFile[]; errors: string[] }> {
-  const results = await Promise.allSettled(files.map((file) => readFileAsText(file)));
+/**
+ * Read every file of a drop as text; per-file read errors become error entries.
+ * SQL Monitor ACTIVE (HTML) reports are decoded to their XML here, before
+ * classification, so everything downstream (rawInput, autosave, share links)
+ * only ever sees the XML. `decoded` lists the names of such files.
+ */
+export async function readDroppedFiles(
+  files: File[],
+): Promise<{ files: DroppedTextFile[]; errors: string[]; decoded: string[] }> {
+  const results = await Promise.allSettled(
+    files.map(async (file) => {
+      const text = await readFileAsText(file);
+      if (!isActiveReport(text)) return { text, decoded: false };
+      try {
+        return { text: await decodeActiveReport(text), decoded: true };
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : 'The embedded data could not be decoded.';
+        throw new Error(`"${file.name}": ${detail}`);
+      }
+    }),
+  );
   const out: DroppedTextFile[] = [];
   const errors: string[] = [];
+  const decoded: string[] = [];
   results.forEach((result, i) => {
     if (result.status === 'fulfilled') {
-      out.push({ name: files[i].name, text: result.value });
+      out.push({ name: files[i].name, text: result.value.text });
+      if (result.value.decoded) decoded.push(files[i].name);
     } else {
       errors.push(result.reason instanceof Error ? result.reason.message : `Could not read "${files[i].name}".`);
     }
   });
-  return { files: out, errors };
+  return { files: out, errors, decoded };
 }

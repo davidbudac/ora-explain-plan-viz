@@ -154,3 +154,28 @@ describe('reading files', () => {
     expect(dragHasFiles({ types: ['text/plain'] } as unknown as DataTransfer)).toBe(false);
   });
 });
+
+describe('SQL Monitor ACTIVE (HTML) drops', () => {
+  const ACTIVE_HTML = readFileSync(join(__dirname, '../parser/__tests__/fixtures/sql-monitor-active-19c.html'), 'utf-8');
+
+  it('decodes an ACTIVE report on read and classifies it as a plan', async () => {
+    const file = new File([ACTIVE_HTML], 'report.html', { type: 'text/html' });
+    const { files, errors, decoded } = await readDroppedFiles([file]);
+    expect(errors).toEqual([]);
+    expect(decoded).toEqual(['report.html']);
+    expect(files[0].text).toContain('<sql_monitor_report');
+    expect(files[0].text).not.toContain('<html');
+
+    const drop = planDrop(files);
+    expect(drop.action).toBe('load-plan');
+    if (drop.action === 'load-plan') expect(drop.name).toBe('report.html');
+  });
+
+  it('reports a corrupt ACTIVE report as a per-file error', async () => {
+    const broken = ACTIVE_HTML.replace(/(compress="zlib">\s*<report_id>[\s\S]*?<\/report_id>\s*)[A-Za-z0-9+/]+/, '$1@@@@');
+    const file = new File([broken], 'broken.html', { type: 'text/html' });
+    const { files, errors } = await readDroppedFiles([file]);
+    expect(files).toEqual([]);
+    expect(errors[0]).toMatch(/broken\.html.*could not be decoded/);
+  });
+});

@@ -7,11 +7,13 @@
  */
 import { detectFormat } from './parser/index';
 import type { DetectedFormat } from './parser/index';
+import { isActiveReport } from './parser/activeReport';
 
 export type SupportedFormatId =
   | 'dbms_xplan'
   | 'sql_monitor_text'
   | 'sql_monitor_xml'
+  | 'sql_monitor_active'
   | 'json'
   | 'xbi'
   | 'metadata_bundle';
@@ -46,6 +48,12 @@ export const SUPPORTED_FORMATS: readonly SupportedFormat[] = [
     isPlan: true,
   },
   {
+    id: 'sql_monitor_active',
+    name: 'SQL Monitor ACTIVE report (HTML)',
+    hint: "REPORT_SQL_MONITOR(type => 'ACTIVE') saved as .html — decoded to the XML report on load",
+    isPlan: true,
+  },
+  {
     id: 'json',
     name: 'V$SQL_PLAN JSON',
     hint: 'V$SQL_PLAN / V$SQL_PLAN_STATISTICS_ALL rows as a JSON array',
@@ -70,6 +78,7 @@ const SHORT_NAMES: Record<SupportedFormatId, string> = {
   dbms_xplan: 'DBMS_XPLAN',
   sql_monitor_text: 'SQL Monitor text',
   sql_monitor_xml: 'SQL Monitor XML',
+  sql_monitor_active: 'SQL Monitor ACTIVE (HTML)',
   json: 'V$SQL_PLAN JSON',
   xbi: 'xbi.sql output',
   metadata_bundle: 'metadata bundles',
@@ -135,5 +144,6 @@ function safeDetect(input: string): DetectedFormat {
 /** True when the text is recognisably one of the plan formats (used for auto-parse on paste). */
 export function looksLikePlan(input: string): boolean {
   if (!input.trim()) return false;
+  if (isActiveReport(input)) return true;
   return safeDetect(input) !== 'unknown';
 }
