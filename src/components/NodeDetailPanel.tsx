@@ -1,7 +1,7 @@
 import { useState, useMemo, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { getOperationCategory, getMetricColor, getOperationTooltip } from '../lib/types';
-import { formatBytes, formatNumberShort, formatTimeCompact, formatTimeDetailed } from '../lib/format';
+import { effectiveExecutions, formatBytes, formatEstimatedRows, formatNumberShort, formatTimeCompact, formatTimeDetailed } from '../lib/format';
 import type { PlanNode as PlanNodeType, NodeIndicatorMetric, PlanHint } from '../lib/types';
 import { HighlightText } from './HighlightText';
 import { FormattedPredicate } from './FormattedPredicate';
@@ -660,6 +660,13 @@ export function NodeDetailBody() {
       <Accordion title="Plan Estimates" defaultOpen={!parsedPlan?.hasActualStats}>
         <div className="grid grid-cols-2 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden [&>*:last-child:nth-child(odd)]:col-span-2">
           <StatItem label={parsedPlan?.hasActualStats ? "E-Rows" : "Rows"} value={formatNumberShort(node.rows)} />
+          {parsedPlan?.hasActualStats && effectiveExecutions(node) !== undefined && (
+            <StatItem
+              label="E-Rows × executions"
+              value={`${formatEstimatedRows(node).text} = ${formatNumberShort(node.estimatedRowsTotal)}`}
+              title={formatEstimatedRows(node).title}
+            />
+          )}
           <StatItem label="Bytes" value={formatBytes(node.bytes)} />
           <StatItem label="Cost" value={node.cost?.toString()} />
           <StatItem label="CPU %" value={node.cpuPercent ? `${node.cpuPercent}%` : undefined} />
@@ -886,7 +893,7 @@ function HintStatusBadge({ hint }: { hint: PlanHint }) {
   );
 }
 
-function StatItem({ label, value, highlight }: { label: string; value?: string; highlight?: 'actual' | 'warn' }) {
+function StatItem({ label, value, highlight, title }: { label: string; value?: string; highlight?: 'actual' | 'warn'; title?: string }) {
   if (!value) return null;
 
   // 'actual' marks the actuals family (A-Rows / A-Time / Self Time), matching the
@@ -897,7 +904,7 @@ function StatItem({ label, value, highlight }: { label: string; value?: string; 
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 px-2.5 py-2">
+    <div className="bg-white dark:bg-slate-900 px-2.5 py-2" title={title}>
       <div className="text-[10px] text-slate-400 dark:text-slate-500 mb-1">{label}</div>
       <div className={`text-xs font-mono font-semibold tabular-nums leading-none ${highlight ? valueStyles[highlight] : 'text-slate-900 dark:text-slate-100'}`}>{value}</div>
     </div>

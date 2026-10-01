@@ -77,6 +77,48 @@ export function nodeCardinalityRatio(node: PlanNode): number | undefined {
 }
 
 /**
+ * Effective number of executions behind `estimatedRowsTotal` (total ÷ per-start E-Rows),
+ * or undefined when the operation effectively ran once / there is no comparable total.
+ * Not necessarily `Starts`: PX slave sets, partition iterators and NLJ-batched rowid
+ * fetches derive their total differently (see `computeEstimatedRowTotals`).
+ */
+export function effectiveExecutions(node: Pick<PlanNode, 'rows' | 'estimatedRowsTotal'>): number | undefined {
+  const { rows, estimatedRowsTotal: total } = node;
+  if (rows === undefined || total === undefined || rows <= 0 || total <= rows) return undefined;
+  const raw = total / rows;
+  // Floating noise (e.g. 80000 / 4 computed from a rounded total) — it is an execution count.
+  const rounded = Math.round(raw);
+  const executions = Math.abs(raw - rounded) < 1e-6 * Math.max(1, raw) ? rounded : raw;
+  return executions > 1 ? executions : undefined;
+}
+
+/**
+ * The per-start estimate as shown next to A-Rows (which is cumulative over all executions).
+ * When the operation ran more than once it reads `E-Rows × executions` (e.g. "4 × 20.0K") so the
+ * estimate is comparable with the actual at a glance; otherwise it is the plain E-Rows.
+ * `title` explains the product and is only set for the `×` form. Tabular columns should keep
+ * using the plain number.
+ */
+export function formatEstimatedRows(
+  node: PlanNode,
+  hasActualStats = true,
+): { text: string; title?: string } {
+  const plain = { text: formatNumberShort(node.rows, { empty: '—' }) as string };
+  if (!hasActualStats) return plain;
+  const executions = effectiveExecutions(node);
+  if (executions === undefined || node.rows === undefined || node.estimatedRowsTotal === undefined) return plain;
+  const execText = Number.isInteger(executions) ? executions.toLocaleString('en-US') : executions.toFixed(1);
+  const perExec = node.rows.toLocaleString('en-US');
+  return {
+    text: `${formatNumberShort(node.rows)} × ${formatNumberShort(executions)!.replace(/\.0(?=[KM]$)/, '')}`,
+    title:
+      `${perExec} ${node.rows === 1 ? 'row' : 'rows'} per execution × ${execText} executions = ` +
+      `${Math.round(node.estimatedRowsTotal).toLocaleString('en-US')} estimated in total ` +
+      `(A-Rows is the total over all executions)`,
+  };
+}
+
+/**
  * One-line explanation of a node's estimate-vs-actual comparison, e.g.
  * "Cardinality mismatch: estimated 1,000 rows (E-Rows 1 × 1,000 starts) vs A-Rows 250,000".
  * The "× starts" breakdown appears only when it changes the number.
