@@ -20,6 +20,7 @@
  * ./descriptions.ts, keyed by the file stem.
  */
 
+import type { ViewMode } from '../lib/types';
 import { getExampleDescription } from './descriptions';
 
 export interface SamplePlan {
@@ -37,6 +38,8 @@ export interface SamplePlan {
   description?: string;
   /** Shown on the start screen's example cards. */
   featured?: boolean;
+  /** View to open the example in, when it teaches best outside the tree (see ./descriptions.ts). */
+  view?: ViewMode;
 }
 
 export type SampleCategory = SamplePlan['category'];
@@ -114,6 +117,7 @@ const sortedPlansWithOrder: Array<SamplePlan & { order: number }> = Object.entri
       metadata: metadataByStem[stem],
       description: blurb?.description,
       featured: blurb?.featured,
+      view: blurb?.view,
     };
   })
   .filter((plan): plan is SamplePlan & { order: number } => plan !== null)
@@ -122,13 +126,14 @@ const sortedPlansWithOrder: Array<SamplePlan & { order: number }> = Object.entri
 // Same list, with the NN order prefix retained. Used to resolve `?example=<NN>` deep links.
 export const SAMPLE_PLANS_WITH_ORDER: Array<SamplePlan & { order: number }> = sortedPlansWithOrder;
 
-export const SAMPLE_PLANS: SamplePlan[] = sortedPlansWithOrder.map(({ name, category, data, metadata, description, featured }) => ({
+export const SAMPLE_PLANS: SamplePlan[] = sortedPlansWithOrder.map(({ name, category, data, metadata, description, featured, view }) => ({
   name,
   category,
   data,
   metadata,
   description,
   featured,
+  view,
 }));
 
 // Group plans by category for the dropdown menu

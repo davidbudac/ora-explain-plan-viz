@@ -107,6 +107,8 @@ function restorableViewMode(mode: ViewMode | null, parsedPlanCount: number): Vie
 interface ImportOptions {
   replaceAll?: boolean;
   metadataText?: string;
+  /** View to open once the load succeeds (an example's "open in" hint); `compare` needs two parsed plans. */
+  view?: ViewMode;
   /** Recent-plans entry options, or false to not record the load. */
   recent?: { label?: string } | false;
 }
@@ -1322,6 +1324,9 @@ export function PlanProvider({ children }: { children: ReactNode }) {
           metadataText: bundle === 'attached' ? options?.metadataText : undefined,
         });
       }
+      if (options?.view && (options.view !== 'compare' || parsedSlots.length >= 2)) {
+        dispatch({ type: 'SET_VIEW_MODE', payload: options.view });
+      }
       clearPlanFromUrl({ includeDeepLinks: true });
       return { ok: true, bundle };
     }
@@ -1374,6 +1379,9 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     }
     // A plan that came from a share link / deep link has been replaced: make
     // sure a reload does not bring the old one back.
+    if (options?.view && options.view !== 'compare') {
+      dispatch({ type: 'SET_VIEW_MODE', payload: options.view });
+    }
     clearPlanFromUrl({ includeDeepLinks: true });
     return { ok: true, bundle };
   }, [buildPlanSlotsFromInputs, state.activePlanIndex, reportError, recordRecent, showBundleNotice, setPendingBundleChoice]);
@@ -1908,7 +1916,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     if (exampleParam) {
       const sample = findSampleByUrlParam(exampleParam);
       if (sample) {
-        importPlanInput(sample.data, { metadataText: sample.metadata, recent: false });
+        importPlanInput(sample.data, { metadataText: sample.metadata, recent: false, view: sample.view });
         loadedFromUrl = true;
       }
       // No match: ignore silently, normal empty-state startup.
@@ -2029,6 +2037,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     const outcome = await guardedImport(sample.data, `Loading the "${sample.name}" example`, {
       metadataText: sample.metadata,
       recent: false,
+      view: sample.view,
     });
     return Boolean(outcome?.ok);
   }, [guardedImport]);

@@ -305,6 +305,13 @@ function parseRowSource(rawText: string): { depth: number; operation: string; ob
     return { depth: spaces, operation: bracketMatch[1].trim(), objectName: bracketMatch[2] };
   }
 
+  // The Row Source column is cut at a fixed width, so a long name arrives with
+  // no closing bracket: "TABLE ACCESS FULL [SYS_TEMP_0FD9". Keep the fragment.
+  const truncatedMatch = trimmed.match(/^(.+?)\s+\[([^\]]+)$/);
+  if (truncatedMatch) {
+    return { depth: spaces, operation: truncatedMatch[1].trim(), objectName: truncatedMatch[2].trim() };
+  }
+
   return { depth: spaces, operation: trimmed };
 }
 
