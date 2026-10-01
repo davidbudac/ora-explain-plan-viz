@@ -126,7 +126,8 @@ function hotspotWhy(plan: ParsedPlan, node: PlanNode): string {
  * The overview card's "top things to look at", built only from results the app
  * already computes: advisor findings (severity, then the engine's order), and —
  * when fewer than `limit` — the hottest operation and the worst cardinality
- * mismatch, skipping nodes a finding already covers. Plan-level findings
+ * mismatch (only when the advisor reported no cardinality finding), skipping nodes
+ * a finding already covers. Plan-level findings
  * (`nodeIds: []`) are kept, just without a node to focus.
  */
 export function buildOverview(
@@ -166,7 +167,10 @@ export function buildOverview(
   }
   if (items.length >= limit) return items;
 
-  const mismatch = plan.hasActualStats ? worstMismatchNode(plan, covered) : null;
+  // The cardinality rule is the authority on mismatches: it reports only the root-cause
+  // operation, and ancestors merely inherit its error. Any such finding means no fallback.
+  const advisorCoversMismatches = (report?.findings ?? []).some((finding) => finding.ruleId === 'cardinality-mismatch');
+  const mismatch = plan.hasActualStats && !advisorCoversMismatches ? worstMismatchNode(plan, covered) : null;
   if (mismatch) {
     const label = formatCardinalityRatio(nodeCardinalityRatio(mismatch));
     items.push({
