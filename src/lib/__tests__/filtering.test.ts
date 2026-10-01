@@ -194,3 +194,25 @@ describe('neutralFilterPatch', () => {
     expect(a.predicateTypes).not.toBe(b.predicateTypes);
   });
 });
+
+describe('cardinality mismatch slider with multiple starts', () => {
+  const inner: PlanNode = {
+    id: 3, depth: 2, operation: 'INDEX UNIQUE SCAN', children: [],
+    rows: 1, starts: 1000, actualRows: 1000, estimatedRowsTotal: 1000,
+  };
+
+  it('treats a correct per-start estimate as no mismatch', () => {
+    const filters = makeFilters({ minCardinalityMismatch: 3 });
+    expect(matchesFilters(inner, filters, true)).toBe(false);
+  });
+
+  it('matches when the all-starts estimate is off', () => {
+    const filters = makeFilters({ minCardinalityMismatch: 3 });
+    expect(matchesFilters({ ...inner, actualRows: 250000 }, filters, true)).toBe(true);
+  });
+
+  it('hides nodes without a comparable estimate while the slider is active', () => {
+    const filters = makeFilters({ minCardinalityMismatch: 3 });
+    expect(matchesFilters({ ...inner, estimatedRowsTotal: undefined, actualRows: 250000 }, filters, true)).toBe(false);
+  });
+});

@@ -9,6 +9,7 @@ interface NodeSpec {
   rows?: number;
   actualRows?: number;
   starts?: number;
+  estimatedRowsTotal?: number;
   children?: NodeSpec[];
 }
 
@@ -22,6 +23,7 @@ function buildNode(spec: NodeSpec, depth = 0, parentId?: number): PlanNode {
     rows: spec.rows,
     actualRows: spec.actualRows,
     starts: spec.starts,
+    estimatedRowsTotal: spec.estimatedRowsTotal,
     parentId,
     children: [],
   };
@@ -186,27 +188,42 @@ describe('computeFlameLayout', () => {
     expect(r2.x1 - r2.x0).toBeCloseTo(60, 5);
   });
 
-  it('matches SankeyView actualRows semantics: actualRows * starts, falling back to rows', () => {
+  it('actualRows metric uses A-Rows as-is (already cumulative over starts), falling back to the total estimate', () => {
     const root = buildNode({
       id: 0,
       actualRows: 10,
       starts: 1,
       children: [
-        { id: 1, actualRows: 5, starts: 3 }, // 15
-        { id: 2, rows: 20 }, // no actualRows/starts -> falls back to rows * 1 = 20
+        { id: 1, actualRows: 5, starts: 3 }, // A-Rows already covers all 3 starts -> 5, not 15
+        { id: 2, rows: 4, starts: 5, estimatedRowsTotal: 20 }, // no A-Rows -> estimatedRowsTotal
+        { id: 3, rows: 7 }, // no A-Rows, no total -> rows
       ],
     });
     const values = rollupMetric(root, 'actualRows');
-    expect(values.get(1)).toBe(15);
+    expect(values.get(1)).toBe(5);
     expect(values.get(2)).toBe(20);
-    // root raw = 10*1=10, childSum=35, so rolled-up root value = 35
-    expect(values.get(0)).toBe(35);
+    expect(values.get(3)).toBe(7);
+    // root raw = 10, childSum = 32, so rolled-up root value = 32
+    expect(values.get(0)).toBe(32);
 
-    const rects = computeFlameLayout(root, 'actualRows', { width: 35 });
-    const r1 = byId(rects, 1);
-    const r2 = byId(rects, 2);
-    expect(r1.x1 - r1.x0).toBeCloseTo(15, 5);
-    expect(r2.x1 - r2.x0).toBeCloseTo(20, 5);
+    const rects = computeFlameLayout(root, 'actualRows', { width: 32 });
+    expect(byId(rects, 1).x1 - byId(rects, 1).x0).toBeCloseTo(5, 5);
+    expect(byId(rects, 2).x1 - byId(rects, 2).x0).toBeCloseTo(20, 5);
+  });
+
+  it('rows metric uses the total estimate over all starts, falling back to per-start rows', () => {
+    const root = buildNode({
+      id: 0,
+      rows: 1,
+      children: [
+        { id: 1, rows: 4, starts: 5, estimatedRowsTotal: 20 },
+        { id: 2, rows: 7 },
+      ],
+    });
+    const values = rollupMetric(root, 'rows');
+    expect(values.get(1)).toBe(20);
+    expect(values.get(2)).toBe(7);
+    expect(values.get(0)).toBe(27);
   });
 
   it('getEffectiveFlameMetric falls back to cost when actual stats are absent', () => {

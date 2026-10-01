@@ -5,7 +5,7 @@ import { computeFlameLayout } from '../../../lib/flameLayout';
 import type { FlameRect } from '../../../lib/flameLayout';
 import {
   cardinalityRatioSeverity,
-  computeCardinalityRatio,
+  nodeCardinalityRatio,
   formatCardinalityRatio,
   formatNumberShort,
 } from '../../../lib/format';
@@ -189,10 +189,12 @@ export function MorphView() {
   );
 
   const buildTooltip = useCallback((node: PlanNode, clientX: number, clientY: number) => {
-    const ratio = computeCardinalityRatio(node.rows, node.actualRows);
+    const ratio = nodeCardinalityRatio(node);
     const title = node.objectName ? `${node.operation} (${node.objectName})` : node.operation;
     const lines = [
-      `E-Rows: ${formatNumberShort(node.rows, { empty: '—' })}`,
+      `E-Rows (per start): ${formatNumberShort(node.rows, { empty: '—' })}`,
+      `Starts: ${formatNumberShort(node.starts, { empty: '—' })}`,
+      `Est. total rows: ${formatNumberShort(node.estimatedRowsTotal, { empty: '—' })}`,
       `A-Rows: ${formatNumberShort(node.actualRows, { empty: '—' })}`,
       `Ratio: ${formatCardinalityRatio(ratio) ?? '—'}`,
     ];
@@ -259,7 +261,7 @@ export function MorphView() {
           Replay
         </button>
         <span className="text-[11px] text-slate-400 dark:text-slate-500">
-          Widths: <span className="font-semibold text-slate-600 dark:text-slate-300">{showActual ? 'A-Rows (actual)' : 'E-Rows (estimated)'}</span>
+          Widths: <span className="font-semibold text-slate-600 dark:text-slate-300">{showActual ? 'A-Rows (actual)' : 'E-Rows (estimated, all starts)'}</span>
           {' · color = misestimate severity'}
         </span>
       </div>
@@ -277,7 +279,7 @@ export function MorphView() {
             const inScope = filteredNodeIds.has(node.id);
             const isSelected = selectedNodeIdSet.has(node.id);
             const isSearchMatch = searchText.trim() !== '' && matchesSearch(node, searchText);
-            const severity = cardinalityRatioSeverity(computeCardinalityRatio(node.rows, node.actualRows));
+            const severity = cardinalityRatioSeverity(nodeCardinalityRatio(node));
 
             const fill = inScope ? SEVERITY_FILL[severity] : isDark ? '#475569' : '#94a3b8';
             const opacity = inScope ? 0.9 : 0.4;

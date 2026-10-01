@@ -1,4 +1,5 @@
 import type { PlanNode, ParsedPlan, SqlMonitorMetadata, ActivityTimeline, ActivitySample } from '../types';
+import { planRootCost } from '../analysis';
 import type { PlanParser, BindVariable } from './types';
 import { parseNoteSection } from './noteSection';
 
@@ -47,7 +48,7 @@ export const sqlMonitorTextParser: PlanParser = {
     const { rootNode, allNodes } = buildTree(tableData, predicates);
 
     // Calculate totals
-    const totalCost = allNodes.reduce((sum, node) => sum + (node.cost || 0), 0);
+    const totalCost = planRootCost(rootNode, allNodes);
     const maxRows = Math.max(...allNodes.map(node => node.rows || 0));
     const maxActualRows = Math.max(...allNodes.map(node => node.actualRows || 0), 0);
     const maxStarts = Math.max(...allNodes.map(node => node.starts || 0), 0);
@@ -138,6 +139,7 @@ interface RawSqlMonitorRow {
   starts?: number;
   memoryUsed?: number;
   tempUsed?: number;
+  tempSpace?: number;
   physicalReads?: number;
   logicalReads?: number;
   ioReadRequests?: number;
@@ -182,6 +184,7 @@ interface SqlMonitorColumnPositions {
   starts?: { start: number; end: number };
   memory?: { start: number; end: number };
   temp?: { start: number; end: number };
+  tempEst?: { start: number; end: number };
   reads?: { start: number; end: number };
   readBytes?: { start: number; end: number };
   writeReqs?: { start: number; end: number };
@@ -320,7 +323,11 @@ function parseSqlMonitorColumnPositions(headerLine: string, secondHeaderLine: st
       startsSeen = true;
     } else if (segment.includes('mem') || segment === 'omem' || segment === 'used-mem') {
       cols.memory = { start, end };
+    } else if (segment === 'tempspc' || segment === 'e-temp' || /^e-?temp/.test(segment)) {
+      // Optimizer estimate (DBMS_XPLAN TempSpc / E-Temp), not an actual spill
+      cols.tempEst = { start, end };
     } else if (segment.includes('temp') || segment === 'used-tmp') {
+      // Actual spill: ALLSTATS Used-Tmp, SQL Monitor Temp (Max)
       cols.temp = { start, end };
     } else if (segment === 'read' || segment === 'reads' || segment === 'physical reads') {
       // Disambiguate using the second header line (Reqs vs Bytes)
@@ -401,6 +408,11 @@ function parseSqlMonitorDataRow(line: string, columns: SqlMonitorColumnPositions
   if (columns.temp) {
     const val = parseMemoryValue(line.substring(columns.temp.start, columns.temp.end).trim());
     if (val !== null) row.tempUsed = val;
+  }
+
+  if (columns.tempEst) {
+    const val = parseMemoryValue(line.substring(columns.tempEst.start, columns.tempEst.end).trim());
+    if (val !== null) row.tempSpace = val;
   }
 
   if (columns.reads) {
@@ -601,6 +613,7 @@ function buildTree(
       starts: row.starts,
       memoryUsed: row.memoryUsed,
       tempUsed: row.tempUsed,
+      tempSpace: row.tempSpace,
       physicalReads: row.physicalReads,
       logicalReads: row.logicalReads,
       ioReadRequests: row.ioReadRequests,
@@ -754,7 +767,7 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
   const rootNode = nodeMap.get(0) || allNodes.find(n => n.parentId === undefined) || null;
 
   // Calculate totals
-  const totalCost = allNodes.reduce((sum, node) => sum + (node.cost || 0), 0);
+  const totalCost = planRootCost(rootNode, allNodes);
   const maxRows = Math.max(...allNodes.map(node => node.actualRows || node.rows || 0), 0);
   const maxActualRows = Math.max(...allNodes.map(node => node.actualRows || 0), 0);
   const maxStarts = Math.max(...allNodes.map(node => node.starts || 0), 0);
@@ -1430,7 +1443,7 @@ function parseLegacyXml(doc: Document): ParsedPlan {
 
   const rootNode = nodeMap.get(0) || allNodes.find(n => n.parentId === undefined) || null;
 
-  const totalCost = allNodes.reduce((sum, node) => sum + (node.cost || 0), 0);
+  const totalCost = planRootCost(rootNode, allNodes);
   const maxRows = Math.max(...allNodes.map(node => node.actualRows || node.rows || 0), 0);
   const maxActualRows = Math.max(...allNodes.map(node => node.actualRows || 0), 0);
   const maxStarts = Math.max(...allNodes.map(node => node.starts || 0), 0);
@@ -1478,7 +1491,8 @@ function parseLegacyXmlOperation(op: Element): PlanNode | null {
     actualTime: parseLegacyXmlNumber(op, 'elapsed_time'),
     starts: parseLegacyXmlNumber(op, 'starts'),
     memoryUsed: parseLegacyXmlNumber(op, 'max_memory') || parseLegacyXmlNumber(op, 'used_mem'),
-    tempUsed: parseLegacyXmlNumber(op, 'temp_space') || parseLegacyXmlNumber(op, 'used_tmp'),
+    tempSpace: parseLegacyXmlNumber(op, 'temp_space'),
+    tempUsed: parseLegacyXmlNumber(op, 'used_tmp'),
     physicalReads: parseLegacyXmlNumber(op, 'physical_reads') || parseLegacyXmlNumber(op, 'cr_buffer_gets'),
     logicalReads: parseLegacyXmlNumber(op, 'logical_reads') || parseLegacyXmlNumber(op, 'buffer_gets'),
     activityPercent: parseLegacyXmlFloat(op, 'activity_percent') || parseLegacyXmlFloat(op, 'percent'),

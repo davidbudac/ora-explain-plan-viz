@@ -1,5 +1,5 @@
 import type { FilterState, PlanNode, PredicateType } from './types';
-import { computeCardinalityRatio } from './format';
+import { nodeCardinalityRatio } from './format';
 
 export function matchesSearch(node: PlanNode, searchText: string): boolean {
   const searchLower = searchText.trim().toLowerCase();
@@ -87,7 +87,7 @@ export function matchesFilters(
 
   // Cardinality mismatch filter
   if (hasActualStats && minCardinalityMismatch > 0) {
-    const ratio = computeCardinalityRatio(node.rows, node.actualRows);
+    const ratio = nodeCardinalityRatio(node);
     if (ratio !== undefined) {
       const deviation = ratio >= 1 ? ratio : 1 / ratio;
       if (deviation < minCardinalityMismatch) return false;

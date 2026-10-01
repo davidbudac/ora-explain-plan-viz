@@ -1,4 +1,5 @@
 import type { PlanNode, ParsedPlan } from '../types';
+import { planRootCost } from '../analysis';
 import type { PlanParser } from './types';
 
 interface ColumnBounds {
@@ -90,7 +91,7 @@ export const xbiParser: PlanParser = {
     const totalElapsedMs = rootNode?.actualTime;
 
     const hasActualStats = allNodes.some(n => n.actualRows !== undefined || n.actualTime !== undefined);
-    const totalCost = allNodes.reduce((sum, n) => sum + (n.cost || 0), 0);
+    const totalCost = planRootCost(rootNode, allNodes);
     const maxRows = Math.max(...allNodes.map(n => n.rows || 0), 0);
     const maxActualRows = Math.max(...allNodes.map(n => n.actualRows || 0), 0);
     const maxStarts = Math.max(...allNodes.map(n => n.starts || 0), 0);
@@ -555,6 +556,10 @@ function buildTree(
       objectName: row.objectName,
       cost: row.cost,
       rows: estimatedRows,
+      // XBI reports the true total estimate; keep it exact instead of re-deriving
+      // it from the rounded per-start figure. A never-started row carries no signal.
+      estimatedRowsTotal:
+        row.actualRows !== undefined && row.starts !== 0 ? row.estRowsTotal : undefined,
       actualRows: row.actualRows,
       actualTime: row.selfElapsedMs,
       starts: row.starts,

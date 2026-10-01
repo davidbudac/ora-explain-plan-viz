@@ -300,6 +300,9 @@ function renderCompareDigest(planA: ParsedPlan, planB: ParsedPlan): string {
         return `${label} ${format(delta.valueA)}->${format(delta.valueB)}`;
       })
       .filter((c): c is string => c !== null);
+    if (matchType === 'access-changed') {
+      changes.unshift(`access path ${planANode.operation} -> ${planBNode.operation}`);
+    }
     if (changes.length === 0) continue;
     const name = planANode.objectName ?? planBNode.objectName;
     lines.push(`  A#${planANode.id} -> B#${planBNode.id} ${planANode.operation}${name ? ` ${name}` : ''}: ${changes.join(', ')}`);

@@ -2,7 +2,7 @@ import { Fragment } from 'react';
 import { matchDensityPreset } from '../../lib/density';
 import { Handle, Position } from '@xyflow/react';
 import { getOperationCategory, COLOR_SCHEMES, getMetricColor, getOperationTooltip } from '../../lib/types';
-import { formatNumberShort, formatBytes, formatTimeCompact, formatCardinalityRatio, cardinalityRatioSeverity, computeCardinalityRatio, formatPartitionRange } from '../../lib/format';
+import { formatNumberShort, formatBytes, formatTimeCompact, formatCardinalityRatio, cardinalityRatioSeverity, nodeCardinalityRatio, cardinalityMismatchText, formatPartitionRange } from '../../lib/format';
 import type { PlanNode as PlanNodeType, NodeDisplayOptions, ColorScheme, NodeIndicatorMetric } from '../../lib/types';
 import { HighlightText } from '../HighlightText';
 import { NodeHoverCard, useNodeHoverCard } from './NodeHoverCard';
@@ -142,7 +142,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   const rowsLabel = hasActualStats ? 'E-Rows' : 'Rows';
 
   // Cardinality mismatch
-  const cardinalityRatio = hasActualStats ? computeCardinalityRatio(node.rows, node.actualRows) : undefined;
+  const cardinalityRatio = hasActualStats ? nodeCardinalityRatio(node) : undefined;
   const cardSeverity = cardinalityRatioSeverity(cardinalityRatio);
   const cardLabel = formatCardinalityRatio(cardinalityRatio);
 
@@ -189,7 +189,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   if (isCompact) {
     if (hasSpill && options.showSpillBadge) compactWarnings.push('Spill to disk — temp space used');
     if (options.showCardinalityBadge && cardSeverity !== 'good' && cardLabel) {
-      compactWarnings.push(`Cardinality mismatch: E-Rows=${formatNumberShort(node.rows)} vs A-Rows=${formatNumberShort(node.actualRows)}`);
+      compactWarnings.push(cardinalityMismatchText(node));
     }
     if (advisorSeverity && options.showAdvisorBadge) {
       compactWarnings.push(...(advisorTitles && advisorTitles.length > 0 ? advisorTitles : ['Advisor finding']));
@@ -910,7 +910,7 @@ function EstActStatsGrid({ node, rows, hasActualStats, cardLabel, cardSeverity, 
                           ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
                           : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
                       }`}
-                      title={`Cardinality mismatch: E-Rows=${formatNumberShort(node.rows)} vs A-Rows=${formatNumberShort(node.actualRows)}`}
+                      title={cardinalityMismatchText(node)}
                     >
                       {cardLabel}
                     </em>
@@ -1007,7 +1007,7 @@ function NodeBadgeRow({
               ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
               : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
           }`}
-          title={`Cardinality mismatch: E-Rows=${formatNumberShort(node.rows)} vs A-Rows=${formatNumberShort(node.actualRows)}`}
+          title={cardinalityMismatchText(node)}
         >
           {cardLabel}
         </span>

@@ -3,7 +3,7 @@ import type { AnnotationState, AnnotationGroup } from './annotations';
 import { getHighlightColorDef } from './annotations';
 import type { AdvisorReport, Finding, FindingSeverity } from './advisor';
 import {
-  computeCardinalityRatio,
+  nodeCardinalityRatio,
   formatCardinalityRatio,
   cardinalityRatioSeverity,
   formatBytes,
@@ -189,7 +189,7 @@ function buildPlanTableSection(input: ClientReportInput): string {
     const highlight = annotations.nodeHighlights.get(node.id);
     const note = annotations.nodeAnnotations.get(node.id);
     const isHot = node.id === hottestNodeId;
-    const ratio = computeCardinalityRatio(node.rows, node.actualRows);
+    const ratio = nodeCardinalityRatio(node);
     const ratioSeverity = cardinalityRatioSeverity(ratio);
 
     const cells: string[] = [];
@@ -204,8 +204,11 @@ function buildPlanTableSection(input: ClientReportInput): string {
     if (hasActual) {
       cells.push(`<td class="num">${formatNumberShort(node.actualRows) ?? ''}</td>`);
       const ratioText = formatCardinalityRatio(ratio);
+      const ratioTitle = node.estimatedRowsTotal !== undefined
+        ? ` title="${escapeHtml(`Estimated ${formatNumberShort(node.estimatedRowsTotal) ?? ''} rows over all starts`)}"`
+        : '';
       cells.push(
-        `<td class="num${ratioSeverity !== 'good' ? ` sev-${ratioSeverity}` : ''}">${ratioText ? escapeHtml(ratioText) : ''}</td>`
+        `<td class="num${ratioSeverity !== 'good' ? ` sev-${ratioSeverity}` : ''}"${ratioTitle}>${ratioText ? escapeHtml(ratioText) : ''}</td>`
       );
     }
     cells.push(`<td class="num">${formatNumberShort(node.cost) ?? ''}</td>`);
@@ -329,11 +332,20 @@ function buildHotspotsSection(input: ClientReportInput): string {
 <p class="caption">Operations ranked by time spent in the operation itself (excluding child operations).</p>`;
 }
 
+/** Total estimate, with the per-start breakdown when Starts > 1 so it visibly matches the deviation. */
+function estimateCell(node: PlanNode): string {
+  const total = formatNumberShort(node.estimatedRowsTotal) ?? '';
+  if (node.starts !== undefined && node.starts > 1 && node.rows !== undefined && node.rows !== node.estimatedRowsTotal) {
+    return `${total} <span style="color:#64748b">(${formatNumberShort(node.rows) ?? ''} &times; ${formatNumberShort(node.starts) ?? ''} starts)</span>`;
+  }
+  return total;
+}
+
 function buildCardinalitySection(input: ClientReportInput): string {
   const { plan } = input;
   if (!plan.hasActualStats) return '';
   const mismatches = plan.allNodes
-    .map((node) => ({ node, ratio: computeCardinalityRatio(node.rows, node.actualRows) }))
+    .map((node) => ({ node, ratio: nodeCardinalityRatio(node) }))
     .filter((x): x is { node: PlanNode; ratio: number } => x.ratio !== undefined)
     .map((x) => ({ ...x, deviation: x.ratio >= 1 ? x.ratio : 1 / x.ratio }))
     .filter((x) => x.deviation >= 3)
@@ -346,13 +358,13 @@ function buildCardinalitySection(input: ClientReportInput): string {
       const severity = cardinalityRatioSeverity(ratio);
       return `<tr>
   <td class="mono">${escapeHtml(nodeLabel(node))}</td>
-  <td class="num">${formatNumberShort(node.rows) ?? ''}</td>
+  <td class="num">${estimateCell(node)}</td>
   <td class="num">${formatNumberShort(node.actualRows) ?? ''}</td>
   <td class="num sev-${severity}">${escapeHtml(formatCardinalityRatio(ratio) ?? '')}</td>
 </tr>`;
     })
     .join('');
-  return `<div class="table-wrap"><table><thead><tr><th>Operation</th><th>Estimated rows</th><th>Actual rows</th><th>Deviation</th></tr></thead><tbody>${rows}</tbody></table></div>
+  return `<div class="table-wrap"><table><thead><tr><th>Operation</th><th>Estimated rows (all starts)</th><th>Actual rows</th><th>Deviation</th></tr></thead><tbody>${rows}</tbody></table></div>
 <p class="caption">Where the optimizer's row estimates diverge from reality (3&times; or more), it may have chosen a suboptimal join method or access path. Often addressed with fresh or extended statistics.</p>`;
 }
 

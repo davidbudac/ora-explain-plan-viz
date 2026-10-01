@@ -27,6 +27,7 @@ function makePlan(overrides: Partial<ParsedPlan> = {}): ParsedPlan {
     operation: 'TABLE ACCESS FULL',
     objectName: 'ORDERS',
     rows: 100,
+    estimatedRowsTotal: 100,
     actualRows: 5000,
     cost: 40,
     actualTime: 900,
@@ -192,6 +193,18 @@ describe('buildClientReport', () => {
     expect(html).toContain('Optimizer Estimate Accuracy');
     // 5000 actual vs 100 estimated = 50x over
     expect(html).toContain('50.0x over');
+  });
+
+  it('shows the all-starts estimate with its per-start breakdown next to the deviation', () => {
+    const plan = makePlan();
+    const child = plan.allNodes[1];
+    child.rows = 1;
+    child.starts = 1000;
+    child.estimatedRowsTotal = 1000;
+    child.actualRows = 250000;
+    const html = buildClientReport(makeInput({ plan }), makeOptions());
+    expect(html).toContain('1.0K <span style="color:#64748b">(1 &times; 1.0K starts)</span>');
+    expect(html).toContain('250x over');
   });
 
   it('omits sections that are toggled off', () => {

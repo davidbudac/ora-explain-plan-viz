@@ -83,7 +83,7 @@ export function Legend() {
               </div>
               <div className="flex items-start gap-2">
                 <span className="mt-0.5 px-1 rounded shrink-0 text-[10px] font-bold bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">3x</span>
-                <span><span className="font-semibold">Cardinality mismatch</span> — E-Rows vs A-Rows differ ≥3× (amber) / ≥10× (red)</span>
+                <span><span className="font-semibold">Cardinality mismatch</span> — A-Rows vs estimated total rows (E-Rows × starts) differ ≥3× (amber) / ≥10× (red)</span>
               </div>
               <div className="flex items-start gap-2">
                 <span className="mt-0.5 px-1 rounded shrink-0 text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">STALE</span>

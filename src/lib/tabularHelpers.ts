@@ -3,7 +3,7 @@
  * sort-state cycling, and the "Copy as TSV" serializer.
  */
 import type { PlanNode } from './types';
-import { computeCardinalityRatio } from './format';
+import { nodeCardinalityRatio } from './format';
 
 // ---------------------------------------------------------------------------
 // A-Time share of total elapsed time
@@ -155,10 +155,9 @@ export function buildTabularTsv(
         add('Temp (bytes)', (n) => num(n.tempUsed));
         break;
       case 'cardinality':
-        add('A-Rows / E-Rows', (n) => {
-          const ratio = computeCardinalityRatio(n.rows, n.actualRows);
+        add('A-Rows / Est. total rows', (n) => {
+          const ratio = nodeCardinalityRatio(n);
           if (ratio === undefined) return '';
-          if (ratio === Infinity) return 'Infinity';
           // Keep small under-estimates readable (0.00012, not 0).
           return String(Number(ratio >= 1 ? ratio.toFixed(2) : ratio.toPrecision(3)));
         });

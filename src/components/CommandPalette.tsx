@@ -87,7 +87,7 @@ const NODE_INDICATOR_LABELS: Record<NodeIndicatorMetric, string> = {
 const SANKEY_METRIC_LABELS: Record<SankeyMetric, string> = {
   rows: 'Rows',
   cost: 'Cost',
-  actualRows: 'Total Rows (A-Rows × Starts)',
+  actualRows: 'Total rows (all starts)',
   actualTime: 'A-Time',
 };
 

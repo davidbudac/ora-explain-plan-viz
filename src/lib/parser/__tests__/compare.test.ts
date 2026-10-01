@@ -145,10 +145,156 @@ describe('matchNodes', () => {
 
     const matches = matchNodes(planA, planB);
     const types = matches.map(m => m.matchType);
-    const typeOrder = { 'exact-id': 0, 'heuristic': 1, 'unmatched': 2 };
+    const typeOrder = { 'exact-id': 0, 'heuristic': 1, 'access-changed': 2, 'unmatched': 3 };
     for (let i = 1; i < types.length; i++) {
       expect(typeOrder[types[i]]).toBeGreaterThanOrEqual(typeOrder[types[i - 1]]);
     }
+  });
+});
+
+describe('matchNodes: object-aware matching', () => {
+  const pairs = (matches: ReturnType<typeof matchNodes>, type: string) =>
+    matches.filter(m => m.matchType === type).map(m => [m.planANode?.id, m.planBNode?.id]);
+
+  it('does not pair same-id nodes that differ in object or operation', () => {
+    const planA = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'TABLE ACCESS FULL', objectName: 'EMP', depth: 1 }),
+      makeNode({ id: 2, operation: 'TABLE ACCESS FULL', objectName: 'DEPT', depth: 1 }),
+    ]);
+    const planB = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'TABLE ACCESS FULL', objectName: 'DEPT', depth: 1 }),
+      makeNode({ id: 2, operation: 'TABLE ACCESS FULL', objectName: 'EMP', depth: 1 }),
+    ]);
+
+    const matches = matchNodes(planA, planB);
+    expect(pairs(matches, 'exact-id')).toEqual([[0, 0]]);
+    expect(pairs(matches, 'heuristic')).toEqual([[1, 2], [2, 1]]);
+    expect(matches.filter(m => m.matchType === 'unmatched')).toHaveLength(0);
+  });
+
+  it('does not pair operations that only share a first word', () => {
+    const planA = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'SORT ORDER BY', depth: 1 }),
+    ]);
+    const planB = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'SORT AGGREGATE', depth: 1 }),
+    ]);
+
+    const matches = matchNodes(planA, planB);
+    expect(pairs(matches, 'exact-id')).toEqual([[0, 0]]);
+    expect(matches.filter(m => m.matchType === 'unmatched')).toHaveLength(2);
+  });
+
+  it('compares objects case-insensitively and treats two missing objects as equal', () => {
+    const planA = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'TABLE ACCESS  FULL', objectName: 'emp', depth: 1 }),
+    ]);
+    const planB = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'TABLE ACCESS FULL', objectName: 'EMP', depth: 1 }),
+    ]);
+    expect(matchNodes(planA, planB).every(m => m.matchType === 'exact-id')).toBe(true);
+  });
+
+  it('keeps pairing correctly when an inserted BUFFER SORT shifts later ids', () => {
+    const planA = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'HASH JOIN', depth: 1 }),
+      makeNode({ id: 2, operation: 'TABLE ACCESS FULL', objectName: 'EMP', depth: 2 }),
+      makeNode({ id: 3, operation: 'TABLE ACCESS FULL', objectName: 'DEPT', depth: 2 }),
+      makeNode({ id: 4, operation: 'SORT ORDER BY', depth: 1 }),
+    ]);
+    const planB = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'HASH JOIN', depth: 1 }),
+      makeNode({ id: 2, operation: 'TABLE ACCESS FULL', objectName: 'EMP', depth: 2 }),
+      makeNode({ id: 3, operation: 'BUFFER SORT', depth: 2 }),
+      makeNode({ id: 4, operation: 'TABLE ACCESS FULL', objectName: 'DEPT', depth: 3 }),
+      makeNode({ id: 5, operation: 'SORT ORDER BY', depth: 1 }),
+    ]);
+
+    const matches = matchNodes(planA, planB);
+    expect(pairs(matches, 'exact-id')).toEqual([[0, 0], [1, 1], [2, 2]]);
+    expect(pairs(matches, 'heuristic')).toEqual([[3, 4], [4, 5]]);
+    const unmatched = matches.filter(m => m.matchType === 'unmatched');
+    expect(unmatched).toHaveLength(1);
+    expect(unmatched[0].planBNode?.operation).toBe('BUFFER SORT');
+  });
+
+  it('pairs an access path change on the same table as access-changed', () => {
+    const planA = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'TABLE ACCESS FULL', objectName: 'EMP', depth: 1 }),
+    ]);
+    const planB = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'TABLE ACCESS BY INDEX ROWID BATCHED', objectName: 'EMP', depth: 1 }),
+    ]);
+
+    const matches = matchNodes(planA, planB);
+    expect(pairs(matches, 'access-changed')).toEqual([[1, 1]]);
+    expect(matches.filter(m => m.matchType === 'unmatched')).toHaveLength(0);
+    expect(computeComparisonSummary(planA, planB, matches).matchedCount).toBe(2);
+  });
+
+  it('pairs index scan variants on the same index by object name', () => {
+    const planA = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'INDEX RANGE SCAN', objectName: 'EMP_IX', depth: 1 }),
+    ]);
+    const planB = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 5, operation: 'INDEX FULL SCAN', objectName: 'EMP_IX', depth: 3 }),
+    ]);
+    expect(pairs(matchNodes(planA, planB), 'access-changed')).toEqual([[1, 5]]);
+  });
+
+  it('prefers the same object name when a table and its index share an alias', () => {
+    const planA = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'TABLE ACCESS FULL', objectName: 'EMP', objectAlias: 'E@SEL$1', depth: 1 }),
+    ]);
+    const planB = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'TABLE ACCESS BY INDEX ROWID', objectName: 'EMP', objectAlias: 'E@SEL$1', depth: 2 }),
+      makeNode({ id: 2, operation: 'INDEX RANGE SCAN', objectName: 'EMP_IX', objectAlias: 'E@SEL$1', depth: 1 }),
+    ]);
+    const matches = matchNodes(planA, planB);
+    expect(pairs(matches, 'access-changed')).toEqual([[1, 1]]);
+    expect(matches.filter(m => m.matchType === 'unmatched').map(m => m.planBNode?.id)).toEqual([2]);
+  });
+
+  it('never pairs nodes without an object in the access-changed pass', () => {
+    const planA = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'HASH JOIN', depth: 1 }),
+    ]);
+    const planB = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'NESTED LOOPS', depth: 1 }),
+    ]);
+    const matches = matchNodes(planA, planB);
+    expect(matches.filter(m => m.matchType === 'access-changed')).toHaveLength(0);
+    expect(matches.filter(m => m.matchType === 'unmatched')).toHaveLength(2);
+  });
+
+  it('prefers a matching alias over closer depth in the heuristic pass', () => {
+    const planA = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'TABLE ACCESS FULL', objectName: 'EMP', objectAlias: 'E1@SEL$1', depth: 2 }),
+      makeNode({ id: 2, operation: 'TABLE ACCESS FULL', objectName: 'EMP', objectAlias: 'E2@SEL$2', depth: 3 }),
+    ]);
+    const planB = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 5, operation: 'TABLE ACCESS FULL', objectName: 'EMP', objectAlias: 'E2@SEL$2', depth: 2 }),
+      makeNode({ id: 6, operation: 'TABLE ACCESS FULL', objectName: 'EMP', objectAlias: 'E1@SEL$1', depth: 3 }),
+    ]);
+    expect(pairs(matchNodes(planA, planB), 'heuristic')).toEqual([[1, 6], [2, 5]]);
   });
 });
 

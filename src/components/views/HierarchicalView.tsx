@@ -24,7 +24,7 @@ import { PlanNodeMemo } from '../nodes/PlanNode';
 import type { PlanNodeData } from '../nodes/PlanNode';
 import { prefersReducedMotion, usePrefersReducedMotion } from '../nodes/usePrefersReducedMotion';
 import { TreeLayoutControls } from './TreeLayoutControls';
-import { formatNumberShort, computeCardinalityRatio, cardinalityRatioSeverity, formatPartitionRange } from '../../lib/format';
+import { formatNumberShort, nodeCardinalityRatio, cardinalityRatioSeverity, formatPartitionRange } from '../../lib/format';
 import type { PlanNode, NodeDisplayOptions } from '../../lib/types';
 import { EDGE_SCHEME_COLORS } from '../../lib/types';
 import type { TreeLayoutDirection } from '../../lib/settings';
@@ -150,7 +150,7 @@ function calculateNodeHeight(
 
   // Warning badges row (hotspot, spill, cardinality mismatch, advisor)
   const hasSpill = (node.tempUsed !== undefined && node.tempUsed > 0);
-  const cardRatio = hasActualStats ? computeCardinalityRatio(node.rows, node.actualRows) : undefined;
+  const cardRatio = hasActualStats ? nodeCardinalityRatio(node) : undefined;
   const hasCardBadge = cardinalityRatioSeverity(cardRatio) !== 'good' && !usesGrid;
   // We always add space for badges if there's a potential hot node (we don't know which is hottest at layout time)
   // Rail mode moves these badges into the footer rail, so no badge row.
@@ -803,7 +803,7 @@ function HierarchicalViewContent({
       nodeDimensions.set(node.id.toString(), { width: effectiveNodeWidth, height });
       const match = bundle ? findObjectInBundle(bundle, node.objectName) : null;
       const cardSeverity = hasActualStats
-        ? cardinalityRatioSeverity(computeCardinalityRatio(node.rows, node.actualRows))
+        ? cardinalityRatioSeverity(nodeCardinalityRatio(node))
         : 'good';
       const predicateColumns = extractPredicateColumns(node.accessPredicates, node.filterPredicates);
       const metadataBadges: MetadataBadge[] = bundle

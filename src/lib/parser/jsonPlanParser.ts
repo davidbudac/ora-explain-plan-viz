@@ -1,4 +1,5 @@
 import type { PlanNode, ParsedPlan } from '../types';
+import { planRootCost } from '../analysis';
 import type { PlanParser } from './types';
 
 /**
@@ -94,7 +95,7 @@ export const jsonPlanParser: PlanParser = {
     const hasActualStats = allNodes.some(
       n => n.actualRows !== undefined || n.actualTime !== undefined
     );
-    const totalCost = allNodes.reduce((sum, n) => sum + (n.cost || 0), 0);
+    const totalCost = planRootCost(rootNode, allNodes);
     const maxRows = Math.max(...allNodes.map(n => n.actualRows || n.rows || 0), 0);
     const maxActualRows = Math.max(...allNodes.map(n => n.actualRows || 0), 0);
     const maxStarts = Math.max(...allNodes.map(n => n.starts || 0), 0);
@@ -205,7 +206,7 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
   const actualRows = getInt(row, 'actual_rows', 'last_output_rows', 'output_rows', 'a_rows');
   const starts = getInt(row, 'actual_starts', 'last_starts', 'starts');
   const memoryUsed = getInt(row, 'actual_memory_used', 'last_memory_used', 'max_memory', 'used_mem');
-  const tempUsed = getInt(row, 'actual_tempseg_size', 'last_tempseg_size', 'temp_space', 'used_tmp');
+  const tempUsed = getInt(row, 'actual_tempseg_size', 'last_tempseg_size', 'max_tempseg_size', 'used_tmp');
   const physicalReads = getInt(row, 'actual_disk_reads', 'last_disk_reads', 'physical_reads');
   const logicalReads = getInt(row, 'actual_cr_buffer_gets', 'last_cr_buffer_gets', 'buffer_gets', 'logical_reads');
 
@@ -223,7 +224,7 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
   // Query block / partition info
   const queryBlock = getStr(row, 'qblock_name', 'query_block');
 
-  // Temp space from optimizer (estimated, different from actual tempUsed)
+  // Temp space from optimizer (estimate; actual spill is tempUsed)
   const tempSpace = getInt(row, 'temp_space');
 
   const node: PlanNode = {
@@ -242,7 +243,7 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
     actualTime,
     starts,
     memoryUsed,
-    tempUsed: tempUsed || (tempSpace && !actualRows ? undefined : tempUsed),
+    tempUsed,
     physicalReads,
     logicalReads,
     accessPredicates,

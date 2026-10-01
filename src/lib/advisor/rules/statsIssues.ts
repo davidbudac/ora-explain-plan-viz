@@ -2,7 +2,7 @@ import type { PlanNode } from '../../types';
 import type { AdvisorRule, Finding, FindingSeverity, RuleContext } from '../types';
 import { evaluateBadges, type MetadataBadgeKind } from '../../metadata/badges';
 import { extractPredicateColumns } from '../../metadata/predicateColumns';
-import { computeCardinalityRatio, cardinalityRatioSeverity } from '../../format';
+import { nodeCardinalityRatio, cardinalityRatioSeverity } from '../../format';
 import type { MetadataObject } from '../../metadata/bundle';
 
 const SEVERITY_BY_KIND: Record<MetadataBadgeKind, FindingSeverity> = {
@@ -38,14 +38,14 @@ export const statsIssuesRule: AdvisorRule = {
         ...group.nodes.flatMap((n) => [n.accessPredicates, n.filterPredicates]),
       );
       const worstNode = group.nodes.reduce((worst, n) => {
-        const ratio = computeCardinalityRatio(n.rows, n.actualRows);
-        const worstRatio = computeCardinalityRatio(worst.rows, worst.actualRows);
-        const dev = ratio === undefined ? -1 : ratio === Infinity ? Infinity : ratio >= 1 ? ratio : 1 / ratio;
-        const worstDev = worstRatio === undefined ? -1 : worstRatio === Infinity ? Infinity : worstRatio >= 1 ? worstRatio : 1 / worstRatio;
+        const ratio = nodeCardinalityRatio(n);
+        const worstRatio = nodeCardinalityRatio(worst);
+        const dev = ratio === undefined ? -1 : ratio >= 1 ? ratio : 1 / ratio;
+        const worstDev = worstRatio === undefined ? -1 : worstRatio >= 1 ? worstRatio : 1 / worstRatio;
         return dev > worstDev ? n : worst;
       }, group.nodes[0]);
       const cardinalitySeverity = ctx.plan.hasActualStats
-        ? cardinalityRatioSeverity(computeCardinalityRatio(worstNode.rows, worstNode.actualRows))
+        ? cardinalityRatioSeverity(nodeCardinalityRatio(worstNode))
         : 'good';
 
       const badges = evaluateBadges({

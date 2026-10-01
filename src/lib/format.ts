@@ -1,3 +1,5 @@
+import type { PlanNode } from './types';
+
 export interface FormatOptions {
   empty?: string;
   infinity?: string;
@@ -53,12 +55,42 @@ export function formatTimeDetailed(value?: number, options: FormatOptions = {}):
   return (value * 1000).toFixed(0) + 'us';
 }
 
-/** Compute the ratio between actual and estimated rows. Returns undefined if either is missing. */
+/**
+ * Compute the ratio between actual and estimated rows. Returns undefined if either is missing.
+ * Both operands are floored at 1 (Oracle itself floors E-Rows at 1), so the result is never
+ * 0 or Infinity: E-Rows=1 vs A-Rows=0 is "accurate", not an infinite underestimate.
+ * The estimate must be comparable with `aRows` (all starts) — prefer `nodeCardinalityRatio`.
+ */
 export function computeCardinalityRatio(eRows?: number, aRows?: number): number | undefined {
   if (eRows === undefined || aRows === undefined) return undefined;
-  if (eRows === 0 && aRows === 0) return 1;
-  if (eRows === 0) return Infinity;
-  return aRows / eRows;
+  return Math.max(aRows, 1) / Math.max(eRows, 1);
+}
+
+/**
+ * THE function UI and advisor code should use for estimate-vs-actual comparisons.
+ * Compares A-Rows with the estimate over all starts (`estimatedRowsTotal`), never the
+ * per-start E-Rows. Undefined when no comparable estimate exists (never started,
+ * early termination, no actual stats).
+ */
+export function nodeCardinalityRatio(node: PlanNode): number | undefined {
+  return computeCardinalityRatio(node.estimatedRowsTotal, node.actualRows);
+}
+
+/**
+ * One-line explanation of a node's estimate-vs-actual comparison, e.g.
+ * "Cardinality mismatch: estimated 1,000 rows (E-Rows 1 × 1,000 starts) vs A-Rows 250,000".
+ * The "× starts" breakdown appears only when it changes the number.
+ */
+export function cardinalityMismatchText(node: PlanNode): string {
+  const total = node.estimatedRowsTotal;
+  const fmt = (n: number | undefined) => formatNumberShort(n) ?? '?';
+  if (total === undefined) {
+    return `Cardinality mismatch: E-Rows ${fmt(node.rows)} vs A-Rows ${fmt(node.actualRows)}`;
+  }
+  const perStart = node.starts !== undefined && node.starts > 1 && node.rows !== undefined && node.rows !== total
+    ? ` (E-Rows ${fmt(node.rows)} × ${fmt(node.starts)} starts)`
+    : '';
+  return `Cardinality mismatch: estimated ${fmt(total)} rows${perStart} vs A-Rows ${fmt(node.actualRows)}`;
 }
 
 /** Format a cardinality ratio as a human-readable string like "10x over" or "5x under". */

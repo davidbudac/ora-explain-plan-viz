@@ -3,6 +3,7 @@ export const DEFAULT_THRESHOLDS = {
   nlStartsCritical: 100_000,
   nlInnerRowsWarn: 100_000,
   nlInnerRowsCritical: 1_000_000,
+  cardinalityMinRowDelta: 100,
   cartesianMinSideRows: 100,
   cartesianCriticalProduct: 10_000_000,
   ftsMinTableRows: 10_000,

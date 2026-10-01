@@ -199,18 +199,18 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Multiple Input Formats**: DBMS_XPLAN, SQL Monitor text, SQL Monitor XML, JSON plan (V$SQL_PLAN_STATISTICS_ALL), and Tanel Poder xbi.sql output
 - **Runtime Statistics**: Display A-Rows, E-Rows, A-Time, and Starts from SQL Monitor
 - **Node Indicator Metrics**: Configurable node badges showing cost, A-Rows, A-Time, starts, or activity %
-- **Hot Node Detection**: Automatically highlights the node with highest A-Time (red ring + "Hotspot" badge)
-- **Hotspots Summary Panel**: When no node is selected, shows top 5 nodes by A-Time, Cost, and worst cardinality mismatches (clickable to navigate)
-- **Sankey / Flame Metric Toggles**: Sankey flow (Rows, Cost, Rows × Starts, A-Time) and flame metric switch from the workspace toolbar
+- **Hot Node Detection**: Automatically highlights the node with the highest self time — ASH activity % for SQL Monitor plans that carry it (red ring + "Hotspot" badge)
+- **Hotspots Summary Panel**: When no node is selected, shows top 5 nodes by self time (or activity %), own cost, and worst cardinality mismatches (clickable to navigate; `lib/worstNodes.ts`)
+- **Sankey / Flame Metric Toggles**: Sankey flow (E-Rows, Cost, Total rows over all starts, A-Time) and flame metric switch from the workspace toolbar
 
 ### Analysis
-- **Plan Comparison**: Load two plans side-by-side with node matching (exact ID + heuristic), delta calculations, and improvement/regression indicators across 9 metrics (cost, rows, bytes, A-Rows, A-Time, self time, starts, temp space, memory)
+- **Plan Comparison**: Load two plans side-by-side with node matching (exact ID, heuristic, access-path changed), delta calculations, and improvement/regression indicators across 9 metrics (cost, rows, bytes, A-Rows, A-Time, self time, starts, temp space, memory)
 - **Plan Advisor**: Heuristic findings engine (`runAdvisor`) with 10 rules — cardinality mismatch, implicit conversion, cartesian merge join, nested-loop volume, parallel signals, partition pruning, selective full scan, spill-to-disk, stats issues, and unused index — surfaced per-node and as a ranked list; suggestion hints are togglable (off by default)
 - **AI Plan Analysis**: Optional LLM-powered analysis (single plan or A/B compare) via an Anthropic, OpenAI-compatible, local-agent, or hosted (oraplanviz cloud account token) provider — streamed markdown report in an AI tab with findings linked to plan nodes. Privacy: nothing leaves the browser until the user clicks Run, and only to the provider they chose; API keys live in sessionStorage only (`src/lib/ai/secrets.ts`), never in localStorage settings or share URLs
 - **AI Test Case Builder**: With a plan + attached metadata bundle, builds a deterministic synthetic-repro skeleton (`src/lib/ai/testCase.ts` — empty DDL, DBMS_STATS stats/histograms, optimizer env, binds, EXPLAIN PLAN verification) that the AI amends into a runnable scratch-schema script with realistic binds, an optional data generator, and alternative-plan experiments (`src/lib/ai/experiments.ts` — SQL Patch script + advisor-driven experiment candidates); SQL fences in the report get per-block copy/download
 - **AI Follow-up Chat**: After a completed AI report, a chat section in the AI tab lets the user ask follow-up questions (multi-turn via `streamChat`); when the DB agent feature is enabled, SQL blocks in test-case reports and chat replies get a "Run via agent" button that executes against the agent's scratch test connection only after explicit per-script user approval (script preview + destructive-statement warning) — nothing ever auto-runs or auto-sends
 - **AI Eval Harness**: `evals/` backtesting harness (Node + tsx + oracledb thin, outside the Vite build) measuring repro fidelity (does the generated test case reproduce the plan shape?) and analysis quality (does the AI find a known injected fault?) against a real Oracle scratch schema via `ORA_EVAL_*` env vars — see `evals/README.md`
-- **Cardinality Mismatch Analysis**: Detects E-Rows vs A-Rows divergence with severity badges (warn at 3x, bad at 10x)
+- **Cardinality Mismatch Analysis**: Detects divergence between A-Rows and the estimate over all starts (`estimatedRowsTotal`, see Architecture Notes) with severity badges (warn at 3x, bad at 10x); the advisor also needs a ≥100-row absolute difference
 - **Cardinality Mismatch Filter**: Slider in filter panel to show only nodes exceeding a mismatch threshold
 - **Spill-to-Disk Warnings**: Badge on nodes that use temp space, with details in node panel
 - **Operation Tooltips**: ~55 Oracle operations with expert descriptions shown on hover and in detail panel
@@ -330,10 +330,18 @@ The context (`usePlanContext.tsx`) uses a `PlanSlot[]` array to support 1-2 simu
 `attachBundleText` (paste, drop, Gather dialog) pairs a bundle with the loaded plans (`metadata/pairing.ts`). An ambiguous or SQL_ID-less bundle opens the pairing chooser (`pendingBundleChoice`, rendered by App); the returned promise resolves only when the chooser settles — true once attached, false when cancelled or superseded — so callers such as the Gather dialog can clear their input on success.
 
 ### Plan Comparison Engine
-The comparison system (`compare.ts`) uses a 3-pass node matching algorithm:
-1. **Exact ID match**: Same node ID with operation similarity check
-2. **Heuristic match**: Operation+object signature matching, closest depth wins
-3. **Unmatched**: Leftover nodes from either plan
+The comparison system (`compare.ts`) matches nodes in passes:
+1. **Exact ID match**: same node ID, same full operation and same object
+2. **Heuristic match**: operation+object signature, matching alias@query block first, then closest depth
+3. **Access changed**: same object (alias@query block, else object name) with a different operation — e.g. FULL → BY INDEX ROWID
+4. **Unmatched**: leftover nodes from either plan
+
+### Plan Numbers (post-parse derivations)
+`parsePlan` (`lib/parser/index.ts`) runs `computeSelfTimes`, `computeEstimatedRowTotals` and `computeSelfCosts` (`lib/analysis.ts`) on every plan. Oracle semantics to preserve:
+- **E-Rows is per start, A-Rows is cumulative.** Compare A-Rows only with `estimatedRowsTotal` via `nodeCardinalityRatio(node)` (`lib/format.ts`); never `actualRows / rows`. The total is E-Rows × Starts, except: inside a PX slave set and not on a NESTED LOOPS/FILTER probe side → E-Rows (Starts counts slaves/granules); under a partition iterator → the topmost iterator's Starts (child Starts count partitions); a rowid fetch fed by an NLJ-batching or batched-rowid nested loop → the Starts of the index that supplies the rowids (verified on 19c, fixtures in `lib/parser/__tests__/fixtures/allstats-*.txt`); Starts = 0 or a COUNT STOPKEY cut-off → undefined (no signal). Ratios floor both sides at 1, so they are never 0 or ∞.
+- **Cost is cumulative.** `ParsedPlan.totalCost` is the root's cost (`planRootCost`), so cost shares top out at 100% at the root; `selfCost` = cost − Σ children's cost.
+- **A-Rows needs no × Starts** anywhere (flame, Sankey, row totals).
+- **Temp**: `tempSpace` is the optimizer estimate (TempSpc / E-Temp / JSON `temp_space`); `tempUsed` is actual spill (Used-Tmp, SQL Monitor Temp).
 
 ### Annotation System
 Annotations (`annotations.ts`) are an in-memory overlay per plan slot, persisted only as part of the session autosave (and share links). They include per-node notes/highlights and named groups. Export produces a versioned JSON with plan metadata for validation on re-import.
