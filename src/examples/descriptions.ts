@@ -1,3 +1,5 @@
+import type { ViewMode } from '../lib/types';
+
 /**
  * One-line "what this example teaches" blurbs for the bundled sample plans,
  * keyed by the example's file stem (`NN-category-Display Name`, no extension).
@@ -8,6 +10,8 @@
 export interface ExampleDescription {
   description: string;
   featured?: boolean;
+  /** View the example opens in (defaults to whatever view is active). */
+  view?: ViewMode;
 }
 
 export const EXAMPLE_DESCRIPTIONS: Record<string, ExampleDescription> = {
@@ -21,21 +25,27 @@ export const EXAMPLE_DESCRIPTIONS: Record<string, ExampleDescription> = {
   '12-json-JSON Plan (TPC-DS Hash Joins)': {
     description: 'V$SQL_PLAN rows exported as JSON: a chain of hash joins from a TPC-DS query.',
   },
+  // Verbatim from Tanel Poder, "xb.sql and xbi.sql - Explain Oracle Execution Plans Better! (Part 2)":
+  // https://tanelpoder.com/posts/xb-sql-script-explain-oracle-plan-better-part-2/ (his post omits the predicate section).
   '13-xbi-XBI TPC-DS Query': {
-    description: "Tanel Poder's xbi.sql output with per-step timings and real vs. estimated rows.",
+    description: "Tanel Poder's xbi.sql output: per-step timings, Starts, and real vs. estimated rows for a nested-loop join.",
     featured: true,
   },
+  // Verbatim from the same Tanel Poder post (Part 2); his output starts at the column header, no banner.
   '14-xbi-XBI TPC-DS Temp Table': {
-    description: 'xbi.sql output for a TEMP TABLE TRANSFORMATION (a WITH clause materialised once and reused).',
+    description: 'xbi.sql output for a TEMP TABLE TRANSFORMATION: a WITH clause materialised once (CURSOR DURATION MEMORY) and read twice.',
   },
+  // Kerry Osborne, "Realtime SQL Monitoring – Designed with Exadata in Mind" (2011):
+  // https://kerryosborne.oracle-guy.com/2011/04/realtime-sql-monitoring-designed-with-exadata-in-mind/
   '17-sql_monitor-Exadata Cell Offload (K. Osborne)': {
     description: 'Exadata smart scan (TABLE ACCESS STORAGE FULL) and the cell offload column, from Kerry Osborne.',
   },
+  // Jonathan Lewis, "Case Study" (June 2022): https://jonathanlewis.wordpress.com/2022/06/17/case-study-5/
   '18-sql_monitor-Skewed Parallel (J. Lewis)': {
-    description: "Parallel execution where a few PX servers do most of the work (Jonathan Lewis's case).",
+    description: "Captured mid-run: one PX server (p008) does ~99% of the work and spills 2 GB to temp in a BUFFER SORT (Jonathan Lewis's case study).",
   },
   '21-sql_monitor-Star Schema Rollup': {
-    description: 'A star-schema GROUP BY ROLLUP; see where the time goes with real row counts.',
+    description: 'A healthy baseline: a star-schema GROUP BY ROLLUP where every estimate tracks the actual rows.',
   },
   '22-sql_monitor-Cardinality Trap (NL)': {
     description: 'The optimizer expects a handful of rows and picks nested loops; reality is far bigger.',
