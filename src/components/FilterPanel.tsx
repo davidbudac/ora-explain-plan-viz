@@ -151,17 +151,19 @@ export function FilterPanelBody() {
   }, [parsedPlan]);
 
   const predicateStats = useMemo(() => {
-    if (!parsedPlan) return { access: 0, filter: 0, none: 0 };
+    if (!parsedPlan) return { access: 0, filter: 0, storage: 0, none: 0 };
 
     let access = 0;
     let filter = 0;
+    let storage = 0;
     let none = 0;
     for (const node of parsedPlan.allNodes) {
       if (node.accessPredicates) access++;
       if (node.filterPredicates) filter++;
-      if (!node.accessPredicates && !node.filterPredicates) none++;
+      if (node.storagePredicates) storage++;
+      if (!node.accessPredicates && !node.filterPredicates && !node.storagePredicates) none++;
     }
-    return { access, filter, none };
+    return { access, filter, storage, none };
   }, [parsedPlan]);
 
   const maxCost = useMemo(() => {
@@ -381,6 +383,7 @@ export function FilterPanelBody() {
           {([
             { type: 'access' as PredicateType, label: 'Access', count: predicateStats.access },
             { type: 'filter' as PredicateType, label: 'Filter', count: predicateStats.filter },
+            { type: 'storage' as PredicateType, label: 'Storage', count: predicateStats.storage },
             { type: 'none' as PredicateType, label: 'None', count: predicateStats.none },
           ]).map(({ type, label, count }) => {
             if (count === 0) return null;

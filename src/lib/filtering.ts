@@ -25,6 +25,7 @@ export function matchesPredicateTypes(node: PlanNode, predicateTypes: PredicateT
   return predicateTypes.some((type) => {
     if (type === 'access') return hasAccess;
     if (type === 'filter') return hasFilter;
+    if (type === 'storage') return !!node.storagePredicates;
     if (type === 'none') return hasNone;
     return false;
   });

@@ -6,6 +6,14 @@ import { alignColumnsToRow, pipeIndexes } from './rowAlign';
 import { parsePredicateSection, parseQueryBlockSection } from './predicateSection';
 import type { NodePredicates, NodeQueryBlock } from './predicateSection';
 import {
+  parseHintReport,
+  parseOutlineSection,
+  parsePeekedBinds,
+  parseProjectionSection,
+  parseRemoteSqlSection,
+} from './advancedSections';
+import type { HintReport } from './advancedSections';
+import {
   expandTableTabs,
   normalizeNewlines,
   parseByteSize,
@@ -146,8 +154,17 @@ export const dbmsXplanParser: PlanParser = {
     // Parse query block information
     const queryBlocks = parseQueryBlockSection(lines);
 
+    // ADVANCED sections: projection, remote SQL, hint report, outline, peeked binds
+    const advanced: AdvancedNodeData = {
+      projection: parseProjectionSection(lines),
+      remoteSql: parseRemoteSqlSection(lines),
+      hintReport: parseHintReport(lines),
+    };
+    const outlineHints = parseOutlineSection(lines);
+    const peekedBinds = parsePeekedBinds(lines);
+
     // Build tree structure
-    const { rootNode, allNodes } = buildTree(tableData, predicates, queryBlocks);
+    const { rootNode, allNodes } = buildTree(tableData, predicates, queryBlocks, advanced);
 
     // Calculate totals
     const totalCost = planRootCost(rootNode, allNodes);
@@ -179,6 +196,9 @@ export const dbmsXplanParser: PlanParser = {
       // A-Time is cumulative: the root's actualTime is the total elapsed time
       totalElapsedTime: hasActualStats ? rootNode?.actualTime || 0 : undefined,
       notes,
+      bindVariables: peekedBinds.length > 0 ? peekedBinds : undefined,
+      outlineHints,
+      hintSummary: advanced.hintReport.summary,
     };
   },
 };
@@ -638,10 +658,18 @@ function calculateDepth(operationStr: string): number {
   return Math.floor(spaces / 1);
 }
 
+/** Per-operation data from the ADVANCED sections, keyed by operation id. */
+interface AdvancedNodeData {
+  projection: Map<number, string>;
+  remoteSql: Map<number, string>;
+  hintReport: HintReport;
+}
+
 function buildTree(
   rows: RawPlanRow[],
   predicates: Map<number, NodePredicates>,
-  queryBlocks: Map<number, NodeQueryBlock>
+  queryBlocks: Map<number, NodeQueryBlock>,
+  advanced: AdvancedNodeData
 ): { rootNode: PlanNode | null; allNodes: PlanNode[] } {
   if (rows.length === 0) {
     return { rootNode: null, allNodes: [] };
@@ -677,6 +705,9 @@ function buildTree(
       storagePredicates: preds?.storage,
       queryBlock: qb?.queryBlock,
       objectAlias: qb?.objectAlias,
+      projection: advanced.projection.get(row.id),
+      remoteSql: advanced.remoteSql.get(row.id),
+      hints: advanced.hintReport.hints.get(row.id),
       inactive: row.inactive || undefined,
       children: [],
     };

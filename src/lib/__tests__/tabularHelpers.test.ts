@@ -147,6 +147,18 @@ describe('buildTabularTsv', () => {
   it('sanitizeTsvCell collapses control whitespace', () => {
     expect(sanitizeTsvCell(' a\tb\r\nc ')).toBe('a b c');
   });
+
+  it('adds a Storage Predicates column only when some row has one', () => {
+    const without = buildTabularTsv(nodes, ['id'], {}).split('\n')[0].split('\t');
+    expect(without).not.toContain('Storage Predicates');
+
+    const withStorage = [...nodes, node({ id: 2, depth: 2, operation: 'TABLE ACCESS STORAGE FULL', storagePredicates: '"C"<3' })];
+    const lines = buildTabularTsv(withStorage, ['id'], {}).split('\n');
+    const header = lines[0].split('\t');
+    expect(header[header.length - 1]).toBe('Storage Predicates');
+    expect(lines[lines.length - 1].split('\t').pop()).toBe('"C"<3');
+    expect(lines[1].split('\t').pop()).toBe('');
+  });
 });
 
 describe('collapseAllIds', () => {
