@@ -71,4 +71,12 @@ describe('formatNodeSummary', () => {
     const text = formatNodeSummary(node({ accessPredicates: ' "A"=1 ' }), { note: '\n look here \n' });
     expect(text).toBe('#3 TABLE ACCESS FULL\nAccess: "A"=1\nNote: look here');
   });
+
+  it('prints Exadata storage predicates after access and filter', () => {
+    const text = formatNodeSummary(
+      node({ accessPredicates: '"A"=1', filterPredicates: '"B">2', storagePredicates: '"C"<3' }),
+    );
+    expect(text.split('\n').slice(-3)).toEqual(['Access: "A"=1', 'Filter: "B">2', 'Storage: "C"<3']);
+    expect(formatNodeSummary(node({ storagePredicates: '"C"<3' }))).toContain('Storage: "C"<3');
+  });
 });

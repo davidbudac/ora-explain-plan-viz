@@ -191,6 +191,14 @@ function SummaryDeltas({ costDelta, costDeltaPercent, timeDelta, timeDeltaPercen
 }
 
 /** Inline detail shown when a comparison row is expanded in place. */
+type PredicateKind = 'accessPredicates' | 'filterPredicates' | 'storagePredicates';
+const PREDICATE_KINDS: readonly PredicateKind[] = ['accessPredicates', 'filterPredicates', 'storagePredicates'];
+const PREDICATE_LABELS: Record<PredicateKind, string> = {
+  accessPredicates: 'Access predicates',
+  filterPredicates: 'Filter predicates',
+  storagePredicates: 'Storage predicates',
+};
+
 function ExpandedRowDetail({ row, labelA, labelB, onViewInTree }: {
   row: ComparisonRow;
   labelA: string;
@@ -202,9 +210,9 @@ function ExpandedRowDetail({ row, labelA, labelB, onViewInTree }: {
     const d = row.deltas[metric];
     return d && (d.valueA !== undefined || d.valueB !== undefined);
   });
-  const predicatesChanged = (kind: 'accessPredicates' | 'filterPredicates') =>
+  const predicatesChanged = (kind: PredicateKind) =>
     (nodeA?.[kind] ?? null) !== (nodeB?.[kind] ?? null);
-  const hasPredicates = !!(nodeA?.accessPredicates || nodeA?.filterPredicates || nodeB?.accessPredicates || nodeB?.filterPredicates);
+  const hasPredicates = PREDICATE_KINDS.some((kind) => nodeA?.[kind] || nodeB?.[kind]);
 
   const nodeCard = (plan: 'A' | 'B', node: typeof nodeA, label: string) => {
     const styles = plan === 'A'
@@ -267,7 +275,7 @@ function ExpandedRowDetail({ row, labelA, labelB, onViewInTree }: {
 
       {hasPredicates && (
         <div className="grid grid-cols-2 gap-3">
-          {(['accessPredicates', 'filterPredicates'] as const).map((kind) => {
+          {PREDICATE_KINDS.map((kind) => {
             const anyValue = nodeA?.[kind] || nodeB?.[kind];
             if (!anyValue) return null;
             const changed = predicatesChanged(kind);
@@ -275,7 +283,7 @@ function ExpandedRowDetail({ row, labelA, labelB, onViewInTree }: {
               <div key={kind} className="col-span-2">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    {kind === 'accessPredicates' ? 'Access predicates' : 'Filter predicates'}
+                    {PREDICATE_LABELS[kind]}
                   </span>
                   {changed && (
                     <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 uppercase">

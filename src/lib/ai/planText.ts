@@ -77,13 +77,14 @@ export function renderPlanTable(plan: ParsedPlan): string {
   return lines.join('\n');
 }
 
-/** Render the per-id access/filter predicate listing, DBMS_XPLAN style. */
+/** Render the per-id access/filter/storage predicate listing, DBMS_XPLAN style. */
 export function renderPredicates(plan: ParsedPlan): string {
   const lines: string[] = [];
   const nodes = [...plan.allNodes].sort((a, b) => a.id - b.id);
   for (const node of nodes) {
     if (node.accessPredicates) lines.push(`  ${node.id} - access(${node.accessPredicates})`);
     if (node.filterPredicates) lines.push(`  ${node.id} - filter(${node.filterPredicates})`);
+    if (node.storagePredicates) lines.push(`  ${node.id} - storage(${node.storagePredicates})`);
   }
   if (lines.length === 0) return '';
   return ['Predicate Information (identified by operation id):', ...lines].join('\n');
@@ -94,4 +95,40 @@ export function renderNotes(plan: ParsedPlan): string {
   const raw = plan.notes?.rawLines ?? [];
   if (raw.length === 0) return '';
   return ['Note:', ...raw.map((line) => `- ${line}`)].join('\n');
+}
+
+/**
+ * Render the optimizer hints the statement carries or the plan was built with: the Hint
+ * Report entries per operation (with status and reason — an unused or erroneous hint is
+ * often the whole story), the outline hints that pin the plan, and Remote SQL statements.
+ */
+export function renderHints(plan: ParsedPlan): string {
+  const blocks: string[] = [];
+
+  const reportLines: string[] = [];
+  const nodes = [...plan.allNodes].sort((a, b) => a.id - b.id);
+  for (const node of nodes) {
+    for (const hint of node.hints ?? []) {
+      const status = hint.status === 'used' ? 'used' : hint.status === 'unused' ? 'UNUSED' : hint.status === 'error' ? 'SYNTAX ERROR' : `status ${hint.code ?? '?'}`;
+      const where = [hint.queryBlock, hint.alias].filter(Boolean).join(' / ');
+      reportLines.push(`  ${node.id} - ${where ? `${where}: ` : ''}${hint.text} [${status}]${hint.reason ? ` - ${hint.reason}` : ''}`);
+    }
+  }
+  if (reportLines.length > 0) {
+    const summary = plan.hintSummary
+      ? ` (${plan.hintSummary.total} total, ${plan.hintSummary.unused} unused, ${plan.hintSummary.errors} syntax errors)`
+      : '';
+    blocks.push([`Hint Report${summary}:`, ...reportLines].join('\n'));
+  }
+
+  if (plan.outlineHints && plan.outlineHints.length > 0) {
+    blocks.push(['Outline hints:', ...plan.outlineHints.map((hint) => `  ${hint}`)].join('\n'));
+  }
+
+  const remote = nodes.filter((node) => node.remoteSql);
+  if (remote.length > 0) {
+    blocks.push(['Remote SQL:', ...remote.map((node) => `  ${node.id} - ${node.remoteSql}`)].join('\n'));
+  }
+
+  return blocks.join('\n\n');
 }

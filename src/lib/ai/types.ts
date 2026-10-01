@@ -13,6 +13,7 @@ export type AiSectionId =
   | 'predicates'
   | 'notes'
   | 'binds'
+  | 'hints'
   | 'monitorMeta'
   | 'ash'
   | 'signals'

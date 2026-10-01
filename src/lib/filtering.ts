@@ -9,7 +9,8 @@ export function matchesSearch(node: PlanNode, searchText: string): boolean {
   const matchesObject = node.objectName?.toLowerCase().includes(searchLower);
   const matchesPredicates =
     node.accessPredicates?.toLowerCase().includes(searchLower) ||
-    node.filterPredicates?.toLowerCase().includes(searchLower);
+    node.filterPredicates?.toLowerCase().includes(searchLower) ||
+    node.storagePredicates?.toLowerCase().includes(searchLower);
 
   return !!(matchesOperation || matchesObject || matchesPredicates);
 }
@@ -19,11 +20,12 @@ export function matchesPredicateTypes(node: PlanNode, predicateTypes: PredicateT
 
   const hasAccess = !!node.accessPredicates;
   const hasFilter = !!node.filterPredicates;
-  const hasNone = !hasAccess && !hasFilter;
+  const hasNone = !hasAccess && !hasFilter && !node.storagePredicates;
 
   return predicateTypes.some((type) => {
     if (type === 'access') return hasAccess;
     if (type === 'filter') return hasFilter;
+    if (type === 'storage') return !!node.storagePredicates;
     if (type === 'none') return hasNone;
     return false;
   });

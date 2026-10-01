@@ -1,13 +1,15 @@
 {
   "name": "ora_explain_plan_viz",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:pages": "APP_BASE_PATH=/ora-explain-plan-viz/ npm run build",
     "lint": "eslint .",
+    "typecheck": "tsc -b",
+    "test": "vitest run --environment jsdom",
     "eval:repro": "tsx evals/run.ts",
     "eval:analyze": "tsx evals/analyze.ts",
     "preview": "vite preview",

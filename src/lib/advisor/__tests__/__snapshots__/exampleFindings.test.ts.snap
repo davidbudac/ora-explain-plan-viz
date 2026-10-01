@@ -1,0 +1,59 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`advisor findings on the bundled examples > matches the per-example finding list 1`] = `
+{
+  "Cardinality Trap (NL)": [
+    "critical:cardinality-mismatch@4",
+  ],
+  "Complex Plan": [],
+  "Exadata Cell Offload (K. Osborne)": [],
+  "JSON Plan (TPC-DS Hash Joins)": [
+    "critical:cardinality-mismatch@5",
+    "critical:cardinality-mismatch@11",
+  ],
+  "Parallel Query": [
+    "info:note-adaptive-plan@",
+  ],
+  "Partition Range Iterator": [
+    "critical:cardinality-mismatch@1",
+  ],
+  "Partitioned Query": [
+    "info:note-dynamic-sampling@",
+  ],
+  "Partitioned Star Query": [
+    "warning:cardinality-mismatch@6",
+    "warning:cardinality-mismatch@8",
+    "warning:cardinality-mismatch@10",
+  ],
+  "Recursive BOM": [
+    "critical:cardinality-mismatch@8",
+    "critical:cardinality-mismatch@9",
+  ],
+  "Simple Plan": [],
+  "Skewed Parallel (J. Lewis)": [
+    "critical:spill-to-disk@6",
+    "critical:nested-loop-volume@7",
+    "critical:nested-loop-volume@8",
+    "critical:cardinality-mismatch@16",
+    "critical:cardinality-mismatch@22",
+    "critical:cardinality-mismatch@31",
+  ],
+  "Star Schema Rollup": [],
+  "Window Sort Spill": [
+    "critical:cardinality-mismatch@3",
+    "warning:spill-to-disk@3",
+    "warning:spill-to-disk@4",
+  ],
+  "XBI TPC-DS Query": [
+    "critical:cardinality-mismatch@3",
+    "critical:cardinality-mismatch@9",
+    "warning:nested-loop-volume@5",
+  ],
+  "XBI TPC-DS Temp Table": [
+    "critical:cardinality-mismatch@3",
+    "critical:cardinality-mismatch@8",
+    "critical:cardinality-mismatch@17",
+    "critical:cardinality-mismatch@19",
+  ],
+}
+`;

@@ -1,7 +1,83 @@
-import type { PlanNode, ParsedPlan } from '../types';
+import type { PlanNode, ParsedPlan, PlanWarning } from '../types';
 import { planRootCost } from '../analysis';
 import type { PlanParser } from './types';
 import { parseNoteSection } from './noteSection';
+import { alignColumnsToRow, pipeIndexes } from './rowAlign';
+import { parsePredicateSection, parseQueryBlockSection } from './predicateSection';
+import type { NodePredicates, NodeQueryBlock } from './predicateSection';
+import {
+  parseHintReport,
+  parseOutlineSection,
+  parsePeekedBinds,
+  parseProjectionSection,
+  parseRemoteSqlSection,
+} from './advancedSections';
+import type { HintReport } from './advancedSections';
+import {
+  findUnreadSections,
+  isIgnoredHeader,
+  isRejectedRow,
+  scanTableShape,
+  textTableWarnings,
+  unreadSectionsWarning,
+} from './warnings';
+import {
+  expandTableTabs,
+  normalizeNewlines,
+  parseByteSize,
+  parseCostCell,
+  parseCount,
+  parseTimeToMs,
+  parseUsedMem,
+  parseWorkareaExecutions,
+} from './values';
+
+/** Runtime-statistics fields a DBMS_XPLAN row can carry (ALLSTATS / DISPLAY_CURSOR columns). */
+type RuntimeStats = Pick<
+  PlanNode,
+  | 'starts'
+  | 'actualRows'
+  | 'actualTime'
+  | 'logicalReads'
+  | 'physicalReads'
+  | 'physicalWrites'
+  | 'estimatedOptimalMemory'
+  | 'estimatedOnePassMemory'
+  | 'memoryUsed'
+  | 'workareaPasses'
+  | 'workareaExecutions'
+  | 'tempUsed'
+>;
+
+type RuntimeColumn =
+  | 'starts'
+  | 'aRows'
+  | 'aTime'
+  | 'buffers'
+  | 'reads'
+  | 'writes'
+  | 'oMem'
+  | 'oneMem'
+  | 'usedMem'
+  | 'o1m'
+  | 'usedTmp';
+
+/** Lower-cased header text → runtime column (exact match; headers are not substring-matched). */
+const RUNTIME_HEADERS: Record<string, RuntimeColumn> = {
+  'starts': 'starts',
+  'a-rows': 'aRows',
+  'a-time': 'aTime',
+  'buffers': 'buffers',
+  'reads': 'reads',
+  'writes': 'writes',
+  'omem': 'oMem',
+  '0mem': 'oMem',
+  '1mem': 'oneMem',
+  'used-mem': 'usedMem',
+  'o/1/m': 'o1m',
+  'used-tmp': 'usedTmp',
+  'max-tmp': 'usedTmp',
+};
 
 interface RawPlanRow {
   id: number;
@@ -19,8 +95,11 @@ interface RawPlanRow {
   tq?: string;
   inOut?: string;
   pqDistrib?: string;
+  stats: RuntimeStats;
   depth: number;
   hasStarPrefix: boolean;
+  /** Adaptive-plan row marked '-' in the Id column (not used by the executed plan). */
+  inactive: boolean;
 }
 
 interface ColumnPositions {
@@ -37,6 +116,7 @@ interface ColumnPositions {
   tq?: { start: number; end: number };
   inOut?: { start: number; end: number };
   pqDistrib?: { start: number; end: number };
+  runtime: Partial<Record<RuntimeColumn, { start: number; end: number }>>;
 }
 
 /**
@@ -49,23 +129,29 @@ export const dbmsXplanParser: PlanParser = {
   },
 
   parse(input: string): ParsedPlan {
-    const lines = input.split('\n');
+    const lines = expandTableTabs(normalizeNewlines(input).split('\n'));
 
     // Extract plan hash value if present
     const planHashValue = extractPlanHashValue(lines);
 
     // Extract SQL_ID and SQL text from any preamble (DISPLAY_CURSOR header,
     // SQL*Plus prompt/continuation, or bare SQL above the plan table).
-    const { sqlId, sqlText } = extractSqlHeader(lines);
+    const { sqlId, childNumber, sqlText } = extractSqlHeader(lines);
 
     // Find and parse the table section
-    const tableData = parseTableSection(lines);
+    const table = parseTableSection(lines);
+    const tableData = table.rows;
 
     if (tableData.length === 0) {
+      const emptyWarnings = table.headerIndex >= 0
+        ? textTableWarnings({ lines, headerIndex: table.headerIndex, unknownColumns: [], rejectedLines: table.rejectedLines, nodeIds: [], predicateIds: [] })
+        : [];
       return {
         planHashValue,
         sqlId,
+        childNumber,
         sqlText,
+        warnings: emptyWarnings.length > 0 ? emptyWarnings : undefined,
         rootNode: null,
         allNodes: [],
         totalCost: 0,
@@ -76,38 +162,76 @@ export const dbmsXplanParser: PlanParser = {
     }
 
     // Parse predicate information
-    const predicates = parsePredicates(lines);
+    const predicates = parsePredicateSection(lines);
 
     // Parse query block information
-    const queryBlocks = parseQueryBlocks(lines);
+    const queryBlocks = parseQueryBlockSection(lines);
+
+    // ADVANCED sections: projection, remote SQL, hint report, outline, peeked binds
+    const advanced: AdvancedNodeData = {
+      projection: parseProjectionSection(lines),
+      remoteSql: parseRemoteSqlSection(lines),
+      hintReport: parseHintReport(lines),
+    };
+    const outlineHints = parseOutlineSection(lines);
+    const peekedBinds = parsePeekedBinds(lines);
 
     // Build tree structure
-    const { rootNode, allNodes } = buildTree(tableData, predicates, queryBlocks);
+    const { rootNode, allNodes } = buildTree(tableData, predicates, queryBlocks, advanced);
 
     // Calculate totals
     const totalCost = planRootCost(rootNode, allNodes);
-    const maxRows = Math.max(...allNodes.map(node => node.rows || 0));
+    // Inactive adaptive-plan rows are not part of the executed plan: keep them out of the scales.
+    const activeNodes = allNodes.filter(node => !node.inactive);
+    const maxRows = Math.max(...activeNodes.map(node => node.rows || 0), 0);
+
+    // ALLSTATS / DISPLAY_CURSOR output carries actual runtime statistics (A-Rows etc.)
+    const hasActualStats = allNodes.some(node => node.actualRows !== undefined);
+    const maxActualRows = Math.max(...activeNodes.map(node => node.actualRows || 0), 0);
+    const maxStarts = Math.max(...activeNodes.map(node => node.starts || 0), 0);
 
     // Parse the trailing "Note" section, if present.
     const notes = parseNoteSection(lines);
 
+    const warnings: PlanWarning[] = textTableWarnings({
+      lines,
+      headerIndex: table.headerIndex,
+      unknownColumns: table.unknownColumns,
+      rejectedLines: table.rejectedLines,
+      nodeIds: allNodes.map(node => node.id),
+      predicateIds: [...predicates.keys()],
+    });
+    const unreadSections = unreadSectionsWarning(
+      findUnreadSections(lines, scanTableShape(lines, table.headerIndex).endIndex),
+    );
+    if (unreadSections) warnings.push(unreadSections);
+
     return {
       planHashValue,
       sqlId,
+      childNumber,
       sqlText,
       rootNode,
       allNodes,
       totalCost,
-      maxRows,
+      maxRows: hasActualStats ? maxActualRows : maxRows,
+      maxActualRows: hasActualStats ? maxActualRows : undefined,
+      maxStarts: hasActualStats ? maxStarts : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
       source: 'dbms_xplan',
-      hasActualStats: false,
+      hasActualStats,
+      // A-Time is cumulative: the root's actualTime is the total elapsed time
+      totalElapsedTime: hasActualStats ? rootNode?.actualTime || 0 : undefined,
       notes,
+      bindVariables: peekedBinds.length > 0 ? peekedBinds : undefined,
+      outlineHints,
+      hintSummary: advanced.hintReport.summary,
     };
   },
 };
 
 export function extractDbmsXplanSegments(input: string): string[] {
-  const normalized = input.trim();
+  const normalized = normalizeNewlines(input).trim();
   if (!normalized) return [];
 
   const lines = normalized.split('\n');
@@ -174,13 +298,15 @@ const SQL_START_KEYWORD = /^(SELECT|WITH|INSERT|UPDATE|DELETE|MERGE|CREATE|ALTER
  *          3   WHERE ...;
  *   3. Bare SQL text immediately before the plan table.
  */
-function extractSqlHeader(lines: string[]): { sqlId?: string; sqlText?: string } {
+function extractSqlHeader(lines: string[]): { sqlId?: string; childNumber?: number; sqlText?: string } {
   // Shape 1: DISPLAY_CURSOR header with SQL_ID
   for (let i = 0; i < lines.length; i++) {
     const idMatch = lines[i].match(/^\s*SQL_ID\s+(\S+?)(?:\s*,.*)?\s*$/i);
     if (!idMatch) continue;
 
     const sqlId = idMatch[1].replace(/[.,;]+$/, '');
+    const child = lines[i].match(/child\s+number\s+(\d+)/i);
+    const childNumber = child ? parseInt(child[1], 10) : undefined;
     // Skip the separator dashes line(s) that follow the header.
     let j = i + 1;
     while (j < lines.length && /^\s*[-=]+\s*$/.test(lines[j])) j++;
@@ -197,7 +323,7 @@ function extractSqlHeader(lines: string[]): { sqlId?: string; sqlText?: string }
     }
 
     const sqlText = cleanSqlLines(collected);
-    return { sqlId: sqlId || undefined, sqlText: sqlText || undefined };
+    return { sqlId: sqlId || undefined, childNumber, sqlText: sqlText || undefined };
   }
 
   // Shapes 2 & 3: look at everything before the first "Plan hash value:".
@@ -262,8 +388,18 @@ function extractPlanHashValue(lines: string[]): string | undefined {
   return undefined;
 }
 
-function parseTableSection(lines: string[]): RawPlanRow[] {
+interface TableSection {
+  rows: RawPlanRow[];
+  headerIndex: number;
+  /** Header cells no column rule matched and the ignore list does not cover. */
+  unknownColumns: string[];
+  /** Lines that begin a data row but could not be parsed. */
+  rejectedLines: string[];
+}
+
+function parseTableSection(lines: string[]): TableSection {
   const rows: RawPlanRow[] = [];
+  const rejectedLines: string[] = [];
 
   // Find the header line to determine column positions
   let headerLineIndex = -1;
@@ -280,11 +416,13 @@ function parseTableSection(lines: string[]): RawPlanRow[] {
   }
 
   if (headerLineIndex === -1) {
-    return rows;
+    return { rows, headerIndex: -1, unknownColumns: [], rejectedLines };
   }
 
   // Parse column positions from header
-  const columns = parseColumnPositions(headerLine);
+  const unknownColumns: string[] = [];
+  const columns = parseColumnPositions(headerLine, unknownColumns);
+  const headerPipes = pipeIndexes(headerLine);
 
   // Parse data rows (after header, skip separator line)
   for (let i = headerLineIndex + 1; i < lines.length; i++) {
@@ -314,21 +452,25 @@ function parseTableSection(lines: string[]): RawPlanRow[] {
 
     // Parse data row if it looks like a plan row
     if (/^\|/.test(line)) {
-      const row = parseDataRow(line, columns);
+      const aligned = alignColumnsToRow(columns, headerPipes, line);
+      const row = parseDataRow(line, aligned);
       if (row) {
         rows.push(row);
+      } else if (isRejectedRow(line, line.substring(aligned.id.start, aligned.id.end))) {
+        rejectedLines.push(line);
       }
     }
   }
 
-  return rows;
+  return { rows, headerIndex: headerLineIndex, unknownColumns, rejectedLines };
 }
 
-function parseColumnPositions(headerLine: string): ColumnPositions {
+function parseColumnPositions(headerLine: string, unknownColumns: string[] = []): ColumnPositions {
   const cols: ColumnPositions = {
     id: { start: 0, end: 0 },
     operation: { start: 0, end: 0 },
     name: { start: 0, end: 0 },
+    runtime: {},
   };
 
   // Find column boundaries by looking for | characters
@@ -373,6 +515,10 @@ function parseColumnPositions(headerLine: string): ColumnPositions {
       cols.inOut = { start, end };
     } else if (segment === 'pq distrib') {
       cols.pqDistrib = { start, end };
+    } else if (segment in RUNTIME_HEADERS) {
+      cols.runtime[RUNTIME_HEADERS[segment]] = { start, end };
+    } else if (!isIgnoredHeader(segment)) {
+      unknownColumns.push(headerLine.substring(start, end).trim());
     }
   }
 
@@ -387,6 +533,7 @@ function parseDataRow(line: string, columns: ColumnPositions): RawPlanRow | null
   // inactive rows with a "-" marker (e.g. "- * 3"), so detect the star anywhere
   // in the cell rather than only as the very first character.
   const hasStarPrefix = idStr.includes('*');
+  const inactive = /^-(?!>)/.test(idStr); // "->" marks the currently executing row, not a skipped one
   const idMatch = idStr.match(/[-\s*]*(\d+)/);
   if (!idMatch) {
     return null;
@@ -416,13 +563,13 @@ function parseDataRow(line: string, columns: ColumnPositions): RawPlanRow | null
 
   if (columns.rows) {
     const rowsStr = line.substring(columns.rows.start, columns.rows.end).trim();
-    const rowsVal = parseNumericValue(rowsStr);
+    const rowsVal = parseCount(rowsStr);
     if (rowsVal !== null) rows = rowsVal;
   }
 
   if (columns.bytes) {
     const bytesStr = line.substring(columns.bytes.start, columns.bytes.end).trim();
-    const bytesVal = parseNumericValue(bytesStr);
+    const bytesVal = parseCount(bytesStr);
     if (bytesVal !== null) bytes = bytesVal;
   }
 
@@ -432,14 +579,11 @@ function parseDataRow(line: string, columns: ColumnPositions): RawPlanRow | null
   }
 
   if (columns.cost) {
-    const costStr = line.substring(columns.cost.start, columns.cost.end).trim();
-    // Cost might be in format "123 (5)" where 5 is CPU%
-    const costMatch = costStr.match(/(\d+)\s*(?:\((\d+)\))?/);
-    if (costMatch) {
-      cost = parseInt(costMatch[1], 10);
-      if (costMatch[2]) {
-        cpuPercent = parseInt(costMatch[2], 10);
-      }
+    // Cost might be "123 (5)" (5 = CPU%) and large costs are abbreviated ("4823K (1)")
+    const costVal = parseCostCell(line.substring(columns.cost.start, columns.cost.end));
+    if (costVal) {
+      cost = costVal.cost;
+      cpuPercent = costVal.cpuPercent;
     }
   }
 
@@ -488,9 +632,59 @@ function parseDataRow(line: string, columns: ColumnPositions): RawPlanRow | null
     tq,
     inOut,
     pqDistrib,
+    stats: parseRuntimeStats(line, columns),
     depth,
     hasStarPrefix,
+    inactive,
   };
+}
+
+/** Read the ALLSTATS runtime columns (Starts, A-Rows, Buffers, OMem, Used-Mem …) of one data row. */
+function parseRuntimeStats(line: string, columns: ColumnPositions): RuntimeStats {
+  const stats: RuntimeStats = {};
+  const cell = (col: RuntimeColumn): string | undefined => {
+    const range = columns.runtime[col];
+    return range ? line.substring(range.start, range.end).trim() : undefined;
+  };
+
+  const starts = parseCount(cell('starts') ?? '');
+  if (starts !== null) stats.starts = starts;
+
+  const actualRows = parseCount(cell('aRows') ?? '');
+  if (actualRows !== null) stats.actualRows = actualRows;
+
+  const actualTime = parseTimeToMs(cell('aTime') ?? '');
+  if (actualTime !== null) stats.actualTime = actualTime;
+
+  const buffers = parseCount(cell('buffers') ?? '');
+  if (buffers !== null) stats.logicalReads = buffers;
+
+  // DISPLAY_CURSOR Reads/Writes are physical read/write requests, not I/O-request stats
+  const reads = parseCount(cell('reads') ?? '');
+  if (reads !== null) stats.physicalReads = reads;
+
+  const writes = parseCount(cell('writes') ?? '');
+  if (writes !== null) stats.physicalWrites = writes;
+
+  const oMem = parseByteSize(cell('oMem') ?? '');
+  if (oMem !== null) stats.estimatedOptimalMemory = oMem;
+
+  const oneMem = parseByteSize(cell('oneMem') ?? '');
+  if (oneMem !== null) stats.estimatedOnePassMemory = oneMem;
+
+  const usedMem = parseUsedMem(cell('usedMem') ?? '');
+  if (usedMem) {
+    stats.memoryUsed = usedMem.bytes;
+    if (usedMem.passes !== undefined) stats.workareaPasses = usedMem.passes;
+  }
+
+  const executions = parseWorkareaExecutions(cell('o1m') ?? '');
+  if (executions) stats.workareaExecutions = executions;
+
+  const usedTmp = parseByteSize(cell('usedTmp') ?? '');
+  if (usedTmp !== null) stats.tempUsed = usedTmp;
+
+  return stats;
 }
 
 function calculateDepth(operationStr: string): number {
@@ -507,152 +701,18 @@ function calculateDepth(operationStr: string): number {
   return Math.floor(spaces / 1);
 }
 
-/** Byte size with 1024-based K/M/G/T suffixes, as DBMS_XPLAN prints TempSpc (e.g. "2048K"). */
-function parseByteSize(str: string): number | null {
-  const match = str.replace(/,/g, '').trim().match(/^([\d.]+)\s*([KMGT])?B?$/i);
-  if (!match) return null;
-  const power = 'KMGT'.indexOf((match[2] || '').toUpperCase()) + 1;
-  return Math.round(parseFloat(match[1]) * Math.pow(1024, power));
-}
-
-function parseNumericValue(str: string): number | null {
-  // Handle K/M/G suffixes and remove commas
-  const cleaned = str.replace(/,/g, '').trim();
-
-  if (!cleaned || cleaned === '') {
-    return null;
-  }
-
-  const suffixMatch = cleaned.match(/^([\d.]+)\s*([KMG])?$/i);
-  if (suffixMatch) {
-    let value = parseFloat(suffixMatch[1]);
-    const suffix = (suffixMatch[2] || '').toUpperCase();
-
-    if (suffix === 'K') value *= 1000;
-    else if (suffix === 'M') value *= 1000000;
-    else if (suffix === 'G') value *= 1000000000;
-
-    return Math.round(value);
-  }
-
-  const num = parseInt(cleaned, 10);
-  return isNaN(num) ? null : num;
-}
-
-function parsePredicates(lines: string[]): Map<number, { access?: string; filter?: string }> {
-  const predicates = new Map<number, { access?: string; filter?: string }>();
-
-  // Find predicate section
-  let inPredicateSection = false;
-  let currentId: number | null = null;
-  let currentType: 'access' | 'filter' | null = null;
-  let currentText = '';
-
-  for (const line of lines) {
-    if (/Predicate Information/i.test(line)) {
-      inPredicateSection = true;
-      continue;
-    }
-
-    if (!inPredicateSection) {
-      continue;
-    }
-
-    // Stop at next section or empty lines after predicates
-    if (/^[A-Z].*:$/i.test(line.trim()) && !/^\s*\d+\s*-/.test(line)) {
-      break;
-    }
-
-    // Parse predicate lines like "3 - access(...)" or "3 - filter(...)"
-    const predicateMatch = line.match(/^\s*(\d+)\s*-\s*(access|filter)\s*\((.+)\)?\s*$/i);
-    if (predicateMatch) {
-      // Save previous predicate if any
-      if (currentId !== null && currentType && currentText) {
-        const existing = predicates.get(currentId) || {};
-        existing[currentType] = currentText;
-        predicates.set(currentId, existing);
-      }
-
-      currentId = parseInt(predicateMatch[1], 10);
-      currentType = predicateMatch[2].toLowerCase() as 'access' | 'filter';
-      currentText = predicateMatch[3] || '';
-
-      // Handle case where predicate text is complete on this line
-      if (currentText.endsWith(')') || !line.includes('(')) {
-        const existing = predicates.get(currentId) || {};
-        existing[currentType] = currentText.replace(/\)$/, '');
-        predicates.set(currentId, existing);
-        currentId = null;
-        currentType = null;
-        currentText = '';
-      }
-    } else if (currentId !== null && currentType && line.trim()) {
-      // Continuation of multi-line predicate
-      currentText += ' ' + line.trim();
-      if (line.trim().endsWith(')')) {
-        const existing = predicates.get(currentId) || {};
-        existing[currentType] = currentText.replace(/\)$/, '');
-        predicates.set(currentId, existing);
-        currentId = null;
-        currentType = null;
-        currentText = '';
-      }
-    }
-  }
-
-  // Save any remaining predicate
-  if (currentId !== null && currentType && currentText) {
-    const existing = predicates.get(currentId) || {};
-    existing[currentType] = currentText.replace(/\)$/, '');
-    predicates.set(currentId, existing);
-  }
-
-  return predicates;
-}
-
-function parseQueryBlocks(lines: string[]): Map<number, { queryBlock?: string; objectAlias?: string }> {
-  const queryBlocks = new Map<number, { queryBlock?: string; objectAlias?: string }>();
-
-  // Find Query Block Name / Object Alias section
-  let inQueryBlockSection = false;
-
-  for (const line of lines) {
-    if (/Query Block Name\s*\/\s*Object Alias/i.test(line)) {
-      inQueryBlockSection = true;
-      continue;
-    }
-
-    if (!inQueryBlockSection) {
-      continue;
-    }
-
-    // Skip separator lines
-    if (/^[-]+$/.test(line.trim())) {
-      continue;
-    }
-
-    // Stop at next section header or empty line after data
-    if (line.trim() === '' || (/^[A-Z].*:$/i.test(line.trim()) && !/^\s*\d+\s*-/.test(line))) {
-      break;
-    }
-
-    // Parse lines like "   2 - SEL$1 / E@SEL$1" or "   1 - SEL$1"
-    const match = line.match(/^\s*(\d+)\s*-\s*(\S+)(?:\s*\/\s*(\S+))?/);
-    if (match) {
-      const id = parseInt(match[1], 10);
-      const queryBlock = match[2];
-      const objectAlias = match[3];
-      queryBlocks.set(id, { queryBlock, objectAlias });
-    }
-  }
-
-  return queryBlocks;
+/** Per-operation data from the ADVANCED sections, keyed by operation id. */
+interface AdvancedNodeData {
+  projection: Map<number, string>;
+  remoteSql: Map<number, string>;
+  hintReport: HintReport;
 }
 
 function buildTree(
   rows: RawPlanRow[],
-  predicates: Map<number, { access?: string; filter?: string }>,
-  queryBlocks: Map<number, { queryBlock?: string; objectAlias?: string }>
+  predicates: Map<number, NodePredicates>,
+  queryBlocks: Map<number, NodeQueryBlock>,
+  advanced: AdvancedNodeData
 ): { rootNode: PlanNode | null; allNodes: PlanNode[] } {
   if (rows.length === 0) {
     return { rootNode: null, allNodes: [] };
@@ -682,10 +742,16 @@ function buildTree(
       tq: row.tq,
       inOut: row.inOut,
       pqDistrib: row.pqDistrib,
+      ...row.stats,
       accessPredicates: preds?.access,
       filterPredicates: preds?.filter,
+      storagePredicates: preds?.storage,
       queryBlock: qb?.queryBlock,
       objectAlias: qb?.objectAlias,
+      projection: advanced.projection.get(row.id),
+      remoteSql: advanced.remoteSql.get(row.id),
+      hints: advanced.hintReport.hints.get(row.id),
+      inactive: row.inactive || undefined,
       children: [],
     };
 

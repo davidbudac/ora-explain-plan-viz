@@ -10,6 +10,7 @@ const SHORTCUT_GROUPS: { title: string; items: { keys: string[]; description: st
     title: 'General',
     items: [
       { keys: [`${MOD}+K`], description: 'Open the command palette' },
+      { keys: [`${MOD}+O`], description: 'Open a plan file (same as dropping it on the window)' },
       { keys: ['?'], description: 'Show this shortcuts overview' },
       { keys: ['F'], description: 'Maximize / restore the visualization' },
       { keys: ['Z'], description: 'Toggle focus mode (floating instruments)' },

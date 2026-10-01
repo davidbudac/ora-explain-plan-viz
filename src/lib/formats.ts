@@ -7,11 +7,14 @@
  */
 import { detectFormat } from './parser/index';
 import type { DetectedFormat } from './parser/index';
+import { isActiveReport } from './parser/activeReport';
+import { TRUNCATED_REPORT_MESSAGE, WRAPPED_TABLE_MESSAGE, looksTruncatedXml, looksWrappedTable } from './parser/warnings';
 
 export type SupportedFormatId =
   | 'dbms_xplan'
   | 'sql_monitor_text'
   | 'sql_monitor_xml'
+  | 'sql_monitor_active'
   | 'json'
   | 'xbi'
   | 'metadata_bundle';
@@ -46,6 +49,12 @@ export const SUPPORTED_FORMATS: readonly SupportedFormat[] = [
     isPlan: true,
   },
   {
+    id: 'sql_monitor_active',
+    name: 'SQL Monitor ACTIVE report (HTML)',
+    hint: "REPORT_SQL_MONITOR(type => 'ACTIVE') saved as .html — decoded to the XML report on load",
+    isPlan: true,
+  },
+  {
     id: 'json',
     name: 'V$SQL_PLAN JSON',
     hint: 'V$SQL_PLAN / V$SQL_PLAN_STATISTICS_ALL rows as a JSON array',
@@ -70,6 +79,7 @@ const SHORT_NAMES: Record<SupportedFormatId, string> = {
   dbms_xplan: 'DBMS_XPLAN',
   sql_monitor_text: 'SQL Monitor text',
   sql_monitor_xml: 'SQL Monitor XML',
+  sql_monitor_active: 'SQL Monitor ACTIVE (HTML)',
   json: 'V$SQL_PLAN JSON',
   xbi: 'xbi.sql output',
   metadata_bundle: 'metadata bundles',
@@ -117,9 +127,15 @@ export function describeDetectedFormat(format: DetectedFormat): string | null {
  * truncated copy); otherwise fall back to the supported-formats message.
  */
 export function describeParseFailure(input: string, detected: DetectedFormat = safeDetect(input)): string {
+  // XML that never closes is a cut-off CLOB — the usual cause is SQL*Plus' default SET LONG 80.
+  if (looksTruncatedXml(input)) return TRUNCATED_REPORT_MESSAGE;
+  if (looksWrappedTable(input)) return WRAPPED_TABLE_MESSAGE;
   const name = describeDetectedFormat(detected);
   if (name) {
     return `Looks like ${name} but no plan operations were found. Check that the copy includes the whole plan table.`;
+  }
+  if (/^\s*\|\s*\d+\s*\|/m.test(input)) {
+    return `Found plan-table rows but no header row ("| Id | Operation | …"), so the columns cannot be read. Copy the plan from its first separator line. ${SUPPORTED_FORMATS_SENTENCE}`;
   }
   return PARSE_FAILED_MESSAGE;
 }
@@ -135,5 +151,6 @@ function safeDetect(input: string): DetectedFormat {
 /** True when the text is recognisably one of the plan formats (used for auto-parse on paste). */
 export function looksLikePlan(input: string): boolean {
   if (!input.trim()) return false;
+  if (isActiveReport(input)) return true;
   return safeDetect(input) !== 'unknown';
 }

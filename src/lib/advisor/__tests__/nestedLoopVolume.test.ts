@@ -102,4 +102,19 @@ describe('nestedLoopVolumeRule', () => {
     });
     expect(nestedLoopVolumeRule.evaluate(makeCtx(plan))).toHaveLength(0);
   });
+
+  it('mentions a REMOTE inner side: every probe is a network round trip', () => {
+    const plan = buildPlan({
+      id: 0,
+      operation: 'NESTED LOOPS',
+      children: [
+        { id: 1, operation: 'TABLE ACCESS FULL', actualRows: 10_000 },
+        { id: 2, operation: 'REMOTE', starts: 10_000, actualRows: 100_000 },
+      ],
+    });
+    const findings = nestedLoopVolumeRule.evaluate(makeCtx(plan));
+    expect(findings).toHaveLength(1);
+    expect(findings[0].explanation).toContain('round trip');
+    expect(findings[0].suggestion).toContain('DRIVING_SITE');
+  });
 });

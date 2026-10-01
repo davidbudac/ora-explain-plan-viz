@@ -9,6 +9,7 @@ import { formatTimeCompact } from './format';
  *   Rows 107 est / 105 actual · Cost 3 · Bytes 7,383 · A-Time 10ms · Starts 1
  *   Access: "E"."DEPARTMENT_ID"=:B1
  *   Filter: "E"."SALARY">1000
+ *   Storage: "E"."SALARY">1000   (Exadata smart-scan predicate, when present)
  *   Note: check the histogram
  *
  * Absent parts (and whole lines) are left out. Counts are exact, with thousands
@@ -55,6 +56,8 @@ export function formatNodeSummary(node: PlanNode, opts: NodeSummaryOptions = {})
   if (access) lines.push(`Access: ${access}`);
   const filter = node.filterPredicates?.trim();
   if (filter) lines.push(`Filter: ${filter}`);
+  const storage = node.storagePredicates?.trim();
+  if (storage) lines.push(`Storage: ${storage}`);
   const note = opts.note?.trim();
   if (note) lines.push(`Note: ${note}`);
 

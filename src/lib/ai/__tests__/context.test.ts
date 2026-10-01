@@ -36,6 +36,19 @@ function monitoredPlan() {
 }
 
 describe('buildAnalyzeSections + assembleContext', () => {
+  it('tells the model when the parser lost data, but not about info-level notes', () => {
+    const plan = monitoredPlan();
+    plan.warnings = [
+      { code: 'unknown_columns', message: 'A plan-table column was not recognised and ignored: Foo.' },
+      { code: 'xml_wrapper_ignored', severity: 'info', message: 'Ignored SQL*Plus output around the XML report.' },
+    ];
+    const { core } = buildAnalyzeSections(plan, null, null);
+    expect(core).toContain('Parse warnings');
+    expect(core).toContain('not recognised and ignored: Foo');
+    expect(core).not.toContain('Ignored SQL*Plus output');
+    expect(buildAnalyzeSections(monitoredPlan(), null, null).core).not.toContain('Parse warnings');
+  });
+
   it('produces a core with header and plan table, and only sections that have data', () => {
     const plan = monitoredPlan();
     const { core, sections } = buildAnalyzeSections(plan, null, null);

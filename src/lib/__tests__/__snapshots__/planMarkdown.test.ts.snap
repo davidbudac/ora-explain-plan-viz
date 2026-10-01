@@ -1,0 +1,24 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`formatPlanAsMarkdown > renders the Simple Plan example 1`] = `
+"### Execution plan — plan hash value \`1234567890\`
+
+| Id | Operation | Name | E-Rows | Cost |
+| ---: | --- | --- | ---: | ---: |
+| 0 | SELECT STATEMENT |  | 10 | 25 |
+| 1 |   HASH JOIN |  | 10 | 25 |
+| 2 |     NESTED LOOPS |  | 5 | 12 |
+| 3 |       TABLE ACCESS BY INDEX ROWID | EMPLOYEES | 5 | 7 |
+| 4 * |         INDEX RANGE SCAN | EMP_DEPT_IX | 5 | 2 |
+| 5 |       TABLE ACCESS BY INDEX ROWID | JOBS | 1 | 1 |
+| 6 * |         INDEX UNIQUE SCAN | JOB_ID_PK | 1 | 0 |
+| 7 |     TABLE ACCESS FULL | DEPARTMENTS | 27 | 12 |
+
+**Predicates** (\`*\` in the Id column)
+
+\`\`\`text
+4 - access("E"."DEPARTMENT_ID"=:dept_id)
+6 - access("E"."JOB_ID"="J"."JOB_ID")
+\`\`\`
+"
+`;

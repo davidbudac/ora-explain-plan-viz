@@ -5,7 +5,7 @@ import type { AiSectionId, BuiltContext, ContextSection } from './types';
 import { aggregateActivityByLine } from '../ash';
 import { assessPartitionPruning, computeParallelSignals, getDopDowngrade } from '../planSignals';
 import { formatNumberShort, formatTimeShort } from '../format';
-import { renderNotes, renderPlanTable, renderPredicates } from './planText';
+import { renderHints, renderNotes, renderPlanTable, renderPredicates } from './planText';
 import { projectMetadata } from './metadataProjection';
 import { buildTestCaseScript } from './testCase';
 import { findObjectInBundle } from '../metadata/lookup';
@@ -26,6 +26,7 @@ const SECTION_LABELS: Record<AiSectionId, string> = {
   predicates: 'Predicates',
   notes: 'Note section',
   binds: 'Bind variables',
+  hints: 'Hints & outline',
   monitorMeta: 'Execution metadata',
   ash: 'Activity (ASH samples)',
   signals: 'Plan signals',
@@ -44,6 +45,16 @@ export interface SectionedContext {
   sections: ContextSection[];
 }
 
+/** Tell the model when the parser lost data, so it does not read gaps as facts about the plan. */
+function renderParseWarnings(plan: ParsedPlan): string[] {
+  const lost = (plan.warnings ?? []).filter((w) => w.severity !== 'info');
+  if (lost.length === 0) return [];
+  return [
+    'Parse warnings (the data below may be incomplete — do not draw conclusions from what is missing):',
+    ...lost.map((w) => `- ${w.message}`),
+  ];
+}
+
 /** Build the core plan table plus every togglable section that has data. */
 export function buildAnalyzeSections(
   plan: ParsedPlan,
@@ -54,6 +65,7 @@ export function buildAnalyzeSections(
   if (plan.sqlId) header.push(`SQL_ID: ${plan.sqlId}`);
   if (plan.planHashValue) header.push(`Plan hash value: ${plan.planHashValue}`);
   header.push(`Source format: ${plan.source}${plan.hasActualStats ? ' (with runtime statistics)' : ' (optimizer estimates only)'}`);
+  header.push(...renderParseWarnings(plan));
 
   const core = `${header.join('\n')}\n\n${renderPlanTable(plan)}`;
 
@@ -62,6 +74,7 @@ export function buildAnalyzeSections(
     section('predicates', renderPredicates(plan)),
     section('notes', renderNotes(plan)),
     section('binds', renderBinds(plan)),
+    section('hints', renderHints(plan)),
     section('monitorMeta', renderMonitorMeta(plan)),
     section('ash', renderAsh(plan)),
     section('signals', renderSignals(plan)),
