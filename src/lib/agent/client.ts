@@ -25,6 +25,8 @@ export interface AgentHealth {
   version: string;
   connected: boolean;
   oracleVersion: string | null;
+  /** Whether the separate test connection is open. Optional: agents < 0.2.0 omit it. */
+  testConnected?: boolean;
 }
 
 export type PlanSource = 'cursor' | 'monitor' | 'awr';
