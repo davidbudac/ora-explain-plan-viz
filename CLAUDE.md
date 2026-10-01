@@ -44,6 +44,7 @@ src/
 │   ├── paletteSearch.ts # Ranked command-palette matching (whole-word/prefix hits beat substrings)
 │   ├── treeCollapse.ts  # Tree collapse/expand helpers, per-plan collapse memory, `TreeViewActions` / `TreeViewState` types
 │   ├── nodeAriaLabel.ts # One-sentence accessible name for a tree node
+│   ├── nodeSummary.ts   # `formatNodeSummary` — plain-text operation summary (stats, predicates, note) for the hover toolbar's Copy action
 │   ├── tabularHelpers.ts # Tabular view helpers (A-Time share, sort cycling, Copy as TSV)
 │   ├── planText.ts      # Plan Text view helpers (line → operation id, search matches, highlight segments)
 │   ├── fileExport.ts    # Download / print-window helpers that report failure via toasts and return success
@@ -103,7 +104,8 @@ src/
 │   ├── CompareMetricSelector.tsx # Metric toggle pills for compare view
 │   ├── metadata/            # Schema Metadata explorer (view, sidebar, table/index/columns detail, bundle overview)
 │   ├── nodes/
-│   │   └── PlanNode.tsx     # Custom React Flow node (badges, hot node ring, tooltips, highlights)
+│   │   ├── PlanNode.tsx     # Custom React Flow node (badges, hot node ring, tooltips, highlights)
+│   │   ├── NodeActionToolbar.tsx # Hover toolbar (xyflow `NodeToolbar`): highlight brush paint/picker, note, zoom to subtree, copy; presentational `NodeActionToolbarView` + context-wired container. Helpers beside it: `useNodeToolbarVisibility` (hover/focus/popover/touch visibility), `NodePopover`, `BrushPicker`, `NodeNoteEditor`, `toolbarSurface`/`brush` (pure bits)
 │   └── views/
 │       ├── HierarchicalView.tsx   # Tree layout (React Flow + custom algorithm, TB/LR, collapse, minimap, keyboard nav, PNG export)
 │       ├── TreeLayoutControls.tsx # Props-only tree strip (direction, minimap, expand/collapse all, focus selected, redraw)
@@ -228,7 +230,8 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 
 ### Annotations
 - **Node Annotations**: Add text notes to individual nodes with timestamps
-- **Color Highlights**: 7-color highlight system (red, orange, yellow, green, blue, purple, pink) shown as rings on nodes
+- **Color Highlights**: 9-color highlight system (red, orange, yellow, green, blue, purple, pink, white, black), drawn in one of six styles (circle, tint, glow, dot, underline, hachure). Each highlight carries its **own style** (`NodeHighlight.style`); the global `highlightStyle` setting is now the *brush style* (what new highlights are painted with) and the render fallback for legacy highlights saved without a style. The details panel's Style buttons restyle only the selected node's highlight
+- **Node hover toolbar** (tree view only): hovering a plan node (or Shift+F10 / the Menu key on the focused node) shows a small pill of icon buttons — a **highlight brush** split button (the caret picks colour + style once, persisted as `highlightBrushColor` + `highlightStyle`; the brush button then paints or, when the node already matches, un-paints with one click, so many nodes can be painted quickly), an inline **note** editor (Cmd/Ctrl+Enter saves, Escape cancels, any other dismissal saves), **zoom to subtree** (`fitView` on the node and its visible descendants) and **copy operation details** (`lib/nodeSummary.ts`). Built on xyflow's `NodeToolbar`, so it keeps a constant size at any zoom, and it sits outside the viewport so PNG export never includes it. It mounts only while visible (`useNodeToolbarVisibility`: 80 ms show / 160 ms hide hover delays, keyboard `:focus-visible`, open popover, or the selected node on touch devices) because it subscribes to the plan context; pill and popovers stop React event bubbling so painting never selects the node or moves it. With annotation overlays hidden only zoom and copy remain. The same brush is reachable from the command palette ("Highlight brush style: …", "Paint selected node with highlight brush")
 - **Annotation Groups**: Create named groups of nodes with color and optional note
 - **Bulk Highlighting**: Apply highlights to multiple selected nodes at once
 - **Export/Import**: Save annotated plans as JSON files, load them back with validation
@@ -344,7 +347,7 @@ The comparison system (`compare.ts`) matches nodes in passes:
 - **Temp**: `tempSpace` is the optimizer estimate (TempSpc / E-Temp / JSON `temp_space`); `tempUsed` is actual spill (Used-Tmp, SQL Monitor Temp).
 
 ### Annotation System
-Annotations (`annotations.ts`) are an in-memory overlay per plan slot, persisted only as part of the session autosave (and share links). They include per-node notes/highlights and named groups. Export produces a versioned JSON with plan metadata for validation on re-import.
+Annotations (`annotations.ts`) are an in-memory overlay per plan slot, persisted only as part of the session autosave (and share links). They include per-node notes/highlights and named groups. Export produces a versioned JSON with plan metadata for validation on re-import. A highlight is `{ nodeId, color, style? }` — `style` is optional so older saves still load (they render with the global `highlightStyle`); import validation rejects an unknown `style` in an export file, and `deserializeAnnotations` drops one. The context's node-scoped setters have `…ForPlan(planIndex, …)` variants (tree-compare panes each render their own plan) and `paintNodeWithBrush(planIndex, nodeId)` is a reducer-level toggle against the current brush (`highlightBrush` = persisted colour + `highlightStyle`).
 
 ### DB-Connect Agent (optional feature)
 `src/lib/agent/client.ts` is the app's **only** HTTP module — a typed fetch

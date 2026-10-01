@@ -856,6 +856,7 @@ function HierarchicalViewContent({
           isCollapsed,
           hiddenCount: isCollapsed ? descendantCounts.get(node.id) ?? 0 : 0,
           onToggleCollapse,
+          planIndex: resolvedPlanIndex,
         },
       });
 
@@ -1084,6 +1085,7 @@ function HierarchicalViewContent({
     isHorizontal,
     layoutDirection,
     onToggleCollapse,
+    resolvedPlanIndex,
   ]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutData.nodes);
@@ -1403,7 +1405,8 @@ function HierarchicalViewContent({
             isHotNode,
             annotationText: effectiveAnnotations.nodeAnnotations.get(id)?.text,
             highlightColor: effectiveAnnotations.nodeHighlights.get(id)?.color,
-            highlightStyle,
+            // Each highlight carries its own style; legacy ones fall back to the global setting
+            highlightStyle: effectiveAnnotations.nodeHighlights.get(id)?.style ?? highlightStyle,
             hiddenMatchCount: hiddenMatchCounts.get(id) ?? 0,
           },
         };

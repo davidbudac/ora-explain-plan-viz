@@ -21,6 +21,21 @@ export const HIGHLIGHT_STYLES: HighlightStyleDef[] = [
   { name: 'hachure', label: 'Hachure', description: 'Hand-drawn diagonal hatching fill' },
 ];
 
+const VALID_HIGHLIGHT_STYLES: ReadonlySet<string> = new Set(HIGHLIGHT_STYLES.map((s) => s.name));
+
+export function isHighlightStyle(value: unknown): value is HighlightStyle {
+  return typeof value === 'string' && VALID_HIGHLIGHT_STYLES.has(value);
+}
+
+/**
+ * The "brush" the tree's hover toolbar paints with: one colour + one style,
+ * picked once and then applied to many nodes with a single click.
+ */
+export interface HighlightBrush {
+  color: HighlightColor;
+  style: HighlightStyle;
+}
+
 // --- Highlight Colors ---
 
 export type HighlightColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'pink' | 'white' | 'black';
@@ -161,6 +176,19 @@ export function getHighlightColorDef(color: HighlightColor): HighlightColorDef {
   return HIGHLIGHT_COLORS.find((c) => c.name === color) || HIGHLIGHT_COLORS[4]; // default blue
 }
 
+const VALID_HIGHLIGHT_COLORS: ReadonlySet<string> = new Set(HIGHLIGHT_COLORS.map((c) => c.name));
+
+export function isHighlightColor(value: unknown): value is HighlightColor {
+  return typeof value === 'string' && VALID_HIGHLIGHT_COLORS.has(value);
+}
+
+/** "Red glow" — the brush as a short human label (tooltips, accessible names). */
+export function describeBrush(brush: HighlightBrush): string {
+  const color = HIGHLIGHT_COLORS.find((c) => c.name === brush.color)?.label ?? brush.color;
+  const style = HIGHLIGHT_STYLES.find((s) => s.name === brush.style)?.label ?? brush.style;
+  return `${color} ${style.toLowerCase()}`;
+}
+
 // --- Data Model ---
 
 export interface NodeAnnotation {
@@ -173,6 +201,25 @@ export interface NodeAnnotation {
 export interface NodeHighlight {
   nodeId: number;
   color: HighlightColor;
+  /**
+   * How this highlight is drawn. Absent on highlights saved before per-node
+   * styles existed — those render with the global highlight-style setting.
+   */
+  style?: HighlightStyle;
+}
+
+/**
+ * Whether `highlight` is exactly what painting with `brush` would produce.
+ * A legacy highlight without its own style counts as drawn in `fallbackStyle`
+ * (the global style setting), which is how it renders.
+ */
+export function highlightMatchesBrush(
+  highlight: NodeHighlight | undefined,
+  brush: HighlightBrush,
+  fallbackStyle: HighlightStyle,
+): boolean {
+  if (!highlight) return false;
+  return highlight.color === brush.color && (highlight.style ?? fallbackStyle) === brush.style;
 }
 
 export interface AnnotationGroup {
@@ -248,7 +295,15 @@ export function deserializeAnnotations(data: SerializedAnnotationState): Annotat
   }
   const nodeHighlights = new Map<number, NodeHighlight>();
   for (const [key, value] of Object.entries(data.nodeHighlights || {})) {
-    nodeHighlights.set(parseInt(key), value);
+    if (value && value.style !== undefined && !isHighlightStyle(value.style)) {
+      // Unknown style (hand-edited file, newer app version): keep the
+      // highlight, let it fall back to the global style.
+      const rest = { ...value };
+      delete rest.style;
+      nodeHighlights.set(parseInt(key), rest);
+    } else {
+      nodeHighlights.set(parseInt(key), value);
+    }
   }
   return {
     nodeAnnotations,
@@ -258,8 +313,6 @@ export function deserializeAnnotations(data: SerializedAnnotationState): Annotat
 }
 
 // --- Validation ---
-
-const VALID_HIGHLIGHT_COLORS: Set<string> = new Set(['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'white', 'black']);
 
 export function validateExport(data: unknown): data is AnnotatedPlanExport {
   if (!data || typeof data !== 'object') return false;
@@ -274,11 +327,13 @@ export function validateExport(data: unknown): data is AnnotatedPlanExport {
   if (!annotations || typeof annotations !== 'object') return false;
   const ann = annotations as Record<string, unknown>;
 
-  // Validate nodeHighlights colors
+  // Validate nodeHighlights colors (and the optional per-node style)
   if (ann.nodeHighlights && typeof ann.nodeHighlights === 'object') {
     for (const value of Object.values(ann.nodeHighlights as Record<string, unknown>)) {
       if (value && typeof value === 'object' && 'color' in value) {
         if (!VALID_HIGHLIGHT_COLORS.has((value as { color: string }).color)) return false;
+        const style = (value as { style?: unknown }).style;
+        if (style !== undefined && !isHighlightStyle(style)) return false;
       }
     }
   }

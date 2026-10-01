@@ -390,7 +390,7 @@ export function NodeDetailBody() {
     filters, nodeIndicatorMetric, annotations,
     setNodeAnnotation, removeNodeAnnotation, setNodeHighlight, removeNodeHighlight,
     addAnnotationGroup,
-    highlightStyle, setHighlightStyle,
+    highlightStyle,
     metadataBundle, metadataBundleWarning,
   } = usePlan();
   const searchText = filters.searchText;
@@ -525,6 +525,7 @@ export function NodeDetailBody() {
   }
 
   const node = selectedNode!;
+  const nodeHighlight = annotations.nodeHighlights.get(node.id);
   const category = getOperationCategory(node.operation);
   const indicator = computeNodeDetailIndicator(node, parsedPlan, nodeIndicatorMetric);
   const pruning = assessPartitionPruning(node);
@@ -736,13 +737,16 @@ export function NodeDetailBody() {
         </Accordion>
       )}
 
-      {/* Annotation Editor */}
+      {/* Annotation Editor — the Style buttons restyle *this node's* highlight;
+          a legacy highlight without a style of its own shows the global one. */}
       <AnnotationEditor
         nodeId={node.id}
         annotationText={annotations.nodeAnnotations.get(node.id)?.text || ''}
-        highlightColor={annotations.nodeHighlights.get(node.id)?.color}
-        highlightStyle={highlightStyle}
-        onHighlightStyleChange={setHighlightStyle}
+        highlightColor={nodeHighlight?.color}
+        highlightStyle={nodeHighlight?.style ?? highlightStyle}
+        onHighlightStyleChange={(style) => {
+          if (nodeHighlight) setNodeHighlight(node.id, nodeHighlight.color, style);
+        }}
         onTextChange={setNodeAnnotation}
         onTextRemove={removeNodeAnnotation}
         onHighlightChange={setNodeHighlight}
