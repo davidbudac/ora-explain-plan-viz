@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { COLOR_SCHEME_PALETTES, getOperationCategory } from '../lib/types';
 import { FOCUS_RING } from './ui';
+import { INACTIVE_NODE_TOOLTIP } from '../lib/nodeAriaLabel';
 
 /**
  * Floating legend for the visualization area: operation-category colors for
@@ -24,6 +25,8 @@ export function Legend() {
     }
     return Object.keys(palette).filter((category) => present.has(category));
   }, [parsedPlan, palette]);
+
+  const hasInactive = useMemo(() => parsedPlan?.allNodes.some((node) => node.inactive) ?? false, [parsedPlan]);
 
   if (!parsedPlan || !legendVisible) return null;
 
@@ -89,6 +92,17 @@ export function Legend() {
                 <span className="mt-0.5 px-1 rounded shrink-0 text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">STALE</span>
                 <span><span className="font-semibold">Stats badges</span> — stale or missing optimizer statistics (needs a metadata bundle)</span>
               </div>
+              {hasInactive && (
+                <div className="flex items-start gap-2" data-testid="legend-inactive">
+                  <span
+                    title={INACTIVE_NODE_TOOLTIP}
+                    className="mt-0.5 px-1 rounded shrink-0 text-[10px] font-bold uppercase border border-dashed border-slate-400 dark:border-slate-500 text-slate-500 dark:text-slate-400"
+                  >
+                    inactive
+                  </span>
+                  <span><span className="font-semibold">Dimmed, dashed</span> — adaptive-plan operation the optimizer did not use</span>
+                </div>
+              )}
             </div>
           </div>
 

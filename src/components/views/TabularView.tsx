@@ -20,6 +20,7 @@ import {
 } from '../../lib/tabularHelpers';
 import type { TabularSortColumn, TabularSortState } from '../../lib/tabularHelpers';
 import { HighlightText } from '../HighlightText';
+import { INACTIVE_NODE_TOOLTIP } from '../../lib/nodeAriaLabel';
 
 const EMPTY_SELECTED_NODE_IDS: number[] = [];
 
@@ -966,6 +967,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                   ref={rowVirtualizer.measureElement}
                   aria-rowindex={virtualRow.index + 3}
                   aria-selected={isSelected}
+                  data-inactive={node.inactive ? 'true' : undefined}
                   onClick={(e) => handleRowClick(node, e)}
                   onMouseEnter={(e) => handleRowMouseEnter(node, e)}
                   onMouseLeave={handleRowMouseLeave}
@@ -980,7 +982,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                       : isHoverHighlighted
                         ? 'bg-slate-50 dark:bg-slate-800/30'
                         : ''}
-                    ${isFiltered ? 'opacity-30' : ''}
+                    ${isFiltered ? 'opacity-30' : node.inactive && !isSelected ? 'opacity-60 italic' : ''}
                   `}
                 >
                   {/* Id */}
@@ -1054,6 +1056,15 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                               className="font-medium text-slate-900 dark:text-slate-100 whitespace-nowrap"
                             />
                           </span>
+                          {node.inactive && (
+                            <span
+                              data-testid="inactive-tag"
+                              title={INACTIVE_NODE_TOOLTIP}
+                              className="shrink-0 px-1 py-px rounded border border-dashed border-slate-400 dark:border-slate-500 text-[9px] font-bold uppercase tracking-wide not-italic text-slate-500 dark:text-slate-400"
+                            >
+                              inactive
+                            </span>
+                          )}
                           {/* Object name */}
                           {node.objectName && (
                             <span className="min-w-0 truncate" title={node.objectName}>

@@ -287,4 +287,27 @@ describe('SankeyView', () => {
     expect(document.querySelector('[role="alert"]')).toBeNull();
     expect(nodeRects()).toHaveLength(7);
   });
+
+  it('passes flow through inactive adaptive-plan operations instead of sizing them by their own estimate', async () => {
+    setRoot(
+      node(0, 'SELECT STATEMENT', undefined, [
+        // Not used by the optimizer: a 1000-row estimate that never ran, over one active child
+        node(1, 'HASH JOIN', 1000, [
+          node(2, 'TABLE ACCESS FULL', 100, [], { objectName: 'A' }),
+          node(3, 'TABLE ACCESS FULL', 500, [], { objectName: 'B', inactive: true }),
+        ], { inactive: true }),
+        node(4, 'TABLE ACCESS FULL', 100, [], { objectName: 'C' }),
+      ]),
+    );
+    ctx.filteredNodeIds = new Set([0, 1, 2, 3, 4]);
+    await draw();
+    const h = (id: number) => Number(nodeRect(id).getAttribute('height'));
+    // Node 1 carries only its active descendant's 100 rows (+ the 1-row floor of the unused leaf), like node 4
+    expect(h(1) / h(4)).toBeGreaterThan(0.9);
+    expect(h(1) / h(4)).toBeLessThan(1.2);
+    // The unused leaf is a sliver, not 500 rows
+    expect(h(3)).toBeLessThan(h(2) / 5);
+    // Its own value is not reported
+    expect(nodeRect(1).getAttribute('aria-label')).not.toContain('Rows 1K');
+  });
 });

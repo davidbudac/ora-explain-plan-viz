@@ -134,7 +134,7 @@ export function SankeyView() {
         name: `${node.id}: ${node.operation}${node.objectName ? ` (${node.objectName})` : ''}`,
         planNode: node,
         category: getOperationCategory(node.operation),
-        ownValue: node === rootNode ? null : getMetricValue(node, sankeyMetric),
+        ownValue: node === rootNode || node.inactive ? null : getMetricValue(node, sankeyMetric),
       });
 
       for (const child of node.children) {
@@ -147,7 +147,7 @@ export function SankeyView() {
     // Create links from parent to children using string IDs
     function createLinks(node: PlanNode) {
       for (const child of node.children) {
-        const value = getMetricValue(child, sankeyMetric);
+        const value = getLinkValue(child, sankeyMetric);
 
         links.push({
           source: node.id.toString(),
@@ -726,6 +726,18 @@ export function SankeyView() {
       )}
     </div>
   );
+}
+
+/**
+ * The flow of the link into `node`. An adaptive-plan operation the optimizer did
+ * not use carries no flow of its own: it passes on what its active descendants
+ * contribute (the minimum when it has none), so they still count towards the
+ * nearest active ancestor.
+ */
+function getLinkValue(node: PlanNode, metric: string): number {
+  if (!node.inactive) return getMetricValue(node, metric);
+  if (node.children.length === 0) return 1;
+  return node.children.reduce((sum, child) => sum + getLinkValue(child, metric), 0);
 }
 
 /** The value a plan node contributes to the diagram for the active metric. */

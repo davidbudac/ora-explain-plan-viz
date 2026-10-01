@@ -30,6 +30,18 @@ function plan(nodes: PlanNode[], extra: Partial<ParsedPlan> = {}): ParsedPlan {
 
 afterEach(() => vi.restoreAllMocks());
 
+describe('formatPlanAsMarkdown, cursor child number', () => {
+  it('names the child number in the heading when the plan has one', () => {
+    const md = formatPlanAsMarkdown(plan([node({ id: 0 })], { sqlId: 'abc123', planHashValue: '42', childNumber: 1 }));
+    expect(md.startsWith('### Execution plan — SQL ID `abc123`, plan hash value `42`, child number 1\n')).toBe(true);
+  });
+
+  it('reports child number 0 and omits it when unknown', () => {
+    expect(formatPlanAsMarkdown(plan([node({ id: 0 })], { planHashValue: '42', childNumber: 0 }))).toContain('child number 0');
+    expect(formatPlanAsMarkdown(plan([node({ id: 0 })], { planHashValue: '42' }))).not.toContain('child number');
+  });
+});
+
 describe('formatPlanAsMarkdown', () => {
   it('renders the Simple Plan example', () => {
     const parsed = parsePlan(example('01-dbms_xplan-Simple Plan.txt'));

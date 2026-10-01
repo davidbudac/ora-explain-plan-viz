@@ -14,6 +14,7 @@ import type { HighlightColor, HighlightStyle } from '../../lib/annotations';
 import type { MetadataBadge } from '../../lib/metadata/badges';
 import type { ParallelSignal, PartitionPruning } from '../../lib/planSignals';
 import type { FindingSeverity } from '../../lib/advisor';
+import { INACTIVE_NODE_TOOLTIP } from '../../lib/nodeAriaLabel';
 
 export interface PlanNodeData extends Record<string, unknown> {
   label: string;
@@ -60,6 +61,21 @@ export interface PlanNodeData extends Record<string, unknown> {
 
 interface PlanNodeProps {
   data: PlanNodeData;
+}
+
+/** Opacity cap for adaptive-plan operations the optimizer did not use. */
+const INACTIVE_NODE_OPACITY = 0.5;
+
+function InactiveChip() {
+  return (
+    <span
+      data-testid="inactive-chip"
+      title={INACTIVE_NODE_TOOLTIP}
+      className="ml-1.5 align-middle px-1 py-px rounded border border-dashed border-slate-400 dark:border-slate-500 text-[9px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 whitespace-nowrap"
+    >
+      inactive
+    </span>
+  );
 }
 
 function PlanNodeComponent({ data }: PlanNodeProps) {
@@ -178,6 +194,11 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   if (isFocusDimmed) {
     opacity = Math.min(opacity, 0.15);
   }
+  // Adaptive-plan rows the optimizer did not use read as secondary but stay clickable.
+  const isInactive = node.inactive === true;
+  if (isInactive) {
+    opacity = Math.min(opacity, INACTIVE_NODE_OPACITY);
+  }
   if (isSelected) {
     opacity = 1;
   }
@@ -258,11 +279,13 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           ? 'shadow-[3px_3px_0_rgba(15,23,42,0.15)] dark:shadow-[3px_3px_0_rgba(0,0,0,0.45)]'
           : 'shadow-md shadow-slate-400/30 dark:shadow-lg dark:shadow-black/40'}
         ${colors.bg} ${colors.border}
+        ${isInactive ? 'border-dashed' : ''}
         ${isSelected ? 'ring-2 ring-blue-600 ring-offset-4 dark:ring-offset-slate-950 scale-105 z-30' : ''}
         ${isInFocusPath && !(highlightColor && showAnnotationsOverlay) ? 'ring-2 ring-blue-400/40' : ''}
         ${showHot && !isSelected ? 'ring-2 ring-red-600 ring-offset-2 dark:ring-offset-slate-950' : ''}
       `}
       style={{ opacity, ...glowStyle, ...tintStyle }}
+      data-inactive={isInactive ? 'true' : undefined}
     >
       {/* Circle: hand-drawn marker strokes (three overlapping passes) */}
       {showHighlight && highlightStyle === 'circle' && (
@@ -390,6 +413,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         <div className="relative">
           <div className={`font-semibold text-sm leading-tight mb-1 ${isTerminal ? 'font-mono tracking-tight' : ''} ${colors.text}`} title={tooltip}>
             <HighlightText text={node.operation} query={searchText} />
+            {isInactive && <InactiveChip />}
             {isTicker && !isCompact && options.showObjectName && node.objectName && (
               <span className="font-mono font-semibold text-slate-700 dark:text-slate-200"> · <HighlightText text={node.objectName} query={searchText} /></span>
             )}

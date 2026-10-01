@@ -276,6 +276,7 @@ export function FlameView() {
         lines.push(`Self: ${formatNumberShort(rect.selfValue, { empty: '—' })}`);
       }
       lines.push(`% of total: ${pct}%`);
+      if (node.inactive) lines.push('Inactive (adaptive plan): not used by the optimizer');
 
       return { title, lines };
     },
@@ -373,7 +374,7 @@ export function FlameView() {
             const baseFill = isFiltered
               ? paint.fill
               : (isDark ? '#475569' : '#94a3b8');
-            const opacity = isFiltered ? 1 : 0.4;
+            const opacity = isFiltered ? (node.inactive ? 0.5 : 1) : 0.4;
 
             // Dark mode: the bar is a tinted surface, so its own hue carries the
             // outline. Light mode keeps the paper-coloured separator.
@@ -381,7 +382,7 @@ export function FlameView() {
               ? (isFiltered ? paint.stroke : '#0f172a')
               : '#ffffff';
             let strokeWidth = 1;
-            let strokeDasharray: string | undefined;
+            let strokeDasharray: string | undefined = node.inactive ? '3 2' : undefined;
 
             if (isSelected) {
               stroke = '#3b82f6';
