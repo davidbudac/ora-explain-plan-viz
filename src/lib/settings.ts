@@ -54,6 +54,9 @@ export interface UserSettings {
   // Advisor suggestion hints (the "consider…" recommendation lines on findings)
   showAdvisorSuggestions: boolean;
 
+  /** Show the "Analysis overview" card over the visualization when a plan is first loaded. */
+  showAnalysisOverview: boolean;
+
   // Comparison metrics
   compareMetrics: CompareMetric[];
 
@@ -93,6 +96,7 @@ export const defaultAiSections: Record<AiSectionId, boolean> = {
   predicates: true,
   notes: true,
   binds: true,
+  hints: true,
   monitorMeta: true,
   ash: true,
   signals: true,
@@ -115,6 +119,7 @@ const defaultSettings: UserSettings = {
   palette: 'slate',
   hotspotsEnabled: true,
   showAdvisorSuggestions: false,
+  showAnalysisOverview: true,
   legendVisible: false,
   inputPanelCollapsed: false,
   filterPanelCollapsed: true,

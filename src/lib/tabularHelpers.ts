@@ -88,7 +88,7 @@ export type TabularTsvColumn =
 export interface TsvOptions {
   /** Label the estimated-rows column "E-Rows" (plans with runtime stats) instead of "Rows". */
   hasActualStats?: boolean;
-  /** Append Access / Filter predicate columns (default true). */
+  /** Append Access / Filter predicate columns (default true); a Storage column too when any row has one. */
   includePredicates?: boolean;
 }
 
@@ -168,6 +168,9 @@ export function buildTabularTsv(
   if (includePredicates) {
     add('Access Predicates', (n) => n.accessPredicates ?? '');
     add('Filter Predicates', (n) => n.filterPredicates ?? '');
+    if (nodes.some((n) => n.storagePredicates)) {
+      add('Storage Predicates', (n) => n.storagePredicates ?? '');
+    }
   }
 
   // Header cells are plain labels; body cells may carry arbitrary plan text.

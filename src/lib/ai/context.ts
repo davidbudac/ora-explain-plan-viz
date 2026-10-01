@@ -5,7 +5,7 @@ import type { AiSectionId, BuiltContext, ContextSection } from './types';
 import { aggregateActivityByLine } from '../ash';
 import { assessPartitionPruning, computeParallelSignals, getDopDowngrade } from '../planSignals';
 import { formatNumberShort, formatTimeShort } from '../format';
-import { renderNotes, renderPlanTable, renderPredicates } from './planText';
+import { renderHints, renderNotes, renderPlanTable, renderPredicates } from './planText';
 import { projectMetadata } from './metadataProjection';
 import { buildTestCaseScript } from './testCase';
 import { findObjectInBundle } from '../metadata/lookup';
@@ -26,6 +26,7 @@ const SECTION_LABELS: Record<AiSectionId, string> = {
   predicates: 'Predicates',
   notes: 'Note section',
   binds: 'Bind variables',
+  hints: 'Hints & outline',
   monitorMeta: 'Execution metadata',
   ash: 'Activity (ASH samples)',
   signals: 'Plan signals',
@@ -62,6 +63,7 @@ export function buildAnalyzeSections(
     section('predicates', renderPredicates(plan)),
     section('notes', renderNotes(plan)),
     section('binds', renderBinds(plan)),
+    section('hints', renderHints(plan)),
     section('monitorMeta', renderMonitorMeta(plan)),
     section('ash', renderAsh(plan)),
     section('signals', renderSignals(plan)),

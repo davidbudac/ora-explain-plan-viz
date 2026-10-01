@@ -2,7 +2,7 @@ import { useState, useMemo, type PointerEvent as ReactPointerEvent, type ReactNo
 import { usePlan } from '../hooks/usePlanContext';
 import { getOperationCategory, getMetricColor, getOperationTooltip } from '../lib/types';
 import { formatBytes, formatNumberShort, formatTimeCompact, formatTimeDetailed } from '../lib/format';
-import type { PlanNode as PlanNodeType, NodeIndicatorMetric } from '../lib/types';
+import type { PlanNode as PlanNodeType, NodeIndicatorMetric, PlanHint } from '../lib/types';
 import { HighlightText } from './HighlightText';
 import { FormattedPredicate } from './FormattedPredicate';
 import { AnnotationEditor, BulkHighlightPicker } from './AnnotationEditor';
@@ -24,6 +24,7 @@ import { DdlBlock, formatHistogramLabel, formatDateShort } from './metadata/shar
 import { CopyButton, FOCUS_RING, FOCUS_RING_INSET } from './ui';
 import { PanelResizeHandle } from './PanelEdgeTab';
 import { computeWorstNodes } from '../lib/worstNodes';
+import { computeSelectionStats } from '../lib/selectionStats';
 
 const MULTI_SELECT_TIP = 'Tip: ⌘/Ctrl-click nodes to multi-select and create a group';
 
@@ -397,7 +398,7 @@ export function NodeDetailBody() {
   const [showGroupDialog, setShowGroupDialog] = useState(false);
   const isMultiSelection = selectedNodes.length > 1;
   const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : selectedPrimaryNode;
-  const aggregateSelection = isMultiSelection ? computeAggregateSelection(selectedNodes, parsedPlan?.allNodes ?? []) : null;
+  const aggregateSelection = isMultiSelection ? computeSelectionStats(selectedNodes, parsedPlan?.allNodes ?? [], parsedPlan?.source) : null;
 
   const usedIndexKeys = useMemo(() => {
     if (!metadataBundle || !parsedPlan) return new Set<string>();
@@ -412,7 +413,23 @@ export function NodeDetailBody() {
   if (selectedNodes.length === 0) return null;
 
   if (isMultiSelection && aggregateSelection) {
-    const indicator = computeNodeDetailIndicator(aggregateSelection.indicatorNode, parsedPlan, nodeIndicatorMetric);
+    // The indicator reads the aggregate as one synthetic node: own cost and self time add up;
+    // A-Rows and Starts do not, so the largest selected operation stands for them.
+    const indicator = computeNodeDetailIndicator(
+      {
+        id: -1,
+        depth: 0,
+        operation: `${selectedNodes.length} nodes`,
+        children: [],
+        cost: aggregateSelection.sumSelfCost,
+        actualRows: aggregateSelection.maxActualRows,
+        actualTime: aggregateSelection.sumActualTime,
+        starts: aggregateSelection.maxStarts,
+        activityPercent: aggregateSelection.sumActivityPercent,
+      },
+      parsedPlan,
+      nodeIndicatorMetric,
+    );
     const selectedIdPreview = selectedNodeIds.slice(0, 12).join(', ');
     const hasMoreIds = selectedNodeIds.length > 12;
 
@@ -489,19 +506,24 @@ export function NodeDetailBody() {
         {parsedPlan?.hasActualStats && (
           <Accordion title="Execution Stats (Sum)">
             <div className="grid grid-cols-2 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden [&>*:last-child:nth-child(odd)]:col-span-2">
-              <StatItem label="A-Rows" value={formatNumberShort(aggregateSelection.sumActualRows)} highlight="actual" />
               <StatItem label={aggregateSelection.actualTimeLabel} value={formatTimeDetailed(aggregateSelection.sumActualTime)} highlight="actual" />
-              <StatItem label="Starts" value={formatNumberShort(aggregateSelection.sumStarts)} />
               <StatItem label="Activity" value={aggregateSelection.sumActivityPercent !== undefined ? `${aggregateSelection.sumActivityPercent.toFixed(1)}%` : undefined} />
+              <StatItem label="A-Rows (ops sum)" value={formatNumberShort(aggregateSelection.sumActualRows)} highlight="actual" />
+              <StatItem label="Max A-Rows" value={formatNumberShort(aggregateSelection.maxActualRows)} />
+              <StatItem label="Max Starts" value={formatNumberShort(aggregateSelection.maxStarts)} />
+            </div>
+            <div className="mt-1.5 text-[10px] text-slate-400 dark:text-slate-500 leading-snug">
+              Time is each operation's own (self) time, so a selected parent and child are not counted twice.
+              A-Rows adds up the rows every selected operation produced.
             </div>
           </Accordion>
         )}
 
         <Accordion title="Plan Estimates (Sum)" defaultOpen={!parsedPlan?.hasActualStats}>
           <div className="grid grid-cols-2 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden [&>*:last-child:nth-child(odd)]:col-span-2">
-            <StatItem label={parsedPlan?.hasActualStats ? "E-Rows" : "Rows"} value={formatNumberShort(aggregateSelection.sumRows)} />
-            <StatItem label="Bytes" value={formatBytes(aggregateSelection.sumBytes)} />
-            <StatItem label="Own cost" value={formatNumberShort(aggregateSelection.sumCost)} />
+            <StatItem label={parsedPlan?.hasActualStats ? "E-Rows (ops sum)" : "Rows (ops sum)"} value={formatNumberShort(aggregateSelection.sumRows)} />
+            <StatItem label="Bytes (ops sum)" value={formatBytes(aggregateSelection.sumBytes)} />
+            <StatItem label="Own cost (self)" value={formatNumberShort(aggregateSelection.sumSelfCost)} />
             <StatItem label="Avg CPU %" value={aggregateSelection.avgCpuPercent !== undefined ? `${aggregateSelection.avgCpuPercent.toFixed(1)}%` : undefined} />
             <StatItem label="Temp Space" value={aggregateSelection.sumTempSpace > 0 ? formatBytes(aggregateSelection.sumTempSpace) : undefined} />
           </div>
@@ -509,14 +531,14 @@ export function NodeDetailBody() {
 
         {(aggregateSelection.sumMemoryUsed > 0 ||
           aggregateSelection.sumTempUsed > 0 ||
-          aggregateSelection.sumPhysicalReads > 0 ||
-          aggregateSelection.sumLogicalReads > 0) && (
+          aggregateSelection.sumSelfPhysicalReads > 0 ||
+          aggregateSelection.sumSelfBuffers > 0) && (
           <Accordion title="Resources (Sum)" defaultOpen={false}>
             <div className="grid grid-cols-2 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden [&>*:last-child:nth-child(odd)]:col-span-2">
               <StatItem label="Memory" value={aggregateSelection.sumMemoryUsed > 0 ? formatBytes(aggregateSelection.sumMemoryUsed) : undefined} />
               <StatItem label="Temp Used" value={aggregateSelection.sumTempUsed > 0 ? formatBytes(aggregateSelection.sumTempUsed) : undefined} />
-              <StatItem label="Phys Reads" value={formatNumberShort(aggregateSelection.sumPhysicalReads)} />
-              <StatItem label="Log Reads" value={formatNumberShort(aggregateSelection.sumLogicalReads)} />
+              <StatItem label="Buffers (self)" value={aggregateSelection.sumSelfBuffers > 0 ? formatNumberShort(aggregateSelection.sumSelfBuffers) : undefined} />
+              <StatItem label="Phys Reads (self)" value={aggregateSelection.sumSelfPhysicalReads > 0 ? formatNumberShort(aggregateSelection.sumSelfPhysicalReads) : undefined} />
             </div>
           </Accordion>
         )}
@@ -727,6 +749,52 @@ export function NodeDetailBody() {
         </Accordion>
       )}
 
+      {/* Hint Report entries for this operation (DBMS_XPLAN ADVANCED) */}
+      {node.hints && node.hints.length > 0 && (
+        <Accordion
+          title="Hints"
+          subtitle={node.hints.some((h) => h.status !== 'used') ? 'needs attention' : undefined}
+        >
+          <ul className="space-y-1.5">
+            {node.hints.map((hint, idx) => (
+              <li key={`${hint.text}-${idx}`} className="flex items-start gap-2 text-[11px]">
+                <HintStatusBadge hint={hint} />
+                <div className="min-w-0">
+                  <code className="font-mono text-slate-800 dark:text-slate-200 break-words">{hint.text}</code>
+                  {hint.reason && (
+                    <div className="mt-0.5 text-slate-500 dark:text-slate-400 leading-snug">{hint.reason}</div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Accordion>
+      )}
+
+      {/* Column projection (DBMS_XPLAN ADVANCED / +PROJECTION) */}
+      {node.projection && (
+        <Accordion title="Projection" defaultOpen={false}>
+          <code className="block text-[11px] font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md p-2.5 text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words leading-relaxed">
+            {node.projection}
+          </code>
+        </Accordion>
+      )}
+
+      {/* Statement sent to the remote database (DBMS_XPLAN Remote SQL Information) */}
+      {node.remoteSql && (
+        <Accordion title="Remote SQL">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Sent over database link
+            </span>
+            <CopyButton text={node.remoteSql} iconOnly ariaLabel="Copy remote SQL" />
+          </div>
+          <code className="block text-[11px] font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md p-2.5 text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words leading-relaxed">
+            {node.remoteSql}
+          </code>
+        </Accordion>
+      )}
+
       {/* Metadata (schema bundle) */}
       <MetadataSection
         bundle={metadataBundle}
@@ -800,6 +868,22 @@ function formatWorkareaPasses(passes?: number): string | undefined {
   if (passes === 0) return 'optimal';
   if (passes === 1) return 'one-pass';
   return `multipass (${passes})`;
+}
+
+/** Status pill for a Hint Report entry: used / unused / syntax error / other letter. */
+function HintStatusBadge({ hint }: { hint: PlanHint }) {
+  const styles: Record<PlanHint['status'], { label: string; className: string }> = {
+    used: { label: 'used', className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800' },
+    unused: { label: 'unused', className: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800' },
+    error: { label: 'syntax error', className: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800' },
+    other: { label: hint.code ?? 'other', className: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' },
+  };
+  const { label, className } = styles[hint.status];
+  return (
+    <span className={`shrink-0 px-1.5 py-0.5 rounded border text-[10px] font-semibold whitespace-nowrap ${className}`}>
+      {label}
+    </span>
+  );
 }
 
 function StatItem({ label, value, highlight }: { label: string; value?: string; highlight?: 'actual' | 'warn' }) {
@@ -921,76 +1005,6 @@ function computeNodeDetailIndicator(
     percentText: (clampedRatio * 100).toFixed(1),
     secondaryText,
     color: clampedRatio === 0 ? 'bg-slate-200 dark:bg-slate-700' : getMetricColor(clampedRatio),
-  };
-}
-
-interface AggregateSelectionStats {
-  indicatorNode: PlanNodeType;
-  sumRows: number;
-  sumBytes: number;
-  /** Σ own (self) cost — cumulative cost would double count nested selections. */
-  sumCost: number;
-  sumActualRows: number;
-  /** Σ self time, or cumulative A-Time of the outermost selected nodes when self time is unavailable. */
-  sumActualTime: number;
-  actualTimeLabel: string;
-  sumStarts: number;
-  /** Σ ASH activity share (shares of distinct operations add up). */
-  sumActivityPercent: number | undefined;
-  avgCpuPercent: number | undefined;
-  sumTempSpace: number;
-  sumMemoryUsed: number;
-  sumTempUsed: number;
-  sumPhysicalReads: number;
-  sumLogicalReads: number;
-}
-
-function computeAggregateSelection(nodes: PlanNodeType[], allNodes: PlanNodeType[]): AggregateSelectionStats {
-  const sumRows = sumNumbers(nodes.map((n) => n.rows));
-  const sumBytes = sumNumbers(nodes.map((n) => n.bytes));
-  const sumCost = sumNumbers(nodes.map((n) => n.selfCost ?? n.cost));
-  const sumActualRows = sumNumbers(nodes.map((n) => n.actualRows));
-  const hasSelfTime = nodes.every((n) => n.selfTime !== undefined);
-  const sumActualTime = hasSelfTime
-    ? sumNumbers(nodes.map((n) => n.selfTime))
-    : sumNumbers(outermostNodes(nodes, allNodes).map((n) => n.actualTime));
-  const actualTimeLabel = hasSelfTime ? 'Self time' : 'A-Time';
-  const sumStarts = sumNumbers(nodes.map((n) => n.starts));
-  const activityValues = nodes.map((n) => n.activityPercent).filter((v): v is number => v !== undefined);
-  const sumActivityPercent = activityValues.length > 0 ? sumNumbers(activityValues) : undefined;
-  const avgCpuPercent = averageNumbers(nodes.map((n) => n.cpuPercent));
-  const sumTempSpace = sumNumbers(nodes.map((n) => n.tempSpace));
-  const sumMemoryUsed = sumNumbers(nodes.map((n) => n.memoryUsed));
-  const sumTempUsed = sumNumbers(nodes.map((n) => n.tempUsed));
-  const sumPhysicalReads = sumNumbers(nodes.map((n) => n.physicalReads));
-  const sumLogicalReads = sumNumbers(nodes.map((n) => n.logicalReads));
-
-  return {
-    indicatorNode: {
-      id: -1,
-      depth: 0,
-      operation: `${nodes.length} nodes`,
-      children: [],
-      cost: sumCost,
-      actualRows: sumActualRows,
-      actualTime: sumActualTime,
-      starts: sumStarts,
-      activityPercent: sumActivityPercent,
-    },
-    sumRows,
-    sumBytes,
-    sumCost,
-    sumActualRows,
-    sumActualTime,
-    actualTimeLabel,
-    sumStarts,
-    sumActivityPercent,
-    avgCpuPercent,
-    sumTempSpace,
-    sumMemoryUsed,
-    sumTempUsed,
-    sumPhysicalReads,
-    sumLogicalReads,
   };
 }
 
@@ -1394,26 +1408,4 @@ function IndexRow({ index, usedHere }: { index: ResolvedIndex; usedHere: boolean
       </div>
     </div>
   );
-}
-
-/** Selected nodes with no selected ancestor, so cumulative values are not double counted. */
-function outermostNodes(nodes: PlanNodeType[], allNodes: PlanNodeType[]): PlanNodeType[] {
-  const byId = new Map(allNodes.map((n) => [n.id, n]));
-  const selectedIds = new Set(nodes.map((n) => n.id));
-  return nodes.filter((n) => {
-    for (let p = n.parentId !== undefined ? byId.get(n.parentId) : undefined; p; p = p.parentId !== undefined ? byId.get(p.parentId) : undefined) {
-      if (selectedIds.has(p.id)) return false;
-    }
-    return true;
-  });
-}
-
-function sumNumbers(values: Array<number | undefined>): number {
-  return values.reduce<number>((total, value) => total + (value ?? 0), 0);
-}
-
-function averageNumbers(values: Array<number | undefined>): number | undefined {
-  const definedValues = values.filter((value): value is number => value !== undefined);
-  if (definedValues.length === 0) return undefined;
-  return definedValues.reduce((total, value) => total + value, 0) / definedValues.length;
 }

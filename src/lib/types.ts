@@ -66,8 +66,32 @@ export interface PlanNode {
   storagePredicates?: string;  // Exadata smart-scan predicates (`storage(...)`)
   queryBlock?: string;
   objectAlias?: string;
+  // DBMS_XPLAN ADVANCED sections, per operation
+  projection?: string;         // Column Projection Information (wrapped lines joined with a space)
+  remoteSql?: string;          // Remote SQL Information (statement sent over a database link)
+  hints?: PlanHint[];          // Hint Report entries for this operation
   parentId?: number;
   children: PlanNode[];
+}
+
+/** One entry of the DBMS_XPLAN Hint Report (19c+), attached to the operation it was reported on. */
+export interface PlanHint {
+  text: string;
+  /** `used` = no status letter; `unused` = U; `error` = E (syntax error); `other` = any other letter. */
+  status: 'used' | 'unused' | 'error' | 'other';
+  /** The raw status letter (U, E, …) when one was printed. */
+  code?: string;
+  /** Text after ` / ` in the entry, e.g. "hint on view cannot be pushed into view". */
+  reason?: string;
+  queryBlock?: string;
+  alias?: string;
+}
+
+/** Hint Report totals: `Total hints for statement: 3 (U - Unused (1), E - Syntax error (2))`. */
+export interface HintSummary {
+  total: number;
+  unused: number;
+  errors: number;
 }
 
 export type PlanSource = 'dbms_xplan' | 'sql_monitor_text' | 'sql_monitor_xml' | 'json' | 'xbi';
@@ -112,6 +136,9 @@ export interface ParsedPlan {
   // Optimizer outline hints, one hint per entry, verbatim (e.g. `FULL(@"SEL$1" "O"@"SEL$1")`).
   // From SQL Monitor XML <outline_data> (and DBMS_XPLAN ADVANCED output).
   outlineHints?: string[];
+
+  // Hint Report totals (DBMS_XPLAN ADVANCED, 19c+); per-hint detail is on `PlanNode.hints`.
+  hintSummary?: HintSummary;
 }
 
 /** One ASH sample from a SQL Monitor report-level <activity_detail> bucket. */
@@ -201,7 +228,7 @@ export interface SqlMonitorMetadata {
   pxServerGroups?: number;
 }
 
-export type PredicateType = 'access' | 'filter' | 'none';
+export type PredicateType = 'access' | 'filter' | 'storage' | 'none';
 
 export interface NodeDisplayOptions {
   showRows: boolean;
