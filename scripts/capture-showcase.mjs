@@ -211,6 +211,32 @@ async function clickEl(elExpr, { label = elExpr, ...opts } = {}) {
 const btnByText = (text) =>
   `[...document.querySelectorAll('button')].find(b => b.textContent.trim() === ${JSON.stringify(text)} || b.textContent.trim().startsWith(${JSON.stringify(text)}))`;
 
+/**
+ * Pick an option in a native <select> by its visible label. Headless Chrome can't
+ * render the OS dropdown, so we click the control (cursor + ripple) and then set
+ * the value through React's native setter + a change event.
+ */
+async function chooseOption(selectExpr, label) {
+  // Move + ripple only: a real click would open the native popup and stall CDP.
+  const r = await rectOf(selectExpr);
+  if (!r) throw new Error(`chooseOption: select not found for ${label}`);
+  await moveCursor(r.cx, r.cy);
+  await ripple(r.cx, r.cy);
+  await sleep(250);
+  const ok = await evaluate(`(() => {
+    const sel = (${selectExpr});
+    const opt = [...sel.options].find(o => o.textContent.trim() === ${JSON.stringify(label)});
+    if (!opt) return false;
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, opt.value);
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  })()`);
+  if (!ok) throw new Error(`chooseOption: no option "${label}"`);
+  await sleep(250);
+}
+const FLAME_SELECT = `document.querySelector('select[title^="Flame graph metric"]')`;
+const FLOW_SELECT = `document.querySelector('select[title^="Flow metric"]')`;
+
 async function typeText(text, { delay = 28 } = {}) {
   for (const ch of text) {
     await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', text: ch, key: ch });
@@ -311,6 +337,10 @@ class Recorder {
 
 async function screenshot(name) {
   await cursorAt(-100, -100, { show: false });
+  // Park the real pointer over the side panel so no node hover toolbar / tooltip is captured.
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: VIEW_W - 30, y: VIEW_H - 30 });
+  await evaluate(`window.getSelection()?.removeAllRanges()`); // drop double-click text selection
+  await sleep(500);
   await setScale(2);
   await sleep(400);
   const res = await cdp.send('Page.captureScreenshot', { format: 'png' });
@@ -346,6 +376,11 @@ async function openAccordion(title) {
 const SHOTS = {
   // 1. Paste → parse → explore the tree, open a node's details
   async explore() {
+    // A previous shot's autosaved session would skip the empty start screen.
+    // Leave the app (it re-saves on unload) via a same-origin static file, then clear the key.
+    await cdp.send('Page.navigate', { url: `${BASE}/vite.svg` });
+    await sleep(800);
+    await evaluate(`localStorage.removeItem('oraplanviz.session.v1')`);
     await goto(`${BASE}/`, { waitNodes: false, settle: 600 });
     const planText = fs.readFileSync(path.join('src/examples', '22-sql_monitor-Cardinality Trap (NL).txt'), 'utf8');
     const rec = new Recorder('explore');
@@ -357,6 +392,11 @@ const SHOTS = {
     await setTextarea(`document.querySelector('textarea')`, planText);
     await sleep(900);
     await clickEl(btnByText('Parse'), { label: 'Parse button' });
+    await sleep(800);
+    // The last-used view is remembered across runs; make sure we land on the tree.
+    if (!(await evaluate(`!!document.querySelector('.react-flow__node')`))) {
+      await clickEl(`document.querySelector('button[role="tab"][title="Tree"]')`, { label: 'Tree tab' });
+    }
     await waitFor(`document.querySelectorAll('.react-flow__node').length > 0`, { label: 'tree' });
     await sleep(1800);
     // Click a mid-plan node with predicates.
@@ -389,7 +429,11 @@ const SHOTS = {
     // Hover the hotspot node first.
     const hot = await rectOf(`[...document.querySelectorAll('.react-flow__node')].find(n => /Hotspot/i.test(n.textContent))`);
     if (hot) { await moveCursor(hot.cx, hot.cy, { duration: 700 }); await sleep(900); }
-    // Expand the first advisor finding, then jump to its node.
+    // Findings are grouped by rule: open the first group (if grouped), then expand its first finding.
+    if (!(await rectOf(`document.querySelector('button[title="Expand"]')`))) {
+      await clickEl(`[...document.querySelectorAll('button[aria-expanded="false"]')].find(b => /mismatch/i.test(b.textContent))`, { label: 'first finding group' });
+      await sleep(900);
+    }
     const FINDING = `document.querySelector('button[title="Expand"]')`;
     await clickEl(FINDING, { label: 'expand first finding' });
     await sleep(1800);
@@ -408,17 +452,16 @@ const SHOTS = {
 
   // 3. Compare two plans (before / after)
   async compare() {
-    await setViewport(1440, 800);
-    await goto(`${BASE}/?example=19&view=hierarchical`);
+    await setViewport(1680, 900);
+    await goto(`${BASE}/?example=27&view=hierarchical`);
     const rec = new Recorder('compare');
     await rec.start();
     await sleep(900);
     await clickEl(btnByText('Add Plan'), { label: 'Add Plan' });
     await sleep(600);
-    await clickEl(btnByText('Load Example'), { label: 'Load Example' });
-    await sleep(700);
-    await clickEl(`[...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Compare After (Hash Join)')`, { label: 'example 20 entry' });
-    await waitFor(`[...document.querySelectorAll('[role="tab"]')].filter(t => !t.textContent.includes('(empty)')).length >= 2`, { label: 'two plan tabs' });
+    // Plan B's empty state offers example cards; pick the partition-range one.
+    await clickEl(`[...document.querySelectorAll('button')].find(b => b.textContent.includes('Partition Range Ite'))`, { label: 'example 28 card' });
+    await waitFor(`[...document.querySelectorAll('button[title*="double-click to rename"]')].filter(t => !t.title.includes('(empty)')).length >= 2`, { label: 'two plan tabs' });
     await sleep(1500);
     // Command palette (Cmd+K) → "Split compare (dual trees)".
     await pressKey('k', { code: 'KeyK', keyCode: 75, modifiers: 4 });
@@ -430,9 +473,17 @@ const SHOTS = {
     await pressKey('Escape', { keyCode: 27 }); // palette stays open after toggles
     await sleep(2200);
     await verify(`document.querySelectorAll('.react-flow').length >= 2`, 'two tree panes');
-    await clickEl(`[...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Compare' && !b.disabled)`, { label: 'Compare tab' });
+    const COMPARE_TAB = `document.querySelector('button[role="tab"][title="Compare"]')`;
+    if (!((await rectOf(COMPARE_TAB))?.w > 0)) {
+      // Ribbon squeezed: the Compare tab lives in the "More views" overflow menu.
+      await clickEl(`document.querySelector('button[title="More views"]')`, { label: 'More views' });
+      await sleep(500);
+      await clickEl(`document.querySelector('[role="menuitemradio"][title="Compare"]')`, { label: 'Compare menu item' });
+    } else {
+      await clickEl(COMPARE_TAB, { label: 'Compare tab' });
+    }
     await sleep(2500);
-    await verify(`[...document.querySelectorAll('button')].some(b => b.textContent.trim() === 'Compare' && b.className.includes('bg-blue-600'))`, 'Compare tab active');
+    await verify(`[...document.querySelectorAll('button')].some(b => b.title === 'Compare' && b.getAttribute('aria-selected') === 'true')`, 'Compare tab active');
     await rec.stop();
     await screenshot('compare.png');
     await setViewport(1280, 800);
@@ -447,7 +498,7 @@ const SHOTS = {
     const rec = new Recorder('flame');
     await rec.start();
     await sleep(900);
-    await clickEl(btnByText('A-Time'), { label: 'A-Time metric' });
+    await chooseOption(FLAME_SELECT, 'A-Time');
     await sleep(1600);
     // Zoom into the widest non-root bar on row 2+ (double-click).
     const target = await evaluate(`(() => {
@@ -482,11 +533,11 @@ const SHOTS = {
     const rec = new Recorder('sankey');
     await rec.start();
     await sleep(900);
-    await clickEl(btnByText('A-Time'), { label: 'A-Time metric' });
+    await chooseOption(FLOW_SELECT, 'A-Time');
     await sleep(1800);
-    await clickEl(btnByText('Rows × Starts'), { label: 'Rows x Starts metric' });
+    await chooseOption(FLOW_SELECT, 'Total rows');
     await sleep(1800);
-    await clickEl(btnByText('Cost'), { label: 'Cost metric' });
+    await chooseOption(FLOW_SELECT, 'Cost');
     await sleep(1500);
     // Hover a flow link for the tooltip.
     const link = await evaluate(`(() => { const p = [...document.querySelectorAll('svg path')].map(p => p.getBoundingClientRect()).filter(r => r.width > 40 && r.height > 20).sort((a,b) => b.height - a.height)[0]; return p ? { cx: p.x + p.width / 2, cy: p.y + p.height / 2 } : null; })()`);
