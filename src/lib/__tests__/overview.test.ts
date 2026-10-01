@@ -135,6 +135,33 @@ describe('buildOverview', () => {
       expect(items.map((i) => i.kind)).toEqual(['finding']);
     });
 
+    it('skips the mismatch fallback when a cardinality finding names the root cause (ancestors only inherit it)', () => {
+      const plan = buildPlan({
+        id: 0,
+        operation: 'SELECT STATEMENT',
+        actualRows: 5000,
+        children: [
+          {
+            id: 2,
+            operation: 'NESTED LOOPS',
+            rows: 10,
+            actualRows: 5000,
+            starts: 1,
+            children: [{ id: 4, operation: 'TABLE ACCESS FULL', objectName: 'T', rows: 10, actualRows: 5000, starts: 1 }],
+          },
+        ],
+      });
+      const report = reportOf([finding({ ruleId: 'cardinality-mismatch', severity: 'critical', nodeIds: [4] })]);
+      const items = buildOverview(plan, report, NO_BUNDLE);
+      expect(items.map((i) => [i.kind, i.nodeId])).toEqual([['finding', 4]]);
+    });
+
+    it('still falls back to the worst mismatch when the findings are about something else', () => {
+      const report = reportOf([finding({ ruleId: 'spill-to-disk', nodeIds: [3] })]);
+      const items = buildOverview(actualPlan(), report, NO_BUNDLE);
+      expect(items.map((i) => i.kind)).toEqual(['finding', 'mismatch']);
+    });
+
     it('does not top up when three findings fill the card', () => {
       const report = reportOf([1, 2, 3].map((n) => finding({ ruleId: `r${n}`, nodeIds: [n] })));
       const items = buildOverview(actualPlan(), report, { hasBundle: false, hottestNodeId: 3 });
