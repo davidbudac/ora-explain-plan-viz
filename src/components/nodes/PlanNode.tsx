@@ -2,7 +2,7 @@ import { Fragment, memo, useCallback, useState } from 'react';
 import { matchDensityPreset } from '../../lib/density';
 import { Handle, Position } from '@xyflow/react';
 import { getOperationCategory, COLOR_SCHEMES, getMetricColor, getOperationTooltip } from '../../lib/types';
-import { formatNumberShort, formatBytes, formatTimeCompact, formatCardinalityRatio, cardinalityRatioSeverity, nodeCardinalityRatio, cardinalityMismatchText, formatPartitionRange } from '../../lib/format';
+import { formatNumberShort, formatEstimatedRows, formatBytes, formatTimeCompact, formatCardinalityRatio, cardinalityRatioSeverity, nodeCardinalityRatio, cardinalityMismatchText, formatPartitionRange } from '../../lib/format';
 import type { PlanNode as PlanNodeType, NodeDisplayOptions, ColorScheme, NodeIndicatorMetric } from '../../lib/types';
 import { HighlightText } from '../HighlightText';
 import { NodeHoverCard, useNodeHoverCard } from './NodeHoverCard';
@@ -179,6 +179,9 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   // Label for rows depends on whether we have actual stats
   const rowsLabel = hasActualStats ? 'E-Rows' : 'Rows';
 
+  // Per-start estimate, shown as `E-Rows × executions` when the operation ran more than once
+  const estRows = formatEstimatedRows(node, !!hasActualStats);
+
   // Cardinality mismatch
   const cardinalityRatio = hasActualStats ? nodeCardinalityRatio(node) : undefined;
   const cardSeverity = cardinalityRatioSeverity(cardinalityRatio);
@@ -245,10 +248,10 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   }
 
   // Rows for the comparison grid: metric | estimated | actual (| deviation)
-  const estActRows = usesEstActGrid && !isCompact ? buildEstActRows(node, options) : [];
+  const estActRows = usesEstActGrid && !isCompact ? buildEstActRows(node, options, !!hasActualStats) : [];
 
   // Minimal density hides every stat; the hover card brings the full grid back.
-  const hoverStatRows = isCompact ? buildEstActRows(node, ALL_STATS_VISIBLE) : [];
+  const hoverStatRows = isCompact ? buildEstActRows(node, ALL_STATS_VISIBLE, !!hasActualStats) : [];
 
   // Highlight is active when: has color and annotations visible (coexists with hot node)
   const showHighlight = !!(highlightColor && showAnnotationsOverlay);
@@ -484,7 +487,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         {isCompact ? null : isOverview ? (
           <div className="space-y-1 text-xs text-slate-600 dark:text-slate-300">
             <div className="flex justify-between gap-2">
-              <span>{hasActualStats ? 'Est. rows' : 'Rows'} <strong className="font-mono text-slate-900 dark:text-slate-100">{formatNumberShort(node.rows, { empty: '—' })}</strong></span>
+              <span>{hasActualStats ? 'Est. rows' : 'Rows'} <strong className="font-mono text-slate-900 dark:text-slate-100" title={estRows.title}>{estRows.text}</strong></span>
               {hasActualStats && <span>Actual <strong className="font-mono text-slate-900 dark:text-slate-100">{formatNumberShort(node.actualRows, { empty: '—' })}</strong></span>}
             </div>
             <div>Cost <span className="font-mono">{formatNumberShort(node.cost, { empty: '—' })}</span></div>
@@ -511,8 +514,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                   <div>
                     <span className="text-[10px] text-slate-400 dark:text-slate-500">rows </span>
                     {showEstRows && (
-                      <span className={showActRows ? 'text-slate-400 dark:text-slate-500' : 'font-semibold'}>
-                        {formatNumberShort(node.rows)}
+                      <span className={showActRows ? 'text-slate-400 dark:text-slate-500' : 'font-semibold'} title={estRows.title}>
+                        {estRows.text}
                       </span>
                     )}
                     {showActRows && (
@@ -581,8 +584,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           <>
             <div className="flex flex-wrap gap-2 text-xs">
               {options.showRows && node.rows !== undefined && (
-                <span className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-black/20 text-slate-700 dark:text-slate-300">
-                  {rowsLabel}: {formatNumberShort(node.rows)}
+                <span className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-black/20 text-slate-700 dark:text-slate-300" title={estRows.title}>
+                  {rowsLabel}: {estRows.text}
                 </span>
               )}
               {options.showCost && node.cost !== undefined && (
@@ -888,16 +891,19 @@ const ALL_STATS_VISIBLE: StatsVisibility = {
 interface EstActRow {
   label: string;
   est?: string;
+  estTitle?: string;
   act?: string;
   isRowsRow?: boolean;
 }
 
 /** Rows for the comparison grid: metric | estimated | actual (| deviation) */
-function buildEstActRows(node: PlanNodeType, visibility: StatsVisibility): EstActRow[] {
+function buildEstActRows(node: PlanNodeType, visibility: StatsVisibility, hasActualStats: boolean): EstActRow[] {
+  const estRows = formatEstimatedRows(node, hasActualStats);
   return [
     {
       label: 'Rows',
-      est: visibility.showRows && node.rows !== undefined ? formatNumberShort(node.rows) : undefined,
+      est: visibility.showRows && node.rows !== undefined ? estRows.text : undefined,
+      estTitle: visibility.showRows && node.rows !== undefined ? estRows.title : undefined,
       act: visibility.showActualRows && node.actualRows !== undefined ? formatNumberShort(node.actualRows) : undefined,
       isRowsRow: true,
     },
@@ -955,7 +961,7 @@ function EstActStatsGrid({ node, rows, hasActualStats, cardLabel, cardSeverity, 
                 hasActualStats
                   ? r.est !== undefined ? 'text-slate-500 dark:text-slate-400' : 'text-slate-300 dark:text-slate-600'
                   : 'font-semibold text-slate-900 dark:text-slate-100'
-              }`}>
+              }`} title={r.estTitle}>
                 {r.est ?? '—'}
               </span>
               {hasActualStats && (
