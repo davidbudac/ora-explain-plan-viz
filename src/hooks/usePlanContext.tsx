@@ -10,11 +10,12 @@ import { matchesFilters } from '../lib/filtering';
 import { computeHottestNodeId } from '../lib/analysis';
 import { DENSITY_PRESETS, matchDensityPreset } from '../lib/density';
 import type { DensityPreset, DensitySelection } from '../lib/density';
-import { getPlanFromUrl, getGzipPlanParamFromHash, clearPlanFromUrl, buildShareLink, decodeGzipPlanParam, classifyDecodedPlanText, getSharedViewMode } from '../lib/url';
+import { getPlanFromUrl, getGzipPlanParamFromHash, clearPlanFromUrl, buildShareLink, decodeGzipPlanParam, classifyDecodedPlanText, getSharedViewMode, parseDeepLinkParams, buildShareWorkspace, readShareWorkspace, readSharedSelection, SHARE_FILTER_DEFAULTS } from '../lib/url';
 import type { SharePlanEntry, UrlPlanData } from '../lib/url';
 import { describeParseFailure } from '../lib/formats';
 import { looksLikeMetadataBundle } from '../lib/metadata/bundle';
 import { planDrop, readDroppedFiles } from '../lib/dropFiles';
+import { isActiveReport, decodeActiveReport, ACTIVE_REPORT_DECODE_ERROR } from '../lib/parser/activeReport';
 import {
   SESSION_KEY,
   loadSession,
@@ -1743,6 +1744,15 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   // Load plan from URL param or default example on first mount
   const hasLoadedDefaultRef = useRef(false);
+  // `?node=<id>` from the address bar: selected once the active plan is parsed
+  // (unknown ids are ignored). Consumed by the effect below.
+  const pendingNodeRef = useRef<number | null>(null);
+  useEffect(() => {
+    const id = pendingNodeRef.current;
+    if (id === null || !parsedPlan) return;
+    pendingNodeRef.current = null;
+    if (nodeById.has(id)) dispatch({ type: 'SELECT_NODE', payload: { id } });
+  }, [parsedPlan, nodeById]);
 
   const applyUrlPlanData = useCallback((urlData: UrlPlanData) => {
     if (urlData.type === 'legacy') {
@@ -1776,7 +1786,20 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      dispatch({ type: 'REPLACE_PLANS', payload: { plans: restoredPlans, activePlanIndex: 0 } });
+      // Shared workspace state (selection, active plan, compare pair, filters).
+      // Absent in older links; each field is validated against the loaded plans.
+      const workspace = readShareWorkspace(urlData.payload, restoredPlans.length);
+      for (let i = 0; i < restoredPlans.length && i < plans.length; i++) {
+        const parsed = restoredPlans[i].parsedPlan;
+        if (!parsed) continue;
+        const known = new Set(parsed.allNodes.map((node) => node.id));
+        const selected = readSharedSelection(plans[i]).filter((id) => known.has(id));
+        if (selected.length > 0) {
+          restoredPlans[i] = { ...restoredPlans[i], selectedNodeId: selected[selected.length - 1], selectedNodeIds: selected };
+        }
+      }
+
+      dispatch({ type: 'REPLACE_PLANS', payload: { plans: restoredPlans, activePlanIndex: workspace?.activePlan ?? 0 } });
       const parsedCount = restoredPlans.filter((slot) => slot.parsedPlan).length;
       dispatch({
         type: 'SET_INPUT_PANEL_COLLAPSED',
@@ -1785,6 +1808,15 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       const sharedView = restorableViewMode(getSharedViewMode(urlData.payload), parsedCount);
       if (sharedView) {
         dispatch({ type: 'SET_VIEW_MODE', payload: sharedView });
+      }
+      if (workspace?.compare && parsedCount >= 2) {
+        dispatch({ type: 'SET_COMPARE_PLAN_INDICES', payload: workspace.compare.pair });
+        if (workspace.compare.metrics) dispatch({ type: 'SET_COMPARE_METRICS', payload: workspace.compare.metrics });
+        if (workspace.compare.tree) dispatch({ type: 'SET_TREE_COMPARE_ENABLED', payload: true });
+      }
+      if (workspace) {
+        // The link's analysis filters replace whatever the recipient had.
+        dispatch({ type: 'SET_FILTERS', payload: { ...SHARE_FILTER_DEFAULTS, ...workspace.filters } });
       }
       for (const slot of restoredPlans) {
         if (!slot.parsedPlan) continue;
@@ -1918,11 +1950,20 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     // From here on state changes are autosaved (restore below happens first).
     sessionReadyRef.current = true;
 
+    const deepLink = typeof window === 'undefined' ? null : parseDeepLinkParams(window.location.search);
+    // `?q=` fills the filter search box; `?node=` selects once a plan is on screen.
+    const applyDeepLinkExtras = (planIsLoading: boolean) => {
+      if (!deepLink) return;
+      if (deepLink.q !== null) dispatch({ type: 'SET_FILTERS', payload: { searchText: deepLink.q } });
+      if (deepLink.node !== null && planIsLoading) pendingNodeRef.current = deepLink.node;
+    };
+
     // Check URL for shared plan first (legacy ?plan= wins for back-compat)
     const urlData = getPlanFromUrl();
     if (urlData) {
-      clearPlanFromUrl();
+      clearPlanFromUrl({ includeDeepLinks: true });
       applyUrlPlanData(urlData);
+      applyDeepLinkExtras(true);
       return;
     }
 
@@ -1931,9 +1972,12 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     // handled by hasLoadedDefaultRef being set before any async work.
     const gzParam = getGzipPlanParamFromHash();
     if (gzParam) {
-      clearPlanFromUrl();
+      clearPlanFromUrl({ includeDeepLinks: true });
       void decodeGzipPlanParam(gzParam)
-        .then((text) => applyUrlPlanData(classifyDecodedPlanText(text)))
+        .then((text) => {
+          applyUrlPlanData(classifyDecodedPlanText(text));
+          applyDeepLinkExtras(true);
+        })
         .catch(() => dispatch({
           type: 'SET_ERROR',
           payload: 'The shared plan link is corrupt or truncated. Ask for a fresh link or paste the plan text directly.',
@@ -1941,15 +1985,13 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Marketing/deep-link params: `?example=<name>` and `?view=<tab>`.
+    // Marketing/deep-link params: `?example=<name>`, `?view=<tab>`, `?node=<id>`, `?q=<text>`.
     // Applied only when there's no shared-plan URL to restore (handled above).
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
+    if (!deepLink) return;
 
     let loadedFromUrl = false;
-    const exampleParam = params.get('example');
-    if (exampleParam) {
-      const sample = findSampleByUrlParam(exampleParam);
+    if (deepLink.example) {
+      const sample = findSampleByUrlParam(deepLink.example);
       if (sample) {
         importPlanInput(sample.data, { metadataText: sample.metadata, recent: false, view: sample.view });
         loadedFromUrl = true;
@@ -1958,9 +2000,11 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     }
 
     // No plan in the URL: bring back the previous session, if any.
+    let restored = false;
     if (!loadedFromUrl) {
       const saved = loadSession();
       if (saved && restoreSession(saved)) {
+        restored = true;
         toastApi.show({
           tone: 'info',
           message: 'Restored your previous session',
@@ -1970,14 +2014,16 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const viewParam = params.get('view');
-    if (viewParam) {
-      const mode = parseViewModeFromUrlParam(viewParam);
+    if (deepLink.view) {
+      const mode = parseViewModeFromUrlParam(deepLink.view);
       // `compare` requires two loaded plans and is intentionally not supported via URL param.
       if (mode && mode !== 'compare') {
         dispatch({ type: 'SET_VIEW_MODE', payload: mode });
       }
     }
+    applyDeepLinkExtras(loadedFromUrl || restored);
+    // Drop the params once consumed so a reload or a share link does not replay them.
+    clearPlanFromUrl({ includeDeepLinks: true });
   }, [applyUrlPlanData, importPlanInput, restoreSession, startFresh, toastApi]);
 
   // Persist settings when they change (debounced)
@@ -2039,8 +2085,20 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const parsePlan = useCallback(async (text?: string) => {
     const { plans, activePlanIndex } = stateRef.current;
     const slot = plans[activePlanIndex];
-    const draft = text ?? slot?.draftInput ?? slot?.rawInput ?? '';
+    let draft = text ?? slot?.draftInput ?? slot?.rawInput ?? '';
     if (!draft.trim()) return;
+    // A SQL Monitor ACTIVE (HTML) report is decoded to its XML first, so the
+    // loaded text (autosave, Recent, share links) is the XML, not the HTML.
+    let decodedActive = false;
+    if (isActiveReport(draft)) {
+      try {
+        draft = await decodeActiveReport(draft);
+        decodedActive = true;
+      } catch (err) {
+        reportError(err instanceof Error ? err.message : ACTIVE_REPORT_DECODE_ERROR, { draft });
+        return;
+      }
+    }
     // A pasted gather-script output is not a plan — route it to the bundle
     // pipeline; on success the drawer goes back to showing the plan text.
     if (looksLikeMetadataBundle(draft)) {
@@ -2053,8 +2111,11 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_INPUT_PANEL_COLLAPSED', payload: true });
       return;
     }
-    await guardedImport(draft, 'Parsing the new text');
-  }, [attachBundleText, guardedImport]);
+    const outcome = await guardedImport(draft, 'Parsing the new text');
+    if (decodedActive && outcome?.ok) {
+      toastApi.show({ tone: 'info', title: 'Decoded SQL Monitor ACTIVE report', message: 'The embedded XML report was extracted and loaded.' });
+    }
+  }, [attachBundleText, guardedImport, reportError, toastApi]);
 
   const loadAndParsePlan = useCallback(
     async (input: string, metadataText?: string, options?: LoadPlanOptions): Promise<boolean> => {
@@ -2450,7 +2511,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   /** Drop / file-picker entry point: plan, bundle, annotated export, or a mix. */
   const loadFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
-    const { files: texts, errors } = await readDroppedFiles(files);
+    const { files: texts, errors, decoded } = await readDroppedFiles(files);
     if (texts.length === 0) {
       reportError(errors[0] ?? 'Could not read the dropped file.');
       return;
@@ -2466,6 +2527,9 @@ export function PlanProvider({ children }: { children: ReactNode }) {
           recent: { label: drop.name },
         });
         if (!outcome?.ok) return;
+        if (decoded.includes(drop.name)) {
+          toastApi.show({ tone: 'info', title: 'Decoded SQL Monitor ACTIVE report', message: 'The embedded XML report was extracted and loaded.' });
+        }
         if (drop.bundleText && outcome.bundle === 'attached') {
           showBundleNotice({ tone: 'ok', text: `Loaded "${drop.name}" with metadata bundle "${drop.bundleName}".` });
         }
@@ -2507,11 +2571,22 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       rawInput: slot.rawInput,
       ...(hasAnnotations(slot.annotations) ? { annotations: serializeAnnotations(slot.annotations) } : {}),
       ...(slot.metadataBundle ? { metadataBundle: slot.metadataBundle } : {}),
+      ...(slot.selectedNodeIds.length > 0 ? { selectedNodeIds: slot.selectedNodeIds } : {}),
     }));
+    // Read from the ref (not render state) so the callback identity stays stable.
+    const current = stateRef.current;
+    const workspace = buildShareWorkspace({
+      keptIndices: slotsWithInput.map((slot) => stablePlans.indexOf(slot)),
+      activePlanIndex: current.activePlanIndex,
+      comparePlanIndices: current.comparePlanIndices,
+      compareMetrics: current.compareMetrics,
+      treeCompareEnabled: current.treeCompareEnabled,
+      filters: current.filters,
+    });
 
     // Full payload (incl. bundles + active view) → without bundles when the
     // link would pass ~32k chars → stripped SQL Monitor XML as a last resort.
-    const result = await buildShareLink(entries, { viewMode: state.viewMode });
+    const result = await buildShareLink(entries, { viewMode: state.viewMode, workspace });
     const warning = result.ok && result.warnings.length > 0 ? result.warnings.join(' ') : undefined;
 
     if (result.ok) {

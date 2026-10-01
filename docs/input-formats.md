@@ -7,6 +7,7 @@ How to produce each input format the visualizer accepts. Paste the output into t
 | [DBMS_XPLAN](#dbms_xplan) | `SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR('&sql_id', NULL, 'ALLSTATS LAST'));` | With hint | Yes |
 | [SQL Monitor (Text)](#sql-monitor-text) | `SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id=>'&sql_id', type=>'TEXT') FROM dual;` | Yes | No |
 | [SQL Monitor (XML)](#sql-monitor-xml) | `SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id=>'&sql_id', type=>'XML', report_level=>'ALL') FROM dual;` | Yes | Yes |
+| [SQL Monitor (ACTIVE, HTML)](#sql-monitor-active-html) | `SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id=>'&sql_id', type=>'ACTIVE') FROM dual;` | Yes | Yes |
 | [JSON (V\$SQL_PLAN)](#json-vsql_plan) | `JSON_ARRAYAGG` query against `V$SQL_PLAN_STATISTICS_ALL` | Optional | Yes |
 | [XBI (Tanel Poder)](#xbi-tanel-poder) | `@xbi &sql_id` | Yes | No |
 
@@ -135,6 +136,25 @@ SPOOL OFF
 > **Note**: On 11g, use `DBMS_SQLTUNE.REPORT_SQL_MONITOR` instead.
 
 > **Note on report size**: The `report_level` modifiers like `-ACTIVITY`, `-METRICS`, etc. [only affect `type => 'ACTIVE'`](https://docs.oracle.com/en/database/oracle/oracle-database/19/arpls/DBMS_SQL_MONITOR.html) (the interactive HTML report), not XML. The XML schema is fixed — Oracle always emits the full structure. For very large plans, spool to a file as shown above rather than trying to trim sections.
+
+---
+
+### SQL Monitor (ACTIVE, HTML)
+
+The interactive HTML report from Enterprise Manager or `DBMS_SQL_MONITOR`. Its data is embedded (zlib-compressed and base64-encoded) inside the page, so the visualizer decodes it in your browser and loads it exactly like the XML report — same actuals, ASH activity, predicates and binds. Drop or open the saved `.html` file (or paste its text); nothing is uploaded.
+
+```sql
+-- In SQL*Plus
+SET LONG 100000000 LONGCHUNKSIZE 100000000 LINESIZE 32767 PAGESIZE 0 TRIMSPOOL ON
+SPOOL /tmp/sql_monitor.html
+SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(
+  sql_id => '&sql_id',
+  type   => 'ACTIVE'
+) FROM dual;
+SPOOL OFF
+```
+
+If the file was truncated and cannot be decoded, re-export it or use `type => 'XML'` instead.
 
 ---
 

@@ -167,6 +167,12 @@ describe('clearPlanFromUrl({ includeDeepLinks })', () => {
     expect(window.location.search).toBe('?keep=1');
     expect(window.location.hash).toBe('');
   });
+
+  it('also drops ?node= and ?q=', () => {
+    setUrl('http://localhost:3000/?example=22&view=tabular&node=4&q=hash&keep=1');
+    clearPlanFromUrl({ includeDeepLinks: true });
+    expect(window.location.search).toBe('?keep=1');
+  });
 });
 
 describe('share payload: view mode + metadata bundles', () => {

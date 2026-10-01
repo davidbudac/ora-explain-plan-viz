@@ -23,6 +23,8 @@ import { PlanNodeMemo } from '../nodes/PlanNode';
 import type { PlanNodeData } from '../nodes/PlanNode';
 import { prefersReducedMotion, usePrefersReducedMotion } from '../nodes/usePrefersReducedMotion';
 import { TreeLayoutControls } from './TreeLayoutControls';
+import { SelectionBreadcrumb } from '../SelectionBreadcrumb';
+import type { Crumb } from '../../lib/breadcrumb';
 import { formatNumberShort, nodeCardinalityRatio, cardinalityRatioSeverity } from '../../lib/format';
 import type { PlanNode } from '../../lib/types';
 import { EDGE_SCHEME_COLORS } from '../../lib/types';
@@ -1325,6 +1327,20 @@ function HierarchicalViewContent({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activePlanIndex, nodeById, parsedPlan, resolvedPlanIndex, selectNodeForPlan, selectedNodeId, isHorizontal, depthIndex, markSelectionSource]);
 
+  // Root → selected path for the breadcrumb (single selection, single-plan tree).
+  const breadcrumbPath = useMemo((): Crumb[] => {
+    if (selectedNodeId === null || selectedNodeIds.length !== 1) return [];
+    const ids = [...getAncestorIds(selectedNodeId, parentOf).reverse(), selectedNodeId];
+    return ids.flatMap((id) => {
+      const node = nodeById.get(id);
+      return node ? [{ id, operation: node.operation, objectName: node.objectName }] : [];
+    });
+  }, [selectedNodeId, selectedNodeIds, parentOf, nodeById]);
+  const selectBreadcrumbNode = useCallback(
+    (id: number) => selectNodeForPlan(resolvedPlanIndex, id),
+    [selectNodeForPlan, resolvedPlanIndex],
+  );
+
   const minimapWanted =
     treeMinimap === 'on' || (treeMinimap === 'auto' && visibleNodeCount > MINIMAP_AUTO_THRESHOLD);
   const showMinimap = !isExporting && minimapWanted;
@@ -1425,6 +1441,11 @@ function HierarchicalViewContent({
             (and focus mode's View chip), wired through the context. Compare
             panes have no toolbar strip — the toolbar cannot address one pane —
             so they keep this per-pane overlay. */}
+        {registerExport && breadcrumbPath.length > 0 && (
+          <Panel position="top-left" style={{ maxWidth: 'calc(100% - 7rem)' }}>
+            <SelectionBreadcrumb path={breadcrumbPath} onSelect={selectBreadcrumbNode} onReturn={focusSelected} />
+          </Panel>
+        )}
         {!registerExport && (
           <Panel position="top-left">
             <TreeLayoutControls
