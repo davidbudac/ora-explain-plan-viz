@@ -286,4 +286,124 @@ describe('JSON Plan Parser', () => {
       expect(result.allNodes[0].starts).toBe(3);
     });
   });
+  describe('parse - V$SQL_PLAN_STATISTICS_ALL accuracy fixes', () => {
+    const one = (row: Record<string, unknown>) =>
+      jsonPlanParser.parse(JSON.stringify([{ id: 0, operation: 'TABLE ACCESS', options: 'FULL', depth: 0, ...row }])).allNodes[0];
+
+    it('computes %CPU as (cost - io_cost) / cost like DBMS_XPLAN', () => {
+      expect(one({ cost: 100, io_cost: 90, cpu_cost: 987654321 }).cpuPercent).toBe(10);
+      expect(one({ cost: 7, io_cost: 7, cpu_cost: 5000000 }).cpuPercent).toBe(0);
+    });
+
+    it('shows 0 %CPU for zero cost and leaves it undefined without io_cost', () => {
+      expect(one({ cost: 0, io_cost: 0 }).cpuPercent).toBe(0);
+      expect(one({ cost: 50, cpu_cost: 12345 }).cpuPercent).toBeUndefined();
+    });
+
+    it('clamps %CPU to 0..100', () => {
+      expect(one({ cost: 10, io_cost: 15 }).cpuPercent).toBe(0);
+      expect(one({ cost: 10, io_cost: -5 }).cpuPercent).toBe(100);
+    });
+
+    it('does not turn the degree of parallelism into starts', () => {
+      const node = one({ last_degree: 4, degree: 4, actual_parallel_degree: 4 });
+      expect(node.starts).toBeUndefined();
+    });
+
+    it('still reads starts from starts columns', () => {
+      expect(one({ starts: 5 }).starts).toBe(5);
+      expect(one({ actual_starts: 2, last_degree: 4 }).starts).toBe(2);
+    });
+
+    it('maps partition and parallel columns', () => {
+      const node = one({
+        partition_start: 'KEY',
+        partition_stop: 'KEY(I)',
+        object_node: ':Q1000',
+        other_tag: 'PARALLEL_TO_SERIAL',
+        distribution: 'HASH',
+      });
+      expect(node.pstart).toBe('KEY');
+      expect(node.pstop).toBe('KEY(I)');
+      expect(node.tq).toBe(':Q1000');
+      expect(node.inOut).toBe('P->S');
+      expect(node.pqDistrib).toBe('HASH');
+    });
+
+    it('accepts numeric partition bounds and bloom-filter markers', () => {
+      const node = one({ partition_start: 1, partition_stop: 4 });
+      expect(node.pstart).toBe('1');
+      expect(node.pstop).toBe('4');
+      expect(one({ partition_start: ':BF0000' }).pstart).toBe(':BF0000');
+    });
+
+    it('translates OTHER_TAG values to IN-OUT codes', () => {
+      const tag = (other_tag: string) => one({ other_tag }).inOut;
+      expect(tag('PARALLEL_TO_PARALLEL')).toBe('P->P');
+      expect(tag('PARALLEL_COMBINED_WITH_PARENT')).toBe('PCWP');
+      expect(tag('PARALLEL_COMBINED_WITH_CHILD')).toBe('PCWC');
+      expect(tag('SERIAL_FROM_REMOTE')).toBe('R->S');
+      expect(tag('SERIAL_TO_PARALLEL')).toBe('S->P');
+      expect(tag('PARALLEL_FROM_SERIAL')).toBe('S->P');
+      expect(tag('SERIAL')).toBeUndefined();
+      expect(tag('SOMETHING_NEW')).toBe('SOMETHING_NEW');
+    });
+
+    it('accepts already-short column names', () => {
+      const node = one({ pstart: '1', pstop: '8', tq: ':Q1001', in_out: 'P->P', pq_distrib: 'BROADCAST' });
+      expect(node.pstart).toBe('1');
+      expect(node.pstop).toBe('8');
+      expect(node.tq).toBe(':Q1001');
+      expect(node.inOut).toBe('P->P');
+      expect(node.pqDistrib).toBe('BROADCAST');
+    });
+
+    it('sums consistent and current gets for buffers', () => {
+      expect(one({ last_cr_buffer_gets: 100, last_cu_buffer_gets: 25 }).logicalReads).toBe(125);
+      expect(one({ cr_buffer_gets: 10, cu_buffer_gets: 3 }).logicalReads).toBe(13);
+    });
+
+    it('keeps single-key buffer fallbacks', () => {
+      expect(one({ last_cr_buffer_gets: 100 }).logicalReads).toBe(100);
+      expect(one({ actual_cr_buffer_gets: 42 }).logicalReads).toBe(42);
+      expect(one({ buffer_gets: 7 }).logicalReads).toBe(7);
+      expect(one({ logical_reads: 8 }).logicalReads).toBe(8);
+    });
+
+    it('maps physical writes', () => {
+      expect(one({ last_disk_writes: 12 }).physicalWrites).toBe(12);
+      expect(one({ disk_writes: 3 }).physicalWrites).toBe(3);
+    });
+
+    it('reads workarea sizes as bytes', () => {
+      const node = one({ estimated_optimal_size: 2607104, estimated_onepass_size: 2607104 });
+      expect(node.estimatedOptimalMemory).toBe(2607104);
+      expect(node.estimatedOnePassMemory).toBe(2607104);
+    });
+
+    it('treats last_memory_used and last_tempseg_size as bytes', () => {
+      const node = one({ last_memory_used: 1756160, last_tempseg_size: 8192 });
+      expect(node.memoryUsed).toBe(1756160);
+      expect(node.tempUsed).toBe(8192);
+    });
+
+    it('parses LAST_EXECUTION into workarea passes', () => {
+      const passes = (last_execution: string) => one({ last_execution }).workareaPasses;
+      expect(passes('OPTIMAL')).toBe(0);
+      expect(passes('1 PASS')).toBe(1);
+      expect(passes('ONE PASS')).toBe(1);
+      expect(passes('ONEPASS')).toBe(1);
+      expect(passes('3 PASSES')).toBe(3);
+      expect(passes('garbage')).toBeUndefined();
+      expect(one({}).workareaPasses).toBeUndefined();
+    });
+
+    it('maps workarea execution counts', () => {
+      expect(
+        one({ optimal_executions: 4, onepass_executions: 1, multipasses_executions: 0 }).workareaExecutions
+      ).toEqual({ optimal: 4, onePass: 1, multipass: 0 });
+      expect(one({ onepass_executions: 2 }).workareaExecutions).toEqual({ optimal: 0, onePass: 2, multipass: 0 });
+      expect(one({}).workareaExecutions).toBeUndefined();
+    });
+  });
 });
