@@ -2,6 +2,63 @@ import type { PlanNode, ParsedPlan } from '../types';
 import { planRootCost } from '../analysis';
 import type { PlanParser } from './types';
 import { parseNoteSection } from './noteSection';
+import {
+  expandTableTabs,
+  normalizeNewlines,
+  parseByteSize,
+  parseCostCell,
+  parseCount,
+  parseTimeToMs,
+  parseUsedMem,
+  parseWorkareaExecutions,
+} from './values';
+
+/** Runtime-statistics fields a DBMS_XPLAN row can carry (ALLSTATS / DISPLAY_CURSOR columns). */
+type RuntimeStats = Pick<
+  PlanNode,
+  | 'starts'
+  | 'actualRows'
+  | 'actualTime'
+  | 'logicalReads'
+  | 'physicalReads'
+  | 'physicalWrites'
+  | 'estimatedOptimalMemory'
+  | 'estimatedOnePassMemory'
+  | 'memoryUsed'
+  | 'workareaPasses'
+  | 'workareaExecutions'
+  | 'tempUsed'
+>;
+
+type RuntimeColumn =
+  | 'starts'
+  | 'aRows'
+  | 'aTime'
+  | 'buffers'
+  | 'reads'
+  | 'writes'
+  | 'oMem'
+  | 'oneMem'
+  | 'usedMem'
+  | 'o1m'
+  | 'usedTmp';
+
+/** Lower-cased header text → runtime column (exact match; headers are not substring-matched). */
+const RUNTIME_HEADERS: Record<string, RuntimeColumn> = {
+  'starts': 'starts',
+  'a-rows': 'aRows',
+  'a-time': 'aTime',
+  'buffers': 'buffers',
+  'reads': 'reads',
+  'writes': 'writes',
+  'omem': 'oMem',
+  '0mem': 'oMem',
+  '1mem': 'oneMem',
+  'used-mem': 'usedMem',
+  'o/1/m': 'o1m',
+  'used-tmp': 'usedTmp',
+  'max-tmp': 'usedTmp',
+};
 
 interface RawPlanRow {
   id: number;
@@ -19,6 +76,7 @@ interface RawPlanRow {
   tq?: string;
   inOut?: string;
   pqDistrib?: string;
+  stats: RuntimeStats;
   depth: number;
   hasStarPrefix: boolean;
 }
@@ -37,6 +95,7 @@ interface ColumnPositions {
   tq?: { start: number; end: number };
   inOut?: { start: number; end: number };
   pqDistrib?: { start: number; end: number };
+  runtime: Partial<Record<RuntimeColumn, { start: number; end: number }>>;
 }
 
 /**
@@ -49,7 +108,7 @@ export const dbmsXplanParser: PlanParser = {
   },
 
   parse(input: string): ParsedPlan {
-    const lines = input.split('\n');
+    const lines = expandTableTabs(normalizeNewlines(input).split('\n'));
 
     // Extract plan hash value if present
     const planHashValue = extractPlanHashValue(lines);
@@ -88,6 +147,11 @@ export const dbmsXplanParser: PlanParser = {
     const totalCost = planRootCost(rootNode, allNodes);
     const maxRows = Math.max(...allNodes.map(node => node.rows || 0));
 
+    // ALLSTATS / DISPLAY_CURSOR output carries actual runtime statistics (A-Rows etc.)
+    const hasActualStats = allNodes.some(node => node.actualRows !== undefined);
+    const maxActualRows = Math.max(...allNodes.map(node => node.actualRows || 0), 0);
+    const maxStarts = Math.max(...allNodes.map(node => node.starts || 0), 0);
+
     // Parse the trailing "Note" section, if present.
     const notes = parseNoteSection(lines);
 
@@ -98,16 +162,20 @@ export const dbmsXplanParser: PlanParser = {
       rootNode,
       allNodes,
       totalCost,
-      maxRows,
+      maxRows: hasActualStats ? maxActualRows : maxRows,
+      maxActualRows: hasActualStats ? maxActualRows : undefined,
+      maxStarts: hasActualStats ? maxStarts : undefined,
       source: 'dbms_xplan',
-      hasActualStats: false,
+      hasActualStats,
+      // A-Time is cumulative: the root's actualTime is the total elapsed time
+      totalElapsedTime: hasActualStats ? rootNode?.actualTime || 0 : undefined,
       notes,
     };
   },
 };
 
 export function extractDbmsXplanSegments(input: string): string[] {
-  const normalized = input.trim();
+  const normalized = normalizeNewlines(input).trim();
   if (!normalized) return [];
 
   const lines = normalized.split('\n');
@@ -329,6 +397,7 @@ function parseColumnPositions(headerLine: string): ColumnPositions {
     id: { start: 0, end: 0 },
     operation: { start: 0, end: 0 },
     name: { start: 0, end: 0 },
+    runtime: {},
   };
 
   // Find column boundaries by looking for | characters
@@ -373,6 +442,8 @@ function parseColumnPositions(headerLine: string): ColumnPositions {
       cols.inOut = { start, end };
     } else if (segment === 'pq distrib') {
       cols.pqDistrib = { start, end };
+    } else if (segment in RUNTIME_HEADERS) {
+      cols.runtime[RUNTIME_HEADERS[segment]] = { start, end };
     }
   }
 
@@ -416,13 +487,13 @@ function parseDataRow(line: string, columns: ColumnPositions): RawPlanRow | null
 
   if (columns.rows) {
     const rowsStr = line.substring(columns.rows.start, columns.rows.end).trim();
-    const rowsVal = parseNumericValue(rowsStr);
+    const rowsVal = parseCount(rowsStr);
     if (rowsVal !== null) rows = rowsVal;
   }
 
   if (columns.bytes) {
     const bytesStr = line.substring(columns.bytes.start, columns.bytes.end).trim();
-    const bytesVal = parseNumericValue(bytesStr);
+    const bytesVal = parseCount(bytesStr);
     if (bytesVal !== null) bytes = bytesVal;
   }
 
@@ -432,14 +503,11 @@ function parseDataRow(line: string, columns: ColumnPositions): RawPlanRow | null
   }
 
   if (columns.cost) {
-    const costStr = line.substring(columns.cost.start, columns.cost.end).trim();
-    // Cost might be in format "123 (5)" where 5 is CPU%
-    const costMatch = costStr.match(/(\d+)\s*(?:\((\d+)\))?/);
-    if (costMatch) {
-      cost = parseInt(costMatch[1], 10);
-      if (costMatch[2]) {
-        cpuPercent = parseInt(costMatch[2], 10);
-      }
+    // Cost might be "123 (5)" (5 = CPU%) and large costs are abbreviated ("4823K (1)")
+    const costVal = parseCostCell(line.substring(columns.cost.start, columns.cost.end));
+    if (costVal) {
+      cost = costVal.cost;
+      cpuPercent = costVal.cpuPercent;
     }
   }
 
@@ -488,9 +556,58 @@ function parseDataRow(line: string, columns: ColumnPositions): RawPlanRow | null
     tq,
     inOut,
     pqDistrib,
+    stats: parseRuntimeStats(line, columns),
     depth,
     hasStarPrefix,
   };
+}
+
+/** Read the ALLSTATS runtime columns (Starts, A-Rows, Buffers, OMem, Used-Mem …) of one data row. */
+function parseRuntimeStats(line: string, columns: ColumnPositions): RuntimeStats {
+  const stats: RuntimeStats = {};
+  const cell = (col: RuntimeColumn): string | undefined => {
+    const range = columns.runtime[col];
+    return range ? line.substring(range.start, range.end).trim() : undefined;
+  };
+
+  const starts = parseCount(cell('starts') ?? '');
+  if (starts !== null) stats.starts = starts;
+
+  const actualRows = parseCount(cell('aRows') ?? '');
+  if (actualRows !== null) stats.actualRows = actualRows;
+
+  const actualTime = parseTimeToMs(cell('aTime') ?? '');
+  if (actualTime !== null) stats.actualTime = actualTime;
+
+  const buffers = parseCount(cell('buffers') ?? '');
+  if (buffers !== null) stats.logicalReads = buffers;
+
+  // DISPLAY_CURSOR Reads/Writes are physical read/write requests, not I/O-request stats
+  const reads = parseCount(cell('reads') ?? '');
+  if (reads !== null) stats.physicalReads = reads;
+
+  const writes = parseCount(cell('writes') ?? '');
+  if (writes !== null) stats.physicalWrites = writes;
+
+  const oMem = parseByteSize(cell('oMem') ?? '');
+  if (oMem !== null) stats.estimatedOptimalMemory = oMem;
+
+  const oneMem = parseByteSize(cell('oneMem') ?? '');
+  if (oneMem !== null) stats.estimatedOnePassMemory = oneMem;
+
+  const usedMem = parseUsedMem(cell('usedMem') ?? '');
+  if (usedMem) {
+    stats.memoryUsed = usedMem.bytes;
+    if (usedMem.passes !== undefined) stats.workareaPasses = usedMem.passes;
+  }
+
+  const executions = parseWorkareaExecutions(cell('o1m') ?? '');
+  if (executions) stats.workareaExecutions = executions;
+
+  const usedTmp = parseByteSize(cell('usedTmp') ?? '');
+  if (usedTmp !== null) stats.tempUsed = usedTmp;
+
+  return stats;
 }
 
 function calculateDepth(operationStr: string): number {
@@ -505,38 +622,6 @@ function calculateDepth(operationStr: string): number {
   }
   // Typically each level is 1-2 spaces of indentation
   return Math.floor(spaces / 1);
-}
-
-/** Byte size with 1024-based K/M/G/T suffixes, as DBMS_XPLAN prints TempSpc (e.g. "2048K"). */
-function parseByteSize(str: string): number | null {
-  const match = str.replace(/,/g, '').trim().match(/^([\d.]+)\s*([KMGT])?B?$/i);
-  if (!match) return null;
-  const power = 'KMGT'.indexOf((match[2] || '').toUpperCase()) + 1;
-  return Math.round(parseFloat(match[1]) * Math.pow(1024, power));
-}
-
-function parseNumericValue(str: string): number | null {
-  // Handle K/M/G suffixes and remove commas
-  const cleaned = str.replace(/,/g, '').trim();
-
-  if (!cleaned || cleaned === '') {
-    return null;
-  }
-
-  const suffixMatch = cleaned.match(/^([\d.]+)\s*([KMG])?$/i);
-  if (suffixMatch) {
-    let value = parseFloat(suffixMatch[1]);
-    const suffix = (suffixMatch[2] || '').toUpperCase();
-
-    if (suffix === 'K') value *= 1000;
-    else if (suffix === 'M') value *= 1000000;
-    else if (suffix === 'G') value *= 1000000000;
-
-    return Math.round(value);
-  }
-
-  const num = parseInt(cleaned, 10);
-  return isNaN(num) ? null : num;
 }
 
 function parsePredicates(lines: string[]): Map<number, { access?: string; filter?: string }> {
@@ -682,6 +767,7 @@ function buildTree(
       tq: row.tq,
       inOut: row.inOut,
       pqDistrib: row.pqDistrib,
+      ...row.stats,
       accessPredicates: preds?.access,
       filterPredicates: preds?.filter,
       queryBlock: qb?.queryBlock,

@@ -720,6 +720,10 @@ export function NodeDetailBody() {
         node.tempUsed !== undefined ||
         node.physicalReads !== undefined ||
         node.logicalReads !== undefined ||
+        node.physicalWrites !== undefined ||
+        node.estimatedOptimalMemory !== undefined ||
+        node.estimatedOnePassMemory !== undefined ||
+        node.workareaExecutions !== undefined ||
         node.ioReadBytes !== undefined ||
         node.ioWriteBytes !== undefined ||
         node.ioReadRequests !== undefined ||
@@ -727,11 +731,21 @@ export function NodeDetailBody() {
         <Accordion title="Resources (I/O)" defaultOpen={false}>
           <div className="grid grid-cols-2 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden [&>*:last-child:nth-child(odd)]:col-span-2">
             <StatItem label="Memory" value={formatBytes(node.memoryUsed)} />
+            <StatItem label="Work area" value={formatWorkareaPasses(node.workareaPasses)} />
+            <StatItem label="OMem (est.)" value={formatBytes(node.estimatedOptimalMemory)} />
+            <StatItem label="1Mem (est.)" value={formatBytes(node.estimatedOnePassMemory)} />
+            <StatItem
+              label="Executions O/1/M"
+              value={node.workareaExecutions
+                ? `${node.workareaExecutions.optimal}/${node.workareaExecutions.onePass}/${node.workareaExecutions.multipass}`
+                : undefined}
+            />
             <StatItem label="Temp Used" value={formatBytes(node.tempUsed)} />
             <StatItem label="IO Read" value={formatBytes(node.ioReadBytes || undefined)} />
             <StatItem label="IO Write" value={formatBytes(node.ioWriteBytes || undefined)} />
             <StatItem label="Read Reqs" value={formatNumberShort((node.ioReadRequests ?? node.physicalReads) || undefined)} />
             <StatItem label="Write Reqs" value={formatNumberShort(node.ioWriteRequests || undefined)} />
+            <StatItem label="Writes" value={formatNumberShort(node.physicalWrites || undefined)} />
             <StatItem label="Buffer Gets" value={formatNumberShort(node.logicalReads || undefined)} />
           </div>
         </Accordion>
@@ -754,6 +768,14 @@ export function NodeDetailBody() {
       />
     </>
   );
+}
+
+/** Used-Mem pass outcome of the last execution: "(0)" optimal, "(1)" one-pass, "(n)" multipass. */
+function formatWorkareaPasses(passes?: number): string | undefined {
+  if (passes === undefined) return undefined;
+  if (passes === 0) return 'optimal';
+  if (passes === 1) return 'one-pass';
+  return `multipass (${passes})`;
 }
 
 function StatItem({ label, value, highlight }: { label: string; value?: string; highlight?: 'actual' | 'warn' }) {

@@ -1,0 +1,129 @@
+SQL_ID  2wbt5qzpu8x9h, child number 0
+-------------------------------------
+select /*+ gather_plan_statistics planviz_spill */ max(x) from (select
+a.object_name || b.object_name x from dba_objects a join dba_objects b
+on a.object_id = b.object_id order by a.object_name, b.owner, b.created)
+
+Plan hash value: 2940089579
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Id  | Operation                                 | Name              | Starts | E-Rows | A-Rows |   A-Time   | Buffers | Reads  | Writes |  OMem |  1Mem | Used-Mem | Used-Tmp|
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT                          |                   |      1 |        |      1 |00:00:02.73 |   35010 |   1356 |   1356 |       |       |          |         |
+|   1 |  SORT AGGREGATE                           |                   |      1 |      1 |      1 |00:00:02.73 |   35010 |   1356 |   1356 |       |       |          |         |
+|   2 |   MERGE JOIN                              |                   |      1 |     46M|  74208 |00:00:02.74 |   35010 |   1356 |   1356 |       |       |          |         |
+|   3 |    SORT JOIN                              |                   |      1 |  68450 |  74209 |00:00:00.88 |   17503 |    429 |    429 |  3861K|   843K|58368  (1)|    4096K|
+|   4 |     VIEW                                  | DBA_OBJECTS       |      1 |  68450 |  74209 |00:00:00.07 |   17495 |      0 |      0 |       |       |          |         |
+|   5 |      UNION-ALL                            |                   |      1 |        |  74209 |00:00:00.06 |   17495 |      0 |      0 |       |       |          |         |
+|*  6 |       FILTER                              |                   |      1 |        |  74208 |00:00:00.05 |   17493 |      0 |      0 |       |       |          |         |
+|*  7 |        HASH JOIN                          |                   |      1 |  74149 |  74208 |00:00:00.03 |    1243 |      0 |      0 |  2402K|  2402K|  116K (0)|         |
+|   8 |         INDEX FULL SCAN                   | I_USER2           |      1 |    133 |    133 |00:00:00.01 |       1 |      0 |      0 |       |       |          |         |
+|*  9 |         HASH JOIN                         |                   |      1 |  74149 |  74208 |00:00:00.02 |    1242 |      0 |      0 |  1610K|  1610K|   98K (0)|         |
+|  10 |          INDEX FULL SCAN                  | I_USER2           |      1 |    133 |    133 |00:00:00.01 |       1 |      0 |      0 |       |       |          |         |
+|* 11 |          TABLE ACCESS FULL                | OBJ$              |      1 |  74149 |  74208 |00:00:00.01 |    1241 |      0 |      0 |       |       |          |         |
+|  12 |        NESTED LOOPS                       |                   |   2933 |      1 |      0 |00:00:00.01 |   13456 |      0 |      0 |       |       |          |         |
+|  13 |         NESTED LOOPS                      |                   |   2933 |      1 |      0 |00:00:00.01 |   13456 |      0 |      0 |       |       |          |         |
+|  14 |          TABLE ACCESS BY INDEX ROWID      | IND$              |   2933 |      1 |   2933 |00:00:00.01 |    5932 |      0 |      0 |       |       |          |         |
+|* 15 |           INDEX UNIQUE SCAN               | I_IND1            |   2933 |      1 |   2933 |00:00:00.01 |    2995 |      0 |      0 |       |       |          |         |
+|* 16 |          TABLE ACCESS CLUSTER             | TAB$              |   2933 |      1 |      0 |00:00:00.01 |    7524 |      0 |      0 |       |       |          |         |
+|* 17 |         INDEX RANGE SCAN                  | I_OBJ1            |      0 |      1 |      0 |00:00:00.01 |       0 |      0 |      0 |       |       |          |         |
+|* 18 |        TABLE ACCESS CLUSTER               | TAB$              |   2258 |      1 |   2258 |00:00:00.01 |    2783 |      0 |      0 |       |       |          |         |
+|* 19 |         INDEX UNIQUE SCAN                 | I_OBJ#            |   2258 |      1 |   2258 |00:00:00.01 |     177 |      0 |      0 |       |       |          |         |
+|* 20 |        TABLE ACCESS BY INDEX ROWID        | SEQ$              |    313 |      1 |    313 |00:00:00.01 |       8 |      0 |      0 |       |       |          |         |
+|* 21 |         INDEX UNIQUE SCAN                 | I_SEQ1            |    313 |      1 |    313 |00:00:00.01 |       4 |      0 |      0 |       |       |          |         |
+|* 22 |        TABLE ACCESS BY INDEX ROWID BATCHED| USER_EDITIONING$  |      2 |      1 |      0 |00:00:00.01 |       3 |      0 |      0 |       |       |          |         |
+|* 23 |         INDEX RANGE SCAN                  | I_USER_EDITIONING |      2 |      2 |      2 |00:00:00.01 |       2 |      0 |      0 |       |       |          |         |
+|* 24 |        TABLE ACCESS BY INDEX ROWID BATCHED| USER_EDITIONING$  |      0 |      1 |      0 |00:00:00.01 |       0 |      0 |      0 |       |       |          |         |
+|* 25 |         INDEX RANGE SCAN                  | I_USER_EDITIONING |      0 |      2 |      0 |00:00:00.01 |       0 |      0 |      0 |       |       |          |         |
+|  26 |        NESTED LOOPS SEMI                  |                   |      0 |      1 |      0 |00:00:00.01 |       0 |      0 |      0 |       |       |          |         |
+|* 27 |         INDEX SKIP SCAN                   | I_USER2           |      0 |      1 |      0 |00:00:00.01 |       0 |      0 |      0 |       |       |          |         |
+|* 28 |         INDEX RANGE SCAN                  | I_OBJ4            |      0 |      1 |      0 |00:00:00.01 |       0 |      0 |      0 |       |       |          |         |
+|  29 |       NESTED LOOPS                        |                   |      1 |      1 |      1 |00:00:00.01 |       2 |      0 |      0 |       |       |          |         |
+|  30 |        INDEX FULL SCAN                    | I_LINK1           |      1 |      1 |      1 |00:00:00.01 |       1 |      0 |      0 |       |       |          |         |
+|* 31 |        INDEX RANGE SCAN                   | I_USER2           |      1 |      1 |      1 |00:00:00.01 |       1 |      0 |      0 |       |       |          |         |
+|* 32 |    SORT JOIN                              |                   |  74209 |  68450 |  74208 |00:00:01.84 |   17507 |    927 |    927 |  3861K|   843K|49152  (2)|         |
+|  33 |     VIEW                                  | DBA_OBJECTS       |      1 |  68450 |  74209 |00:00:00.07 |   17495 |      0 |      0 |       |       |          |         |
+|  34 |      UNION-ALL                            |                   |      1 |        |  74209 |00:00:00.07 |   17495 |      0 |      0 |       |       |          |         |
+|* 35 |       FILTER                              |                   |      1 |        |  74208 |00:00:00.05 |   17493 |      0 |      0 |       |       |          |         |
+|* 36 |        HASH JOIN                          |                   |      1 |  74149 |  74208 |00:00:00.03 |    1243 |      0 |      0 |  2402K|  2402K|   98K (0)|         |
+|  37 |         INDEX FULL SCAN                   | I_USER2           |      1 |    133 |    133 |00:00:00.01 |       1 |      0 |      0 |       |       |          |         |
+|* 38 |         HASH JOIN                         |                   |      1 |  74149 |  74208 |00:00:00.02 |    1242 |      0 |      0 |  1610K|  1610K|   99K (0)|         |
+|  39 |          INDEX FULL SCAN                  | I_USER2           |      1 |    133 |    133 |00:00:00.01 |       1 |      0 |      0 |       |       |          |         |
+|* 40 |          TABLE ACCESS FULL                | OBJ$              |      1 |  74149 |  74208 |00:00:00.01 |    1241 |      0 |      0 |       |       |          |         |
+|  41 |        NESTED LOOPS                       |                   |   2933 |      1 |      0 |00:00:00.01 |   13456 |      0 |      0 |       |       |          |         |
+|  42 |         NESTED LOOPS                      |                   |   2933 |      1 |      0 |00:00:00.01 |   13456 |      0 |      0 |       |       |          |         |
+|  43 |          TABLE ACCESS BY INDEX ROWID      | IND$              |   2933 |      1 |   2933 |00:00:00.01 |    5932 |      0 |      0 |       |       |          |         |
+|* 44 |           INDEX UNIQUE SCAN               | I_IND1            |   2933 |      1 |   2933 |00:00:00.01 |    2995 |      0 |      0 |       |       |          |         |
+|* 45 |          TABLE ACCESS CLUSTER             | TAB$              |   2933 |      1 |      0 |00:00:00.01 |    7524 |      0 |      0 |       |       |          |         |
+|* 46 |         INDEX RANGE SCAN                  | I_OBJ1            |      0 |      1 |      0 |00:00:00.01 |       0 |      0 |      0 |       |       |          |         |
+|* 47 |        TABLE ACCESS CLUSTER               | TAB$              |   2258 |      1 |   2258 |00:00:00.01 |    2783 |      0 |      0 |       |       |          |         |
+|* 48 |         INDEX UNIQUE SCAN                 | I_OBJ#            |   2258 |      1 |   2258 |00:00:00.01 |     177 |      0 |      0 |       |       |          |         |
+|* 49 |        TABLE ACCESS BY INDEX ROWID        | SEQ$              |    313 |      1 |    313 |00:00:00.01 |       8 |      0 |      0 |       |       |          |         |
+|* 50 |         INDEX UNIQUE SCAN                 | I_SEQ1            |    313 |      1 |    313 |00:00:00.01 |       4 |      0 |      0 |       |       |          |         |
+|* 51 |        TABLE ACCESS BY INDEX ROWID BATCHED| USER_EDITIONING$  |      2 |      1 |      0 |00:00:00.01 |       3 |      0 |      0 |       |       |          |         |
+|* 52 |         INDEX RANGE SCAN                  | I_USER_EDITIONING |      2 |      2 |      2 |00:00:00.01 |       2 |      0 |      0 |       |       |          |         |
+|* 53 |        TABLE ACCESS BY INDEX ROWID BATCHED| USER_EDITIONING$  |      0 |      1 |      0 |00:00:00.01 |       0 |      0 |      0 |       |       |          |         |
+|* 54 |         INDEX RANGE SCAN                  | I_USER_EDITIONING |      0 |      2 |      0 |00:00:00.01 |       0 |      0 |      0 |       |       |          |         |
+|  55 |        NESTED LOOPS SEMI                  |                   |      0 |      1 |      0 |00:00:00.01 |       0 |      0 |      0 |       |       |          |         |
+|* 56 |         INDEX SKIP SCAN                   | I_USER2           |      0 |      1 |      0 |00:00:00.01 |       0 |      0 |      0 |       |       |          |         |
+|* 57 |         INDEX RANGE SCAN                  | I_OBJ4            |      0 |      1 |      0 |00:00:00.01 |       0 |      0 |      0 |       |       |          |         |
+|  58 |       NESTED LOOPS                        |                   |      1 |      1 |      1 |00:00:00.01 |       2 |      0 |      0 |       |       |          |         |
+|  59 |        INDEX FULL SCAN                    | I_LINK1           |      1 |      1 |      1 |00:00:00.01 |       1 |      0 |      0 |       |       |          |         |
+|* 60 |        INDEX RANGE SCAN                   | I_USER2           |      1 |      1 |      1 |00:00:00.01 |       1 |      0 |      0 |       |       |          |         |
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   6 - filter(((("O"."TYPE#"<>1 AND "O"."TYPE#"<>2 AND "O"."TYPE#"<>6) OR ("O"."TYPE#"=1 AND  IS NULL) OR ("O"."TYPE#"=2 AND =1) OR ("O"."TYPE#"=6 AND =1)) AND
+              (BITAND("U"."SPARE1",16)=0 OR BITAND("O"."FLAGS",1048576)=1048576 OR ("O"."TYPE#"<>88 AND  IS NULL) OR ( IS NOT NULL AND
+              ((SYS_CONTEXT('userenv','current_edition_name')='ORA$BASE' AND "U"."TYPE#"<>2) OR ("U"."TYPE#"=2 AND
+              "U"."SPARE2"=TO_NUMBER(SYS_CONTEXT('userenv','current_edition_id'))) OR  IS NOT NULL)))))
+   7 - access("O"."SPARE3"="U"."USER#")
+   9 - access("O"."OWNER#"="U"."USER#")
+  11 - filter(("O"."NAME"<>'_NEXT_OBJECT' AND "O"."NAME"<>'_default_auditing_options_' AND "O"."TYPE#"<>10 AND "O"."LINKNAME" IS NULL AND BITAND("O"."FLAGS",128)=0))
+  15 - access("I"."OBJ#"=:B1)
+  16 - filter(("I"."BO#"="T"."OBJ#" AND BITAND("T"."PROPERTY",36893488147419103232)=36893488147419103232))
+  17 - access("IO"."OBJ#"="I"."BO#" AND "IO"."TYPE#"=2)
+       filter("IO"."TYPE#"=2)
+  18 - filter(BITAND("T"."PROPERTY",36893488147419103232)=0)
+  19 - access("T"."OBJ#"=:B1)
+  20 - filter((BITAND("S"."FLAGS",1024)=0 OR "S"."FLAGS" IS NULL))
+  21 - access("S"."OBJ#"=:B1)
+  22 - filter("TYPE#"=:B1)
+  23 - access("UE"."USER#"=:B1)
+  24 - filter("UE"."TYPE#"=:B1)
+  25 - access("UE"."USER#"=:B1)
+  27 - access("U2"."TYPE#"=2 AND "U2"."SPARE2"=TO_NUMBER(SYS_CONTEXT('userenv','current_edition_id')))
+       filter(("U2"."TYPE#"=2 AND "U2"."SPARE2"=TO_NUMBER(SYS_CONTEXT('userenv','current_edition_id'))))
+  28 - access("O2"."DATAOBJ#"=:B1 AND "O2"."TYPE#"=88 AND "O2"."OWNER#"="U2"."USER#")
+  31 - access("L"."OWNER#"="U"."USER#")
+  32 - access("A"."OBJECT_ID"="B"."OBJECT_ID")
+       filter("A"."OBJECT_ID"="B"."OBJECT_ID")
+  35 - filter(((("O"."TYPE#"<>1 AND "O"."TYPE#"<>2 AND "O"."TYPE#"<>6) OR ("O"."TYPE#"=1 AND  IS NULL) OR ("O"."TYPE#"=2 AND =1) OR ("O"."TYPE#"=6 AND =1)) AND
+              (BITAND("U"."SPARE1",16)=0 OR BITAND("O"."FLAGS",1048576)=1048576 OR ("O"."TYPE#"<>88 AND  IS NULL) OR ( IS NOT NULL AND
+              ((SYS_CONTEXT('userenv','current_edition_name')='ORA$BASE' AND "U"."TYPE#"<>2) OR ("U"."TYPE#"=2 AND
+              "U"."SPARE2"=TO_NUMBER(SYS_CONTEXT('userenv','current_edition_id'))) OR  IS NOT NULL)))))
+  36 - access("O"."SPARE3"="U"."USER#")
+  38 - access("O"."OWNER#"="U"."USER#")
+  40 - filter(("O"."NAME"<>'_NEXT_OBJECT' AND "O"."NAME"<>'_default_auditing_options_' AND "O"."TYPE#"<>10 AND "O"."LINKNAME" IS NULL AND BITAND("O"."FLAGS",128)=0))
+  44 - access("I"."OBJ#"=:B1)
+  45 - filter(("I"."BO#"="T"."OBJ#" AND BITAND("T"."PROPERTY",36893488147419103232)=36893488147419103232))
+  46 - access("IO"."OBJ#"="I"."BO#" AND "IO"."TYPE#"=2)
+       filter("IO"."TYPE#"=2)
+  47 - filter(BITAND("T"."PROPERTY",36893488147419103232)=0)
+  48 - access("T"."OBJ#"=:B1)
+  49 - filter((BITAND("S"."FLAGS",1024)=0 OR "S"."FLAGS" IS NULL))
+  50 - access("S"."OBJ#"=:B1)
+  51 - filter("TYPE#"=:B1)
+  52 - access("UE"."USER#"=:B1)
+  53 - filter("UE"."TYPE#"=:B1)
+  54 - access("UE"."USER#"=:B1)
+  56 - access("U2"."TYPE#"=2 AND "U2"."SPARE2"=TO_NUMBER(SYS_CONTEXT('userenv','current_edition_id')))
+       filter(("U2"."TYPE#"=2 AND "U2"."SPARE2"=TO_NUMBER(SYS_CONTEXT('userenv','current_edition_id'))))
+  57 - access("O2"."DATAOBJ#"=:B1 AND "O2"."TYPE#"=88 AND "O2"."OWNER#"="U2"."USER#")
+  60 - access("L"."OWNER#"="U"."USER#")
+
+Note
+-----
+   - this is an adaptive plan

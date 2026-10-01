@@ -1,0 +1,30 @@
+SQL_ID  9fq3kz7w2m8ud, child number 0
+-------------------------------------
+select /*+ gather_plan_statistics */ c.cust_last_name, sum(s.amount_sold)
+from sh.sales s join sh.customers c on c.cust_id = s.cust_id where
+s.time_id >= date '2020-01-01' group by c.cust_last_name order by 2 desc
+
+Plan hash value: 3302186721
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Id  | Operation                      | Name      | Starts | E-Rows | A-Rows |   A-Time   | Buffers | Reads  | Writes |  OMem |  1Mem | Used-Mem | Used-Tmp|
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT               |           |      1 |        |   3059 |00:00:01.42 |   12364 |   2865 |   2843 |       |       |          |         |
+|   1 |  SORT ORDER BY                 |           |      1 |   3059 |   3059 |00:00:01.42 |   12364 |   2865 |   2843 | 1236K | 1236K | 1152K (0)|         |
+|   2 |   HASH GROUP BY                |           |      1 |   3059 |   3059 |00:00:01.41 |   12364 |   2865 |   2843 | 1336K | 1336K | 1385K (0)|         |
+|*  3 |    HASH JOIN                   |           |      1 |   918K |   918K |00:00:01.20 |   12364 |   2865 |   2843 |   37M | 2843K |  10M (1) |     43M |
+|   4 |     TABLE ACCESS FULL          | CUSTOMERS |      1 |  55500 |  55500 |00:00:00.02 |    1521 |      0 |      0 |       |       |          |         |
+|*  5 |     PARTITION RANGE ITERATOR   |           |      1 |   918K |   918K |00:00:00.31 |   10843 |   2865 |      0 |       |       |          |         |
+|*  6 |      TABLE ACCESS FULL         | SALES     |      8 |   918K |   918K |00:00:00.26 |   10843 |   2865 |      0 |       |       |          |         |
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   3 - access("C"."CUST_ID"="S"."CUST_ID")
+   5 - filter(("S"."TIME_ID">=TO_DATE(' 2020-01-01 00:00:00', 'syyyy-mm-dd hh24:mi:ss')))
+   6 - filter("S"."TIME_ID">=TO_DATE(' 2020-01-01 00:00:00', 'syyyy-mm-dd hh24:mi:ss'))
+
+Note
+-----
+   - dynamic statistics used: dynamic sampling (level=2)

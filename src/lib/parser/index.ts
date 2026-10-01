@@ -4,6 +4,7 @@ import { dbmsXplanParser, extractDbmsXplanSegments } from './dbmsXplanParser';
 import { sqlMonitorTextParser, sqlMonitorXmlParser } from './sqlMonitorParser';
 import { jsonPlanParser } from './jsonPlanParser';
 import { xbiParser } from './xbiParser';
+import { normalizeNewlines } from './values';
 import { computeEstimatedRowTotals, computeSelfCosts, computeSelfTimes } from '../analysis';
 
 /**
@@ -34,7 +35,7 @@ function stripWrappingQuotes(input: string): string {
 }
 
 export function detectFormat(input: string): DetectedFormat {
-  const cleaned = stripWrappingQuotes(input);
+  const cleaned = stripWrappingQuotes(normalizeNewlines(input));
   for (const { format, parser } of parsers) {
     if (parser.canParse(cleaned)) {
       return format;
@@ -59,7 +60,7 @@ function finalizePlan(plan: ParsedPlan): ParsedPlan {
  * @returns Parsed plan structure with source metadata
  */
 export function parsePlan(input: string): ParsedPlan {
-  input = stripWrappingQuotes(input);
+  input = stripWrappingQuotes(normalizeNewlines(input));
   const format = detectFormat(input);
 
   for (const { format: parserFormat, parser } of parsers) {
@@ -77,7 +78,7 @@ export function parsePlan(input: string): ParsedPlan {
 export const splitDbmsXplanPlanBatches = extractDbmsXplanSegments;
 
 export function parsePlans(input: string): ParsedPlan[] {
-  return splitDbmsXplanPlanBatches(input)
+  return splitDbmsXplanPlanBatches(normalizeNewlines(input))
     .map((batch) => parsePlan(batch))
     .filter((plan) => Boolean(plan.rootNode));
 }
