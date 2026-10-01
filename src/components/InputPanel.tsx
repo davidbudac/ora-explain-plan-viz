@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { ClipboardEvent as ReactClipboardEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { usePlan } from '../hooks/usePlanContext';
+import { usePlan, useDraftInput } from '../hooks/usePlanContext';
 import type { PendingBundleChoice } from '../hooks/usePlanContext';
 import { getSourceDisplayName } from '../lib/parser';
 import { formatNumberShort } from '../lib/format';
@@ -74,12 +74,13 @@ export function ExampleBadges({ sample }: { sample: SamplePlan }) {
 
 export function InputPanel() {
   const {
-    draftInput, setInput, parsePlan, loadExample, clearPlan, requestClearPlan, removePlanSlot,
+    setInput, parsePlan, loadExample, clearPlan, requestClearPlan, removePlanSlot,
     error, parsedPlan, inputPanelCollapsed: isCollapsed, setInputPanelCollapsed: setIsCollapsed,
     hasMultiplePlans, plans, activePlanIndex, metadataBundle, metadataBundleWarning, detachMetadataBundle,
     connectPanelOpen: showConnectPanel, setConnectPanelOpen: setShowConnectPanel,
     bundleNotice, dismissBundleNotice, recentPlans, openRecentPlan, removeRecentPlan,
   } = usePlan();
+  const draftInput = useDraftInput();
   const { labelsCollapsed } = useTopBarMode();
   const [showSampleMenu, setShowSampleMenu] = useState(false);
   const [showParseHint, setShowParseHint] = useState(false);

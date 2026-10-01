@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useState } from 'react';
+import { Fragment, memo, useCallback, useState } from 'react';
 import { matchDensityPreset } from '../../lib/density';
 import { Handle, Position } from '@xyflow/react';
 import { getOperationCategory, COLOR_SCHEMES, getMetricColor, getOperationTooltip } from '../../lib/types';
@@ -1204,5 +1204,10 @@ function computeIndicatorMetric(
   };
 }
 
-// No memo - we need to re-render when context changes (for filter state)
-export const PlanNodeMemo = PlanNodeComponent;
+// The card reads nothing but its `data` prop: no plan-context subscription (filters,
+// selection, search and display options all arrive through `data`, which the tree
+// view rebuilds for a node only when one of them changes for that node). React Flow
+// also re-renders the component for every position/size/`dragging` change, which the
+// card ignores, so memoise on `data` identity. State the card owns (hover, toolbar,
+// popovers) re-renders it independently of this check.
+export const PlanNodeMemo = memo(PlanNodeComponent, (prev, next) => prev.data === next.data);
