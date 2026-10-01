@@ -65,9 +65,13 @@ Ranked by how often a DBA would hit each one.
   `<parallel_info>` per-server stats are ignored too.
 - [x] **SQL Monitor ACTIVE (HTML) reports.** Support base64/zlib-compressed XML via
   `DecompressionStream`, which is already used for `#gz` links.
-- [ ] **Partial-parse warnings.** Add `plan.warnings[]` and show them, covering dropped columns
+- [x] **Partial-parse warnings.** Add `plan.warnings[]` and show them, covering dropped columns
   or sections, the wrong parser route, a truncated CLOB (suggest `SET LONG`), and XML with a
   SQL*Plus preamble. Today these all fail silently or give a generic message.
+
+  Done: `parser/warnings.ts` (12 codes, incl. wrapped `LINESIZE` and cut-off pastes), shown by
+  `PlanWarningsNotice` in the drawer and passed to the AI context. A SQL*Plus wrapper around XML
+  is now stripped so the report parses. No bundled example or fixture warns (tested).
 - [x] **JSON parser.**
   - The CPU% formula is wrong.
   - Starts defaults to the DOP.

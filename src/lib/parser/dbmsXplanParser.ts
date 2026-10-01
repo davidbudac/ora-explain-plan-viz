@@ -1,4 +1,4 @@
-import type { PlanNode, ParsedPlan } from '../types';
+import type { PlanNode, ParsedPlan, PlanWarning } from '../types';
 import { planRootCost } from '../analysis';
 import type { PlanParser } from './types';
 import { parseNoteSection } from './noteSection';
@@ -13,6 +13,14 @@ import {
   parseRemoteSqlSection,
 } from './advancedSections';
 import type { HintReport } from './advancedSections';
+import {
+  findUnreadSections,
+  isIgnoredHeader,
+  isRejectedRow,
+  scanTableShape,
+  textTableWarnings,
+  unreadSectionsWarning,
+} from './warnings';
 import {
   expandTableTabs,
   normalizeNewlines,
@@ -131,14 +139,19 @@ export const dbmsXplanParser: PlanParser = {
     const { sqlId, childNumber, sqlText } = extractSqlHeader(lines);
 
     // Find and parse the table section
-    const tableData = parseTableSection(lines);
+    const table = parseTableSection(lines);
+    const tableData = table.rows;
 
     if (tableData.length === 0) {
+      const emptyWarnings = table.headerIndex >= 0
+        ? textTableWarnings({ lines, headerIndex: table.headerIndex, unknownColumns: [], rejectedLines: table.rejectedLines, nodeIds: [], predicateIds: [] })
+        : [];
       return {
         planHashValue,
         sqlId,
         childNumber,
         sqlText,
+        warnings: emptyWarnings.length > 0 ? emptyWarnings : undefined,
         rootNode: null,
         allNodes: [],
         totalCost: 0,
@@ -180,6 +193,19 @@ export const dbmsXplanParser: PlanParser = {
     // Parse the trailing "Note" section, if present.
     const notes = parseNoteSection(lines);
 
+    const warnings: PlanWarning[] = textTableWarnings({
+      lines,
+      headerIndex: table.headerIndex,
+      unknownColumns: table.unknownColumns,
+      rejectedLines: table.rejectedLines,
+      nodeIds: allNodes.map(node => node.id),
+      predicateIds: [...predicates.keys()],
+    });
+    const unreadSections = unreadSectionsWarning(
+      findUnreadSections(lines, scanTableShape(lines, table.headerIndex).endIndex),
+    );
+    if (unreadSections) warnings.push(unreadSections);
+
     return {
       planHashValue,
       sqlId,
@@ -191,6 +217,7 @@ export const dbmsXplanParser: PlanParser = {
       maxRows: hasActualStats ? maxActualRows : maxRows,
       maxActualRows: hasActualStats ? maxActualRows : undefined,
       maxStarts: hasActualStats ? maxStarts : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
       source: 'dbms_xplan',
       hasActualStats,
       // A-Time is cumulative: the root's actualTime is the total elapsed time
@@ -361,8 +388,18 @@ function extractPlanHashValue(lines: string[]): string | undefined {
   return undefined;
 }
 
-function parseTableSection(lines: string[]): RawPlanRow[] {
+interface TableSection {
+  rows: RawPlanRow[];
+  headerIndex: number;
+  /** Header cells no column rule matched and the ignore list does not cover. */
+  unknownColumns: string[];
+  /** Lines that begin a data row but could not be parsed. */
+  rejectedLines: string[];
+}
+
+function parseTableSection(lines: string[]): TableSection {
   const rows: RawPlanRow[] = [];
+  const rejectedLines: string[] = [];
 
   // Find the header line to determine column positions
   let headerLineIndex = -1;
@@ -379,11 +416,12 @@ function parseTableSection(lines: string[]): RawPlanRow[] {
   }
 
   if (headerLineIndex === -1) {
-    return rows;
+    return { rows, headerIndex: -1, unknownColumns: [], rejectedLines };
   }
 
   // Parse column positions from header
-  const columns = parseColumnPositions(headerLine);
+  const unknownColumns: string[] = [];
+  const columns = parseColumnPositions(headerLine, unknownColumns);
   const headerPipes = pipeIndexes(headerLine);
 
   // Parse data rows (after header, skip separator line)
@@ -414,17 +452,20 @@ function parseTableSection(lines: string[]): RawPlanRow[] {
 
     // Parse data row if it looks like a plan row
     if (/^\|/.test(line)) {
-      const row = parseDataRow(line, alignColumnsToRow(columns, headerPipes, line));
+      const aligned = alignColumnsToRow(columns, headerPipes, line);
+      const row = parseDataRow(line, aligned);
       if (row) {
         rows.push(row);
+      } else if (isRejectedRow(line, line.substring(aligned.id.start, aligned.id.end))) {
+        rejectedLines.push(line);
       }
     }
   }
 
-  return rows;
+  return { rows, headerIndex: headerLineIndex, unknownColumns, rejectedLines };
 }
 
-function parseColumnPositions(headerLine: string): ColumnPositions {
+function parseColumnPositions(headerLine: string, unknownColumns: string[] = []): ColumnPositions {
   const cols: ColumnPositions = {
     id: { start: 0, end: 0 },
     operation: { start: 0, end: 0 },
@@ -476,6 +517,8 @@ function parseColumnPositions(headerLine: string): ColumnPositions {
       cols.pqDistrib = { start, end };
     } else if (segment in RUNTIME_HEADERS) {
       cols.runtime[RUNTIME_HEADERS[segment]] = { start, end };
+    } else if (!isIgnoredHeader(segment)) {
+      unknownColumns.push(headerLine.substring(start, end).trim());
     }
   }
 

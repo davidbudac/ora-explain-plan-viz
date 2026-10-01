@@ -45,6 +45,16 @@ export interface SectionedContext {
   sections: ContextSection[];
 }
 
+/** Tell the model when the parser lost data, so it does not read gaps as facts about the plan. */
+function renderParseWarnings(plan: ParsedPlan): string[] {
+  const lost = (plan.warnings ?? []).filter((w) => w.severity !== 'info');
+  if (lost.length === 0) return [];
+  return [
+    'Parse warnings (the data below may be incomplete — do not draw conclusions from what is missing):',
+    ...lost.map((w) => `- ${w.message}`),
+  ];
+}
+
 /** Build the core plan table plus every togglable section that has data. */
 export function buildAnalyzeSections(
   plan: ParsedPlan,
@@ -55,6 +65,7 @@ export function buildAnalyzeSections(
   if (plan.sqlId) header.push(`SQL_ID: ${plan.sqlId}`);
   if (plan.planHashValue) header.push(`Plan hash value: ${plan.planHashValue}`);
   header.push(`Source format: ${plan.source}${plan.hasActualStats ? ' (with runtime statistics)' : ' (optimizer estimates only)'}`);
+  header.push(...renderParseWarnings(plan));
 
   const core = `${header.join('\n')}\n\n${renderPlanTable(plan)}`;
 

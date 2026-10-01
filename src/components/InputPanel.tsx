@@ -14,6 +14,7 @@ import { getDopDowngrade } from '../lib/planSignals';
 import type { ParsedPlan } from '../lib/types';
 import { isDbAgentEnabled } from '../lib/agent/client';
 import { ConnectPanel } from './ConnectPanel';
+import { PlanWarningsNotice } from './PlanWarningsNotice';
 import { BrandMark, HeaderActions } from './Header';
 import { MaximizeButton, PlanTabsCluster, SqlIdTitle, ViewTabStrip } from './NavRibbon';
 import { TOP_BAR_LABEL_ATTR, useTopBarMode } from '../hooks/useTopBarMode';
@@ -85,6 +86,8 @@ export function InputPanel() {
   const [showSampleMenu, setShowSampleMenu] = useState(false);
   const [showParseHint, setShowParseHint] = useState(false);
   const [titleTextHidden, setTitleTextHidden] = useState(false);
+  // Parse warnings are dismissed per loaded plan; a re-parse produces a new plan and shows them again.
+  const [dismissedWarningsFor, setDismissedWarningsFor] = useState<ParsedPlan | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const menuWrapRef = useRef<HTMLDivElement>(null);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
@@ -476,6 +479,16 @@ export function InputPanel() {
 
       {/* Bundle status is shown outside the collapsible content so drops onto
           the collapsed header still get visible feedback. */}
+      {parsedPlan?.warnings && parsedPlan.warnings.length > 0 && dismissedWarningsFor !== parsedPlan && (
+        <div className="px-3 pb-2">
+          <PlanWarningsNotice
+            key={`${parsedPlan.planHashValue ?? ''}:${parsedPlan.warnings.map((w) => w.code).join(',')}`}
+            warnings={parsedPlan.warnings}
+            onDismiss={() => setDismissedWarningsFor(parsedPlan)}
+          />
+        </div>
+      )}
+
       {bundleNotice && (
         <div className="px-3 pb-2">
           <div
