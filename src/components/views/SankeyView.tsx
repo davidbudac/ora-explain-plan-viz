@@ -6,6 +6,7 @@ import { COLOR_SCHEME_PALETTES, getCategoryPaint, getOperationCategory } from '.
 import type { PlanNode } from '../../lib/types';
 import { formatNumberShort, formatTimeCompact } from '../../lib/format';
 import { matchesSearch } from '../../lib/filtering';
+import { selectVisibleLabels } from '../../lib/sankeyLabels';
 import { FOCUS_RING } from '../ui';
 
 /** Minimum vertical pixels per operation before the diagram grows past the container and scrolls. */
@@ -36,6 +37,18 @@ interface SankeyLinkExtra {
 type SNode = SankeyNode<SankeyNodeExtra, SankeyLinkExtra>;
 type SLink = SankeyLink<SankeyNodeExtra, SankeyLinkExtra>;
 
+/**
+ * The elements the last layout pass drew. Selection, search and filter changes
+ * only restyle these (cheap attribute updates); the d3-sankey layout and the DOM
+ * are rebuilt only when the geometry or the theme changes.
+ */
+interface SankeyScene {
+  /** 'plain' is the single-operation fallback (no flows), which has no per-node styling. */
+  mode: 'sankey' | 'plain';
+  nodes: { id: number; planNode: PlanNode; category: string; rect: SVGRectElement; label: SVGTextElement | null }[];
+  links: { path: SVGPathElement; sourceId: number; targetId: number; sourceCategory: string }[];
+}
+
 export function SankeyView() {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -46,6 +59,7 @@ export function SankeyView() {
   const [tooltip, setTooltip] = useState<{ x: number; y: number; title: string; lines: string[] } | null>(null);
   const tooltipStateRef = useRef<typeof tooltip>(null);
   const rafRef = useRef<number | null>(null);
+  const sceneRef = useRef<SankeyScene | null>(null);
   const pendingTooltipRef = useRef<typeof tooltip>(null);
   const { parsedPlan, selectedNodeIds, selectNode, sankeyMetric, filteredNodeIds, theme, colorScheme, filters } = usePlan();
   const selectedNodeIdSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
@@ -157,8 +171,15 @@ export function SankeyView() {
     [selectNode]
   );
 
+  // The latest click handler, read by the listeners the layout pass attaches so
+  // that the layout does not depend on (and rebuild with) the selection callback.
+  const handleNodeClickRef = useRef(handleNodeClick);
+  useEffect(() => {
+    handleNodeClickRef.current = handleNodeClick;
+  }, [handleNodeClick]);
+
   // Clear the tooltip/error whenever the diagram is actually about to be
-  // redrawn below (same trigger set as that effect's dependency array, minus
+  // rebuilt below (same trigger set as the layout effect's dependency array, minus
   // `svgRef` which can't be read during render). Moved out of the effect
   // because unconditionally calling setState synchronously in an effect body
   // trips react-hooks/set-state-in-effect; adjusting state during render in
@@ -173,11 +194,10 @@ export function SankeyView() {
     // The array itself (a fresh reference whenever any dep below changes) is
     // the signature — its contents aren't inspected elsewhere.
     return [
-      sankeyData, selectedNodeIdSet, filteredNodeIds, handleNodeClick, theme,
-      dimensions, colorScheme, sankeyMetric, parsedPlan?.hasActualStats,
-      verticalZoom, searchText, retryToken,
+      sankeyData, theme, dimensions, colorScheme, sankeyMetric,
+      parsedPlan?.hasActualStats, verticalZoom, retryToken,
     ];
-  }, [sankeyData, selectedNodeIdSet, filteredNodeIds, handleNodeClick, theme, dimensions, colorScheme, sankeyMetric, parsedPlan?.hasActualStats, scheduleTooltipUpdate, verticalZoom, searchText, retryToken]);
+  }, [sankeyData, theme, dimensions, colorScheme, sankeyMetric, parsedPlan?.hasActualStats, scheduleTooltipUpdate, verticalZoom, retryToken]);
   const [prevRedrawSignature, setPrevRedrawSignature] = useState(redrawSignature);
   if (redrawSignature !== prevRedrawSignature) {
     setPrevRedrawSignature(redrawSignature);
@@ -187,7 +207,11 @@ export function SankeyView() {
     }
   }
 
+  // Layout + DOM build. Re-runs only when the plan, metric, size, zoom or
+  // theme/colour scheme change; selection, search and filters restyle the
+  // result in the effect below.
   useEffect(() => {
+    sceneRef.current = null;
     if (!svgRef.current || !sankeyData) return;
 
     const { width, height: containerHeight } = dimensions;
@@ -204,7 +228,6 @@ export function SankeyView() {
       const margin = { top: 20, right: 20, bottom: 20, left: 20 };
 
       const svg = svgRef.current;
-      const palette = COLOR_SCHEME_PALETTES[colorScheme];
       const isDark = theme === 'dark';
       const hasActualStats = parsedPlan?.hasActualStats ?? false;
       const metricName = getMetricShortLabel(sankeyMetric, hasActualStats);
@@ -243,7 +266,6 @@ export function SankeyView() {
         rect: SVGRectElement,
         ring: SVGRectElement,
         planNode: PlanNode,
-        isSelected: boolean,
         valueText: string
       ) => {
         const ariaLabel =
@@ -251,19 +273,18 @@ export function SankeyView() {
         rect.dataset.nodeId = String(planNode.id);
         rect.setAttribute('tabindex', '0');
         rect.setAttribute('role', 'button');
-        rect.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
         rect.setAttribute('aria-label', ariaLabel);
         rect.style.cursor = 'pointer';
         rect.style.outline = 'none';
 
         rect.addEventListener('click', (event) => {
-          handleNodeClick(planNode.id, event.metaKey || event.ctrlKey);
+          handleNodeClickRef.current(planNode.id, event.metaKey || event.ctrlKey);
         });
 
         rect.addEventListener('keydown', (event) => {
           if (event.key !== 'Enter' && event.key !== ' ') return;
           event.preventDefault();
-          handleNodeClick(planNode.id, event.metaKey || event.ctrlKey);
+          handleNodeClickRef.current(planNode.id, event.metaKey || event.ctrlKey);
         });
 
         rect.addEventListener('focus', () => {
@@ -326,6 +347,7 @@ export function SankeyView() {
         const g = document.createElementNS(SVG_NS, 'g');
         svg.appendChild(g);
 
+        const scene: SankeyScene = { mode: 'plain', nodes: [], links: [] };
         const nodeHeight = Math.min(40, (height - 40) / sankeyData.nodes.length);
         sankeyData.nodes.forEach((node, i) => {
           const y = margin.top + i * (nodeHeight + 10);
@@ -349,9 +371,9 @@ export function SankeyView() {
             rect,
             ring,
             node.planNode,
-            selectedNodeIdSet.has(node.planNode.id),
             node.ownValue === null ? '—' : formatMetricValue(node.ownValue, sankeyMetric)
           );
+          scene.nodes.push({ id: node.planNode.id, planNode: node.planNode, category: node.category, rect, label: null });
 
           const text = document.createElementNS(SVG_NS, 'text');
           text.setAttribute('x', (margin.left + 30).toString());
@@ -362,6 +384,7 @@ export function SankeyView() {
           text.textContent = node.name;
           g.appendChild(text);
         });
+        sceneRef.current = scene;
         restoreFocus();
         return;
       }
@@ -391,27 +414,25 @@ export function SankeyView() {
       g.appendChild(linkGroup);
 
       const linkPath = sankeyLinkHorizontal<SNode, SLink>();
+      const scene: SankeyScene = { mode: 'sankey', nodes: [], links: [] };
 
       links.forEach((link) => {
         const sourceNode = link.source as SNode;
         const targetNode = link.target as SNode;
-        const isFiltered = filteredNodeIds.has(sourceNode.planNode.id) && filteredNodeIds.has(targetNode.planNode.id);
-        const linkColor = palette[sourceNode.category] || '#64748b';
 
         const path = document.createElementNS(SVG_NS, 'path');
         const d = linkPath(link as SLink);
         if (d) {
           path.setAttribute('d', d);
-          path.setAttribute('stroke', isFiltered ? linkColor : (isDark ? '#475569' : '#cbd5e1'));
-          // Dark mode: the flows are the largest painted area on the canvas, so
-          // they sit back further than in light mode — otherwise they drown out
-          // the tinted node surfaces and the chrome around them.
-          path.setAttribute(
-            'stroke-opacity',
-            isFiltered ? (isDark ? '0.35' : '0.5') : (isDark ? '0.15' : '0.2')
-          );
+          // stroke / stroke-opacity are applied by the restyle pass
           path.setAttribute('stroke-width', Math.max(1, link.width || 1).toString());
           linkGroup.appendChild(path);
+          scene.links.push({
+            path,
+            sourceId: sourceNode.planNode.id,
+            targetId: targetNode.planNode.id,
+            sourceCategory: sourceNode.category,
+          });
 
           path.addEventListener('mouseenter', (event) => {
             const label = getMetricLabel(sankeyMetric, hasActualStats);
@@ -449,8 +470,6 @@ export function SankeyView() {
 
       nodes.forEach((node) => {
         const sNode = node as SNode;
-        const isFiltered = filteredNodeIds.has(sNode.planNode.id);
-        const isSelected = selectedNodeIdSet.has(sNode.planNode.id);
 
         const x0 = node.x0 || 0;
         const nodeWidth = (node.x1 || 0) - x0;
@@ -470,30 +489,11 @@ export function SankeyView() {
         rect.setAttribute('y', drawY.toString());
         rect.setAttribute('width', nodeWidth.toString());
         rect.setAttribute('height', drawHeight.toString());
-        const paint = getCategoryPaint(sNode.category, colorScheme, isDark);
-        rect.setAttribute('fill', isFiltered ? paint.fill : (isDark ? '#475569' : '#94a3b8'));
-        rect.setAttribute('opacity', isFiltered ? '1' : '0.4');
+        // fill / opacity / stroke / aria-pressed are applied by the restyle pass
         rect.setAttribute('rx', '3');
 
-        // Dark mode: hue hairline around the tinted surface. Selection and
-        // search strokes below take precedence.
-        if (isDark && isFiltered) {
-          rect.setAttribute('stroke', paint.stroke);
-          rect.setAttribute('stroke-width', '1');
-        }
-
-        if (isSelected) {
-          rect.setAttribute('stroke', '#3b82f6');
-          rect.setAttribute('stroke-width', '3');
-        } else if (searchText.trim() && matchesSearch(sNode.planNode, searchText)) {
-          // Search-match highlight — dashed variant of the selection stroke
-          rect.setAttribute('stroke', '#3b82f6');
-          rect.setAttribute('stroke-width', '2');
-          rect.setAttribute('stroke-dasharray', '4 2');
-        }
-
         const ring = createFocusRing(x0, drawY, nodeWidth, drawHeight);
-        wireNode(rect, ring, sNode.planNode, isSelected, valueText);
+        wireNode(rect, ring, sNode.planNode, valueText);
 
         nodeGroup.appendChild(rect);
         nodeGroup.appendChild(ring);
@@ -508,7 +508,6 @@ export function SankeyView() {
         text.setAttribute('font-size', '11');
         text.setAttribute('font-family', 'system-ui, sans-serif');
         text.setAttribute('fill', isDark ? '#e2e8f0' : '#334155');
-        text.setAttribute('opacity', isFiltered ? '1' : '0.5');
         // Halo in the pane's own background colour so labels stay legible
         // wherever they cross a flow.
         text.setAttribute('stroke', isDark ? '#0f172a' : '#f8fafc');
@@ -525,17 +524,19 @@ export function SankeyView() {
         text.dataset.nodeX1 = String(node.x1 || 0);
 
         nodeGroup.appendChild(text);
+        scene.nodes.push({ id: sNode.planNode.id, planNode: sNode.planNode, category: sNode.category, rect, label: text });
       });
 
       // Label collision pass: hide any label whose box intersects an
       // already-kept one (greedy top-to-bottom). Hidden labels stay available
       // via the hover tooltip, which always leads with the operation name.
-      const labels = Array.from(nodeGroup.querySelectorAll<SVGTextElement>('text[data-sankey-label]'));
+      const labelled = scene.nodes.filter((n) => n.label !== null);
 
       // Keep labels inside the viewport: flip the anchor inward when a label
       // would run off the left/right edge, and nudge it back in vertically.
       const EDGE_PAD = 4;
-      for (const label of labels) {
+      for (const { label: maybeLabel } of labelled) {
+        const label = maybeLabel as SVGTextElement;
         const x0 = Number(label.dataset.nodeX0 ?? 0);
         const x1 = Number(label.dataset.nodeX1 ?? 0);
         let box = label.getBBox();
@@ -559,31 +560,82 @@ export function SankeyView() {
       }
 
       // Measure each label once, after the edge adjustments
-      const measured = labels.map((label) => ({ label, box: label.getBBox() }));
-      measured.sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x);
-      const kept: DOMRect[] = [];
-      const pad = 2;
-      for (const { label, box } of measured) {
-        const collides = kept.some(
-          (k) =>
-            box.x < k.x + k.width + pad &&
-            box.x + box.width + pad > k.x &&
-            box.y < k.y + k.height + pad &&
-            box.y + box.height + pad > k.y
-        );
-        if (collides) {
-          label.remove();
-        } else {
-          kept.push(new DOMRect(box.x, box.y, box.width, box.height));
-        }
-      }
+      const visible = selectVisibleLabels(labelled.map((n) => (n.label as SVGTextElement).getBBox()));
+      labelled.forEach((n, i) => {
+        if (visible[i]) return;
+        n.label!.remove();
+        n.label = null;
+      });
 
+      sceneRef.current = scene;
       restoreFocus();
     } catch (err) {
       console.error('Sankey rendering error:', err);
       setError(err instanceof Error ? err.message : 'Failed to render Sankey diagram');
     }
-  }, [sankeyData, selectedNodeIdSet, filteredNodeIds, handleNodeClick, theme, dimensions, colorScheme, sankeyMetric, parsedPlan?.hasActualStats, scheduleTooltipUpdate, verticalZoom, searchText, retryToken]);
+  }, [sankeyData, theme, dimensions, colorScheme, sankeyMetric, parsedPlan?.hasActualStats, scheduleTooltipUpdate, verticalZoom, retryToken]);
+
+  // Restyle pass: selection, search matches and filter dimming only touch
+  // attributes on the elements drawn above. Declared after the layout effect so
+  // it also runs right after every rebuild (hence the layout inputs in its deps).
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+
+    const isDark = theme === 'dark';
+    const palette = COLOR_SCHEME_PALETTES[colorScheme];
+    const hasSearch = searchText.trim() !== '';
+
+    for (const n of scene.nodes) {
+      const isSelected = selectedNodeIdSet.has(n.id);
+      n.rect.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+      if (scene.mode === 'plain') continue;
+
+      const isFiltered = filteredNodeIds.has(n.id);
+      const rect = n.rect;
+      const paint = getCategoryPaint(n.category, colorScheme, isDark);
+      rect.setAttribute('fill', isFiltered ? paint.fill : (isDark ? '#475569' : '#94a3b8'));
+      rect.setAttribute('opacity', isFiltered ? '1' : '0.4');
+      rect.removeAttribute('stroke');
+      rect.removeAttribute('stroke-width');
+      rect.removeAttribute('stroke-dasharray');
+
+      // Dark mode: hue hairline around the tinted surface. Selection and
+      // search strokes below take precedence.
+      if (isDark && isFiltered) {
+        rect.setAttribute('stroke', paint.stroke);
+        rect.setAttribute('stroke-width', '1');
+      }
+
+      if (isSelected) {
+        rect.setAttribute('stroke', '#3b82f6');
+        rect.setAttribute('stroke-width', '3');
+      } else if (hasSearch && matchesSearch(n.planNode, searchText)) {
+        // Search-match highlight — dashed variant of the selection stroke
+        rect.setAttribute('stroke', '#3b82f6');
+        rect.setAttribute('stroke-width', '2');
+        rect.setAttribute('stroke-dasharray', '4 2');
+      }
+
+      n.label?.setAttribute('opacity', isFiltered ? '1' : '0.5');
+    }
+
+    for (const link of scene.links) {
+      const isFiltered = filteredNodeIds.has(link.sourceId) && filteredNodeIds.has(link.targetId);
+      const linkColor = palette[link.sourceCategory] || '#64748b';
+      link.path.setAttribute('stroke', isFiltered ? linkColor : (isDark ? '#475569' : '#cbd5e1'));
+      // Dark mode: the flows are the largest painted area on the canvas, so
+      // they sit back further than in light mode — otherwise they drown out
+      // the tinted node surfaces and the chrome around them.
+      link.path.setAttribute(
+        'stroke-opacity',
+        isFiltered ? (isDark ? '0.35' : '0.5') : (isDark ? '0.15' : '0.2')
+      );
+    }
+  }, [
+    sankeyData, theme, dimensions, colorScheme, sankeyMetric, parsedPlan?.hasActualStats, scheduleTooltipUpdate, verticalZoom, retryToken,
+    selectedNodeIdSet, filteredNodeIds, searchText,
+  ]);
 
   if (!parsedPlan?.rootNode) {
     return (
