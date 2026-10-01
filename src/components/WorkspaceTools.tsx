@@ -240,8 +240,7 @@ export function LegendToggle({
 
 /** Canvas controls and non-modal sheets: the graph stays usable while inspecting. */
 export function WorkspaceTools({ narrow }: { narrow: boolean }) {
-  const { filterPanelCollapsed, setFilterPanelCollapsed, detailPanelCollapsed,
-    setDetailPanelCollapsed, selectedNodes, activePlanIndex, filteredNodes, parsedPlan } = usePlan();
+  const { filterPanelCollapsed, setFilterPanelCollapsed, selectedNodes, activePlanIndex, filteredNodes, parsedPlan } = usePlan();
   const [panel, setPanel] = useState<'filters' | 'details' | null>(null);
   const [dismissedSelection, setDismissedSelection] = useState('');
   const filtersButton = useRef<HTMLButtonElement>(null);
@@ -292,7 +291,7 @@ export function WorkspaceTools({ narrow }: { narrow: boolean }) {
         onClick={() => narrow ? activePanel === 'filters' ? closePanel() : setPanel('filters') : setFilterPanelCollapsed(!filterPanelCollapsed)}>
         Filters <span className="font-mono">{filteredNodes.length}/{parsedPlan?.allNodes.length ?? 0}</span>
       </button>
-      {/* One row at any width: Filters and Details keep the row's ends and the
+      {/* One row at any width: Filters (and Details, when narrow) keep the row's ends and the
           view controls between them scroll sideways (no scrollbar) once the
           canvas is too narrow to hold them — never wrap onto a second row. The
           padding keeps focus rings from being clipped by the scroller. */}
@@ -300,11 +299,15 @@ export function WorkspaceTools({ narrow }: { narrow: boolean }) {
         <ViewControls />
         <LegendToggle />
       </div>
-      <button ref={detailsButton} type="button" className={`${CONTROL} shrink-0`}
-        aria-expanded={narrow ? activePanel === 'details' : !detailPanelCollapsed}
-        onClick={() => narrow ? activePanel === 'details' ? closePanel() : setPanel('details') : setDetailPanelCollapsed(!detailPanelCollapsed)}>
-        Details{selectedNodes.length === 1 ? ` #${selectedNodes[0].id}` : ''}
-      </button>
+      {/* Wide screens toggle the docked details panel from its edge tab; only the
+          narrow layout (no docked panels) needs a button to open the sheet. */}
+      {narrow && (
+        <button ref={detailsButton} type="button" className={`${CONTROL} shrink-0`}
+          aria-expanded={activePanel === 'details'}
+          onClick={() => activePanel === 'details' ? closePanel() : setPanel('details')}>
+          Details{selectedNodes.length === 1 ? ` #${selectedNodes[0].id}` : ''}
+        </button>
+      )}
     </div>
     {activePanel && <section ref={sheet} role="dialog" aria-modal="false" aria-label={activePanel === 'filters' ? 'Filters' : detailsTitle}
       className="absolute z-40 right-2 top-12 bottom-2 w-[340px] max-w-[calc(100%-1rem)] flex flex-col rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl max-sm:top-auto max-sm:left-2 max-sm:w-auto max-sm:max-h-[50%]">
