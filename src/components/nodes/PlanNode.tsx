@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, useCallback, useState } from 'react';
 import { matchDensityPreset } from '../../lib/density';
 import { Handle, Position } from '@xyflow/react';
 import { getOperationCategory, COLOR_SCHEMES, getMetricColor, getOperationTooltip } from '../../lib/types';
@@ -6,6 +6,8 @@ import { formatNumberShort, formatBytes, formatTimeCompact, formatCardinalityRat
 import type { PlanNode as PlanNodeType, NodeDisplayOptions, ColorScheme, NodeIndicatorMetric } from '../../lib/types';
 import { HighlightText } from '../HighlightText';
 import { NodeHoverCard, useNodeHoverCard } from './NodeHoverCard';
+import { NodeActionToolbar } from './NodeActionToolbar';
+import { isCoarsePointer, useNodeToolbarVisibility } from './useNodeToolbarVisibility';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 import { getHighlightColorDef } from '../../lib/annotations';
 import type { HighlightColor, HighlightStyle } from '../../lib/annotations';
@@ -52,6 +54,8 @@ export interface PlanNodeData extends Record<string, unknown> {
   hiddenMatchCount?: number;
   /** Collapse / expand this node's subtree (absent → no toggle rendered). */
   onToggleCollapse?: (nodeId: number) => void;
+  /** Which plan slot this node's pane renders (the hover toolbar's annotation actions target it). */
+  planIndex?: number;
 }
 
 interface PlanNodeProps {
@@ -89,6 +93,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     hiddenCount = 0,
     hiddenMatchCount = 0,
     onToggleCollapse,
+    planIndex,
   } = data;
   const isHorizontal = layoutDirection === 'LR';
   const reducedMotion = usePrefersReducedMotion();
@@ -137,6 +142,23 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
   // Minimal density trades detail for a hover/focus disclosure card
   const { anchorRef, anchorRect, hoverProps } = useNodeHoverCard(isCompact);
+
+  // Hover toolbar (highlight brush, note, zoom, copy). Visibility is local state;
+  // the toolbar itself mounts only while visible and is the only part that reads
+  // the plan context — nodes must not subscribe to it.
+  const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null);
+  const setRootRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      anchorRef(el);
+      setRootEl(el);
+    },
+    [anchorRef],
+  );
+  const toolbar = useNodeToolbarVisibility({
+    rootEl,
+    enabled: planIndex !== undefined,
+    selectedOnTouch: isSelected && isCoarsePointer(),
+  });
 
   // Label for rows depends on whether we have actual stats
   const rowsLabel = hasActualStats ? 'E-Rows' : 'Rows';
@@ -220,8 +242,16 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     ? { backgroundColor: `${hexColor}18` } : {};
   return (
     <div
-      ref={anchorRef}
+      ref={setRootRef}
       {...hoverProps}
+      onMouseEnter={(event) => {
+        hoverProps.onMouseEnter();
+        toolbar.cardHover.onMouseEnter(event);
+      }}
+      onMouseLeave={() => {
+        hoverProps.onMouseLeave();
+        toolbar.cardHover.onMouseLeave();
+      }}
       className={`
         group/node relative ${isCompact ? 'w-[200px]' : isTicker ? 'w-[240px]' : 'w-[260px]'} ${isTerminal ? 'rounded-none' : 'rounded-xl'} motion-safe:transition-all motion-safe:duration-300
         ${isTerminal
@@ -726,6 +756,16 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           <PartitionChip node={node} className="mt-2" />
           <PredicateDetails node={node} searchText={searchText} className="mt-2" clamp />
         </NodeHoverCard>
+      )}
+
+      {toolbar.visible && planIndex !== undefined && (
+        <NodeActionToolbar
+          node={node}
+          planIndex={planIndex}
+          hasActualStats={hasActualStats}
+          annotationsVisible={options.showAnnotations}
+          {...toolbar.toolbarProps}
+        />
       )}
     </div>
   );
