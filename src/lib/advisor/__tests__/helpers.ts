@@ -1,5 +1,9 @@
 import { computeEstimatedRowTotals } from '../../analysis';
-import type { ParsedPlan, PlanNode, PlanSource, SqlMonitorMetadata } from '../../types';
+import type { ParsedPlan, PlanNode, PlanNotes, PlanSource, SqlMonitorMetadata } from '../../types';
+import { DEFAULT_THRESHOLDS } from '../config';
+import type { RuleContext } from '../types';
+import { findObjectInBundle } from '../../metadata/lookup';
+import { findUsedIndexKeys } from '../../metadata/indexes';
 import type { MetadataBundle, MetadataObject, TableObject, IndexObject, ColumnStats } from '../../metadata/bundle';
 
 export interface NodeSpec {
@@ -17,12 +21,18 @@ export interface NodeSpec {
   pstop?: string;
   pqDistrib?: string;
   inOut?: string;
+  objectAlias?: string;
+  inactive?: boolean;
+  memoryUsed?: number;
+  estimatedOptimalMemory?: number;
+  workareaPasses?: number;
+  workareaExecutions?: { optimal: number; onePass: number; multipass: number };
   children?: NodeSpec[];
 }
 
 export function buildPlan(
   spec: NodeSpec,
-  options: { source?: PlanSource; hasActualStats?: boolean; monitorMetadata?: SqlMonitorMetadata } = {},
+  options: { source?: PlanSource; hasActualStats?: boolean; monitorMetadata?: SqlMonitorMetadata; notes?: PlanNotes } = {},
 ): ParsedPlan {
   const allNodes: PlanNode[] = [];
   const build = (s: NodeSpec, depth: number, parentId?: number): PlanNode => {
@@ -42,6 +52,12 @@ export function buildPlan(
       pstop: s.pstop,
       pqDistrib: s.pqDistrib,
       inOut: s.inOut,
+      objectAlias: s.objectAlias,
+      inactive: s.inactive,
+      memoryUsed: s.memoryUsed,
+      estimatedOptimalMemory: s.estimatedOptimalMemory,
+      workareaPasses: s.workareaPasses,
+      workareaExecutions: s.workareaExecutions,
       parentId,
       children: [],
     };
@@ -58,10 +74,22 @@ export function buildPlan(
     source: options.source ?? 'sql_monitor_text',
     hasActualStats: options.hasActualStats ?? allNodes.some((n) => n.actualRows !== undefined),
     monitorMetadata: options.monitorMetadata,
+    notes: options.notes,
   };
   // Mirror the post-parse pass so rules see estimatedRowsTotal like they do in the app.
   computeEstimatedRowTotals(plan);
   return plan;
+}
+
+/** Rule context over a plan, with no metadata bundle unless one is given. */
+export function ruleCtx(plan: ParsedPlan, bundle: MetadataBundle | null = null): RuleContext {
+  return {
+    plan,
+    bundle,
+    thresholds: DEFAULT_THRESHOLDS,
+    findObject: (name) => (bundle ? findObjectInBundle(bundle, name) : null),
+    usedIndexKeys: bundle ? findUsedIndexKeys(bundle, plan.allNodes) : new Set(),
+  };
 }
 
 export function byId(plan: ParsedPlan, id: number): PlanNode {

@@ -1,5 +1,7 @@
+import type { PlanNode } from '../../types';
 import type { AdvisorRule, Finding, FindingSeverity, RuleContext } from '../types';
 import { nodeCardinalityRatio, cardinalityRatioSeverity } from '../../format';
+import { liveChildren } from './shared';
 
 function describeEstimate(c: { eRowsPerStart?: number; starts?: number; eRowsTotal: number }): string {
   if (c.starts !== undefined && c.starts > 1 && c.eRowsPerStart !== undefined && c.eRowsPerStart !== c.eRowsTotal) {
@@ -16,41 +18,67 @@ export const cardinalityMismatchRule: AdvisorRule = {
   evaluate(ctx: RuleContext): Finding[] {
     const { maxFindingsPerRule, cardinalityMinRowDelta } = ctx.thresholds;
 
-    const candidates: Array<{ nodeId: number; operation: string; eRowsPerStart?: number; starts?: number; eRowsTotal: number; aRows: number; deviation: number; severity: FindingSeverity }> = [];
-
-    for (const node of ctx.plan.allNodes) {
+    /** Deviation (>= 1) and severity when the estimate is materially off, else undefined. */
+    const assess = (node: PlanNode): { deviation: number; severity: FindingSeverity } | undefined => {
       const ratio = nodeCardinalityRatio(node);
-      if (ratio === undefined) continue;
+      if (ratio === undefined) return undefined;
       const eRowsTotal = node.estimatedRowsTotal as number;
       const aRows = node.actualRows as number;
       // Tiny absolute differences (5 estimated vs 60 actual) are ratio noise, not a problem.
-      if (Math.abs(aRows - eRowsTotal) < cardinalityMinRowDelta) continue;
+      if (Math.abs(aRows - eRowsTotal) < cardinalityMinRowDelta) return undefined;
       const sev = cardinalityRatioSeverity(ratio);
-      if (sev === 'good') continue;
+      if (sev === 'good') return undefined;
+      return { deviation: ratio >= 1 ? ratio : 1 / ratio, severity: sev === 'bad' ? 'critical' : 'warning' };
+    };
 
-      const deviation = ratio >= 1 ? ratio : 1 / ratio;
+    const off = new Map<PlanNode, ReturnType<typeof assess>>();
+    for (const node of ctx.plan.allNodes) off.set(node, assess(node));
 
-      candidates.push({
-        nodeId: node.id,
-        operation: node.operation,
-        eRowsPerStart: node.rows,
-        starts: node.starts,
-        eRowsTotal,
-        aRows,
-        deviation,
-        severity: sev === 'bad' ? 'critical' : 'warning',
+    // A node whose own estimate is wrong because a child's was (the error just flows upward)
+    // is not a separate problem. Operations without a comparable estimate (never started,
+    // cut off early) don't break the chain: look through them to their children.
+    const inputsOff = (node: PlanNode): boolean =>
+      liveChildren(node).some((child) => {
+        if (off.get(child) !== undefined) return true;
+        return nodeCardinalityRatio(child) === undefined && inputsOff(child);
       });
+
+    const byId = new Map(ctx.plan.allNodes.map((n) => [n.id, n]));
+    const inheritingAncestors = (node: PlanNode): number => {
+      let count = 0;
+      let parent = node.parentId === undefined ? undefined : byId.get(node.parentId);
+      while (parent) {
+        if (off.get(parent) !== undefined) count++;
+        else if (nodeCardinalityRatio(parent) !== undefined) break; // estimate was right again: error absorbed
+        parent = parent.parentId === undefined ? undefined : byId.get(parent.parentId);
+      }
+      return count;
+    };
+
+    const candidates: Array<{ node: PlanNode; deviation: number; severity: FindingSeverity; inherited: number }> = [];
+    for (const node of ctx.plan.allNodes) {
+      const verdict = off.get(node);
+      if (!verdict) continue;
+      if (inputsOff(node)) continue;
+      candidates.push({ node, ...verdict, inherited: inheritingAncestors(node) });
     }
 
     candidates.sort((a, b) => b.deviation - a.deviation);
 
-    return candidates.slice(0, maxFindingsPerRule).map((c) => ({
-      ruleId: 'cardinality-mismatch',
-      severity: c.severity,
-      nodeIds: [c.nodeId],
-      title: `Cardinality mismatch on ${c.operation}`,
-      explanation: `${describeEstimate(c)} but actually produced ${c.aRows.toLocaleString()} rows (A-Rows), a ${c.deviation.toFixed(1)}x deviation.`,
-      suggestion: 'Gather fresh statistics (including histograms on filtered columns) or consider an SQL profile/plan baseline if the estimate consistently diverges from reality.',
-    }));
+    return candidates.slice(0, maxFindingsPerRule).map((c) => {
+      const { node } = c;
+      const inheritNote = c.inherited > 0
+        ? ` The estimates of ${c.inherited} operation${c.inherited === 1 ? '' : 's'} above it are off because of this error.`
+        : '';
+      const root = node.children.length === 0 ? '' : ' Its inputs were estimated accurately, so the error originates here.';
+      return {
+        ruleId: 'cardinality-mismatch',
+        severity: c.severity,
+        nodeIds: [node.id],
+        title: `Cardinality mismatch on ${node.operation}`,
+        explanation: `${describeEstimate({ eRowsPerStart: node.rows, starts: node.starts, eRowsTotal: node.estimatedRowsTotal as number })} but actually produced ${(node.actualRows as number).toLocaleString()} rows (A-Rows), a ${c.deviation.toFixed(1)}x deviation.${root}${inheritNote}`,
+        suggestion: 'Gather fresh statistics (including histograms on filtered columns) or consider an SQL profile/plan baseline if the estimate consistently diverges from reality.',
+      };
+    });
   },
 };
