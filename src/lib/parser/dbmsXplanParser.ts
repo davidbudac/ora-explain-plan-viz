@@ -122,11 +122,23 @@ export function extractDbmsXplanSegments(input: string): string[] {
 
   const segments: string[] = [];
 
+  // A DISPLAY_CURSOR / DISPLAY_AWR block opens with a "SQL_ID <id>, child number N"
+  // header above its "Plan hash value:" line. Start a later segment at that header
+  // (not at the hash line) so the header and SQL text stay with their own plan.
+  const headerStart = (i: number): number => {
+    const hashLine = segmentStarts[i];
+    for (let j = hashLine - 1; j > segmentStarts[i - 1]; j--) {
+      if (/^\s*SQL_ID\s+\S+/i.test(lines[j])) return j;
+    }
+    return hashLine;
+  };
+  const starts = segmentStarts.map((hashLine, i) => (i === 0 ? hashLine : headerStart(i)));
+
   for (let i = 0; i < segmentStarts.length; i++) {
     // Preserve preamble text (SQL_ID header, SQL*Plus prompt, etc.) before
     // the very first "Plan hash value:" so the first plan can extract SQL.
-    const start = i === 0 ? 0 : segmentStarts[i];
-    const end = segmentStarts[i + 1] ?? lines.length;
+    const start = i === 0 ? 0 : starts[i];
+    const end = starts[i + 1] ?? lines.length;
     const segment = lines.slice(start, end).join('\n').trim();
 
     if (segment && dbmsXplanParser.canParse(segment)) {
