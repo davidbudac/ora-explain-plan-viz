@@ -581,6 +581,16 @@ export function NodeDetailBody() {
           ) : null;
         })()}
 
+        {node.inactive && (
+          <div
+            role="note"
+            className="mt-2 p-2 text-[11px] rounded border bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 leading-snug"
+          >
+            Inactive (adaptive plan): the optimizer did not use this operation at run time. It is kept for the
+            plan's shape and excluded from totals, self cost/time and findings.
+          </div>
+        )}
+
         <InsightSwitches />
       </div>
 
@@ -671,7 +681,7 @@ export function NodeDetailBody() {
       )}
 
       {/* Predicates */}
-      {(node.accessPredicates || node.filterPredicates) && (
+      {(node.accessPredicates || node.filterPredicates || node.storagePredicates) && (
         <Accordion title="Predicates">
           {node.accessPredicates && (
             <div className="mb-3">
@@ -688,7 +698,7 @@ export function NodeDetailBody() {
           )}
 
           {node.filterPredicates && (
-            <div>
+            <div className={node.storagePredicates ? 'mb-3' : undefined}>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
                   Filter
@@ -697,6 +707,20 @@ export function NodeDetailBody() {
               </div>
               <code className="block text-[11px] font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md p-2.5 text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words leading-relaxed">
                 <FormattedPredicate text={node.filterPredicates} searchQuery={searchText} />
+              </code>
+            </div>
+          )}
+
+          {node.storagePredicates && (
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400">
+                  Storage
+                </span>
+                <CopyButton text={node.storagePredicates} iconOnly ariaLabel="Copy storage predicate" />
+              </div>
+              <code className="block text-[11px] font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md p-2.5 text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words leading-relaxed">
+                <FormattedPredicate text={node.storagePredicates} searchQuery={searchText} />
               </code>
             </div>
           )}

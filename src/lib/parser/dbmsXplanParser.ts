@@ -2,6 +2,9 @@ import type { PlanNode, ParsedPlan } from '../types';
 import { planRootCost } from '../analysis';
 import type { PlanParser } from './types';
 import { parseNoteSection } from './noteSection';
+import { alignColumnsToRow, pipeIndexes } from './rowAlign';
+import { parsePredicateSection, parseQueryBlockSection } from './predicateSection';
+import type { NodePredicates, NodeQueryBlock } from './predicateSection';
 import {
   expandTableTabs,
   normalizeNewlines,
@@ -79,6 +82,8 @@ interface RawPlanRow {
   stats: RuntimeStats;
   depth: number;
   hasStarPrefix: boolean;
+  /** Adaptive-plan row marked '-' in the Id column (not used by the executed plan). */
+  inactive: boolean;
 }
 
 interface ColumnPositions {
@@ -115,7 +120,7 @@ export const dbmsXplanParser: PlanParser = {
 
     // Extract SQL_ID and SQL text from any preamble (DISPLAY_CURSOR header,
     // SQL*Plus prompt/continuation, or bare SQL above the plan table).
-    const { sqlId, sqlText } = extractSqlHeader(lines);
+    const { sqlId, childNumber, sqlText } = extractSqlHeader(lines);
 
     // Find and parse the table section
     const tableData = parseTableSection(lines);
@@ -124,6 +129,7 @@ export const dbmsXplanParser: PlanParser = {
       return {
         planHashValue,
         sqlId,
+        childNumber,
         sqlText,
         rootNode: null,
         allNodes: [],
@@ -135,22 +141,24 @@ export const dbmsXplanParser: PlanParser = {
     }
 
     // Parse predicate information
-    const predicates = parsePredicates(lines);
+    const predicates = parsePredicateSection(lines);
 
     // Parse query block information
-    const queryBlocks = parseQueryBlocks(lines);
+    const queryBlocks = parseQueryBlockSection(lines);
 
     // Build tree structure
     const { rootNode, allNodes } = buildTree(tableData, predicates, queryBlocks);
 
     // Calculate totals
     const totalCost = planRootCost(rootNode, allNodes);
-    const maxRows = Math.max(...allNodes.map(node => node.rows || 0));
+    // Inactive adaptive-plan rows are not part of the executed plan: keep them out of the scales.
+    const activeNodes = allNodes.filter(node => !node.inactive);
+    const maxRows = Math.max(...activeNodes.map(node => node.rows || 0), 0);
 
     // ALLSTATS / DISPLAY_CURSOR output carries actual runtime statistics (A-Rows etc.)
     const hasActualStats = allNodes.some(node => node.actualRows !== undefined);
-    const maxActualRows = Math.max(...allNodes.map(node => node.actualRows || 0), 0);
-    const maxStarts = Math.max(...allNodes.map(node => node.starts || 0), 0);
+    const maxActualRows = Math.max(...activeNodes.map(node => node.actualRows || 0), 0);
+    const maxStarts = Math.max(...activeNodes.map(node => node.starts || 0), 0);
 
     // Parse the trailing "Note" section, if present.
     const notes = parseNoteSection(lines);
@@ -158,6 +166,7 @@ export const dbmsXplanParser: PlanParser = {
     return {
       planHashValue,
       sqlId,
+      childNumber,
       sqlText,
       rootNode,
       allNodes,
@@ -242,13 +251,15 @@ const SQL_START_KEYWORD = /^(SELECT|WITH|INSERT|UPDATE|DELETE|MERGE|CREATE|ALTER
  *          3   WHERE ...;
  *   3. Bare SQL text immediately before the plan table.
  */
-function extractSqlHeader(lines: string[]): { sqlId?: string; sqlText?: string } {
+function extractSqlHeader(lines: string[]): { sqlId?: string; childNumber?: number; sqlText?: string } {
   // Shape 1: DISPLAY_CURSOR header with SQL_ID
   for (let i = 0; i < lines.length; i++) {
     const idMatch = lines[i].match(/^\s*SQL_ID\s+(\S+?)(?:\s*,.*)?\s*$/i);
     if (!idMatch) continue;
 
     const sqlId = idMatch[1].replace(/[.,;]+$/, '');
+    const child = lines[i].match(/child\s+number\s+(\d+)/i);
+    const childNumber = child ? parseInt(child[1], 10) : undefined;
     // Skip the separator dashes line(s) that follow the header.
     let j = i + 1;
     while (j < lines.length && /^\s*[-=]+\s*$/.test(lines[j])) j++;
@@ -265,7 +276,7 @@ function extractSqlHeader(lines: string[]): { sqlId?: string; sqlText?: string }
     }
 
     const sqlText = cleanSqlLines(collected);
-    return { sqlId: sqlId || undefined, sqlText: sqlText || undefined };
+    return { sqlId: sqlId || undefined, childNumber, sqlText: sqlText || undefined };
   }
 
   // Shapes 2 & 3: look at everything before the first "Plan hash value:".
@@ -353,6 +364,7 @@ function parseTableSection(lines: string[]): RawPlanRow[] {
 
   // Parse column positions from header
   const columns = parseColumnPositions(headerLine);
+  const headerPipes = pipeIndexes(headerLine);
 
   // Parse data rows (after header, skip separator line)
   for (let i = headerLineIndex + 1; i < lines.length; i++) {
@@ -382,7 +394,7 @@ function parseTableSection(lines: string[]): RawPlanRow[] {
 
     // Parse data row if it looks like a plan row
     if (/^\|/.test(line)) {
-      const row = parseDataRow(line, columns);
+      const row = parseDataRow(line, alignColumnsToRow(columns, headerPipes, line));
       if (row) {
         rows.push(row);
       }
@@ -458,6 +470,7 @@ function parseDataRow(line: string, columns: ColumnPositions): RawPlanRow | null
   // inactive rows with a "-" marker (e.g. "- * 3"), so detect the star anywhere
   // in the cell rather than only as the very first character.
   const hasStarPrefix = idStr.includes('*');
+  const inactive = /^-(?!>)/.test(idStr); // "->" marks the currently executing row, not a skipped one
   const idMatch = idStr.match(/[-\s*]*(\d+)/);
   if (!idMatch) {
     return null;
@@ -559,6 +572,7 @@ function parseDataRow(line: string, columns: ColumnPositions): RawPlanRow | null
     stats: parseRuntimeStats(line, columns),
     depth,
     hasStarPrefix,
+    inactive,
   };
 }
 
@@ -624,120 +638,10 @@ function calculateDepth(operationStr: string): number {
   return Math.floor(spaces / 1);
 }
 
-function parsePredicates(lines: string[]): Map<number, { access?: string; filter?: string }> {
-  const predicates = new Map<number, { access?: string; filter?: string }>();
-
-  // Find predicate section
-  let inPredicateSection = false;
-  let currentId: number | null = null;
-  let currentType: 'access' | 'filter' | null = null;
-  let currentText = '';
-
-  for (const line of lines) {
-    if (/Predicate Information/i.test(line)) {
-      inPredicateSection = true;
-      continue;
-    }
-
-    if (!inPredicateSection) {
-      continue;
-    }
-
-    // Stop at next section or empty lines after predicates
-    if (/^[A-Z].*:$/i.test(line.trim()) && !/^\s*\d+\s*-/.test(line)) {
-      break;
-    }
-
-    // Parse predicate lines like "3 - access(...)" or "3 - filter(...)"
-    const predicateMatch = line.match(/^\s*(\d+)\s*-\s*(access|filter)\s*\((.+)\)?\s*$/i);
-    if (predicateMatch) {
-      // Save previous predicate if any
-      if (currentId !== null && currentType && currentText) {
-        const existing = predicates.get(currentId) || {};
-        existing[currentType] = currentText;
-        predicates.set(currentId, existing);
-      }
-
-      currentId = parseInt(predicateMatch[1], 10);
-      currentType = predicateMatch[2].toLowerCase() as 'access' | 'filter';
-      currentText = predicateMatch[3] || '';
-
-      // Handle case where predicate text is complete on this line
-      if (currentText.endsWith(')') || !line.includes('(')) {
-        const existing = predicates.get(currentId) || {};
-        existing[currentType] = currentText.replace(/\)$/, '');
-        predicates.set(currentId, existing);
-        currentId = null;
-        currentType = null;
-        currentText = '';
-      }
-    } else if (currentId !== null && currentType && line.trim()) {
-      // Continuation of multi-line predicate
-      currentText += ' ' + line.trim();
-      if (line.trim().endsWith(')')) {
-        const existing = predicates.get(currentId) || {};
-        existing[currentType] = currentText.replace(/\)$/, '');
-        predicates.set(currentId, existing);
-        currentId = null;
-        currentType = null;
-        currentText = '';
-      }
-    }
-  }
-
-  // Save any remaining predicate
-  if (currentId !== null && currentType && currentText) {
-    const existing = predicates.get(currentId) || {};
-    existing[currentType] = currentText.replace(/\)$/, '');
-    predicates.set(currentId, existing);
-  }
-
-  return predicates;
-}
-
-function parseQueryBlocks(lines: string[]): Map<number, { queryBlock?: string; objectAlias?: string }> {
-  const queryBlocks = new Map<number, { queryBlock?: string; objectAlias?: string }>();
-
-  // Find Query Block Name / Object Alias section
-  let inQueryBlockSection = false;
-
-  for (const line of lines) {
-    if (/Query Block Name\s*\/\s*Object Alias/i.test(line)) {
-      inQueryBlockSection = true;
-      continue;
-    }
-
-    if (!inQueryBlockSection) {
-      continue;
-    }
-
-    // Skip separator lines
-    if (/^[-]+$/.test(line.trim())) {
-      continue;
-    }
-
-    // Stop at next section header or empty line after data
-    if (line.trim() === '' || (/^[A-Z].*:$/i.test(line.trim()) && !/^\s*\d+\s*-/.test(line))) {
-      break;
-    }
-
-    // Parse lines like "   2 - SEL$1 / E@SEL$1" or "   1 - SEL$1"
-    const match = line.match(/^\s*(\d+)\s*-\s*(\S+)(?:\s*\/\s*(\S+))?/);
-    if (match) {
-      const id = parseInt(match[1], 10);
-      const queryBlock = match[2];
-      const objectAlias = match[3];
-      queryBlocks.set(id, { queryBlock, objectAlias });
-    }
-  }
-
-  return queryBlocks;
-}
-
 function buildTree(
   rows: RawPlanRow[],
-  predicates: Map<number, { access?: string; filter?: string }>,
-  queryBlocks: Map<number, { queryBlock?: string; objectAlias?: string }>
+  predicates: Map<number, NodePredicates>,
+  queryBlocks: Map<number, NodeQueryBlock>
 ): { rootNode: PlanNode | null; allNodes: PlanNode[] } {
   if (rows.length === 0) {
     return { rootNode: null, allNodes: [] };
@@ -770,8 +674,10 @@ function buildTree(
       ...row.stats,
       accessPredicates: preds?.access,
       filterPredicates: preds?.filter,
+      storagePredicates: preds?.storage,
       queryBlock: qb?.queryBlock,
       objectAlias: qb?.objectAlias,
+      inactive: row.inactive || undefined,
       children: [],
     };
 

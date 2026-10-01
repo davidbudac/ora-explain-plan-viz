@@ -9,6 +9,21 @@ export function walkPlanTree(root: PlanNode, visit: (node: PlanNode) => void): v
 }
 
 /**
+ * The children whose work a node really waits on: each active child as is, and for an
+ * inactive child (an adaptive-plan row the optimizer did not use) the effective children
+ * below it instead. Cumulative cost/time of an active node under an inactive one still
+ * flows to the nearest active ancestor this way.
+ */
+export function effectiveChildren(node: PlanNode): PlanNode[] {
+  const result: PlanNode[] = [];
+  for (const child of node.children) {
+    if (child.inactive) result.push(...effectiveChildren(child));
+    else result.push(child);
+  }
+  return result;
+}
+
+/**
  * Derive per-operation self time from A-Time and normalize A-Time semantics
  * across sources. Runs once per parse, in place.
  *
@@ -63,11 +78,11 @@ export function computeSelfTimes(plan: ParsedPlan): void {
     }
   } else {
     for (const node of plan.allNodes) {
-      if (node.actualTime === undefined) {
+      if (node.actualTime === undefined || node.inactive) {
         node.selfTime = undefined;
         continue;
       }
-      const childSum = node.children.reduce(
+      const childSum = effectiveChildren(node).reduce(
         (sum, child) => sum + (child.actualTime ?? 0), 0);
       node.selfTime = Math.max(0, node.actualTime - childSum);
     }
@@ -132,6 +147,7 @@ export function computeEstimatedRowTotals(plan: ParsedPlan): void {
   };
 
   for (const node of plan.allNodes) {
+    if (node.inactive) continue;
     if (node.estimatedRowsTotal !== undefined) continue;
     if (node.actualRows === undefined || node.rows === undefined) continue;
     if (node.starts === 0) continue;
@@ -200,15 +216,17 @@ export function planRootCost(root: PlanNode | null, allNodes: PlanNode[]): numbe
 
 /**
  * Derive per-operation self cost: max(0, cost − Σ children cost), for nodes
- * with a defined cost. Runs once per parse, in place.
+ * with a defined cost. Runs once per parse, in place. Inactive adaptive-plan
+ * rows get none, and their active descendants count as the children of the
+ * nearest active ancestor (`effectiveChildren`).
  */
 export function computeSelfCosts(plan: ParsedPlan): void {
   for (const node of plan.allNodes) {
-    if (node.cost === undefined) {
+    if (node.cost === undefined || node.inactive) {
       node.selfCost = undefined;
       continue;
     }
-    const childSum = node.children.reduce((sum, child) => sum + (child.cost ?? 0), 0);
+    const childSum = effectiveChildren(node).reduce((sum, child) => sum + (child.cost ?? 0), 0);
     node.selfCost = Math.max(0, node.cost - childSum);
   }
 }
@@ -236,7 +254,7 @@ export function rankNodesByTime(plan: ParsedPlan): PlanNode[] {
   const measure = (n: PlanNode): number | undefined =>
     byActivity ? n.activityPercent : (n.selfTime ?? n.actualTime);
   return plan.allNodes
-    .filter((n) => n.parentId !== undefined && measure(n) !== undefined)
+    .filter((n) => n.parentId !== undefined && !n.inactive && measure(n) !== undefined)
     .sort((a, b) => (measure(b) ?? 0) - (measure(a) ?? 0));
 }
 
@@ -254,7 +272,7 @@ export function computeHottestNodeId(plan: ParsedPlan | null): number | null {
   let hottestId: number | null = null;
   let hottestTime = 0;
   for (const node of plan.allNodes) {
-    if (node.parentId === undefined) continue; // skip root statement nodes
+    if (node.parentId === undefined || node.inactive) continue; // skip root statement nodes and inactive rows
     const time = byActivity ? node.activityPercent : (node.selfTime ?? node.actualTime);
     if (time !== undefined && time > hottestTime) {
       hottestTime = time;

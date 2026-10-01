@@ -287,3 +287,18 @@ describe('real 19c captures', () => {
     expect(plan.allNodes.some((n) => n.id === 29)).toBe(true);
   });
 });
+
+describe('SQL Monitor "->" executing marker', () => {
+  it('does not treat "-> N" rows as inactive, but still treats "- N" as skipped', () => {
+    const text = [
+      'SQL Plan Monitoring Details (Plan Hash Value=888)',
+      '| Id   | Operation          | Name | E-Rows | A-Rows | A-Time   | Starts |',
+      '|    0 | SELECT STATEMENT   |      |        |      1 | 00:00:01 |      1 |',
+      '| -> 1 |  TABLE ACCESS FULL | EMP  |     14 |     14 | 00:00:01 |      1 |',
+      '| -  2 |  TABLE ACCESS FULL | DEPT |      4 |        |          |        |',
+    ].join('\n');
+    const plan = parsePlan(text);
+    expect(node(plan, 1).inactive).toBeUndefined();
+    expect(node(plan, 2).inactive).toBe(true);
+  });
+});

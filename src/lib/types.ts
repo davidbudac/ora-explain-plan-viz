@@ -63,6 +63,7 @@ export interface PlanNode {
   // Predicates and metadata
   accessPredicates?: string;
   filterPredicates?: string;
+  storagePredicates?: string;  // Exadata smart-scan predicates (`storage(...)`)
   queryBlock?: string;
   objectAlias?: string;
   parentId?: number;
@@ -88,6 +89,7 @@ export interface ParsedPlan {
 
   // Additional SQL Monitor metadata
   sqlId?: string;
+  childNumber?: number;       // cursor child number (DISPLAY_CURSOR header "SQL_ID x, child number N")
   sqlText?: string;
   totalElapsedTime?: number;  // total execution time in milliseconds
 
@@ -102,6 +104,14 @@ export interface ParsedPlan {
 
   // Report-level ASH timeline (Active Session History), from <activity_detail>
   activityTimeline?: ActivityTimeline;
+
+  // Raw plan <info type=...> entries from SQL Monitor XML (type -> value), e.g. dop, db_version,
+  // parse_schema, plan_hash_full. The ones the Note section models are also folded into `notes`.
+  planInfo?: Record<string, string>;
+
+  // Optimizer outline hints, one hint per entry, verbatim (e.g. `FULL(@"SEL$1" "O"@"SEL$1")`).
+  // From SQL Monitor XML <outline_data> (and DBMS_XPLAN ADVANCED output).
+  outlineHints?: string[];
 }
 
 /** One ASH sample from a SQL Monitor report-level <activity_detail> bucket. */
@@ -120,6 +130,28 @@ export interface ActivityTimeline {
   bucketIntervalSecs: number;
   bucketCount: number;
   samples: ActivitySample[];
+}
+
+/** One parallel execution session from SQL Monitor XML <parallel_info>. Times in milliseconds. */
+export interface ParallelServer {
+  /** Oracle process name: `p000`, `PX Coordinator`, ... */
+  name: string;
+  /** True for the query coordinator session (it belongs to no server set). */
+  isCoordinator?: boolean;
+  /** PX server set number (1 = producers/consumers of the first DFO, ...). */
+  set?: number;
+  group?: number;
+  serverNum?: number;
+  instance?: number;
+  sessionId?: number;
+  sessionSerial?: number;
+  elapsedMs?: number;
+  cpuMs?: number;
+  ioWaitMs?: number;
+  otherWaitMs?: number;
+  bufferGets?: number;
+  readReqs?: number;
+  readBytes?: number;
 }
 
 export interface SqlMonitorMetadata {
@@ -163,6 +195,10 @@ export interface SqlMonitorMetadata {
   dop?: number;
   pxServersRequested?: number;
   pxServersAllocated?: number;
+  // Per-session parallel stats (from <parallel_info>), coordinator first when present
+  parallelServers?: ParallelServer[];
+  pxServerSets?: number;
+  pxServerGroups?: number;
 }
 
 export type PredicateType = 'access' | 'filter' | 'none';
