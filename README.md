@@ -68,7 +68,27 @@ Docker: `npm run docker:build && npm run docker:run` (port 8080). Set `APP_BASE_
 
 For contributors: an evaluation harness for the AI analysis / test-case features lives in [`evals/`](evals/README.md). It backtests plan-repro fidelity and analysis quality against your own Oracle **scratch schema** (no Docker required) configured via `ORA_EVAL_*` environment variables — see [`evals/README.md`](evals/README.md) for setup and safety notes.
 
-Optional: fetch plans directly from your database with the local [`oraplanviz-db-connector`](https://github.com/davidbudac/oraplanviz-db-connector) companion (`VITE_ENABLE_DB_AGENT=1 npm run dev`; credentials never leave your machine). The hosted-cloud AI provider is likewise behind `VITE_ENABLE_HOSTED=1` (off in the public build).
+### Database connector (optional)
+
+Fetch plans straight from your database instead of pasting them. A small local companion, [`oraplanviz-db-connector`](https://github.com/davidbudac/oraplanviz-db-connector), runs on your machine and connects to Oracle in python-oracledb thin mode (no Instant Client). Credentials and plan text only flow browser to connector on `127.0.0.1`; nothing is sent to any server.
+
+```mermaid
+flowchart LR
+  subgraph machine["Your machine"]
+    direction LR
+    B["Browser tab<br/>(Plan Visualizer)"] <-->|"127.0.0.1:8521<br/>bearer token"| A["oraplanviz-agent"]
+  end
+  A <-->|"Oracle Net<br/>(thin mode)"| D[("Oracle database")]
+```
+
+1. Run the app with the panel enabled: `VITE_ENABLE_DB_AGENT=1 npm run dev` (or `docker compose --profile agent up --build`). The public GitHub Pages build does not include it.
+2. Install the connector (Python 3.9+): `pipx install git+https://github.com/davidbudac/oraplanviz-db-connector.git`
+3. Start it with `oraplanviz-agent` (add `--allow-origin <origin>` if the app is not on `http://localhost:5173`) and copy the bearer token it prints.
+4. In the app open **DB Connect** and follow the four steps: start the connector, paste the token, connect to your database, pick a statement.
+
+See the connector's [Quick start](https://github.com/davidbudac/oraplanviz-db-connector#quick-start) for the full walkthrough and troubleshooting, or the [site docs](https://davidbudac.github.io/ora-explain-plan-viz/welcome/docs.html#db-connector).
+
+The hosted-cloud AI provider is likewise behind `VITE_ENABLE_HOSTED=1` (off in the public build).
 
 ## License
 

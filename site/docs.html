@@ -76,6 +76,10 @@
   .doc h2 a.anchor, .doc h3 a.anchor { color: #334155; margin-left: 0.4rem; font-weight: 400; opacity: 0; text-decoration: none; }
   .doc h2:hover a.anchor, .doc h3:hover a.anchor { opacity: 1; }
 
+  .doc .diagram { margin: 1.25rem 0; border: 1px solid #1e293b; border-radius: 0.5rem; background: #0f172a; padding: 0.75rem; overflow-x: auto; }
+  .doc .diagram svg { display: block; width: 100%; height: auto; min-width: 560px; color: #cbd5e1; font-family: Inter, system-ui, sans-serif; }
+  .doc .diagram figcaption { color: #64748b; font-size: 0.75rem; margin-top: 0.5rem; }
+
   /* ---- Sidebar ---- */
   .toc a { display: block; padding: 0.3rem 0.75rem; border-left: 1px solid #1e293b; color: #64748b; font-size: 0.8125rem; line-height: 1.4; transition: color .12s, border-color .12s; }
   .toc a:hover { color: #e2e8f0; }
@@ -713,26 +717,114 @@ SQL&gt; @gather_plan_metadata.sql LIST "HR.EMPLOYEES,HR.DEPARTMENTS"</code></pre
         Instead of copying plans out of SQL*Plus, you can fetch them straight from a database with the
         <a href="https://github.com/davidbudac/oraplanviz-db-connector">oraplanviz-db-connector</a> companion. It is a small
         Python program that runs <strong>on your own machine</strong>, connects to Oracle with python-oracledb in thin mode
-        (no Instant Client), and exposes a localhost JSON API that the app's <em>Connect to database</em> panel talks to.
+        (no Instant Client), and exposes a localhost JSON API that the app's <em>DB Connect</em> panel talks to.
       </p>
       <div class="note"><span class="lbl">Privacy model</span><p>Credentials and plan text only ever flow between your browser and the connector on <code>127.0.0.1</code>. The connector binds to localhost only, requires a random bearer token on every request, and only answers allow-listed origins. The hosted app never sees your database.</p></div>
 
-      <h3>Setup</h3>
-      <ol>
-        <li>Build the app with the panel enabled: <code>VITE_ENABLE_DB_AGENT=1 npm run dev</code>, or the Docker <code>agent</code> profile (port 8081). The public GitHub Pages build does <strong>not</strong> include it.</li>
-        <li>Install and start the connector:</li>
-      </ol>
-<pre><code>pipx install oraplanviz-agent
+      <figure class="diagram">
+        <svg viewBox="0 0 840 270" role="img" aria-label="Architecture: the browser tab with the Plan Visualizer app talks over HTTP on 127.0.0.1 port 8521, using a bearer token and a CORS allowlist, to the oraplanviz-agent connector. Both run on your machine. The connector talks to your Oracle database over Oracle Net in thin mode, and optionally opens a second, separate session to a scratch schema for approved AI scripts." xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="dbc-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#f59e0b"/></marker>
+            <marker id="dbc-arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#64748b"/></marker>
+          </defs>
+          <rect x="8" y="16" width="552" height="238" rx="12" fill="none" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 5"/>
+          <text x="24" y="38" fill="#64748b" font-size="12" font-weight="600" letter-spacing="1.2">YOUR MACHINE</text>
 
-oraplanviz-agent \
+          <rect x="28" y="84" width="170" height="92" rx="8" fill="#1e293b" stroke="#475569"/>
+          <text x="113" y="124" text-anchor="middle" fill="currentColor" font-size="14" font-weight="600">Browser tab</text>
+          <text x="113" y="145" text-anchor="middle" fill="#94a3b8" font-size="12">Plan Visualizer app</text>
+
+          <rect x="372" y="84" width="170" height="92" rx="8" fill="#1e293b" stroke="#f59e0b"/>
+          <text x="457" y="124" text-anchor="middle" fill="currentColor" font-size="14" font-weight="600">oraplanviz-agent</text>
+          <text x="457" y="145" text-anchor="middle" fill="#94a3b8" font-size="12">the connector</text>
+
+          <line x1="202" y1="130" x2="368" y2="130" stroke="#f59e0b" stroke-width="2" marker-start="url(#dbc-arr)" marker-end="url(#dbc-arr)"/>
+          <text x="285" y="106" text-anchor="middle" fill="currentColor" font-size="12">HTTP 127.0.0.1:8521</text>
+          <text x="285" y="153" text-anchor="middle" fill="#94a3b8" font-size="11">bearer token</text>
+          <text x="285" y="169" text-anchor="middle" fill="#94a3b8" font-size="11">+ CORS allowlist</text>
+
+          <line x1="546" y1="118" x2="652" y2="118" stroke="#f59e0b" stroke-width="2" marker-start="url(#dbc-arr)" marker-end="url(#dbc-arr)"/>
+          <text x="600" y="100" text-anchor="middle" fill="#94a3b8" font-size="11">Oracle Net</text>
+          <text x="600" y="136" text-anchor="middle" fill="#94a3b8" font-size="11">thin mode</text>
+
+          <rect x="656" y="84" width="170" height="68" rx="8" fill="#1e293b" stroke="#475569"/>
+          <text x="741" y="114" text-anchor="middle" fill="currentColor" font-size="14" font-weight="600">Oracle database</text>
+          <text x="741" y="134" text-anchor="middle" fill="#94a3b8" font-size="12">read-only plan session</text>
+
+          <path d="M500 180 L500 226 L652 226" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#dbc-arr2)"/>
+          <text x="510" y="216" fill="#94a3b8" font-size="11">optional second session</text>
+          <rect x="656" y="196" width="170" height="60" rx="8" fill="none" stroke="#64748b" stroke-dasharray="5 4"/>
+          <text x="741" y="222" text-anchor="middle" fill="currentColor" font-size="13" font-weight="600">Scratch schema</text>
+          <text x="741" y="240" text-anchor="middle" fill="#94a3b8" font-size="11">approved AI scripts only</text>
+        </svg>
+        <figcaption>Only Oracle Net traffic from the connector to your database leaves your machine.</figcaption>
+      </figure>
+
+      <h3>Step by step</h3>
+      <p>Steps 1 to 3 are one-time setup on your machine. Steps 4 to 7 are the four steps of the <em>DB Connect</em> panel.</p>
+      <ol>
+        <li>
+          <strong>Run the app with the panel enabled.</strong> The public GitHub Pages build does <strong>not</strong> include it.
+<pre><code>VITE_ENABLE_DB_AGENT=1 npm run dev          # http://localhost:5173
+docker compose --profile agent up --build   # http://localhost:8081</code></pre>
+        </li>
+        <li>
+          <strong>Install the connector.</strong> It needs Python 3.9 or newer and is not on PyPI yet, so install it from GitHub
+          (once published this becomes <code>pipx install oraplanviz-agent</code>):
+<pre><code>pipx install git+https://github.com/davidbudac/oraplanviz-db-connector.git</code></pre>
+        </li>
+        <li>
+          <strong>Start it</strong> and keep the terminal open. If the app is not on <code>http://localhost:5173</code> (the Docker profile uses port 8081), add its origin:
+<pre><code>oraplanviz-agent
+oraplanviz-agent --allow-origin http://localhost:8081</code></pre>
+          It prints a banner with its URL, a <strong>bearer token</strong> and the allowed origins:
+<pre><code>========================================================================
+ oraplanviz-agent v0.2.0
+========================================================================
+ Listening on:      http://127.0.0.1:8521
+ Bearer token:      kQ3v0m2Zr8bYx1d9WnT5uLfH7sJcPq4A
+ Allowed origins:
+   - http://localhost:5173
+   - http://127.0.0.1:5173</code></pre>
+          The token is random and changes on every restart unless you pass <code>--token</code>.
+        </li>
+        <li><strong>Open DB Connect</strong> from the top bar, or from the command palette (<em>Connect to database…</em>). <strong>Step 1, Start the connector</strong>, shows the install and start commands and turns green on its own as soon as the app finds the connector.</li>
+        <li><strong>Step 2, Paste the access token</strong> from the banner. It is verified automatically.</li>
+        <li><strong>Step 3, Connect to your database.</strong> Enter the DSN (<code>host:1521/service_name</code>), user and password. This step is skipped if you started the connector with <code>--dsn</code> and <code>--user</code>.</li>
+        <li><strong>Step 4, Pick a statement.</strong> Use the <em>Recent statements</em> tab (from the cursor cache or SQL Monitor) or the <em>By SQL ID</em> tab (source: cursor, monitor or AWR). Leave <em>Attach DB metadata</em> checked to also fetch table, index and column statistics. The plan then renders like any pasted plan; if the metadata gather fails you still get the plan, with a notice.</li>
+      </ol>
+      <p>There is also a collapsed, optional <em>Test connection for AI scripts</em> section. It opens a separate session to a scratch schema; AI-proposed scripts only run there after you approve each one.</p>
+
+      <h3>Connector flags</h3>
+      <p><code>--port</code>, <code>--host</code> (keep it at 127.0.0.1), <code>--allow-origin</code> (repeatable), <code>--token</code>, <code>--dsn</code> and <code>--user</code> (connect at startup; the password is prompted, never a CLI argument).</p>
+<pre><code>oraplanviz-agent \
   --allow-origin http://localhost:5173 \
   --dsn dbhost.example.com:1521/pdb1 \
-  --user planviz            # password is prompted, never a CLI argument</code></pre>
-      <ol start="3">
-        <li>It prints its URL (default <code>http://127.0.0.1:8521</code>) and a bearer token. Paste both into the Connect panel in the input drawer (or open it from the command palette).</li>
-        <li>Enter a SQL ID. The plan is fetched along with a metadata bundle when possible; if the metadata gather fails you still get the plan, with a notice.</li>
-      </ol>
-      <p>Flags: <code>--port</code>, <code>--host</code> (keep it at 127.0.0.1), <code>--allow-origin</code> (repeatable), <code>--token</code>. Add your self-hosted app's origin to <code>--allow-origin</code> when not using the dev server.</p>
+  --user planviz</code></pre>
+
+      <h3>Grants and licensing</h3>
+      <p>The simplest working setup is the standard read-only catalog role, which covers plans and full-coverage metadata:</p>
+<pre><code>GRANT SELECT_CATALOG_ROLE TO planviz_user;</code></pre>
+      <ul>
+        <li><strong>Cursor cache</strong> (<code>DBMS_XPLAN.DISPLAY_CURSOR</code>): free, part of the base database.</li>
+        <li><strong>SQL Monitor</strong>: requires the Oracle <strong>Tuning Pack</strong>.</li>
+        <li><strong>AWR</strong>: requires the Oracle <strong>Diagnostics Pack</strong>.</li>
+      </ul>
+      <p>Default to the cursor cache unless you know you are licensed for the others.</p>
+
+      <h3>Troubleshooting</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td>Step 1 says the connector was not found</td><td>Not running, a different port, or the app's origin is not in <code>--allow-origin</code>. The browser reports a CORS rejection as an unreachable server.</td><td>Check the terminal is still running. Compare the banner's <em>Allowed origins</em> with the app's address bar and restart with <code>--allow-origin &lt;origin&gt;</code> if they differ. After <code>--port</code>, use the same port in the app.</td></tr>
+          <tr><td>Token rejected (401)</td><td>Mistyped, or the connector restarted (a new token is generated each start).</td><td>Copy the token again from the current banner, or start with a fixed <code>--token</code>.</td></tr>
+          <tr><td><code>ORA-01017</code></td><td>Wrong user or password.</td><td>Retry and check the account is not locked.</td></tr>
+          <tr><td><code>ORA-12514</code>, <code>ORA-12541</code>, <code>DPY-6005</code></td><td>Wrong host, port or service name, or the listener is down.</td><td>Use <code>host:1521/service_name</code>, not an SID. Check service names with <code>lsnrctl status</code>; for a PDB use the PDB's own service.</td></tr>
+          <tr><td>Safari blocks an <code>https://</code> page from reaching the connector</td><td>Safari has no mixed-content exception for <code>http://127.0.0.1</code>.</td><td>Use Chrome or Firefox, or the local dev server (<code>http://localhost</code>).</td></tr>
+          <tr><td>"Plan loaded without DB metadata"</td><td>The metadata gather lacked privileges. The plan still loads.</td><td><code>GRANT SELECT_CATALOG_ROLE TO &lt;user&gt;;</code>, then load again.</td></tr>
+          <tr><td>Recent statements list is empty</td><td>The statement aged out of the cursor cache.</td><td>Run it again, or use <em>By SQL ID</em> with the AWR source (Diagnostics Pack).</td></tr>
+        </tbody>
+      </table></div>
     </section>
 
     <!-- ---------- AI ---------- -->

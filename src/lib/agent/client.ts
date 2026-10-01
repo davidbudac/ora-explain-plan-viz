@@ -228,6 +228,28 @@ export async function health(baseUrl: string): Promise<AgentHealth> {
   return request<AgentHealth>(baseUrl, '/api/health', { timeoutMs: HEALTH_TIMEOUT_MS });
 }
 
+/**
+ * Cheap token check. `GET /api/test/log` needs auth and answers 200 whatever
+ * the connection state (agents < 0.2.0 answer 404 *after* passing auth), so:
+ * 2xx/404 = token accepted, 401 = rejected. Other failures (agent down,
+ * timeout, 5xx) are rethrown — they say nothing about the token.
+ */
+export async function verifyToken(config: AgentConfig): Promise<boolean> {
+  try {
+    await request<unknown>(config.baseUrl, '/api/test/log', {
+      token: config.token,
+      timeoutMs: HEALTH_TIMEOUT_MS,
+    });
+    return true;
+  } catch (err) {
+    if (err instanceof AgentError) {
+      if (err.status === 404) return true;
+      if (err.status === 401) return false;
+    }
+    throw err;
+  }
+}
+
 export async function connect(config: AgentConfig, creds: ConnectCredentials): Promise<ConnectResult> {
   return request<ConnectResult>(config.baseUrl, '/api/connect', {
     method: 'POST',
