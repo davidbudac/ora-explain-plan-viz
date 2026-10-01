@@ -13,13 +13,14 @@ import { WorkspaceTools } from './components/WorkspaceTools';
 import { useNarrowWorkspace } from './hooks/useNarrowWorkspace';
 import { CommandPalette } from './components/CommandPalette';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay';
+import { Walkthrough } from './components/Walkthrough';
 import { ShareResultDialog } from './components/ShareResultDialog';
 import { PopoutWindow } from './components/PopoutWindow';
 import { BaselineScriptModal } from './components/BaselineScriptModal';
 import { ClientReportModal } from './components/ClientReportModal';
 import { MetadataExplorer } from './components/metadata/MetadataExplorer';
 import { BundleAttachChooser, ExampleBadges } from './components/InputPanel';
-import { CopyButton, FOCUS_RING } from './components/ui';
+import { CopyButton, FOCUS_RING, BTN_PRIMARY } from './components/ui';
 import { SAMPLE_PLANS_BY_CATEGORY, FEATURED_SAMPLE_PLANS } from './examples';
 import type { SamplePlan } from './examples';
 import { SUPPORTED_FORMATS } from './lib/formats';
@@ -406,7 +407,9 @@ function AppContent() {
     filterPanelCollapsed, setFilterPanelCollapsed,
     detailPanelCollapsed, setDetailPanelCollapsed,
     focusMode, setFocusMode,
+    walkthroughOpen, setWalkthroughOpen, startWalkthrough,
   } = usePlan();
+  const [startingTour, setStartingTour] = useState(false);
   const { aiDialogOpen, closeAiDialog } = useAi();
   const activeSlot = plans[activePlanIndex];
   const activeParsedPlan = activeSlot?.parsedPlan ?? null;
@@ -429,6 +432,18 @@ function AppContent() {
     },
     [loadExample]
   );
+  // The tour has nothing to point at once every plan is gone.
+  useEffect(() => {
+    if (walkthroughOpen && !anyPlanParsed) setWalkthroughOpen(false);
+  }, [walkthroughOpen, anyPlanParsed, setWalkthroughOpen]);
+  const beginWalkthrough = useCallback(async () => {
+    setStartingTour(true);
+    try {
+      await startWalkthrough();
+    } finally {
+      setStartingTour(false);
+    }
+  }, [startWalkthrough]);
   const openRecent = useCallback(
     (entry: RecentPlan) => {
       void openRecentPlan(entry);
@@ -575,6 +590,7 @@ function AppContent() {
         />
       )}
       {aiDialogOpen && <AiAnalysisDialog onClose={closeAiDialog} />}
+      {walkthroughOpen && anyPlanParsed && <Walkthrough />}
       {reportDialogOpen && activeParsedPlan && (
         <ClientReportModal onClose={() => setReportDialogOpen(false)} />
       )}
@@ -661,6 +677,21 @@ function AppContent() {
             <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-2">
               No Execution Plan Loaded
             </h2>
+
+            <div className="mb-4 flex flex-col items-center gap-1">
+              <button
+                type="button"
+                onClick={() => void beginWalkthrough()}
+                disabled={startingTour}
+                className={`${BTN_PRIMARY} px-4 py-2 text-sm`}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v18M5 4h11l-2 4 2 4H5" />
+                </svg>
+                {startingTour ? 'Loading sample plan…' : 'Take the walkthrough'}
+              </button>
+              <span className="text-xs text-slate-500 dark:text-slate-400">A quick guided tour on a sample plan</span>
+            </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 mb-3 text-sm text-center">
               <div className="flex items-center gap-2">

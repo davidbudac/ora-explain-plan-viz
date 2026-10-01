@@ -286,7 +286,7 @@ export function WorkspaceTools({ narrow }: { narrow: boolean }) {
     {/* `@container`: the view controls show their field labels only when the
         toolbar is wide enough (see FieldLabel). */}
     <div role="group" aria-label="Workspace controls" className="@container shrink-0 flex items-center gap-2 px-3 py-2 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-      <button ref={filtersButton} type="button" className={`${CONTROL} shrink-0`}
+      <button ref={filtersButton} type="button" data-tour="filters" className={`${CONTROL} shrink-0`}
         aria-expanded={narrow ? activePanel === 'filters' : !filterPanelCollapsed}
         onClick={() => narrow ? activePanel === 'filters' ? closePanel() : setPanel('filters') : setFilterPanelCollapsed(!filterPanelCollapsed)}>
         Filters <span className="font-mono">{filteredNodes.length}/{parsedPlan?.allNodes.length ?? 0}</span>
@@ -295,7 +295,7 @@ export function WorkspaceTools({ narrow }: { narrow: boolean }) {
           view controls between them scroll sideways (no scrollbar) once the
           canvas is too narrow to hold them — never wrap onto a second row. The
           padding keeps focus rings from being clipped by the scroller. */}
-      <div className="flex-1 min-w-0 -my-1 px-1 py-1 flex flex-nowrap items-center gap-2 overflow-x-auto scrollbar-none">
+      <div data-tour="view-controls" className="flex-1 min-w-0 -my-1 px-1 py-1 flex flex-nowrap items-center gap-2 overflow-x-auto scrollbar-none">
         <ViewControls />
         <LegendToggle />
       </div>

@@ -367,6 +367,7 @@ export function ViewTabStrip() {
   return (
     <div
       ref={wrapRef}
+      data-tour="view-tabs"
       className={layout ? 'min-w-0 flex items-center' : 'flex-1 min-w-[11rem] flex items-center'}
       style={layout ? { flex: `1 0 ${layout.stripWidth}px` } : undefined}
     >
@@ -500,6 +501,7 @@ export function PlanTabsCluster() {
   return (
     <div
       data-plan-tabs-cluster
+      data-tour="plan-tabs"
       className={squeezed
         ? 'shrink-0 min-w-0 overflow-x-auto scrollbar-none [mask-image:linear-gradient(to_right,black_calc(100%-20px),transparent)]'
         : 'shrink-0'}

@@ -185,6 +185,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     // Actions
     setLegendVisible,
     setShortcutsOverlayOpen,
+    startWalkthrough,
     applyDensityPreset,
     setViewMode,
     setTheme,
@@ -366,6 +367,16 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
         window.dispatchEvent(new Event(SHOW_OVERVIEW_EVENT));
       },
       isAvailable: () => parsedPlan !== null && !treeCompareEnabled,
+    });
+
+    // --- Guided tour ---
+    commands.push({
+      id: 'start-walkthrough',
+      label: 'Start walkthrough',
+      category: 'View',
+      kind: 'action',
+      keywords: ['walkthrough', 'tour', 'guide', 'tutorial', 'help', 'intro', 'onboarding', 'demo'],
+      execute: () => { void startWalkthrough(); },
     });
 
     // --- Keyboard shortcuts help ---
@@ -827,7 +838,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     inputPanelCollapsed, filterPanelCollapsed, detailPanelCollapsed, focusMode,
     hotspotsEnabled, treeCompareEnabled, annotations, anyPlanParsed,
     hasActualStats, hasAnyInput, canExportPng, multipleParsedPlans,
-    legendVisible, setLegendVisible, setShortcutsOverlayOpen,
+    legendVisible, setLegendVisible, setShortcutsOverlayOpen, startWalkthrough,
     densitySelection, applyDensityPreset,
     setViewMode, setTheme, setColorScheme, setPalette, setFilters, setSankeyMetric,
     setNodeIndicatorMetric, setHighlightStyle, setVisualizationMaximized,

@@ -51,6 +51,7 @@ src/
 │   ├── dropFiles.ts     # Drag-and-drop file reading/classification + multi-file drop planning (plan + optional bundle)
 │   ├── topBarLayout.ts  # Pure width allocation for the single top bar (title → button labels → plan tabs → view tabs)
 │   ├── actionFeedback.ts # Toast wording/branching for share-link and PNG-export outcomes (`runPngExport`, `shareFeedback`)
+│   ├── walkthrough.ts   # Guided-tour content (`WALKTHROUGH_STEPS`, `data-tour` targets) + pure card/spotlight placement (`computeCardPosition`, `spotlightRect`) + `pickWalkthroughSample`
 │   ├── paletteSearch.ts # Ranked command-palette matching (whole-word/prefix hits beat substrings)
 │   ├── treeCollapse.ts  # Tree collapse/expand helpers, per-plan collapse memory, `TreeViewActions` / `TreeViewState` types
 │   ├── nodeAriaLabel.ts # One-sentence accessible name for a tree node
@@ -110,6 +111,7 @@ src/
 │   ├── ComparePlanPicker.tsx # Picker for choosing which two plans to compare
 │   ├── CommandPalette.tsx   # Cmd/Ctrl-K command palette (ranked search, action/toggle/select kinds, views, schemes, tree actions, examples)
 │   ├── ShortcutsOverlay.tsx # Keyboard shortcuts help overlay
+│   ├── Walkthrough.tsx      # Guided-tour coachmarks: props-only `WalkthroughView` (spotlight + card, portal, keyboard) + context-wired `Walkthrough` (step index, select-hot-node action)
 │   ├── ShareResultDialog.tsx # Share-via-URL dialog (encoded plan link)
 │   ├── PopoutWindow.tsx     # Detachable pop-out window (e.g. Metadata Explorer)
 │   ├── GatherScriptModal.tsx # Generates a schema-metadata gather SQL script
@@ -318,7 +320,8 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Analysis Overview**: After a plan loads, a dismissible card (`AnalysisOverview.tsx`) over the Tree/Tabular/Sankey/Flame views lists the top 3 advisor findings (falling back to the hottest operation and the worst cardinality mismatch; the mismatch fallback is skipped when the advisor already reports `cardinality-mismatch`), each with Focus and, where evidence needs it, 'Attach metadata…'. Once per loaded plan; `showAnalysisOverview` setting turns it off; palette 'Show analysis overview' reopens it; bottom bar on narrow screens, top-left in focus mode
 - **Offline / Installable PWA**: manifest + service worker (`public/`), product icon; the app opens offline once visited; an update shows a 'New version available' toast with Reload
 - **Command Palette**: Cmd/Ctrl-K palette with ranked search (`paletteSearch.ts`: whole-word/prefix hits beat incidental substrings), commands typed as action / toggle / select (toggles show their state), views, color schemes, palettes, tree actions, and a "Load example: …" command per bundled example
-- **Help Menu**: Top-bar Help menu — keyboard shortcuts (also `?`), the "getting a plan" guide, and the GitHub repo
+- **Walkthrough**: A guided coachmark tour over the real UI (`lib/walkthrough.ts` + `Walkthrough.tsx`). Started from the start screen's "Take the walkthrough" button, Help → Walkthrough, or the palette's "Start walkthrough" — all through one context callback, `startWalkthrough()` (loads a sample with runtime stats when no plan is open, switches to the tree, un-maximizes, sets `walkthroughOpen`). Steps point at `data-tour="…"` anchors (`tree`, `details`, `filters`, `view-controls`, `view-tabs`, `plan-tabs`, `input`, `actions`, `palette`); a missing or zero-sized anchor (e.g. side panels in the narrow layout) shows the card centred with no spotlight, never skips. Add a step by adding an anchor attribute and an entry to `WALKTHROUGH_STEPS`. Layer `Z_WALKTHROUGH` (below dialogs/toasts); Escape / arrow keys / Skip tour; focus is restored on close
+- **Help Menu**: Top-bar Help menu — walkthrough, keyboard shortcuts (also `?`), the "getting a plan" guide, and the GitHub repo
 - **Keyboard Shortcuts Overlay**: Help overlay listing available shortcuts per view
 - **Session Autosave / Restore**: The workspace (plans, custom labels, metadata bundles, annotations, active plan, view) autosaves to localStorage and is restored on the next visit with a "Restored your previous session" toast offering "Start fresh" (`lib/session.ts`; oversized sessions are skipped, never truncated)
 - **Recent Plans**: The Load Example menu lists the last 8 loaded plans (with their metadata bundle when it fits) above the examples; entries can be removed individually

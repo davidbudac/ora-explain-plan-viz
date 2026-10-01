@@ -194,6 +194,7 @@ export function InputPanel() {
           onClick={() => setIsCollapsed(!isCollapsed)}
           aria-expanded={!isCollapsed}
           aria-controls="input-panel-content"
+          data-tour="input"
           className={`shrink min-w-0 flex items-center gap-2 text-left rounded-md px-1 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 motion-safe:transition-colors ${FOCUS_RING}`}
           title={`${isCollapsed ? 'Show' : 'Hide'} plan input${parsedPlan?.sqlId ? ` (SQL ID: ${parsedPlan.sqlId})` : ''}`}
         >

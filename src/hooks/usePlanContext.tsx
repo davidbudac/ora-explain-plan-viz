@@ -34,7 +34,8 @@ import { createEmptyAnnotationState, hasAnnotations, serializeAnnotations, deser
 import type { MetadataBundle } from '../lib/metadata/bundle';
 import { parseBundle, emptyBundleWarning } from '../lib/metadata/bundle';
 import { copyToClipboard } from '../lib/clipboard';
-import { SAMPLE_PLANS_WITH_ORDER } from '../examples';
+import { SAMPLE_PLANS_WITH_ORDER, SAMPLE_PLANS_BY_CATEGORY, FEATURED_SAMPLE_PLANS } from '../examples';
+import { pickWalkthroughSample } from '../lib/walkthrough';
 import type { SamplePlan } from '../examples';
 import { runAdvisor } from '../lib/advisor';
 import type { AdvisorReport } from '../lib/advisor';
@@ -1027,6 +1028,13 @@ interface PlanContextValue {
   setReportDialogOpen: (open: boolean) => void;
   connectPanelOpen: boolean;
   setConnectPanelOpen: (open: boolean) => void;
+  walkthroughOpen: boolean;
+  setWalkthroughOpen: (open: boolean) => void;
+  /**
+   * Start the guided tour: tours the loaded plan, or loads a sample with
+   * runtime stats first. Resolves false when there was nothing to tour.
+   */
+  startWalkthrough: () => Promise<boolean>;
   setInputPanelCollapsed: (collapsed: boolean) => void;
   setFilterPanelCollapsed: (collapsed: boolean) => void;
   setDetailPanelCollapsed: (collapsed: boolean) => void;
@@ -1140,6 +1148,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const [baselineDialogOpen, setBaselineDialogOpen] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [connectPanelOpen, setConnectPanelOpen] = useState(false);
+  const [walkthroughOpen, setWalkthroughOpen] = useState(false);
   const [prevMetadataBundle, setPrevMetadataBundle] = useState<MetadataBundle | null>(null);
   const [shareNotice, setShareNotice] = useState<ShareNotice | null>(null);
 
@@ -2138,6 +2147,20 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     return Boolean(outcome?.ok);
   }, [guardedImport]);
 
+  // Single entry point for the start-screen button, Help menu and palette:
+  // tour the loaded plan (on the tree), or load a sample with runtime stats first.
+  const anyPlanLoaded = state.plans.some((slot) => slot.parsedPlan);
+  const startWalkthrough = useCallback(async (): Promise<boolean> => {
+    if (!anyPlanLoaded) {
+      const sample = pickWalkthroughSample(SAMPLE_PLANS_BY_CATEGORY, FEATURED_SAMPLE_PLANS);
+      if (!sample || !(await loadExample(sample))) return false;
+    }
+    dispatch({ type: 'SET_VIEW_MODE', payload: 'hierarchical' });
+    dispatch({ type: 'SET_VISUALIZATION_MAXIMIZED', payload: false });
+    setWalkthroughOpen(true);
+    return true;
+  }, [anyPlanLoaded, loadExample]);
+
   const openRecentPlan = useCallback(async (entry: RecentPlan): Promise<boolean> => {
     const outcome = await guardedImport(entry.text, `Opening "${entry.label}"`, {
       metadataText: entry.metadataText,
@@ -2747,6 +2770,9 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setReportDialogOpen,
     connectPanelOpen,
     setConnectPanelOpen,
+    walkthroughOpen,
+    setWalkthroughOpen,
+    startWalkthrough,
     setInputPanelCollapsed,
     setFilterPanelCollapsed,
     setDetailPanelCollapsed,
@@ -2896,6 +2922,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setReportDialogOpen,
     connectPanelOpen,
     setConnectPanelOpen,
+    walkthroughOpen,
+    startWalkthrough,
     setInputPanelCollapsed,
     setFilterPanelCollapsed,
     setDetailPanelCollapsed,

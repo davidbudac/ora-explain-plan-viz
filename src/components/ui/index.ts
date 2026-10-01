@@ -18,4 +18,4 @@ export { useMenuKeyboard } from './useMenuKeyboard';
 export type { UseMenuKeyboardOptions, MenuProps } from './useMenuKeyboard';
 
 export { BTN_PRIMARY, BTN_SECONDARY, BTN_DANGER } from './buttonStyles';
-export { Z_DIALOG, Z_CONFIRM, Z_TOAST } from './layers';
+export { Z_WALKTHROUGH, Z_DIALOG, Z_CONFIRM, Z_TOAST } from './layers';
