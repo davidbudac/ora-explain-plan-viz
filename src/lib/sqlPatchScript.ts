@@ -42,42 +42,85 @@ function hintLines(hintText: string): string[] {
     .filter((l) => l !== '');
 }
 
-// Returns the literal as lines: the first starts with the opening quote, the
-// last ends with the closing one, and continuation lines carry no indent (the
-// caller indents them under the first).
-function quoteHintLines(hintText: string): string[] {
-  const lines = hintLines(hintText);
+// Oracle stores hint text in 500-character pieces (sqlobj$data <hint>
+// elements) and cuts blindly at every 500th character, so a hint straddling a
+// boundary becomes a syntax error. Hints are therefore packed into chunks of at
+// most this many characters and each chunk is RPAD-ed to exactly this length.
+const HINT_PIECE = 500;
+
+// A newline counts as two characters so a script saved with CRLF line endings
+// still fits.
+function chunkLength(hints: string[]): number {
+  return hints.reduce((n, h) => n + h.length, 0) + 2 * Math.max(0, hints.length - 1);
+}
+
+// Greedy, in order: a hint goes into the current chunk while it still fits.
+function packChunks(lines: string[]): string[][] {
+  const chunks: string[][] = [];
+  let current: string[] = [];
+  for (const line of lines) {
+    if (current.length > 0 && chunkLength([...current, line]) > HINT_PIECE) {
+      chunks.push(current);
+      current = [];
+    }
+    current.push(line);
+  }
+  if (current.length > 0) chunks.push(current);
+  return chunks;
+}
+
+interface Quoting {
+  open: string;
+  close: string;
+  escape: (text: string) => string;
+}
+
+function chooseQuoting(lines: string[]): Quoting {
   const whole = lines.join('\n');
   for (const [open, close] of Q_DELIMITERS) {
     if (!whole.includes(`${close}'`)) {
-      return withWrapper(lines, `q'${open}`, `${close}'`);
+      return { open: `q'${open}`, close: `${close}'`, escape: (t) => t };
     }
   }
   // Every alternate delimiter is closed by the text; fall back to a plain
   // quoted literal with doubled single quotes, which can express anything.
-  return withWrapper(
-    lines.map((l) => l.replace(/'/g, "''")),
-    "'",
-    "'",
-  );
+  return { open: "'", close: "'", escape: (t) => t.replace(/'/g, "''") };
 }
 
-function withWrapper(lines: string[], open: string, close: string): string[] {
-  if (lines.length === 0) return [`${open}${close}`];
-  const out = [...lines];
-  out[0] = open + out[0];
-  out[out.length - 1] += close;
-  return out;
+interface HintAssignment {
+  lines: string[];
+  oversized: string[];
 }
 
-// Lays the literal out after `prefix` (e.g. `hint_text   => `), continuation
-// lines aligned under the first hint. `trailer` follows the closing quote.
-function layoutLiteral(prefix: string, literal: string[], trailer: string, linePrefix = ''): string[] {
-  const pad = ' '.repeat(prefix.length + (literal[0].startsWith('q') ? 3 : 1));
-  return literal.map((l, i) => {
-    const text = i === 0 ? prefix + l : pad + l;
-    return linePrefix + text + (i === literal.length - 1 ? trailer : '');
+// Builds the `l_hint_text := ...` assignment: one RPAD(<literal>, 500) per
+// chunk, one hint per literal line (no indentation - it would count toward the
+// 500). A hint over 500 characters cannot be protected, and RPAD would
+// truncate it, so its chunk is emitted as a bare literal.
+function hintAssignment(hintText: string): HintAssignment {
+  const lines = hintLines(hintText);
+  const quoting = chooseQuoting(lines);
+  const chunks = packChunks(lines);
+  if (chunks.length === 0) {
+    return { lines: [`  l_hint_text := ${quoting.open}${quoting.close};`], oversized: [] };
+  }
+  const oversized: string[] = [];
+  const out: string[] = ['  l_hint_text :='];
+  chunks.forEach((chunk, i) => {
+    const last = i === chunks.length - 1;
+    const tooLong = chunkLength(chunk) > HINT_PIECE;
+    if (tooLong) oversized.push(chunk[0]);
+    const body = chunk.map(quoting.escape);
+    body[0] = quoting.open + body[0];
+    body[body.length - 1] += quoting.close;
+    if (!tooLong) {
+      body[0] = `RPAD(${body[0]}`;
+      body[body.length - 1] += `, ${HINT_PIECE})`;
+    }
+    body[0] = `    ${body[0]}`;
+    body[body.length - 1] += last ? ';' : ' ||';
+    out.push(...body);
   });
+  return { lines: out, oversized };
 }
 
 function bannerLines(opts: SqlPatchScriptOptions): string[] {
@@ -88,6 +131,9 @@ function bannerLines(opts: SqlPatchScriptOptions): string[] {
     '-- SQL_ID below via DBMS_SQLDIAG.CREATE_SQL_PATCH, so the optimizer applies',
     '-- the hints without changing the SQL text - useful for experimenting with',
     '-- alternative plans on statements you cannot edit.',
+    '--',
+    '-- Oracle stores hint text in 500-character pieces and splits blindly, so the',
+    '-- hints are packed into 500-character chunks (RPAD) that never cut a hint.',
     '--',
     '-- Uses the Oracle 12c+ public signature (sql_id => ..., hint_text => ...).',
     '-- Requires Oracle 12.2 or newer for this exact call; no tuning pack needed.',
@@ -116,15 +162,24 @@ function preCheckLines(): string[] {
 }
 
 function createBlockLines(opts: SqlPatchScriptOptions): string[] {
-  const literal = quoteHintLines(opts.hintText);
+  const { lines: assignment, oversized } = hintAssignment(opts.hintText);
   return [
+    ...oversized.map(
+      (h) =>
+        `-- WARNING: the hint ${h.length > 60 ? `${h.slice(0, 57)}...` : h} is over ${HINT_PIECE} characters;` +
+        ' Oracle 19c may split it and reject the patch.',
+    ),
     'PROMPT === Creating the SQL patch ===',
     'DECLARE',
     '  l_patch_name  VARCHAR2(128);',
+    '  l_hint_text   CLOB;',
     'BEGIN',
+    '  -- Oracle stores hint text in 500-character pieces and splits blindly, so the',
+    '  -- hints are packed into 500-character chunks (RPAD) that never cut a hint.',
+    ...assignment,
     '  l_patch_name := DBMS_SQLDIAG.CREATE_SQL_PATCH(',
     "                    sql_id      => '&sql_id',",
-    ...layoutLiteral('                    hint_text   => ', literal, ','),
+    '                    hint_text   => l_hint_text,',
     "                    name        => '&patch_name',",
     "                    description => 'Created by Oracle Plan Visualizer');",
     "  DBMS_OUTPUT.PUT_LINE('SQL patch created: ' || l_patch_name);",
@@ -136,7 +191,7 @@ function createBlockLines(opts: SqlPatchScriptOptions): string[] {
     '-- before 12.1). Equivalent variant:',
     '--   l_patch_name := DBMS_SQLDIAG.CREATE_SQL_PATCH(',
     '--                     sql_text  => <the full SQL text as a CLOB>,',
-    ...layoutLiteral('                     hint_text => ', literal, ',', '--'),
+    '--                     hint_text => l_hint_text,',
     "--                     name      => '&patch_name');",
   ];
 }
@@ -152,7 +207,7 @@ function verificationLines(): string[] {
     '',
     'PROMPT Now re-run the statement and check its DBMS_XPLAN output - the Note',
     'PROMPT section must contain:',
-    'PROMPT   "SQL patch \\"&patch_name\\" used for this statement"',
+    'PROMPT   SQL patch "&patch_name" used for this statement',
     'PROMPT Load the new plan back into the Plan Visualizer and use the Compare',
     'PROMPT view against the original plan.',
   ];
