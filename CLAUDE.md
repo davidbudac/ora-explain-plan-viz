@@ -27,6 +27,7 @@ src/
 │   ├── density.ts       # Layout density presets (Minimal / Compact / Detailed node-display levels)
 │   ├── clipboard.ts     # Clipboard copy helper (async API + fallback)
 │   ├── baselineScript.ts # SQL Plan Baseline script builder (DBMS_SPM; cursor cache / AWR / STS)
+│   ├── sqlPatchScript.ts # SQL Patch script builder (DBMS_SQLDIAG.CREATE_SQL_PATCH; one hint per line in a q-literal)
 │   ├── clientReport.ts  # Client report builder (self-contained HTML doc: plan, notes, findings)
 │   ├── severityStyles.ts # Shared severity color/badge styles (advisor findings)
 │   ├── flameLayout.ts   # Flame graph layout (metric rollup, self-value, zoom)
@@ -59,17 +60,18 @@ src/
 │   ├── tabularHelpers.ts # Tabular view helpers (A-Time share, sort cycling, Copy as TSV)
 │   ├── planText.ts      # Plan Text view helpers (line → operation id, search matches, highlight segments)
 │   ├── fileExport.ts    # Download / print-window helpers that report failure via toasts and return success
-│   ├── ai/              # AI plan analysis: types, plan/context serialization, prompts, findings parser, secrets (sessionStorage keys), provider layer (anthropic / openaiCompat / agent / hosted / sse), chat follow-up support (streamChat), testCase.ts (deterministic test-case script builder), experiments.ts (SQL Patch script + advisor-driven experiment candidates)
+│   ├── ai/              # AI plan analysis: types, plan/context serialization, prompts, findings parser, secrets (sessionStorage keys), provider layer (anthropic / openaiCompat / agent / hosted / sse), chat follow-up support (streamChat), testCase.ts (deterministic test-case script builder), experiments.ts (advisor-driven experiment candidates; re-exports the SQL Patch builder from `lib/sqlPatchScript.ts`)
 │   ├── agent/           # DB-connector client (`client.ts`, the only HTTP module) + `connectGuide.ts` (walkthrough step logic, start command, friendly errors)
 │   ├── parser.ts        # Legacy parser (kept for compatibility)
 │   ├── advisor/         # Plan advisor: runAdvisor engine + 17 heuristic rules in `rules/index.ts` (findings; inactive adaptive rows are invisible to every rule)
 │   ├── metadata/        # Schema-metadata bundles, indexes, gather-script, pairing/lookup helpers
 │   └── parser/          # Modular parser system
-│       ├── index.ts           # Parser orchestration, format detection (json/xml/text/xbi/dbms_xplan)
+│       ├── index.ts           # Parser orchestration, format detection (json/csv/xml/text/xbi/dbms_xplan), `splitPlanBatches`
 │       ├── types.ts           # Parser interfaces
 │       ├── dbmsXplanParser.ts # DBMS_XPLAN text parser
 │       ├── sqlMonitorParser.ts # SQL Monitor text/XML parsers
-│       ├── jsonPlanParser.ts  # JSON plan parser (V$SQL_PLAN_STATISTICS_ALL / Datadog / xdd.sql)
+│       ├── jsonPlanParser.ts  # JSON plan parser (V$SQL_PLAN_STATISTICS_ALL / Datadog / xdd.sql); exports `buildPlanFromRows` (shared row→tree mapping, also used by CSV)
+│       ├── csvPlanParser.ts   # V$SQL_PLAN CSV parser (SQL*Plus MARKUP CSV / SQLcl / SQL Developer; `,` `;` tab) + `splitCsvPlanBatches`
 │       ├── xbiParser.ts       # Tanel Poder xbi.sql (eXplain Better) output parser
 │       ├── noteSection.ts     # DBMS_XPLAN "Note" section parser
 │       ├── warnings.ts        # Partial-parse diagnostics (`ParsedPlan.warnings`): unknown columns, unread sections, unparsed rows / id gaps, wrapped or cut-off paste (SET LONG / LINESIZE advice), SQL*Plus wrapper around XML
@@ -115,7 +117,8 @@ src/
 │   ├── ShareResultDialog.tsx # Share-via-URL dialog (encoded plan link)
 │   ├── PopoutWindow.tsx     # Detachable pop-out window (e.g. Metadata Explorer)
 │   ├── GatherScriptModal.tsx # Generates a schema-metadata gather SQL script
-│   ├── BaselineScriptModal.tsx # Generates a SQL Plan Baseline creation script (DBMS_SPM)
+│   ├── BaselineScriptModal.tsx # SQL Plan Baseline (DBMS_SPM) / SQL Patch (DBMS_SQLDIAG) script dialog, Script type switch
+│   ├── PrivacyBadge.tsx     # Start-screen "your plans never leave this browser" badge
 │   ├── AiAnalysisDialog.tsx # AI analysis setup dialog (provider, model, key, run analyze/compare)
 │   ├── ClientReportModal.tsx # Client report export dialog (title/client/author, sections, preview)
 │   ├── MetadataChip.tsx     # Inline schema-metadata badge/chip
@@ -228,14 +231,14 @@ src/
 │   ├── __tests__/            # Core lib tests (analysis, filtering, format, url, flame layout, plan signals, ...)
 │   ├── advisor/__tests__/    # Advisor engine + per-rule tests
 │   ├── metadata/__tests__/   # Schema-metadata tests (bundle, indexes, gather script, pairing, ...)
-│   └── parser/__tests__/     # Parser tests (DBMS_XPLAN, SQL Monitor XML, JSON, xbi, note section, compare)
+│   └── parser/__tests__/     # Parser tests (DBMS_XPLAN, SQL Monitor XML, JSON, CSV, xbi, note section, compare)
 ├── hooks/__tests__/          # Plan-context behaviour (e.g. bundle-chooser attach flow)
 ├── components/__tests__/     # Component tests (modals, metadata chip, views, annotation editors, ...)
 ├── components/ui/__tests__/  # Shared primitive tests (Dialog, ConfirmDialog, Toast, CopyButton, ErrorBoundary, useMenuKeyboard)
 └── examples/__tests__/       # Example loader / descriptions / sidecar-metadata tests
 ```
 
-`.github/workflows/ci.yml` runs lint, typecheck and `npm test` on every PR and on pushes to `main`. Parser fixtures in `src/lib/parser/__tests__/fixtures/` are **real Oracle 19c captures** (`allstats-*`, `advanced-allstats-19c`, `sql-monitor-active-19c.html`, SQL Monitor XML), not hand-written — keep them that way and say so when adding one; `src/lib/__tests__/largePlan.test.ts` uses a seeded 2,000-operation generated plan.
+`.github/workflows/ci.yml` runs lint, typecheck and `npm test` on every PR and on pushes to `main`. Parser fixtures in `src/lib/parser/__tests__/fixtures/` are **real Oracle 19c captures** (`allstats-*`, `advanced-allstats-19c`, `sql-monitor-active-19c.html`, `vsqlplan-stats-allstats-19c.csv`, SQL Monitor XML), not hand-written — keep them that way and say so when adding one; `src/lib/__tests__/largePlan.test.ts` uses a seeded 2,000-operation generated plan.
 
 Tests are excluded from the production build via `tsconfig.app.json` exclude patterns. Test files use the `*.test.ts(x)` convention and live in `__tests__/` directories alongside the code they test.
 
@@ -251,7 +254,7 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Monitor Details View**: SQL Monitor XML report detail — activity breakdown (CPU / I/O Wait / PL/SQL / Other) plus Execution Summary, Session & Environment, SQL Text, Bind Variables, Resource Consumption, and Optimizer Environment sections
 - **Tree / Tabular Compare**: When two plans are loaded, the Tree and Tabular tabs switch to side-by-side dual-pane variants with an active-plan accent
 - **Experimental Tab**: five research views behind one tab — optimizer calibration scatter (E-Rows vs A-Rows, log-log), execution timeline Gantt (per-op first/last active + ASH wait-class cells), wasted-work waterfall (rows read vs returned), estimate→actual icicle morph, and per-line wait-class composition. SQL Monitor XML parser extracts `<activity_detail>` bucketed ASH samples and per-op `first_active`/`last_active` offsets to power them
-- **Multiple Input Formats**: DBMS_XPLAN (incl. DISPLAY_CURSOR ALLSTATS and ADVANCED), SQL Monitor text, SQL Monitor XML, SQL Monitor ACTIVE (HTML), JSON plan (V$SQL_PLAN_STATISTICS_ALL), and Tanel Poder xbi.sql output
+- **Multiple Input Formats**: DBMS_XPLAN (incl. DISPLAY_CURSOR ALLSTATS and ADVANCED), SQL Monitor text, SQL Monitor XML, SQL Monitor ACTIVE (HTML), JSON plan (V$SQL_PLAN_STATISTICS_ALL), V$SQL_PLAN CSV, and Tanel Poder xbi.sql output
 - **Runtime Statistics**: A-Rows, E-Rows, A-Time and Starts from SQL Monitor and DISPLAY_CURSOR ALLSTATS; the DBMS_XPLAN parser also maps Buffers, Reads, Writes, OMem / 1Mem / Used-Mem (+ pass count), O/1/M and Used-Tmp
 - **ADVANCED Sections**: Outline Data (SQL tab block with 'Copy as hint block'), Hint Report (per-operation used / unused / syntax-error hints + statement summary), Column Projection and Remote SQL per operation (details panel), Peeked Binds (→ bind variables: drawer, test-case builder, report). AI context carries 'Hints & outline'
 - **Storage Predicates**: Id-less `filter()` / `access()` / `storage()` lines attach to the current operation; `storage` shows in the details panel, search, client report, node summary, TSV, compare and AI text
@@ -268,7 +271,7 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Plan Comparison**: Load two plans side-by-side with node matching (exact ID, heuristic, access-path changed), delta calculations, and improvement/regression indicators across 9 metrics (cost, rows, bytes, A-Rows, A-Time, self time, starts, temp space, memory)
 - **Plan Advisor**: Heuristic findings engine (`runAdvisor`) with 17 rules (ids in `advisor/rules/index.ts`): `cardinality-mismatch` (flags the lowest operation whose inputs were right, not every inheriting ancestor), `implicit-conversion`, `merge-join-cartesian` (no BUFFER SORT double count), `nested-loop-volume`, `parallel-signals` (P→S and S→P), `px-skew` (SQL Monitor per-server stats, plan-level), `partition-no-pruning` (ALL warns only with a predicate on the partition key), `selective-full-scan` (scaled by partitions scanned), `spill-to-disk` (folds in one-pass/multipass), `stats-issues`, `index-exists-unused` (alias-aware, ignores non-sargable predicates), `per-row-reexecution`, `index-rows-discarded`, `buffer-gets-per-row`, `plan-notes` (`note-*`), `function-on-indexed-column` (needs metadata), `hash-join-build-side` — surfaced per-node and as a ranked list; suggestion hints are togglable (off by default); `RULE_EXPERIMENTS` (`ai/experiments.ts`) has entries for the newer rules
 - **AI Plan Analysis**: Optional LLM-powered analysis (single plan or A/B compare) via an Anthropic, OpenAI-compatible, local-agent, or hosted (oraplanviz cloud account token) provider — streamed markdown report in an AI tab with findings linked to plan nodes. Privacy: nothing leaves the browser until the user clicks Run, and only to the provider they chose; API keys live in sessionStorage only (`src/lib/ai/secrets.ts`), never in localStorage settings or share URLs
-- **AI Test Case Builder**: With a plan + attached metadata bundle, builds a deterministic synthetic-repro skeleton (`src/lib/ai/testCase.ts` — empty DDL, DBMS_STATS stats/histograms, optimizer env, binds, EXPLAIN PLAN verification) that the AI amends into a runnable scratch-schema script with realistic binds, an optional data generator, and alternative-plan experiments (`src/lib/ai/experiments.ts` — SQL Patch script + advisor-driven experiment candidates); SQL fences in the report get per-block copy/download
+- **AI Test Case Builder**: With a plan + attached metadata bundle, builds a deterministic synthetic-repro skeleton (`src/lib/ai/testCase.ts` — empty DDL, DBMS_STATS stats/histograms, optimizer env, binds, EXPLAIN PLAN verification) that the AI amends into a runnable scratch-schema script with realistic binds, an optional data generator, and alternative-plan experiments (`src/lib/ai/experiments.ts` — advisor-driven experiment candidates; SQL Patch script from `lib/sqlPatchScript.ts`); SQL fences in the report get per-block copy/download
 - **AI Follow-up Chat**: After a completed AI report, a chat section in the AI tab lets the user ask follow-up questions (multi-turn via `streamChat`); when the DB agent feature is enabled, SQL blocks in test-case reports and chat replies get a "Run via agent" button that executes against the agent's scratch test connection only after explicit per-script user approval (script preview + destructive-statement warning) — nothing ever auto-runs or auto-sends
 - **AI Eval Harness**: `evals/` backtesting harness (Node + tsx + oracledb thin, outside the Vite build) measuring repro fidelity (does the generated test case reproduce the plan shape?) and analysis quality (does the AI find a known injected fault?) against a real Oracle scratch schema via `ORA_EVAL_*` env vars — see `evals/README.md`
 - **Cardinality Mismatch Analysis**: Detects divergence between A-Rows and the estimate over all starts (`estimatedRowsTotal`, see Architecture Notes) with severity badges (warn at 3x, bad at 10x); the advisor also needs a ≥100-row absolute difference
@@ -281,8 +284,9 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Metadata Bundles**: Attach schema-metadata bundles to a plan; objects with metadata show inline badges/chips in the plan
 - **Gather Script**: Generates a SQL script to collect the schema metadata needed for a bundle from the database
 
-### Plan Baselines
-- **Baseline Script Generator**: Generates a ready-to-run SQL*Plus script that creates a SQL Plan Baseline (via `DBMS_SPM`) for the loaded plan's SQL ID + plan hash value — from the cursor cache, AWR directly (19c+), or AWR via a temporary SQL Tuning Set (11.2+), with FIXED/ENABLED options, pre-check and verification queries, and a management crib sheet. Opened from the input-panel header or command palette; fully offline — the user runs the script themselves
+### Plan Baselines & SQL Patches
+- **Baseline Script Generator**: Generates a ready-to-run SQL*Plus script that creates a SQL Plan Baseline (via `DBMS_SPM`) for the loaded plan's SQL ID + plan hash value — from the cursor cache, AWR directly (19c+), or AWR via a temporary SQL Tuning Set (11.2+), with FIXED/ENABLED options, pre-check and verification queries, and a management crib sheet. Opened from the File menu, the plan tab's SPM chip or the command palette; fully offline — the user runs the script themselves
+- **SQL Patch Script**: The same dialog's *Script type* switch (context `baselineDialogKind`; `setBaselineDialogOpen(true, 'patch')`, palette "Create SQL Patch script…") builds a `DBMS_SQLDIAG.CREATE_SQL_PATCH` script (`lib/sqlPatchScript.ts`): SQL_ID, patch name (default `PLANVIZ_PATCH_<SQL_ID>`) and hint text prefilled with the plan's `outlineHints` (full outline pins the plan). Hints may not contain `&` (SQL*Plus substitution)
 
 ### Client Report
 - **Client Report Export**: Packages the loaded plan, the consultant's annotations, and all derived analysis into a single self-contained HTML document for handing to a client — header metadata (title, client, prepared by, date, SQL ID, plan hash), free-text executive summary with headline stat cards and optimizer-note tags, SQL statement, full plan table (with hotspot marker, highlight chips, inline notes, estimate-quality column), consultant notes/groups/highlights, advisor findings with recommendations, top self-time hotspots, worst cardinality mismatches, predicates, execution environment + bind variables, and a raw-plan appendix. Section toggles, live preview iframe, download as `.html` or open a print view for save-as-PDF. Client/author names persist to localStorage. Opened from the top-bar document icon or the command palette (`clientReport.ts` + `ClientReportModal.tsx`); fully offline, nothing is uploaded
@@ -335,7 +339,7 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Settings Persistence**: View preferences saved to localStorage
 - **Theme Toggle**: Light/dark mode with localStorage persistence
 - **Legend Toggle**: Color/badge legend for the tree, tabular, Sankey and flame views, toggled from the toolbar, the focus pill, the Appearance menu or the palette
-- **Fully Client-Side**: No backend, no data upload - everything runs in browser
+- **Fully Client-Side**: No backend, no data upload - everything runs in browser; the start screen says so up front (`PrivacyBadge.tsx`) above the detailed fine-print footer
 
 ## Supported Input Formats
 
@@ -382,6 +386,9 @@ The parser handles the **real Oracle XML format** with separate `<plan>` (optimi
 - `<plan_monitor>` operations: `<stats type="plan_monitor">` with `<stat name="cardinality">` (actual rows), `<stat name="starts">`, `<stat name="max_memory">`, etc.
 - Operation names combine `name` + `options` attributes (e.g., `TABLE ACCESS` + `FULL`)
 - A legacy simplified XML format is also supported for backward compatibility
+
+### V$SQL_PLAN CSV
+`V$SQL_PLAN` / `V$SQL_PLAN_STATISTICS_ALL` query results as CSV (SQL*Plus `SET MARKUP CSV ON`, SQLcl `set sqlformat csv`, SQL Developer export, tab-separated grid copy). `parser/csvPlanParser.ts` finds the header (needs `ID`, `OPERATION` and `PARENT_ID` or `DEPTH`) and its delimiter (`,` `;` tab) in the first five non-empty lines, tokenises RFC-4180 style, skips SQL*Plus chatter, and feeds header-keyed rows to the JSON parser's `buildPlanFromRows`, so both formats share one column mapping (aliases lose their quotes: `"P"@"SEL$1"` → `P@SEL$1`). `splitPlanBatches` (used by the plan context) cuts a multi-statement export into one plan per `SQL_ID` / `CHILD_NUMBER` / `PLAN_HASH_VALUE`; duplicate ids inside one plan get a warning. Real 19c capture: `parser/__tests__/fixtures/vsqlplan-stats-allstats-19c.csv`. `stripWrappingQuotes` skips CSV (a quoted CSV starts and ends with `"`).
 
 ### SQL Monitor ACTIVE (HTML)
 The HTML page from `REPORT_SQL_MONITOR(type=>'ACTIVE')`. The data sits in `<script id="fxtmodel">` as zlib+base64 (some variants uncompressed); `parser/activeReport.ts` inflates it with `DecompressionStream` and the SQL Monitor XML parser takes over. The resulting XML (not the HTML) becomes the loaded plan text.

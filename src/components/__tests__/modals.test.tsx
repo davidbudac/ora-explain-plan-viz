@@ -374,3 +374,103 @@ describe('ShareResultDialog', () => {
     expect(toastText()).toContain('Copy failed');
   });
 });
+
+// ---- SQL Patch mode of the baseline dialog ----------------------------------
+describe('BaselineScriptModal: SQL Patch mode', () => {
+  const OUTLINE = ['FULL(@"SEL$1" "E"@"SEL$1")', 'INDEX(@"SEL$1" "D"@"SEL$1" ("DEPT"."ID"))'];
+  const title = () => document.getElementById(dialog()!.getAttribute('aria-labelledby')!)?.textContent;
+  const radio = (label: string) =>
+    Array.from(document.querySelectorAll<HTMLElement>('[role="radio"]')).find((r) => r.textContent?.startsWith(label))!;
+  const hints = () => document.querySelector<HTMLTextAreaElement>('textarea')!;
+  const nameInput = () => document.querySelector<HTMLInputElement>('input[placeholder^="PLANVIZ_PATCH"]')!;
+
+  it('opens in baseline mode with a script-type radiogroup, and switching changes the title', () => {
+    renderWithProviders(<BaselineScriptModal initialSqlId="abc123" initialPlanHash="42" onClose={() => {}} />);
+    expect(title()).toBe('Create SQL Plan Baseline');
+    expect(document.querySelector('[role="radiogroup"][aria-label="Script type"]')).not.toBeNull();
+    expect(radio('SQL Plan Baseline').getAttribute('aria-checked')).toBe('true');
+    expect(document.querySelector('input[placeholder^="e.g. 3001"]')).not.toBeNull();
+
+    click(radio('SQL Patch'));
+    expect(title()).toBe('Create SQL Patch');
+    expect(radio('SQL Patch').getAttribute('aria-checked')).toBe('true');
+    // baseline-only fields are hidden
+    expect(document.querySelector('input[placeholder^="e.g. 3001"]')).toBeNull();
+    expect(document.body.textContent).not.toContain('Mark as FIXED');
+  });
+
+  it('initialKind="patch" opens in patch mode with the hint box prefilled from the outline', () => {
+    renderWithProviders(
+      <BaselineScriptModal initialKind="patch" initialSqlId="abc123" initialOutlineHints={OUTLINE} onClose={() => {}} />,
+    );
+    expect(title()).toBe('Create SQL Patch');
+    expect(hints().value).toBe(OUTLINE.join('\n'));
+    expect(nameInput().value).toBe('PLANVIZ_PATCH_abc123');
+    expect(document.body.textContent).toContain('pins the current plan');
+    // untouched prefill is not "dirty"
+    const onClose = vi.fn();
+    cleanup();
+    renderWithProviders(
+      <BaselineScriptModal initialKind="patch" initialSqlId="abc123" initialOutlineHints={OUTLINE} onClose={onClose} />,
+    );
+    press(dialog()!, 'Escape');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('without an outline the hint box is empty and Copy is disabled', () => {
+    renderWithProviders(<BaselineScriptModal initialKind="patch" initialSqlId="abc123" onClose={() => {}} />);
+    expect(hints().value).toBe('');
+    expect(document.body.textContent).toContain('ADVANCED');
+    expect(buttonByText('Copy script').disabled).toBe(true);
+  });
+
+  it('Copy is disabled when the hint text contains & and shows an inline error', async () => {
+    renderWithProviders(
+      <BaselineScriptModal initialKind="patch" initialSqlId="abc123" initialOutlineHints={OUTLINE} onClose={() => {}} />,
+    );
+    expect(buttonByText('Copy script').disabled).toBe(false);
+    await typeInto(hints(), 'FULL(a) & x');
+    expect(buttonByText('Copy script').disabled).toBe(true);
+    expect(document.body.textContent).toContain('must not contain');
+  });
+
+  it('the patch name follows the SQL_ID until edited, and is validated', async () => {
+    renderWithProviders(<BaselineScriptModal initialKind="patch" initialSqlId="abc123" initialOutlineHints={OUTLINE} onClose={() => {}} />);
+    await typeInto(document.querySelector<HTMLInputElement>('input[placeholder^="e.g. an05"]')!, 'zzz999');
+    expect(nameInput().value).toBe('PLANVIZ_PATCH_zzz999');
+    await typeInto(nameInput(), 'MY PATCH');
+    expect(buttonByText('Copy script').disabled).toBe(true);
+    expect(document.body.textContent).toContain('Patch name is 1');
+    await typeInto(nameInput(), 'MY_PATCH');
+    expect(buttonByText('Copy script').disabled).toBe(false);
+  });
+
+  it('"Use plan outline" restores the prefill and the preview uses CREATE_SQL_PATCH', async () => {
+    renderWithProviders(
+      <BaselineScriptModal initialKind="patch" initialSqlId="abc123" initialOutlineHints={OUTLINE} onClose={() => {}} />,
+    );
+    expect(() => buttonByText('Use plan outline')).toThrow();
+    await typeInto(hints(), 'FULL(t)');
+    click(buttonByText('Use plan outline'));
+    expect(hints().value).toBe(OUTLINE.join('\n'));
+    const preview = document.querySelector('details pre')!.textContent!;
+    expect(preview).toContain('DBMS_SQLDIAG.CREATE_SQL_PATCH');
+    expect(preview).toContain('DEFINE patch_name = "PLANVIZ_PATCH_abc123"');
+  });
+
+  it('editing the hints makes Escape ask first, and Download uses the patch filename', async () => {
+    downloadTextFile.mockReturnValue(true);
+    const onClose = vi.fn();
+    renderWithProviders(
+      <BaselineScriptModal initialKind="patch" initialSqlId="abc123" initialOutlineHints={OUTLINE} onClose={onClose} />,
+    );
+    click(buttonByText('Download .sql'));
+    expect(downloadTextFile.mock.calls[0][1]).toBe('create_sql_patch_abc123.sql');
+    await typeInto(hints(), 'FULL(t)');
+    await act(async () => {
+      press(dialog()!, 'Escape');
+    });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(confirmDialog()).not.toBeNull();
+  });
+});
