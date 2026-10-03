@@ -150,7 +150,7 @@
 
       <div class="grp">Going deeper</div>
       <a href="#metadata">Schema metadata</a>
-      <a href="#baseline">SQL Plan Baseline script</a>
+      <a href="#baseline">SQL Plan Baseline / SQL Patch script</a>
       <a href="#client-report">Client report</a>
       <a href="#db-connector">Database connector</a>
       <a href="#ai">AI analysis</a>
@@ -425,7 +425,7 @@ SPOOL OFF</code></pre>
       <p>The layout is one top bar plus three collapsible regions around the visualization.</p>
       <div class="shot"><img src="assets/hero.png" alt="Full application window: top bar, input drawer, tree visualization, filter panel on the left, detail panel on the right" loading="lazy" /></div>
       <ul>
-        <li><strong>Top bar.</strong> Brand, SQL ID, Plan A/B tabs, view tabs, <em>Load Example</em>, and all actions (theme, share, export, baseline script, client report, shortcuts). At narrow widths the view labels degrade to icons and then an overflow menu; actions collapse into a menu.</li>
+        <li><strong>Top bar.</strong> Brand, SQL ID, Plan A/B tabs, view tabs, <em>Load Example</em>, and all actions (theme, share, export, baseline / patch script, client report, shortcuts). At narrow widths the view labels degrade to icons and then an overflow menu; actions collapse into a menu.</li>
         <li><strong>Input drawer.</strong> The text area, the parsed plan's metadata (SQL ID, plan hash, A-Rows, A-Time), format and metadata-bundle chips, and the annotation import/export controls. Collapse it once the plan is loaded.</li>
         <li><strong>Workspace toolbar.</strong> A single slim row above the canvas: <em>Filters</em> (with a live matching/total count), the active view's controls, an icon-only <em>Legend</em> toggle and, on narrow screens, <em>Details</em>. For the Tree the controls are a density select (Minimal / Compact / Detailed) with <em>Customize…</em>, a node-indicator select (Cost / A-Rows / A-Time / Starts) and the tree layout strip; Sankey and Flame show their metric toggle. When the canvas is too narrow the view controls scroll sideways.</li>
         <li><strong>Filter panel (left).</strong> Search, operation-type filters, numeric ranges, predicate filters and the cardinality-mismatch slider. See <a href="#filtering">Filtering</a>.</li>
@@ -680,18 +680,31 @@ SQL&gt; @gather_plan_metadata.sql LIST "HR.EMPLOYEES,HR.DEPARTMENTS"</code></pre
     <!-- ---------- Baseline ---------- -->
     <section id="baseline">
       <p class="eyebrow">Going deeper</p>
-      <h2>SQL Plan Baseline script<a class="anchor" href="#baseline">#</a></h2>
+      <h2>SQL Plan Baseline / SQL Patch script<a class="anchor" href="#baseline">#</a></h2>
       <p>
-        Once you've found a good plan, you may want to pin it. <em>Create SQL Plan Baseline script</em> (top-bar menu or
-        command palette) generates a ready-to-run SQL*Plus script that creates a baseline via <code>DBMS_SPM</code> for the
-        loaded plan's SQL ID and plan hash value.
+        Once you've found a good plan, you may want to pin it. <em>SQL Plan Baseline / Patch script</em> (File menu, the
+        plan tab's <em>SPM</em> chip, or the command palette) generates a ready-to-run SQL*Plus script. A <em>Script type</em>
+        switch at the top of the dialog picks between two approaches.
       </p>
+      <p><strong>SQL Plan Baseline</strong> (<code>DBMS_SPM</code>) loads the plan for the loaded plan's SQL ID and plan hash value.</p>
       <ul>
         <li><strong>Source</strong>: cursor cache, AWR directly (19c+), or AWR via a temporary SQL Tuning Set (11.2+).</li>
         <li><strong>Options</strong>: FIXED and ENABLED flags.</li>
         <li>The script includes a pre-check query, the load call, verification queries, and a management crib sheet (disable, drop, evolve).</li>
       </ul>
-      <p>Nothing runs from the browser: you copy or download the script and run it yourself with the appropriate privileges.</p>
+      <p>
+        <strong>SQL Patch</strong> (<code>DBMS_SQLDIAG.CREATE_SQL_PATCH</code>, 12.2+, no Tuning Pack) attaches hints to the
+        statement without changing its text. Command palette: <em>Create SQL Patch script…</em>.
+      </p>
+      <ul>
+        <li><strong>Hint text</strong>, one hint per line, is prefilled with the plan's full outline when the plan carries one
+          (DBMS_XPLAN <code>ADVANCED</code> / <code>+OUTLINE</code> output or a SQL Monitor XML report). The full outline pins the
+          current plan; trim it to the hints you need, or type your own.</li>
+        <li><strong>Patch name</strong> defaults to <code>PLANVIZ_PATCH_&lt;SQL_ID&gt;</code>.</li>
+        <li>The statement must still be in the cursor cache (or AWR) when the script runs. The script lists existing patches,
+          creates the patch, verifies it, and ends with a crib sheet (disable, drop).</li>
+      </ul>
+      <p>Nothing runs from the browser: you copy or download the script and run it yourself with the appropriate privileges (<code>ADMINISTER SQL MANAGEMENT OBJECT</code>).</p>
     </section>
 
     <!-- ---------- Client report ---------- -->
@@ -909,7 +922,7 @@ oraplanviz-agent --allow-origin http://localhost:8081</code></pre>
         </tbody>
       </table></div>
       <h3>Command palette</h3>
-      <p>Fuzzy search over every action. Groups include: switch view, split compare, legend, maximize, density preset, node display toggles, theme, color scheme, palette, highlight style, share via URL, export PNG, client report, baseline script, save/clear annotations, show/hide each panel, connect to database (when built in), focus mode, hotspot detection, node indicator metric, Sankey metric.</p>
+      <p>Fuzzy search over every action. Groups include: switch view, split compare, legend, maximize, density preset, node display toggles, theme, color scheme, palette, highlight style, share via URL, export PNG, client report, baseline and SQL patch scripts, save/clear annotations, show/hide each panel, connect to database (when built in), focus mode, hotspot detection, node indicator metric, Sankey metric.</p>
     </section>
 
     <!-- ---------- URL params ---------- -->

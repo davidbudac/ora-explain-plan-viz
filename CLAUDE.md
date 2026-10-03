@@ -27,6 +27,7 @@ src/
 │   ├── density.ts       # Layout density presets (Minimal / Compact / Detailed node-display levels)
 │   ├── clipboard.ts     # Clipboard copy helper (async API + fallback)
 │   ├── baselineScript.ts # SQL Plan Baseline script builder (DBMS_SPM; cursor cache / AWR / STS)
+│   ├── sqlPatchScript.ts # SQL Patch script builder (DBMS_SQLDIAG.CREATE_SQL_PATCH; one hint per line in a q-literal)
 │   ├── clientReport.ts  # Client report builder (self-contained HTML doc: plan, notes, findings)
 │   ├── severityStyles.ts # Shared severity color/badge styles (advisor findings)
 │   ├── flameLayout.ts   # Flame graph layout (metric rollup, self-value, zoom)
@@ -59,7 +60,7 @@ src/
 │   ├── tabularHelpers.ts # Tabular view helpers (A-Time share, sort cycling, Copy as TSV)
 │   ├── planText.ts      # Plan Text view helpers (line → operation id, search matches, highlight segments)
 │   ├── fileExport.ts    # Download / print-window helpers that report failure via toasts and return success
-│   ├── ai/              # AI plan analysis: types, plan/context serialization, prompts, findings parser, secrets (sessionStorage keys), provider layer (anthropic / openaiCompat / agent / hosted / sse), chat follow-up support (streamChat), testCase.ts (deterministic test-case script builder), experiments.ts (SQL Patch script + advisor-driven experiment candidates)
+│   ├── ai/              # AI plan analysis: types, plan/context serialization, prompts, findings parser, secrets (sessionStorage keys), provider layer (anthropic / openaiCompat / agent / hosted / sse), chat follow-up support (streamChat), testCase.ts (deterministic test-case script builder), experiments.ts (advisor-driven experiment candidates; re-exports the SQL Patch builder from `lib/sqlPatchScript.ts`)
 │   ├── agent/           # DB-connector client (`client.ts`, the only HTTP module) + `connectGuide.ts` (walkthrough step logic, start command, friendly errors)
 │   ├── parser.ts        # Legacy parser (kept for compatibility)
 │   ├── advisor/         # Plan advisor: runAdvisor engine + 17 heuristic rules in `rules/index.ts` (findings; inactive adaptive rows are invisible to every rule)
@@ -115,7 +116,8 @@ src/
 │   ├── ShareResultDialog.tsx # Share-via-URL dialog (encoded plan link)
 │   ├── PopoutWindow.tsx     # Detachable pop-out window (e.g. Metadata Explorer)
 │   ├── GatherScriptModal.tsx # Generates a schema-metadata gather SQL script
-│   ├── BaselineScriptModal.tsx # Generates a SQL Plan Baseline creation script (DBMS_SPM)
+│   ├── BaselineScriptModal.tsx # SQL Plan Baseline (DBMS_SPM) / SQL Patch (DBMS_SQLDIAG) script dialog, Script type switch
+│   ├── PrivacyBadge.tsx     # Start-screen "your plans never leave this browser" badge
 │   ├── AiAnalysisDialog.tsx # AI analysis setup dialog (provider, model, key, run analyze/compare)
 │   ├── ClientReportModal.tsx # Client report export dialog (title/client/author, sections, preview)
 │   ├── MetadataChip.tsx     # Inline schema-metadata badge/chip
@@ -268,7 +270,7 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Plan Comparison**: Load two plans side-by-side with node matching (exact ID, heuristic, access-path changed), delta calculations, and improvement/regression indicators across 9 metrics (cost, rows, bytes, A-Rows, A-Time, self time, starts, temp space, memory)
 - **Plan Advisor**: Heuristic findings engine (`runAdvisor`) with 17 rules (ids in `advisor/rules/index.ts`): `cardinality-mismatch` (flags the lowest operation whose inputs were right, not every inheriting ancestor), `implicit-conversion`, `merge-join-cartesian` (no BUFFER SORT double count), `nested-loop-volume`, `parallel-signals` (P→S and S→P), `px-skew` (SQL Monitor per-server stats, plan-level), `partition-no-pruning` (ALL warns only with a predicate on the partition key), `selective-full-scan` (scaled by partitions scanned), `spill-to-disk` (folds in one-pass/multipass), `stats-issues`, `index-exists-unused` (alias-aware, ignores non-sargable predicates), `per-row-reexecution`, `index-rows-discarded`, `buffer-gets-per-row`, `plan-notes` (`note-*`), `function-on-indexed-column` (needs metadata), `hash-join-build-side` — surfaced per-node and as a ranked list; suggestion hints are togglable (off by default); `RULE_EXPERIMENTS` (`ai/experiments.ts`) has entries for the newer rules
 - **AI Plan Analysis**: Optional LLM-powered analysis (single plan or A/B compare) via an Anthropic, OpenAI-compatible, local-agent, or hosted (oraplanviz cloud account token) provider — streamed markdown report in an AI tab with findings linked to plan nodes. Privacy: nothing leaves the browser until the user clicks Run, and only to the provider they chose; API keys live in sessionStorage only (`src/lib/ai/secrets.ts`), never in localStorage settings or share URLs
-- **AI Test Case Builder**: With a plan + attached metadata bundle, builds a deterministic synthetic-repro skeleton (`src/lib/ai/testCase.ts` — empty DDL, DBMS_STATS stats/histograms, optimizer env, binds, EXPLAIN PLAN verification) that the AI amends into a runnable scratch-schema script with realistic binds, an optional data generator, and alternative-plan experiments (`src/lib/ai/experiments.ts` — SQL Patch script + advisor-driven experiment candidates); SQL fences in the report get per-block copy/download
+- **AI Test Case Builder**: With a plan + attached metadata bundle, builds a deterministic synthetic-repro skeleton (`src/lib/ai/testCase.ts` — empty DDL, DBMS_STATS stats/histograms, optimizer env, binds, EXPLAIN PLAN verification) that the AI amends into a runnable scratch-schema script with realistic binds, an optional data generator, and alternative-plan experiments (`src/lib/ai/experiments.ts` — advisor-driven experiment candidates; SQL Patch script from `lib/sqlPatchScript.ts`); SQL fences in the report get per-block copy/download
 - **AI Follow-up Chat**: After a completed AI report, a chat section in the AI tab lets the user ask follow-up questions (multi-turn via `streamChat`); when the DB agent feature is enabled, SQL blocks in test-case reports and chat replies get a "Run via agent" button that executes against the agent's scratch test connection only after explicit per-script user approval (script preview + destructive-statement warning) — nothing ever auto-runs or auto-sends
 - **AI Eval Harness**: `evals/` backtesting harness (Node + tsx + oracledb thin, outside the Vite build) measuring repro fidelity (does the generated test case reproduce the plan shape?) and analysis quality (does the AI find a known injected fault?) against a real Oracle scratch schema via `ORA_EVAL_*` env vars — see `evals/README.md`
 - **Cardinality Mismatch Analysis**: Detects divergence between A-Rows and the estimate over all starts (`estimatedRowsTotal`, see Architecture Notes) with severity badges (warn at 3x, bad at 10x); the advisor also needs a ≥100-row absolute difference
@@ -281,8 +283,9 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Metadata Bundles**: Attach schema-metadata bundles to a plan; objects with metadata show inline badges/chips in the plan
 - **Gather Script**: Generates a SQL script to collect the schema metadata needed for a bundle from the database
 
-### Plan Baselines
-- **Baseline Script Generator**: Generates a ready-to-run SQL*Plus script that creates a SQL Plan Baseline (via `DBMS_SPM`) for the loaded plan's SQL ID + plan hash value — from the cursor cache, AWR directly (19c+), or AWR via a temporary SQL Tuning Set (11.2+), with FIXED/ENABLED options, pre-check and verification queries, and a management crib sheet. Opened from the input-panel header or command palette; fully offline — the user runs the script themselves
+### Plan Baselines & SQL Patches
+- **Baseline Script Generator**: Generates a ready-to-run SQL*Plus script that creates a SQL Plan Baseline (via `DBMS_SPM`) for the loaded plan's SQL ID + plan hash value — from the cursor cache, AWR directly (19c+), or AWR via a temporary SQL Tuning Set (11.2+), with FIXED/ENABLED options, pre-check and verification queries, and a management crib sheet. Opened from the File menu, the plan tab's SPM chip or the command palette; fully offline — the user runs the script themselves
+- **SQL Patch Script**: The same dialog's *Script type* switch (context `baselineDialogKind`; `setBaselineDialogOpen(true, 'patch')`, palette "Create SQL Patch script…") builds a `DBMS_SQLDIAG.CREATE_SQL_PATCH` script (`lib/sqlPatchScript.ts`): SQL_ID, patch name (default `PLANVIZ_PATCH_<SQL_ID>`) and hint text prefilled with the plan's `outlineHints` (full outline pins the plan). Hints may not contain `&` (SQL*Plus substitution)
 
 ### Client Report
 - **Client Report Export**: Packages the loaded plan, the consultant's annotations, and all derived analysis into a single self-contained HTML document for handing to a client — header metadata (title, client, prepared by, date, SQL ID, plan hash), free-text executive summary with headline stat cards and optimizer-note tags, SQL statement, full plan table (with hotspot marker, highlight chips, inline notes, estimate-quality column), consultant notes/groups/highlights, advisor findings with recommendations, top self-time hotspots, worst cardinality mismatches, predicates, execution environment + bind variables, and a raw-plan appendix. Section toggles, live preview iframe, download as `.html` or open a print view for save-as-PDF. Client/author names persist to localStorage. Opened from the top-bar document icon or the command palette (`clientReport.ts` + `ClientReportModal.tsx`); fully offline, nothing is uploaded
@@ -335,7 +338,7 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Settings Persistence**: View preferences saved to localStorage
 - **Theme Toggle**: Light/dark mode with localStorage persistence
 - **Legend Toggle**: Color/badge legend for the tree, tabular, Sankey and flame views, toggled from the toolbar, the focus pill, the Appearance menu or the palette
-- **Fully Client-Side**: No backend, no data upload - everything runs in browser
+- **Fully Client-Side**: No backend, no data upload - everything runs in browser; the start screen says so up front (`PrivacyBadge.tsx`) above the detailed fine-print footer
 
 ## Supported Input Formats
 
