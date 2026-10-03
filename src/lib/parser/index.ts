@@ -3,12 +3,13 @@ import type { DetectedFormat, PlanParser } from './types';
 import { dbmsXplanParser, extractDbmsXplanSegments } from './dbmsXplanParser';
 import { sqlMonitorTextParser, sqlMonitorXmlParser } from './sqlMonitorParser';
 import { jsonPlanParser } from './jsonPlanParser';
+import { csvPlanParser, splitCsvPlanBatches } from './csvPlanParser';
 import { xbiParser } from './xbiParser';
 import { normalizeNewlines } from './values';
 import { computeEstimatedRowTotals, computeSelfCosts, computeSelfTimes } from '../analysis';
 
 const SUPPORTED_FORMATS_HINT =
-  'Supported: DBMS_XPLAN, SQL Monitor (text / XML / ACTIVE), V$SQL_PLAN JSON and xbi.sql output.';
+  'Supported: DBMS_XPLAN, SQL Monitor (text / XML / ACTIVE), V$SQL_PLAN JSON / CSV and xbi.sql output.';
 
 /**
  * List of available parsers in priority order.
@@ -17,6 +18,7 @@ const SUPPORTED_FORMATS_HINT =
  */
 const parsers: Array<{ format: DetectedFormat; parser: PlanParser }> = [
   { format: 'json', parser: jsonPlanParser },
+  { format: 'csv', parser: csvPlanParser },
   { format: 'sql_monitor_xml', parser: sqlMonitorXmlParser },
   { format: 'sql_monitor_text', parser: sqlMonitorTextParser },
   { format: 'xbi', parser: xbiParser },
@@ -31,6 +33,8 @@ const parsers: Array<{ format: DetectedFormat; parser: PlanParser }> = [
 /** Strip leading/trailing double-quotes that users sometimes copy from SQL*Plus or shells. */
 function stripWrappingQuotes(input: string): string {
   const trimmed = input.trim();
+  // A fully quoted CSV ("ID","PARENT_ID",... first, a quoted last field at the end) is not a wrapped paste.
+  if (csvPlanParser.canParse(trimmed)) return trimmed;
   if (trimmed.length >= 2 && trimmed[0] === '"' && trimmed[trimmed.length - 1] === '"') {
     return trimmed.slice(1, -1);
   }
@@ -87,10 +91,20 @@ export function parsePlan(input: string): ParsedPlan {
   return finalizePlan(plan);
 }
 
-export const splitDbmsXplanPlanBatches = extractDbmsXplanSegments;
+/**
+ * Split a paste holding several plans into one text per plan: CSV by SQL_ID / child number /
+ * plan hash, everything else by DBMS_XPLAN "Plan hash value" blocks.
+ */
+export function splitPlanBatches(input: string): string[] {
+  const normalized = normalizeNewlines(input);
+  return csvPlanParser.canParse(normalized) ? splitCsvPlanBatches(normalized) : extractDbmsXplanSegments(normalized);
+}
+
+/** @deprecated Kept for existing imports; use `splitPlanBatches`. */
+export const splitDbmsXplanPlanBatches = splitPlanBatches;
 
 export function parsePlans(input: string): ParsedPlan[] {
-  return splitDbmsXplanPlanBatches(normalizeNewlines(input))
+  return splitPlanBatches(input)
     .map((batch) => parsePlan(batch))
     .filter((plan) => Boolean(plan.rootNode));
 }
@@ -119,6 +133,8 @@ export function getSourceDisplayName(source: ParsedPlan['source']): string {
       return 'SQL Monitor (XML)';
     case 'json':
       return 'JSON (V$SQL_PLAN)';
+    case 'csv':
+      return 'CSV (V$SQL_PLAN)';
     case 'xbi':
       return 'XBI (Tanel Poder)';
     default:
@@ -134,4 +150,5 @@ export { dbmsXplanParser } from './dbmsXplanParser';
 export { extractDbmsXplanSegments, parseDbmsXplanPlans } from './dbmsXplanParser';
 export { sqlMonitorTextParser, sqlMonitorXmlParser } from './sqlMonitorParser';
 export { jsonPlanParser } from './jsonPlanParser';
+export { csvPlanParser, splitCsvPlanBatches } from './csvPlanParser';
 export { xbiParser } from './xbiParser';

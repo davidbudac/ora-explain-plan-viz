@@ -6,7 +6,7 @@
  */
 
 /** Plan text, SQL Monitor XML/HTML, JSON plans, metadata bundles and annotated exports. */
-export const PLAN_FILE_ACCEPT = '.txt,.log,.lst,.sql,.out,.xml,.html,.htm,.json,text/*';
+export const PLAN_FILE_ACCEPT = '.txt,.log,.lst,.sql,.out,.xml,.html,.htm,.json,.csv,text/*';
 
 // One hidden input for the page's lifetime. It lives in the DOM (Safari does not
 // reliably fire `change` for a detached input) and is reused by every caller.

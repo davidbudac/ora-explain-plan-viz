@@ -94,7 +94,7 @@ export interface HintSummary {
   errors: number;
 }
 
-export type PlanSource = 'dbms_xplan' | 'sql_monitor_text' | 'sql_monitor_xml' | 'json' | 'xbi';
+export type PlanSource = 'dbms_xplan' | 'sql_monitor_text' | 'sql_monitor_xml' | 'json' | 'csv' | 'xbi';
 export type NodeIndicatorMetric = 'cost' | 'actualRows' | 'actualTime' | 'starts' | 'activityPercent';
 
 /**

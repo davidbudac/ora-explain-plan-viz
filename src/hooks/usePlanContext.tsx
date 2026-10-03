@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import type { ParsedPlan, PlanNode, FilterState, ViewMode, SankeyMetric, FlameMetric, ExperimentalSubView, NodeIndicatorMetric, Theme, ColorScheme, AppPalette } from '../lib/types';
 import type { PlanSlot, CompareMetric } from '../lib/compare';
 import { createEmptySlot, DEFAULT_COMPARE_METRICS, getPlanSlotLabel } from '../lib/compare';
-import { parseExplainPlan, splitDbmsXplanPlanBatches, getSourceDisplayName } from '../lib/parser';
+import { parseExplainPlan, splitPlanBatches, getSourceDisplayName } from '../lib/parser';
 import { loadSettings, saveSettings, extractFilterSettings, applySettingsToFilters, defaultBehaviourOptions, defaultNodeDisplayOptions } from '../lib/settings';
 import { matchesFilters } from '../lib/filtering';
 import { computeHottestNodeId } from '../lib/analysis';
@@ -138,7 +138,7 @@ function summarizeAnnotations(annotations: AnnotationState): string {
 
 /** Slots a load of `input` will replace: all of them for a multi-plan paste, else the active one. */
 function importTargetIndices(state: { plans: PlanSlot[]; activePlanIndex: number }, input: string): number[] {
-  const batches = splitDbmsXplanPlanBatches(input).filter((batch) => batch.trim());
+  const batches = splitPlanBatches(input).filter((batch) => batch.trim());
   return batches.length > 1 ? state.plans.map((_, index) => index) : [state.activePlanIndex];
 }
 
@@ -1307,7 +1307,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   );
 
   const importPlanInput = useCallback((input: string, options?: ImportOptions): ImportOutcome => {
-    const splitInputs = splitDbmsXplanPlanBatches(input).filter((batch) => batch.trim());
+    const splitInputs = splitPlanBatches(input).filter((batch) => batch.trim());
     const shouldReplaceAll = options?.replaceAll ?? splitInputs.length > 1;
     const slots = buildPlanSlotsFromInputs(shouldReplaceAll ? splitInputs : [input]);
     const parsedSlots = slots.filter((slot) => slot.parsedPlan);

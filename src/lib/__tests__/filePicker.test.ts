@@ -25,7 +25,7 @@ describe('openPlanFilePicker', () => {
     expect(input.type).toBe('file');
     expect(input.multiple).toBe(true);
     expect(input.accept).toBe(PLAN_FILE_ACCEPT);
-    for (const ext of ['.txt', '.xml', '.html', '.json', 'text/*']) expect(input.accept).toContain(ext);
+    for (const ext of ['.txt', '.xml', '.html', '.json', '.csv', 'text/*']) expect(input.accept).toContain(ext);
     click.mockRestore();
   });
 
