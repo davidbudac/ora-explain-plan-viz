@@ -283,3 +283,52 @@ describe('CSV plan parser', () => {
     });
   });
 });
+
+describe('CSV plan parser - real Oracle 19c capture', () => {
+  // SQL*Plus SET MARKUP CSV ON of select * from v$sql_plan_statistics_all ... order by id (real capture).
+  const capture = readFileSync(join(__dirname, 'fixtures/vsqlplan-stats-allstats-19c.csv'), 'utf-8');
+
+  it('is detected as csv and parses with no warnings', () => {
+    expect(detectFormat(capture)).toBe('csv');
+    const plan = parsePlan(capture);
+    expect(plan.source).toBe('csv');
+    expect(plan.warnings).toBeUndefined();
+  });
+
+  it('rebuilds the plan tree', () => {
+    const plan = parsePlan(capture);
+    const shape = (n: (typeof plan.allNodes)[number]): unknown[] => [
+      n.id,
+      n.objectName ? `${n.operation} ${n.objectName}` : n.operation,
+      ...n.children.map(shape),
+    ];
+    expect(shape(plan.rootNode!)).toEqual([
+      0, 'SELECT STATEMENT',
+      [1, 'SORT GROUP BY',
+        [2, 'HASH JOIN',
+          [3, 'TABLE ACCESS FULL PRODUCTS'],
+          [4, 'HASH JOIN',
+            [5, 'TABLE ACCESS FULL TIMES'],
+            [6, 'HASH JOIN',
+              [7, 'TABLE ACCESS FULL CUSTOMERS'],
+              [8, 'TABLE ACCESS FULL SALES']]]]],
+    ]);
+    expect(plan.allNodes).toHaveLength(9);
+  });
+
+  it('reads plan identity, runtime stats and normalised aliases', () => {
+    const plan = parsePlan(capture);
+    expect(plan.sqlId).toBe('04gw1nkv9pwk1');
+    expect(plan.planHashValue).toBe('717513941');
+    expect(plan.childNumber).toBe(0);
+    expect(plan.hasActualStats).toBe(true);
+    expect(plan.rootNode?.actualRows).toBe(10);
+    const products = plan.allNodes.find((n) => n.id === 3)!;
+    expect(products.objectAlias).toBe('P@SEL$1');
+    expect(products.queryBlock).toBe('SEL$EE94F965');
+  });
+
+  it('splits into a single batch', () => {
+    expect(splitPlanBatches(capture)).toHaveLength(1);
+  });
+});
