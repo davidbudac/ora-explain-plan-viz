@@ -27,7 +27,7 @@ src/
 │   ├── density.ts       # Layout density presets (Minimal / Compact / Detailed node-display levels)
 │   ├── clipboard.ts     # Clipboard copy helper (async API + fallback)
 │   ├── baselineScript.ts # SQL Plan Baseline script builder (DBMS_SPM; cursor cache / AWR / STS)
-│   ├── sqlPatchScript.ts # SQL Patch script builder (DBMS_SQLDIAG.CREATE_SQL_PATCH; one hint per line in a q-literal)
+│   ├── sqlPatchScript.ts # SQL Patch script builder (DBMS_SQLDIAG.CREATE_SQL_PATCH; hints packed into RPAD(…, 500) chunks — 19c splits hint_text every 500 chars)
 │   ├── clientReport.ts  # Client report builder (self-contained HTML doc: plan, notes, findings)
 │   ├── severityStyles.ts # Shared severity color/badge styles (advisor findings)
 │   ├── flameLayout.ts   # Flame graph layout (metric rollup, self-value, zoom)
