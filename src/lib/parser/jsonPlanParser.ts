@@ -209,6 +209,10 @@ function cpuPercentFromCost(cost: number | undefined, ioCost: number | undefined
   return Math.min(100, Math.max(0, Math.round(((cost - ioCost) * 100) / cost)));
 }
 
+function unquote(value: string | undefined): string | undefined {
+  return value?.replace(/"/g, '') || undefined;
+}
+
 /** Whole seconds as DBMS_XPLAN's Time column prints them (HH:MM:SS); an already formatted value passes through. */
 function parsePlanTime(value: string | undefined): string | undefined {
   if (!value) return undefined;
@@ -257,7 +261,8 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
 
   // Object info
   const objectName = getStr(row, 'object_name');
-  const objectAlias = getStr(row, 'object_alias');
+  // V$SQL_PLAN quotes aliases ("P"@"SEL$1"); the other parsers store them without quotes
+  const objectAlias = unquote(getStr(row, 'object_alias'));
 
   // Estimated stats (optimizer)
   const rows = getInt(row, 'cardinality', 'rows', 'e_rows');
@@ -291,7 +296,7 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
   const projection = getStr(row, 'projection');
 
   // Query block / partition info
-  const queryBlock = getStr(row, 'qblock_name', 'query_block');
+  const queryBlock = unquote(getStr(row, 'qblock_name', 'query_block'));
 
   // Temp space from optimizer (estimate; actual spill is tempUsed)
   const tempSpace = getInt(row, 'temp_space');
