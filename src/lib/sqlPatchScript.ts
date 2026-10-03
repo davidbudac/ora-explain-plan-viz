@@ -123,6 +123,14 @@ function hintAssignment(hintText: string): HintAssignment {
   return { lines: out, oversized };
 }
 
+const DEFAULT_DESCRIPTION = 'Created by Oracle Plan Visualizer';
+
+// Newlines would end a `--` comment early (live SQL after it) and a description
+// is one line anyway.
+function oneLine(value: string): string {
+  return value.replace(/\s*[\r\n]+\s*/g, ' ').trim();
+}
+
 function bannerLines(opts: SqlPatchScriptOptions): string[] {
   return [
     '-- SQL Patch creation script, stamped by the Oracle Plan Visualizer.',
@@ -141,7 +149,9 @@ function bannerLines(opts: SqlPatchScriptOptions): string[] {
     '-- CREATE_SQL_PATCH(sql_id => ...) looks the statement up, so it must still be',
     '-- in the cursor cache (or AWR) when this script runs - run the statement',
     '-- first if it has aged out. Only one enabled SQL patch applies per statement.',
-    ...(opts.description ? [`-- Purpose: ${opts.description}`] : []),
+    ...(opts.description && oneLine(opts.description) !== ''
+      ? [`-- Purpose: ${oneLine(opts.description)}`]
+      : []),
     '--',
     '-- Run this in SQL*Plus or SQLcl connected to the target database.',
   ];
@@ -161,8 +171,9 @@ function preCheckLines(): string[] {
   ];
 }
 
-function createBlockLines(opts: SqlPatchScriptOptions): string[] {
+function createBlockLines(opts: SqlPatchScriptOptions, sqlId: string, patchName: string): string[] {
   const { lines: assignment, oversized } = hintAssignment(opts.hintText);
+  const description = oneLine(opts.description ?? '') || DEFAULT_DESCRIPTION;
   return [
     ...oversized.map(
       (h) =>
@@ -170,6 +181,9 @@ function createBlockLines(opts: SqlPatchScriptOptions): string[] {
         ' Oracle 19c may split it and reject the patch.',
     ),
     'PROMPT === Creating the SQL patch ===',
+    '-- Substitution is switched off so an & in the hint text (or description) is',
+    '-- taken literally; sql_id and patch name are written into the block directly.',
+    'SET DEFINE OFF',
     'DECLARE',
     '  l_patch_name  VARCHAR2(128);',
     '  l_hint_text   CLOB;',
@@ -178,13 +192,14 @@ function createBlockLines(opts: SqlPatchScriptOptions): string[] {
     '  -- hints are packed into 500-character chunks (RPAD) that never cut a hint.',
     ...assignment,
     '  l_patch_name := DBMS_SQLDIAG.CREATE_SQL_PATCH(',
-    "                    sql_id      => '&sql_id',",
+    `                    sql_id      => '${sqlId}',`,
     '                    hint_text   => l_hint_text,',
-    "                    name        => '&patch_name',",
-    "                    description => 'Created by Oracle Plan Visualizer');",
+    `                    name        => '${patchName}',`,
+    `                    description => '${description.replace(/'/g, "''")}');`,
     "  DBMS_OUTPUT.PUT_LINE('SQL patch created: ' || l_patch_name);",
     'END;',
     '/',
+    "SET DEFINE '&'",
     '',
     '-- On Oracle 12.1 and older, CREATE_SQL_PATCH takes the SQL text instead',
     '-- of a SQL_ID (and lives in the internal DBMS_SQLDIAG_INTERNAL package',
@@ -252,7 +267,7 @@ export function buildSqlPatchScript(opts: SqlPatchScriptOptions): string {
     '',
     ...preCheckLines(),
     '',
-    ...createBlockLines(opts),
+    ...createBlockLines(opts, sqlId, patchName),
     '',
     ...verificationLines(),
     '',

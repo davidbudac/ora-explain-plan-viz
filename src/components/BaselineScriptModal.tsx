@@ -94,8 +94,7 @@ export function BaselineScriptModal({
   const planHashValid = planHash !== '' && PLAN_HASH_RE.test(planHash);
   const patchNameValid = PATCH_NAME_RE.test(patchName);
   const hintsEmpty = hintText.trim() === '';
-  const hintsHaveAmpersand = hintText.includes('&');
-  const hintsValid = !hintsEmpty && !hintsHaveAmpersand;
+  const hintsValid = !hintsEmpty;
 
   const baselineOptions = useMemo<BaselineScriptOptions | null>(() => {
     if (isPatch || !sqlIdValid || !planHashValid) return null;
@@ -272,13 +271,9 @@ export function BaselineScriptModal({
                 rows={6}
                 spellCheck={false}
                 placeholder={'One hint per line, e.g.\nFULL(@"SEL$1" "E"@"SEL$1")'}
-                className={`${inputClass(!hintsHaveAmpersand)} resize-y whitespace-pre`}
+                className={`${inputClass(true)} resize-y whitespace-pre`}
               />
-              {hintsHaveAmpersand ? (
-                <p className="mt-1 text-[10px] text-red-600 dark:text-red-400">
-                  Hint text must not contain <code>&amp;</code> — the script uses SQL*Plus substitution variables.
-                </p>
-              ) : outlinePrefill !== '' ? (
+              {outlinePrefill !== '' ? (
                 <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 leading-snug">
                   Prefilled with this plan&apos;s full outline, which pins the current plan. Trim it to the hints you need.
                 </p>

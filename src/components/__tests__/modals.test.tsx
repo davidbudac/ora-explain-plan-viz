@@ -424,14 +424,14 @@ describe('BaselineScriptModal: SQL Patch mode', () => {
     expect(buttonByText('Copy script').disabled).toBe(true);
   });
 
-  it('Copy is disabled when the hint text contains & and shows an inline error', async () => {
+  it('Copy stays enabled when the hint text contains & (the script switches substitution off)', async () => {
     renderWithProviders(
       <BaselineScriptModal initialKind="patch" initialSqlId="abc123" initialOutlineHints={OUTLINE} onClose={() => {}} />,
     );
     expect(buttonByText('Copy script').disabled).toBe(false);
     await typeInto(hints(), 'FULL(a) & x');
-    expect(buttonByText('Copy script').disabled).toBe(true);
-    expect(document.body.textContent).toContain('must not contain');
+    expect(buttonByText('Copy script').disabled).toBe(false);
+    expect(document.body.textContent).not.toContain('must not contain');
   });
 
   it('the patch name follows the SQL_ID until edited, and is validated', async () => {
