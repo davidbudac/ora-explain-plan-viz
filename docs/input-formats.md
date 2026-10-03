@@ -9,6 +9,7 @@ How to produce each input format the visualizer accepts. Paste the output into t
 | [SQL Monitor (XML)](#sql-monitor-xml) | `SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id=>'&sql_id', type=>'XML', report_level=>'ALL') FROM dual;` | Yes | Yes |
 | [SQL Monitor (ACTIVE, HTML)](#sql-monitor-active-html) | `SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id=>'&sql_id', type=>'ACTIVE') FROM dual;` | Yes | Yes |
 | [JSON (V\$SQL_PLAN)](#json-vsql_plan) | `JSON_ARRAYAGG` query against `V$SQL_PLAN_STATISTICS_ALL` | Optional | Yes |
+| [CSV (V\$SQL_PLAN)](#csv-vsql_plan) | `SET MARKUP CSV ON` + `SELECT * FROM V$SQL_PLAN_STATISTICS_ALL` | Optional | Yes |
 | [XBI (Tanel Poder)](#xbi-tanel-poder) | `@xbi &sql_id` | Yes | No |
 
 Or skip copy/paste: [`scripts/plan_to_url.sql`](../scripts/plan_to_url.sql) builds a ready-to-click visualizer link inside the database (`@plan_to_url.sql <sql_id>`, read-only, 19c+). See [`scripts/README.md`](../scripts/README.md#plan_to_urlsql).
@@ -189,6 +190,28 @@ WHERE sql_id = '&sql_id'
     SELECT MAX(child_number) FROM V$SQL_PLAN_STATISTICS_ALL WHERE sql_id = '&sql_id'
   );
 ```
+
+---
+
+### CSV (V$SQL_PLAN)
+
+Query results from `V$SQL_PLAN` or `V$SQL_PLAN_STATISTICS_ALL` saved as CSV: SQL*Plus `SET MARKUP CSV ON` (12.2+), SQLcl `set sqlformat csv`, a SQL Developer CSV export, or a tab-separated grid copy.
+
+```sql
+SET MARKUP CSV ON
+SET LONG 100000 LONGCHUNKSIZE 100000 PAGESIZE 50000 LINESIZE 32767 TRIMSPOOL ON
+SPOOL plan.csv
+SELECT * FROM v$sql_plan_statistics_all
+ WHERE sql_id = '&sql_id' AND child_number = 0
+ ORDER BY id;
+SPOOL OFF
+```
+
+- The header row must contain `ID`, `OPERATION` and `PARENT_ID` or `DEPTH`. Any other columns are optional and extra columns (`OTHER_XML`, `ADDRESS`, …) are ignored.
+- Comma, semicolon and tab delimiters are detected from the header. Quoted fields may contain delimiters, `""` and line breaks.
+- SQL*Plus chatter around the data (blank lines, `n rows selected.`) is ignored.
+- The `LAST_*` columns (`LAST_STARTS`, `LAST_OUTPUT_ROWS`, `LAST_ELAPSED_TIME`, `LAST_CR_BUFFER_GETS`, …) supply runtime stats.
+- An export holding several statements or child cursors opens one plan tab per `SQL_ID` / `CHILD_NUMBER` / `PLAN_HASH_VALUE`.
 
 ---
 

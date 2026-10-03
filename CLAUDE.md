@@ -66,11 +66,12 @@ src/
 │   ├── advisor/         # Plan advisor: runAdvisor engine + 17 heuristic rules in `rules/index.ts` (findings; inactive adaptive rows are invisible to every rule)
 │   ├── metadata/        # Schema-metadata bundles, indexes, gather-script, pairing/lookup helpers
 │   └── parser/          # Modular parser system
-│       ├── index.ts           # Parser orchestration, format detection (json/xml/text/xbi/dbms_xplan)
+│       ├── index.ts           # Parser orchestration, format detection (json/csv/xml/text/xbi/dbms_xplan), `splitPlanBatches`
 │       ├── types.ts           # Parser interfaces
 │       ├── dbmsXplanParser.ts # DBMS_XPLAN text parser
 │       ├── sqlMonitorParser.ts # SQL Monitor text/XML parsers
-│       ├── jsonPlanParser.ts  # JSON plan parser (V$SQL_PLAN_STATISTICS_ALL / Datadog / xdd.sql)
+│       ├── jsonPlanParser.ts  # JSON plan parser (V$SQL_PLAN_STATISTICS_ALL / Datadog / xdd.sql); exports `buildPlanFromRows` (shared row→tree mapping, also used by CSV)
+│       ├── csvPlanParser.ts   # V$SQL_PLAN CSV parser (SQL*Plus MARKUP CSV / SQLcl / SQL Developer; `,` `;` tab) + `splitCsvPlanBatches`
 │       ├── xbiParser.ts       # Tanel Poder xbi.sql (eXplain Better) output parser
 │       ├── noteSection.ts     # DBMS_XPLAN "Note" section parser
 │       ├── warnings.ts        # Partial-parse diagnostics (`ParsedPlan.warnings`): unknown columns, unread sections, unparsed rows / id gaps, wrapped or cut-off paste (SET LONG / LINESIZE advice), SQL*Plus wrapper around XML
@@ -230,14 +231,14 @@ src/
 │   ├── __tests__/            # Core lib tests (analysis, filtering, format, url, flame layout, plan signals, ...)
 │   ├── advisor/__tests__/    # Advisor engine + per-rule tests
 │   ├── metadata/__tests__/   # Schema-metadata tests (bundle, indexes, gather script, pairing, ...)
-│   └── parser/__tests__/     # Parser tests (DBMS_XPLAN, SQL Monitor XML, JSON, xbi, note section, compare)
+│   └── parser/__tests__/     # Parser tests (DBMS_XPLAN, SQL Monitor XML, JSON, CSV, xbi, note section, compare)
 ├── hooks/__tests__/          # Plan-context behaviour (e.g. bundle-chooser attach flow)
 ├── components/__tests__/     # Component tests (modals, metadata chip, views, annotation editors, ...)
 ├── components/ui/__tests__/  # Shared primitive tests (Dialog, ConfirmDialog, Toast, CopyButton, ErrorBoundary, useMenuKeyboard)
 └── examples/__tests__/       # Example loader / descriptions / sidecar-metadata tests
 ```
 
-`.github/workflows/ci.yml` runs lint, typecheck and `npm test` on every PR and on pushes to `main`. Parser fixtures in `src/lib/parser/__tests__/fixtures/` are **real Oracle 19c captures** (`allstats-*`, `advanced-allstats-19c`, `sql-monitor-active-19c.html`, SQL Monitor XML), not hand-written — keep them that way and say so when adding one; `src/lib/__tests__/largePlan.test.ts` uses a seeded 2,000-operation generated plan.
+`.github/workflows/ci.yml` runs lint, typecheck and `npm test` on every PR and on pushes to `main`. Parser fixtures in `src/lib/parser/__tests__/fixtures/` are **real Oracle 19c captures** (`allstats-*`, `advanced-allstats-19c`, `sql-monitor-active-19c.html`, `vsqlplan-stats-allstats-19c.csv`, SQL Monitor XML), not hand-written — keep them that way and say so when adding one; `src/lib/__tests__/largePlan.test.ts` uses a seeded 2,000-operation generated plan.
 
 Tests are excluded from the production build via `tsconfig.app.json` exclude patterns. Test files use the `*.test.ts(x)` convention and live in `__tests__/` directories alongside the code they test.
 
@@ -253,7 +254,7 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Monitor Details View**: SQL Monitor XML report detail — activity breakdown (CPU / I/O Wait / PL/SQL / Other) plus Execution Summary, Session & Environment, SQL Text, Bind Variables, Resource Consumption, and Optimizer Environment sections
 - **Tree / Tabular Compare**: When two plans are loaded, the Tree and Tabular tabs switch to side-by-side dual-pane variants with an active-plan accent
 - **Experimental Tab**: five research views behind one tab — optimizer calibration scatter (E-Rows vs A-Rows, log-log), execution timeline Gantt (per-op first/last active + ASH wait-class cells), wasted-work waterfall (rows read vs returned), estimate→actual icicle morph, and per-line wait-class composition. SQL Monitor XML parser extracts `<activity_detail>` bucketed ASH samples and per-op `first_active`/`last_active` offsets to power them
-- **Multiple Input Formats**: DBMS_XPLAN (incl. DISPLAY_CURSOR ALLSTATS and ADVANCED), SQL Monitor text, SQL Monitor XML, SQL Monitor ACTIVE (HTML), JSON plan (V$SQL_PLAN_STATISTICS_ALL), and Tanel Poder xbi.sql output
+- **Multiple Input Formats**: DBMS_XPLAN (incl. DISPLAY_CURSOR ALLSTATS and ADVANCED), SQL Monitor text, SQL Monitor XML, SQL Monitor ACTIVE (HTML), JSON plan (V$SQL_PLAN_STATISTICS_ALL), V$SQL_PLAN CSV, and Tanel Poder xbi.sql output
 - **Runtime Statistics**: A-Rows, E-Rows, A-Time and Starts from SQL Monitor and DISPLAY_CURSOR ALLSTATS; the DBMS_XPLAN parser also maps Buffers, Reads, Writes, OMem / 1Mem / Used-Mem (+ pass count), O/1/M and Used-Tmp
 - **ADVANCED Sections**: Outline Data (SQL tab block with 'Copy as hint block'), Hint Report (per-operation used / unused / syntax-error hints + statement summary), Column Projection and Remote SQL per operation (details panel), Peeked Binds (→ bind variables: drawer, test-case builder, report). AI context carries 'Hints & outline'
 - **Storage Predicates**: Id-less `filter()` / `access()` / `storage()` lines attach to the current operation; `storage` shows in the details panel, search, client report, node summary, TSV, compare and AI text
@@ -385,6 +386,9 @@ The parser handles the **real Oracle XML format** with separate `<plan>` (optimi
 - `<plan_monitor>` operations: `<stats type="plan_monitor">` with `<stat name="cardinality">` (actual rows), `<stat name="starts">`, `<stat name="max_memory">`, etc.
 - Operation names combine `name` + `options` attributes (e.g., `TABLE ACCESS` + `FULL`)
 - A legacy simplified XML format is also supported for backward compatibility
+
+### V$SQL_PLAN CSV
+`V$SQL_PLAN` / `V$SQL_PLAN_STATISTICS_ALL` query results as CSV (SQL*Plus `SET MARKUP CSV ON`, SQLcl `set sqlformat csv`, SQL Developer export, tab-separated grid copy). `parser/csvPlanParser.ts` finds the header (needs `ID`, `OPERATION` and `PARENT_ID` or `DEPTH`) and its delimiter (`,` `;` tab) in the first five non-empty lines, tokenises RFC-4180 style, skips SQL*Plus chatter, and feeds header-keyed rows to the JSON parser's `buildPlanFromRows`, so both formats share one column mapping (aliases lose their quotes: `"P"@"SEL$1"` → `P@SEL$1`). `splitPlanBatches` (used by the plan context) cuts a multi-statement export into one plan per `SQL_ID` / `CHILD_NUMBER` / `PLAN_HASH_VALUE`; duplicate ids inside one plan get a warning. Real 19c capture: `parser/__tests__/fixtures/vsqlplan-stats-allstats-19c.csv`. `stripWrappingQuotes` skips CSV (a quoted CSV starts and ends with `"`).
 
 ### SQL Monitor ACTIVE (HTML)
 The HTML page from `REPORT_SQL_MONITOR(type=>'ACTIVE')`. The data sits in `<script id="fxtmodel">` as zlib+base64 (some variants uncompressed); `parser/activeReport.ts` inflates it with `DecompressionStream` and the SQL Monitor XML parser takes over. The resulting XML (not the HTML) becomes the loaded plan text.
