@@ -159,7 +159,7 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Monitor Details View**: SQL Monitor XML report detail — activity breakdown (CPU / I/O Wait / PL/SQL / Other) plus Execution Summary, Session & Environment, SQL Text, Bind Variables, Resource Consumption, and Optimizer Environment sections
 - **Tree / Tabular Compare**: When two plans are loaded, the Tree and Tabular tabs switch to side-by-side dual-pane variants with an active-plan accent
 - **Experimental Tab**: five research views behind one tab — optimizer calibration scatter (E-Rows vs A-Rows, log-log), execution timeline Gantt (per-op first/last active + ASH wait-class cells), wasted-work waterfall (rows read vs returned), estimate→actual icicle morph, and per-line wait-class composition. SQL Monitor XML parser extracts `<activity_detail>` bucketed ASH samples and per-op `first_active`/`last_active` offsets to power them
-- **Multiple Input Formats**: DBMS_XPLAN, SQL Monitor text, SQL Monitor XML, JSON plan (V$SQL_PLAN_STATISTICS_ALL), and Tanel Poder xbi.sql output
+- **Multiple Input Formats**: DBMS_XPLAN, SQL Monitor text, SQL Monitor XML, JSON plan (V$SQL_PLAN_STATISTICS_ALL), V$SQL_PLAN CSV, and Tanel Poder xbi.sql output
 - **Runtime Statistics**: Display A-Rows, E-Rows, A-Time, and Starts from SQL Monitor
 - **Node Indicator Metrics**: Configurable node badges showing cost, A-Rows, A-Time, starts, or activity %
 - **Hot Node Detection**: Automatically highlights the node with highest A-Time (red ring + "Hotspot" badge)

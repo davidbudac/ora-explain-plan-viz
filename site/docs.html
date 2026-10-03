@@ -174,7 +174,7 @@
       <h1 class="text-3xl sm:text-4xl font-semibold tracking-[-0.02em] text-slate-50 leading-tight">Oracle Plan Visualizer</h1>
       <p class="text-lg">
         A client-side web application that turns Oracle execution plan output into an interactive,
-        annotated picture. Paste DBMS_XPLAN, SQL Monitor (text or XML), JSON or xbi.sql output and
+        annotated picture. Paste DBMS_XPLAN, SQL Monitor (text or XML), V$SQL_PLAN JSON or CSV, or xbi.sql output and
         get a plan tree with hotspots, cardinality analysis, advisor findings, a flame graph, a
         Sankey diagram, side-by-side plan comparison, and more.
       </p>
@@ -373,6 +373,7 @@ server {
           <tr><td><strong>SQL Monitor (text)</strong></td><td><code>DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id=&gt;'…', type=&gt;'TEXT')</code></td><td>Yes</td><td>No</td></tr>
           <tr><td><strong>SQL Monitor (XML)</strong></td><td><code>… type=&gt;'XML', report_level=&gt;'ALL'</code></td><td>Yes, plus ASH activity</td><td>Yes</td></tr>
           <tr><td><strong>JSON</strong></td><td><code>JSON_ARRAYAGG</code> over <code>V$SQL_PLAN_STATISTICS_ALL</code></td><td>Optional</td><td>Yes</td></tr>
+          <tr><td><strong>CSV</strong></td><td><code>SET MARKUP CSV ON</code> + <code>SELECT * FROM V$SQL_PLAN_STATISTICS_ALL</code></td><td>Optional</td><td>Yes</td></tr>
           <tr><td><strong>xbi.sql</strong></td><td><code>@xbi &amp;sql_id</code> (Tanel Poder's TPT toolkit)</td><td>Yes</td><td>No</td></tr>
         </tbody>
       </table></div>
@@ -404,6 +405,23 @@ SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY(NULL, NULL, 'ALL'));</code></pre>
 <pre><code>SET LONG 10000000 LONGCHUNKSIZE 10000000 LINESIZE 32767 PAGESIZE 0 TRIMSPOOL ON
 SPOOL /tmp/sql_monitor.xml
 SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id =&gt; '&amp;sql_id', type =&gt; 'XML', report_level =&gt; 'ALL') FROM dual;
+SPOOL OFF</code></pre>
+
+      <h3>V$SQL_PLAN as CSV</h3>
+      <p>
+        Query results from <code>V$SQL_PLAN</code> or <code>V$SQL_PLAN_STATISTICS_ALL</code> saved as CSV: SQL*Plus
+        <code>SET MARKUP CSV ON</code>, SQLcl <code>set sqlformat csv</code>, a SQL Developer CSV export, or a
+        tab-separated grid copy. Comma, semicolon and tab delimiters are detected from the header, which needs
+        <code>ID</code>, <code>OPERATION</code> and <code>PARENT_ID</code> or <code>DEPTH</code>. The <code>LAST_*</code> columns of
+        <code>V$SQL_PLAN_STATISTICS_ALL</code> supply runtime stats. An export holding several statements or child cursors
+        opens one plan tab per <code>SQL_ID</code> / <code>CHILD_NUMBER</code> / <code>PLAN_HASH_VALUE</code>.
+      </p>
+<pre><code>SET MARKUP CSV ON
+SET LONG 100000 LONGCHUNKSIZE 100000 PAGESIZE 50000 LINESIZE 32767 TRIMSPOOL ON
+SPOOL plan.csv
+SELECT * FROM v$sql_plan_statistics_all
+ WHERE sql_id = '&amp;sql_id' AND child_number = 0
+ ORDER BY id;
 SPOOL OFF</code></pre>
 
       <h3>JSON and xbi.sql</h3>
@@ -962,7 +980,7 @@ oraplanviz-agent --allow-origin http://localhost:8081</code></pre>
       <h2>Troubleshooting &amp; FAQ<a class="anchor" href="#troubleshooting">#</a></h2>
 
       <h4>"Could not detect the plan format"</h4>
-      <p>The parser looks for the DBMS_XPLAN table header (<code>| Id | Operation |</code>), the SQL Monitor "SQL Plan Monitoring Details" header, an XML <code>&lt;report&gt;</code> root, a JSON array, or the xbi.sql header. Make sure the whole table is pasted including the header row and the dashed separator lines, and that line wrapping hasn't broken rows (set <code>LINESIZE 300</code> or more in SQL*Plus).</p>
+      <p>The parser looks for the DBMS_XPLAN table header (<code>| Id | Operation |</code>), the SQL Monitor "SQL Plan Monitoring Details" header, an XML <code>&lt;report&gt;</code> root, a JSON array, a CSV header row with <code>ID</code> and <code>OPERATION</code> columns, or the xbi.sql header. Make sure the whole table is pasted including the header row and the dashed separator lines, and that line wrapping hasn't broken rows (set <code>LINESIZE 300</code> or more in SQL*Plus).</p>
 
       <h4>The XML report is truncated or the tree is incomplete</h4>
       <p>SQL*Plus cuts long CLOB output at <code>LONG</code>. Use the spool recipe in <a href="#input-formats">Getting a plan out of Oracle</a> with <code>SET LONG 10000000</code>.</p>
@@ -986,7 +1004,7 @@ oraplanviz-agent --allow-origin http://localhost:8081</code></pre>
       <p>Switch to Minimal density, collapse the side panels, or use the Tabular view. Filters reduce what's drawn in every view.</p>
 
       <h4>Do I need the Tuning Pack?</h4>
-      <p>Only for SQL Monitor output and the <code>MONITOR</code> source of <code>plan_to_url.sql</code>. DBMS_XPLAN, JSON from <code>V$SQL_PLAN_STATISTICS_ALL</code> and xbi.sql need no extra license.</p>
+      <p>Only for SQL Monitor output and the <code>MONITOR</code> source of <code>plan_to_url.sql</code>. DBMS_XPLAN, JSON or CSV from <code>V$SQL_PLAN_STATISTICS_ALL</code> and xbi.sql need no extra license.</p>
     </section>
 
     <!-- ---------- Contributing ---------- -->
