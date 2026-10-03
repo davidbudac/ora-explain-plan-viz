@@ -8,6 +8,7 @@ export {
   parsePlans,
   extractDbmsXplanSegments,
   splitDbmsXplanPlanBatches,
+  splitPlanBatches,
   detectFormat,
   hasRuntimeStats,
   getSourceDisplayName,

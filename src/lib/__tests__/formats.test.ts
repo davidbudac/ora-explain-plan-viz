@@ -17,7 +17,7 @@ function readExample(filename: string): string {
 describe('supported formats list', () => {
   it('covers every parser plus metadata bundles', () => {
     const ids = SUPPORTED_FORMATS.map((f) => f.id);
-    expect(ids).toEqual(['dbms_xplan', 'sql_monitor_text', 'sql_monitor_xml', 'sql_monitor_active', 'json', 'xbi', 'metadata_bundle']);
+    expect(ids).toEqual(['dbms_xplan', 'sql_monitor_text', 'sql_monitor_xml', 'sql_monitor_active', 'json', 'csv', 'xbi', 'metadata_bundle']);
     for (const format of SUPPORTED_FORMATS) {
       expect(format.name).toBeTruthy();
       expect(format.hint).toBeTruthy();
