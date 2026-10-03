@@ -321,7 +321,7 @@ export function validateExport(data: unknown): data is AnnotatedPlanExport {
   if (obj.version !== 1 && obj.version !== 2) return false;
   if (typeof obj.rawPlanText !== 'string' || !obj.rawPlanText) return false;
   if (typeof obj.planSource !== 'string') return false;
-  if (!['dbms_xplan', 'sql_monitor_text', 'sql_monitor_xml', 'json', 'xbi'].includes(obj.planSource as string)) return false;
+  if (!['dbms_xplan', 'sql_monitor_text', 'sql_monitor_xml', 'json', 'csv', 'xbi'].includes(obj.planSource as string)) return false;
 
   const annotations = obj.annotations;
   if (!annotations || typeof annotations !== 'object') return false;
