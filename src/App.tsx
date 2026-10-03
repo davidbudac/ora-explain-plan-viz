@@ -310,6 +310,11 @@ const PLAN_SNIPPETS: Array<{ title: string; hint: string; sql: string }> = [
     hint: 'Needs the Tuning Pack. Includes actual rows, time, ASH activity and bind values.',
     sql: "SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id => :sql_id, type => 'XML', report_level => 'ALL') FROM dual;",
   },
+  {
+    title: 'V$SQL_PLAN as CSV',
+    hint: 'SQL*Plus, SQLcl and SQL Developer can all export this query as CSV. Use v$sql_plan for estimates only, or the _statistics_all view for actual rows and time.',
+    sql: "set markup csv on\nselect * from v$sql_plan_statistics_all\n where sql_id = '&sql_id' and child_number = 0\n order by id;",
+  },
 ];
 
 function HowToGetAPlan() {
