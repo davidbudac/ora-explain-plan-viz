@@ -686,6 +686,16 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     });
 
     commands.push({
+      id: 'create-sql-patch-script',
+      label: 'Create SQL Patch script…',
+      category: 'Export & Share',
+      kind: 'action',
+      keywords: ['sql patch', 'patch', 'dbms_sqldiag', 'hint', 'outline', 'fix plan', 'script'],
+      execute: () => setBaselineDialogOpen(true, 'patch'),
+      isAvailable: () => parsedPlan !== null,
+    });
+
+    commands.push({
       id: 'save-annotations',
       label: 'Save annotated plan',
       category: 'Export & Share',

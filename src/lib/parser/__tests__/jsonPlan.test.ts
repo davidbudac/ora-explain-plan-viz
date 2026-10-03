@@ -407,3 +407,39 @@ describe('JSON Plan Parser', () => {
     });
   });
 });
+
+describe('JSON Plan Parser - shared row mappings', () => {
+  const rows = [
+    { id: 0, parent_id: null, operation: 'SELECT STATEMENT', time: 1, child_number: 3, sql_id: 'abc123' },
+    { id: 1, parent_id: 0, operation: 'TABLE ACCESS', options: 'FULL', time: 3725, projection: '"E"."ID"[NUMBER,22]' },
+  ];
+
+  it('maps child_number to the plan', () => {
+    const plan = jsonPlanParser.parse(JSON.stringify(rows));
+    expect(plan.childNumber).toBe(3);
+    expect(plan.sqlId).toBe('abc123');
+  });
+
+  it('formats the TIME column (seconds) like DBMS_XPLAN', () => {
+    const plan = jsonPlanParser.parse(JSON.stringify(rows));
+    expect(plan.allNodes[0].time).toBe('00:00:01');
+    expect(plan.allNodes[1].time).toBe('01:02:05');
+  });
+
+  it('keeps an already formatted time and ignores junk', () => {
+    const plan = jsonPlanParser.parse(
+      JSON.stringify([
+        { id: 0, operation: 'SELECT STATEMENT', time: '00:00:07' },
+        { id: 1, parent_id: 0, operation: 'X', time: 'n/a' },
+      ]),
+    );
+    expect(plan.allNodes[0].time).toBe('00:00:07');
+    expect(plan.allNodes[1].time).toBeUndefined();
+  });
+
+  it('maps projection onto the node', () => {
+    const plan = jsonPlanParser.parse(JSON.stringify(rows));
+    expect(plan.allNodes[1].projection).toBe('"E"."ID"[NUMBER,22]');
+    expect(plan.allNodes[0].projection).toBeUndefined();
+  });
+});

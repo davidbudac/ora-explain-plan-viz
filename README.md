@@ -1,6 +1,6 @@
 # Oracle Execution Plan Visualizer
 
-**[Open the app](https://davidbudac.github.io/ora-explain-plan-viz/)** — paste a DBMS_XPLAN (incl. `ALLSTATS` runtime stats and `ADVANCED` sections), SQL Monitor (text, XML or ACTIVE HTML report), JSON or xbi.sql plan and get an interactive, annotated picture of it. Runs 100% in your browser: no backend, no account, nothing is uploaded — and it installs as an offline-capable app.
+**[Open the app](https://davidbudac.github.io/ora-explain-plan-viz/)** — paste a DBMS_XPLAN (incl. `ALLSTATS` runtime stats and `ADVANCED` sections), SQL Monitor (text, XML or ACTIVE HTML report), V$SQL_PLAN as JSON or CSV, or xbi.sql plan and get an interactive, annotated picture of it. Runs 100% in your browser: no backend, no account, nothing is uploaded — and it installs as an offline-capable app.
 
 [![Tree view with hotspots](site/assets/hero.png)](https://davidbudac.github.io/ora-explain-plan-viz/?example=21)
 

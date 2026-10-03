@@ -18,6 +18,7 @@ import { ShareResultDialog } from './components/ShareResultDialog';
 import { PopoutWindow } from './components/PopoutWindow';
 import { BaselineScriptModal } from './components/BaselineScriptModal';
 import { ClientReportModal } from './components/ClientReportModal';
+import { PrivacyBadge } from './components/PrivacyBadge';
 import { MetadataExplorer } from './components/metadata/MetadataExplorer';
 import { BundleAttachChooser, ExampleBadges } from './components/InputPanel';
 import { CopyButton, FOCUS_RING, BTN_PRIMARY } from './components/ui';
@@ -310,6 +311,11 @@ const PLAN_SNIPPETS: Array<{ title: string; hint: string; sql: string }> = [
     hint: 'Needs the Tuning Pack. Includes actual rows, time, ASH activity and bind values.',
     sql: "SELECT DBMS_SQL_MONITOR.REPORT_SQL_MONITOR(sql_id => :sql_id, type => 'XML', report_level => 'ALL') FROM dual;",
   },
+  {
+    title: 'V$SQL_PLAN as CSV',
+    hint: 'SQL*Plus, SQLcl and SQL Developer can all export this query as CSV. Use v$sql_plan for estimates only, or the _statistics_all view for actual rows and time.',
+    sql: "set markup csv on\nselect * from v$sql_plan_statistics_all\n where sql_id = '&sql_id' and child_number = 0\n order by id;",
+  },
 ];
 
 function HowToGetAPlan() {
@@ -402,7 +408,7 @@ function AppContent() {
     plans, activePlanIndex, viewMode, visualizationMaximized, setVisualizationMaximized, loadExample,
     loadFiles, recentPlans, openRecentPlan, removeRecentPlan, pendingBundleChoice, resolveBundleChoice,
     metadataBundle, metadataPopoutOpen, setMetadataPopoutOpen,
-    baselineDialogOpen, setBaselineDialogOpen,
+    baselineDialogOpen, baselineDialogKind, setBaselineDialogOpen,
     reportDialogOpen, setReportDialogOpen,
     filterPanelCollapsed, setFilterPanelCollapsed,
     detailPanelCollapsed, setDetailPanelCollapsed,
@@ -584,6 +590,9 @@ function AppContent() {
       />
       {baselineDialogOpen && (
         <BaselineScriptModal
+          key={baselineDialogKind}
+          initialKind={baselineDialogKind}
+          initialOutlineHints={activeParsedPlan?.outlineHints}
           initialSqlId={activeParsedPlan?.sqlId ?? ''}
           initialPlanHash={activeParsedPlan?.planHashValue ?? ''}
           onClose={() => setBaselineDialogOpen(false)}
@@ -677,6 +686,8 @@ function AppContent() {
             <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-2">
               No Execution Plan Loaded
             </h2>
+
+            <PrivacyBadge />
 
             <div className="mb-4 flex flex-col items-center gap-1">
               <button

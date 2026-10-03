@@ -1,4 +1,4 @@
-import type { PlanNode, ParsedPlan } from '../types';
+import type { PlanNode, ParsedPlan, PlanSource } from '../types';
 import { planRootCost } from '../analysis';
 import type { PlanParser } from './types';
 
@@ -40,98 +40,108 @@ export const jsonPlanParser: PlanParser = {
     try {
       rawArray = JSON.parse(input.trim());
     } catch {
-      return emptyPlan();
+      return emptyPlan('json');
     }
 
     if (!Array.isArray(rawArray) || rawArray.length === 0) {
-      return emptyPlan();
+      return emptyPlan('json');
     }
 
-    // Normalize keys to lowercase for flexible matching
-    const normalized = rawArray.map(normalizeKeys);
-
-    const allNodes: PlanNode[] = [];
-    const nodeMap = new Map<number, PlanNode>();
-
-    for (const row of normalized) {
-      const node = parseJsonOperation(row);
-      if (node) {
-        nodeMap.set(node.id, node);
-        allNodes.push(node);
-      }
-    }
-
-    if (allNodes.length === 0) {
-      return emptyPlan();
-    }
-
-    // Build parent-child relationships
-    for (const node of allNodes) {
-      if (node.parentId !== undefined) {
-        const parent = nodeMap.get(node.parentId);
-        if (parent) {
-          parent.children.push(node);
-        }
-      }
-    }
-
-    // If no parent_id was available, build tree from depth
-    const hasParentIds = allNodes.some(n => n.parentId !== undefined);
-    if (!hasParentIds) {
-      for (let i = 1; i < allNodes.length; i++) {
-        const current = allNodes[i];
-        for (let j = i - 1; j >= 0; j--) {
-          if (allNodes[j].depth < current.depth) {
-            allNodes[j].children.push(current);
-            current.parentId = allNodes[j].id;
-            break;
-          }
-        }
-      }
-    }
-
-    const rootNode = nodeMap.get(0) || allNodes.find(n => n.parentId === undefined) || null;
-
-    const hasActualStats = allNodes.some(
-      n => n.actualRows !== undefined || n.actualTime !== undefined
-    );
-    const totalCost = planRootCost(rootNode, allNodes);
-    const maxRows = Math.max(...allNodes.map(n => n.actualRows || n.rows || 0), 0);
-    const maxActualRows = Math.max(...allNodes.map(n => n.actualRows || 0), 0);
-    const maxStarts = Math.max(...allNodes.map(n => n.starts || 0), 0);
-
-    // Total elapsed time: root node's actualTime or sum heuristic
-    const totalElapsedTime = rootNode?.actualTime || 0;
-
-    // Try to extract plan hash from the data (some scripts include it as metadata)
-    const planHashValue = getStr(normalized[0], 'plan_hash_value') ||
-      getStr(normalized[0], 'plan_hash') || undefined;
-    const sqlId = getStr(normalized[0], 'sql_id') || undefined;
-
-    return {
-      planHashValue,
-      sqlId,
-      rootNode,
-      allNodes,
-      totalCost,
-      maxRows,
-      maxActualRows: hasActualStats ? maxActualRows : undefined,
-      maxStarts: hasActualStats ? maxStarts : undefined,
-      source: 'json',
-      hasActualStats,
-      totalElapsedTime,
-    };
+    return buildPlanFromRows(rawArray, 'json');
   },
 };
 
-function emptyPlan(): ParsedPlan {
+function emptyPlan(source: PlanSource): ParsedPlan {
   return {
     rootNode: null,
     allNodes: [],
     totalCost: 0,
     maxRows: 0,
-    source: 'json',
+    source,
     hasActualStats: false,
+  };
+}
+
+/**
+ * Build a plan from V$SQL_PLAN-style rows (one object per operation, keys flexibly named).
+ * Shared by the JSON and CSV parsers.
+ */
+export function buildPlanFromRows(rows: Record<string, unknown>[], source: PlanSource): ParsedPlan {
+  // Normalize keys to lowercase for flexible matching
+  const normalized = rows.map(normalizeKeys);
+
+  const allNodes: PlanNode[] = [];
+  const nodeMap = new Map<number, PlanNode>();
+
+  for (const row of normalized) {
+    const node = parseJsonOperation(row);
+    if (node) {
+      nodeMap.set(node.id, node);
+      allNodes.push(node);
+    }
+  }
+
+  if (allNodes.length === 0) {
+    return emptyPlan(source);
+  }
+
+  // Build parent-child relationships
+  for (const node of allNodes) {
+    if (node.parentId !== undefined) {
+      const parent = nodeMap.get(node.parentId);
+      if (parent) {
+        parent.children.push(node);
+      }
+    }
+  }
+
+  // If no parent_id was available, build tree from depth
+  const hasParentIds = allNodes.some(n => n.parentId !== undefined);
+  if (!hasParentIds) {
+    for (let i = 1; i < allNodes.length; i++) {
+      const current = allNodes[i];
+      for (let j = i - 1; j >= 0; j--) {
+        if (allNodes[j].depth < current.depth) {
+          allNodes[j].children.push(current);
+          current.parentId = allNodes[j].id;
+          break;
+        }
+      }
+    }
+  }
+
+  const rootNode = nodeMap.get(0) || allNodes.find(n => n.parentId === undefined) || null;
+
+  const hasActualStats = allNodes.some(
+    n => n.actualRows !== undefined || n.actualTime !== undefined
+  );
+  const totalCost = planRootCost(rootNode, allNodes);
+  const maxRows = Math.max(...allNodes.map(n => n.actualRows || n.rows || 0), 0);
+  const maxActualRows = Math.max(...allNodes.map(n => n.actualRows || 0), 0);
+  const maxStarts = Math.max(...allNodes.map(n => n.starts || 0), 0);
+
+  // Total elapsed time: root node's actualTime or sum heuristic
+  const totalElapsedTime = rootNode?.actualTime || 0;
+
+  // Try to extract plan hash from the data (some scripts include it as metadata)
+  const planHashValue = getStr(normalized[0], 'plan_hash_value') ||
+    getStr(normalized[0], 'plan_hash') || undefined;
+  const sqlId = getStr(normalized[0], 'sql_id') || undefined;
+  const childNumber = getInt(normalized[0], 'child_number');
+
+  return {
+    planHashValue,
+    sqlId,
+    childNumber,
+    rootNode,
+    allNodes,
+    totalCost,
+    maxRows,
+    maxActualRows: hasActualStats ? maxActualRows : undefined,
+    maxStarts: hasActualStats ? maxStarts : undefined,
+    source,
+    hasActualStats,
+    totalElapsedTime,
   };
 }
 
@@ -199,6 +209,22 @@ function cpuPercentFromCost(cost: number | undefined, ioCost: number | undefined
   return Math.min(100, Math.max(0, Math.round(((cost - ioCost) * 100) / cost)));
 }
 
+function unquote(value: string | undefined): string | undefined {
+  return value?.replace(/"/g, '') || undefined;
+}
+
+/** Whole seconds as DBMS_XPLAN's Time column prints them (HH:MM:SS); an already formatted value passes through. */
+function parsePlanTime(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  if (value.includes(':')) return value;
+  if (!/^\d+(\.\d+)?$/.test(value)) return undefined;
+  const totalSeconds = Math.round(parseFloat(value));
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  return `${pad(h)}:${pad(m)}:${pad(totalSeconds % 60)}`;
+}
+
 /** Buffers as DISPLAY_CURSOR reports them: consistent gets + current gets. */
 function getBufferGets(row: Record<string, unknown>): number | undefined {
   for (const prefix of ['actual_', 'last_', '']) {
@@ -235,7 +261,8 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
 
   // Object info
   const objectName = getStr(row, 'object_name');
-  const objectAlias = getStr(row, 'object_alias');
+  // V$SQL_PLAN quotes aliases ("P"@"SEL$1"); the other parsers store them without quotes
+  const objectAlias = unquote(getStr(row, 'object_alias'));
 
   // Estimated stats (optimizer)
   const rows = getInt(row, 'cardinality', 'rows', 'e_rows');
@@ -264,8 +291,12 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
   const accessPredicates = getStr(row, 'access_predicates');
   const filterPredicates = getStr(row, 'filter_predicates');
 
+  // Optimizer time estimate (V$SQL_PLAN.TIME is whole seconds), shown like DBMS_XPLAN's Time column
+  const time = parsePlanTime(getStr(row, 'time'));
+  const projection = getStr(row, 'projection');
+
   // Query block / partition info
-  const queryBlock = getStr(row, 'qblock_name', 'query_block');
+  const queryBlock = unquote(getStr(row, 'qblock_name', 'query_block'));
 
   // Temp space from optimizer (estimate; actual spill is tempUsed)
   const tempSpace = getInt(row, 'temp_space');
@@ -301,6 +332,7 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
     rows,
     bytes,
     cost,
+    time,
     cpuPercent: cpuPercentFromCost(cost, ioCost),
     tempSpace,
     pstart,
@@ -322,6 +354,7 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
     logicalReads,
     accessPredicates,
     filterPredicates,
+    projection,
     children: [],
   };
 

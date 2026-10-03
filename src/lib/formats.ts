@@ -16,6 +16,7 @@ export type SupportedFormatId =
   | 'sql_monitor_xml'
   | 'sql_monitor_active'
   | 'json'
+  | 'csv'
   | 'xbi'
   | 'metadata_bundle';
 
@@ -61,6 +62,12 @@ export const SUPPORTED_FORMATS: readonly SupportedFormat[] = [
     isPlan: true,
   },
   {
+    id: 'csv',
+    name: 'V$SQL_PLAN CSV',
+    hint: 'V$SQL_PLAN / V$SQL_PLAN_STATISTICS_ALL query results saved as CSV (SQL*Plus SET MARKUP CSV ON, SQLcl, SQL Developer)',
+    isPlan: true,
+  },
+  {
     id: 'xbi',
     name: 'xbi.sql output',
     hint: "Tanel Poder's eXplain Better script",
@@ -81,6 +88,7 @@ const SHORT_NAMES: Record<SupportedFormatId, string> = {
   sql_monitor_xml: 'SQL Monitor XML',
   sql_monitor_active: 'SQL Monitor ACTIVE (HTML)',
   json: 'V$SQL_PLAN JSON',
+  csv: 'V$SQL_PLAN CSV',
   xbi: 'xbi.sql output',
   metadata_bundle: 'metadata bundles',
 };
@@ -113,6 +121,7 @@ const DETECTED_FORMAT_NAMES: Record<Exclude<DetectedFormat, 'unknown'>, string> 
   sql_monitor_text: 'a SQL Monitor text report',
   sql_monitor_xml: 'SQL Monitor XML',
   json: 'V$SQL_PLAN JSON',
+  csv: 'V$SQL_PLAN CSV',
   xbi: 'xbi.sql output',
 };
 

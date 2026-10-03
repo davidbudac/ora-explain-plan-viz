@@ -503,7 +503,7 @@ export function HeaderActions() {
         disabled={parsedPlan === null}
         onSelect={() => { close(); setBaselineDialogOpen(true); }}
       >
-        <span>SQL Plan Baseline script…</span>
+        <span>SQL Plan Baseline / Patch script…</span>
       </MenuItem>
     </>
   );
