@@ -1023,7 +1023,9 @@ interface PlanContextValue {
   metadataPopoutOpen: boolean;
   setMetadataPopoutOpen: (open: boolean) => void;
   baselineDialogOpen: boolean;
-  setBaselineDialogOpen: (open: boolean) => void;
+  baselineDialogKind: 'baseline' | 'patch';
+  /** Opens/closes the SPM dialog; `kind` (default 'baseline') only applies when opening. */
+  setBaselineDialogOpen: (open: boolean, kind?: 'baseline' | 'patch') => void;
   reportDialogOpen: boolean;
   setReportDialogOpen: (open: boolean) => void;
   connectPanelOpen: boolean;
@@ -1145,7 +1147,12 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
   const [metadataPopoutOpen, setMetadataPopoutOpen] = useState(false);
-  const [baselineDialogOpen, setBaselineDialogOpen] = useState(false);
+  const [baselineDialogOpen, setBaselineDialogOpenState] = useState(false);
+  const [baselineDialogKind, setBaselineDialogKind] = useState<'baseline' | 'patch'>('baseline');
+  const setBaselineDialogOpen = useCallback((open: boolean, kind: 'baseline' | 'patch' = 'baseline') => {
+    if (open) setBaselineDialogKind(kind);
+    setBaselineDialogOpenState(open);
+  }, []);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [connectPanelOpen, setConnectPanelOpen] = useState(false);
   const [walkthroughOpen, setWalkthroughOpen] = useState(false);
@@ -2765,6 +2772,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     metadataPopoutOpen,
     setMetadataPopoutOpen,
     baselineDialogOpen,
+    baselineDialogKind,
     setBaselineDialogOpen,
     reportDialogOpen,
     setReportDialogOpen,
@@ -2917,6 +2925,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     metadataPopoutOpen,
     setMetadataPopoutOpen,
     baselineDialogOpen,
+    baselineDialogKind,
     setBaselineDialogOpen,
     reportDialogOpen,
     setReportDialogOpen,
