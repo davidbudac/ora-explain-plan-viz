@@ -16,7 +16,7 @@ describe('buildSqlPatchScript', () => {
       'PROMPT === Creating the SQL patch ===',
       "RPAD(q'[FULL(@SEL$1 E@SEL$1)]', 500);",
       'DBMS_SQLDIAG.CREATE_SQL_PATCH(',
-      "sql_id      => '&sql_id',",
+      "sql_id      => 'abc123def4567',",
       'hint_text   => l_hint_text,',
       'PROMPT === Verification: SQL patches now present for this statement ===',
       '-- Managing this SQL patch later (informational - not executed by this script)',
@@ -211,6 +211,35 @@ describe('buildSqlPatchScript hint layout', () => {
     const script = buildSqlPatchScript(base);
     expect(script).toContain('in the cursor cache (or AWR)');
     expect(script).toContain('Only one enabled SQL patch applies per statement');
+  });
+});
+
+describe('buildSqlPatchScript ampersands and description', () => {
+  it('turns substitution off around the create block so & in hints is literal', () => {
+    const script = buildSqlPatchScript({ ...base, hintText: 'OPT_PARAM(\'a\' \'b&c\')' });
+    const off = script.indexOf('SET DEFINE OFF');
+    const on = script.indexOf("SET DEFINE '&'");
+    const amp = script.indexOf('b&c');
+    expect(off).toBeGreaterThan(-1);
+    expect(amp).toBeGreaterThan(off);
+    expect(on).toBeGreaterThan(amp);
+    // No substitution variable is used between the two switches.
+    expect(script.slice(off, on)).not.toMatch(/&(sql_id|patch_name)/);
+  });
+
+  it('keeps a newline in the description from escaping the banner comment', () => {
+    const script = buildSqlPatchScript({ ...base, description: 'first\nDROP TABLE t;' });
+    expect(script).toContain('-- Purpose: first DROP TABLE t;');
+    expect(script.split('\n').some((l) => l.startsWith('DROP TABLE'))).toBe(false);
+  });
+
+  it("passes the description to CREATE_SQL_PATCH with quotes doubled", () => {
+    const script = buildSqlPatchScript({ ...base, description: "it's\nfine" });
+    expect(script).toContain("description => 'it''s fine');");
+  });
+
+  it('defaults the description to the previous text', () => {
+    expect(buildSqlPatchScript(base)).toContain("description => 'Created by Oracle Plan Visualizer');");
   });
 });
 

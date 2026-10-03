@@ -332,3 +332,56 @@ describe('CSV plan parser - real Oracle 19c capture', () => {
     expect(splitPlanBatches(capture)).toHaveLength(1);
   });
 });
+
+describe('CSV plan parser: RAC split, locale numbers, truncation', () => {
+  it('splits a GV$SQL_PLAN export by INST_ID', () => {
+    const csv = [
+      'INST_ID,SQL_ID,CHILD_NUMBER,PLAN_HASH_VALUE,ID,PARENT_ID,OPERATION',
+      '1,abc,0,111,0,,SELECT STATEMENT',
+      '1,abc,0,111,1,0,TABLE ACCESS',
+      '2,abc,0,111,0,,SELECT STATEMENT',
+      '2,abc,0,111,1,0,TABLE ACCESS',
+    ].join('\n');
+    const batches = splitCsvPlanBatches(csv);
+    expect(batches).toHaveLength(2);
+    expect(batches[0]).toContain('\n1,abc');
+    expect(batches[1]).toContain('\n2,abc');
+  });
+
+  it('keeps rows with a non-numeric ID in their batch so the plan parse warns', () => {
+    const csv = [
+      'SQL_ID,ID,PARENT_ID,OPERATION',
+      'a,0,,SELECT STATEMENT',
+      'a,x,0,BROKEN',
+      'b,0,,SELECT STATEMENT',
+    ].join('\n');
+    const batches = splitCsvPlanBatches(csv);
+    expect(batches).toHaveLength(2);
+    const plan = csvPlanParser.parse(batches[0]);
+    expect(plan.warnings?.some((w) => w.code === 'unparsed_rows')).toBe(true);
+  });
+
+  it('reads decimal-comma numbers in a ;-delimited file', () => {
+    const csv = ['ID;PARENT_ID;OPERATION;COST;CARDINALITY', '0;;SELECT STATEMENT;1.234;1.500,4', '1;0;TABLE ACCESS;7,5;2'].join('\n');
+    const plan = csvPlanParser.parse(csv);
+    expect(plan.allNodes[0].cost).toBe(1234);
+    expect(plan.allNodes[0].rows).toBe(1500);
+    expect(plan.allNodes[1].cost).toBe(8);
+  });
+
+  it('leaves comma-CSV numbers alone and warns when ;-numbers are ambiguous', () => {
+    const comma = ['ID,PARENT_ID,OPERATION,COST', '0,,SELECT STATEMENT,1.234'].join('\n');
+    expect(csvPlanParser.parse(comma).allNodes[0].cost).toBe(1);
+    const semi = ['ID;PARENT_ID;OPERATION;COST', '0;;SELECT STATEMENT;1.234'].join('\n');
+    const plan = csvPlanParser.parse(semi);
+    expect(plan.allNodes[0].cost).toBe(1);
+    expect(plan.warnings?.some((w) => w.code === 'ambiguous_numbers')).toBe(true);
+  });
+
+  it('warns when an unterminated quoted field swallows the tail', () => {
+    const csv = ['ID,PARENT_ID,OPERATION,ACCESS_PREDICATES', '0,,SELECT STATEMENT,', '1,0,TABLE ACCESS,"A=1', '2,1,X,'].join('\n');
+    const plan = csvPlanParser.parse(csv);
+    expect(plan.warnings?.some((w) => w.code === 'truncated_csv')).toBe(true);
+    expect(plan.allNodes).toHaveLength(1);
+  });
+});

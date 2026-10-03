@@ -15,7 +15,7 @@ import { normalizeNewlines } from './values';
 const DELIMITERS = [',', ';', '\t'] as const;
 /** The header must show up within this many non-empty lines (SQL*Plus may print a prompt or banner first). */
 const HEADER_SEARCH_LINES = 5;
-const KEY_COLUMNS_FOR_SPLIT = ['SQL_ID', 'CHILD_NUMBER', 'PLAN_HASH_VALUE'] as const;
+const KEY_COLUMNS_FOR_SPLIT = ['INST_ID', 'SQL_ID', 'CHILD_NUMBER', 'PLAN_HASH_VALUE'] as const;
 
 interface CsvRecord {
   cells: string[];
@@ -32,6 +32,8 @@ interface CsvTable {
   /** Raw header line, from its first non-blank character. */
   headerText: string;
   records: CsvRecord[];
+  /** Start offset of a record whose quoted field never closed (it was dropped from `records`). */
+  unterminatedAt?: number;
 }
 
 /**
@@ -39,17 +41,23 @@ interface CsvTable {
  * a field; inside one, `""` is a literal quote and delimiters / newlines are data.
  * Expects `\n` line endings.
  */
-function readRecord(text: string, pos: number, delimiter: string): { cells: string[]; end: number; next: number } {
+function readRecord(
+  text: string,
+  pos: number,
+  delimiter: string,
+): { cells: string[]; end: number; next: number; unterminated: boolean } {
   const cells: string[] = [];
   const n = text.length;
   let field = '';
   let i = pos;
   let atFieldStart = true;
+  let unterminated = false;
 
   while (i < n) {
     const ch = text[i];
     if (atFieldStart && ch === '"') {
       i++;
+      let closed = false;
       while (i < n) {
         if (text[i] === '"') {
           if (text[i + 1] === '"') {
@@ -58,10 +66,12 @@ function readRecord(text: string, pos: number, delimiter: string): { cells: stri
             continue;
           }
           i++;
+          closed = true;
           break;
         }
         field += text[i++];
       }
+      if (!closed) unterminated = true;
       atFieldStart = false;
       continue;
     }
@@ -78,7 +88,7 @@ function readRecord(text: string, pos: number, delimiter: string): { cells: stri
     i++;
   }
   cells.push(field);
-  return { cells, end: i, next: i < n ? i + 1 : n };
+  return { cells, end: i, next: i < n ? i + 1 : n, unterminated };
 }
 
 function normalizeHeaderCell(cell: string): string {
@@ -126,14 +136,20 @@ function readTable(input: string): CsvTable | null {
 
   const records: CsvRecord[] = [];
   let pos = found.next;
+  let unterminatedAt: number | undefined;
   while (pos < text.length) {
-    const { cells, end, next } = readRecord(text, pos, found.delimiter);
+    const { cells, end, next, unterminated } = readRecord(text, pos, found.delimiter);
+    if (unterminated) {
+      // The quote swallowed the rest of the file: that record is garbage, drop it.
+      unterminatedAt = pos;
+      break;
+    }
     if (!(cells.length === 1 && cells[0].trim() === '')) {
       records.push({ cells, start: pos, end });
     }
     pos = next;
   }
-  return { text, delimiter: found.delimiter, header: found.header, headerText: text.slice(found.start, found.end), records };
+  return { text, delimiter: found.delimiter, header: found.header, headerText: text.slice(found.start, found.end), records, unterminatedAt };
 }
 
 const INTEGER = /^\s*\d+\s*$/;
@@ -145,6 +161,32 @@ function isNoise(record: CsvRecord, header: string[]): boolean {
   if (cells.every((c) => c.trim() === '')) return true;
   // Header repeated (SQL*Plus PAGESIZE, concatenated exports)
   return cells.length === header.length && cells.every((c, i) => normalizeHeaderCell(c) === header[i]);
+}
+
+const DECIMAL_COMMA = /^\s*-?\d{1,3}(\.\d{3})*,\d+\s*$|^\s*-?\d+,\d+\s*$/;
+const THOUSANDS_DOT = /^\s*-?\d{1,3}(\.\d{3})+\s*$/;
+
+/**
+ * `;`-delimited exports often use the European locale (`1,5` = 1.5, `1.234` = 1234). Decided per
+ * file: one decimal-comma cell makes `.` a thousands separator and `,` the decimal point. Without
+ * one, a dotted-thousands-looking cell (`1.234`) is genuinely ambiguous: left as is, and reported.
+ */
+function normalizeLocaleNumbers(records: CsvRecord[]): { ambiguous: boolean } {
+  let decimalComma = false;
+  let thousandsDot = false;
+  for (const { cells } of records) {
+    for (const c of cells) {
+      if (DECIMAL_COMMA.test(c)) decimalComma = true;
+      else if (THOUSANDS_DOT.test(c)) thousandsDot = true;
+    }
+  }
+  if (!decimalComma) return { ambiguous: thousandsDot };
+  for (const record of records) {
+    record.cells = record.cells.map((c) =>
+      DECIMAL_COMMA.test(c) || THOUSANDS_DOT.test(c) ? c.trim().replace(/\./g, '').replace(',', '.') : c,
+    );
+  }
+  return { ambiguous: false };
 }
 
 function truncateLine(line: string, max = 90): string {
@@ -166,6 +208,11 @@ export const csvPlanParser: PlanParser = {
     const seenIds = new Set<number>();
     const duplicateIds = new Set<number>();
     const rejected: CsvRecord[] = [];
+
+    const dataRecords = table.records.filter(
+      (r) => !isNoise(r, table.header) && INTEGER.test(r.cells[idIndex] ?? ''),
+    );
+    const { ambiguous } = table.delimiter === ';' ? normalizeLocaleNumbers(dataRecords) : { ambiguous: false };
 
     for (const record of table.records) {
       if (isNoise(record, table.header)) continue;
@@ -207,6 +254,21 @@ export const csvPlanParser: PlanParser = {
         message: `Operation id${ids.length === 1 ? '' : 's'} ${shown} appear${ids.length === 1 ? 's' : ''} more than once, so the export holds several plans (SQL_IDs or child cursors). Only the first row of each id was read; export one plan at a time (WHERE sql_id = … AND child_number = …).`,
       });
     }
+    if (ambiguous) {
+      warnings.push({
+        code: 'ambiguous_numbers',
+        message:
+          'Some numbers look like 1.234 in a ;-delimited file, which is 1234 in European locales and 1.234 otherwise. They were read as plain decimals; if the export uses a decimal comma, check the values or export with a . decimal separator.',
+      });
+    }
+    if (table.unterminatedAt !== undefined) {
+      warnings.push({
+        code: 'truncated_csv',
+        message:
+          'The CSV ends inside a quoted field, so the tail looks truncated (or a quote is unbalanced) and the last row was skipped. Export the full result again.',
+        detail: truncateLine(table.text.slice(table.unterminatedAt, table.unterminatedAt + 200)),
+      });
+    }
     if (warnings.length > 0) plan.warnings = [...(plan.warnings ?? []), ...warnings];
     return plan;
   },
@@ -226,13 +288,28 @@ export function splitCsvPlanBatches(input: string): string[] {
   if (keyIndexes.length === 0) return [input];
 
   const groups = new Map<string, string[]>();
+  let lastGroup: string[] | undefined;
+  const orphans: string[] = [];
   for (const record of table.records) {
-    if (isNoise(record, table.header) || !INTEGER.test(record.cells[idIndex] ?? '')) continue;
+    if (isNoise(record, table.header)) continue;
+    if (!INTEGER.test(record.cells[idIndex] ?? '')) {
+      // Keep rows with a non-numeric ID with their plan so the per-plan parse can warn about them.
+      const raw = table.text.slice(record.start, record.end);
+      if (lastGroup) lastGroup.push(raw);
+      else orphans.push(raw);
+      continue;
+    }
     const key = keyIndexes.map((i) => (record.cells[i] ?? '').trim()).join('\u0000');
     const raw = table.text.slice(record.start, record.end);
     const group = groups.get(key);
-    if (group) group.push(raw);
-    else groups.set(key, [raw]);
+    if (group) {
+      group.push(raw);
+      lastGroup = group;
+    } else {
+      const created = [...orphans.splice(0), raw];
+      groups.set(key, created);
+      lastGroup = created;
+    }
   }
 
   if (groups.size <= 1) return [input];
