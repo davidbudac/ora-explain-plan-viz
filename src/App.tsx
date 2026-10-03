@@ -402,7 +402,7 @@ function AppContent() {
     plans, activePlanIndex, viewMode, visualizationMaximized, setVisualizationMaximized, loadExample,
     loadFiles, recentPlans, openRecentPlan, removeRecentPlan, pendingBundleChoice, resolveBundleChoice,
     metadataBundle, metadataPopoutOpen, setMetadataPopoutOpen,
-    baselineDialogOpen, setBaselineDialogOpen,
+    baselineDialogOpen, baselineDialogKind, setBaselineDialogOpen,
     reportDialogOpen, setReportDialogOpen,
     filterPanelCollapsed, setFilterPanelCollapsed,
     detailPanelCollapsed, setDetailPanelCollapsed,
@@ -584,6 +584,9 @@ function AppContent() {
       />
       {baselineDialogOpen && (
         <BaselineScriptModal
+          key={baselineDialogKind}
+          initialKind={baselineDialogKind}
+          initialOutlineHints={activeParsedPlan?.outlineHints}
           initialSqlId={activeParsedPlan?.sqlId ?? ''}
           initialPlanHash={activeParsedPlan?.planHashValue ?? ''}
           onClose={() => setBaselineDialogOpen(false)}
