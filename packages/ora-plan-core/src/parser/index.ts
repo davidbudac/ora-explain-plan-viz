@@ -2,7 +2,7 @@ import type { ParsedPlan } from '../types.ts';
 import type { DetectedFormat, PlanParser } from './types.ts';
 import { dbmsXplanParser, extractDbmsXplanSegments } from './dbmsXplanParser.ts';
 import { sqlMonitorTextParser, sqlMonitorXmlParser } from './sqlMonitorParser.ts';
-import { jsonPlanParser } from './jsonPlanParser.ts';
+import { buildPlanFromRows, jsonPlanParser } from './jsonPlanParser.ts';
 import { csvPlanParser, splitCsvPlanBatches } from './csvPlanParser.ts';
 import { xbiParser } from './xbiParser.ts';
 import { normalizeNewlines } from './values.ts';
@@ -57,6 +57,15 @@ function finalizePlan(plan: ParsedPlan): ParsedPlan {
   computeEstimatedRowTotals(plan);
   computeSelfCosts(plan);
   return plan;
+}
+
+/**
+ * Build a plan straight from V$SQL_PLAN-style row objects (what the JSON parser reads), with the
+ * same post-parse derivations as `parsePlan`. Unlike `parsePlan` it pulls in no text/XML parsers,
+ * so bundlers can drop them.
+ */
+export function parsePlanRows(rows: Record<string, unknown>[]): ParsedPlan {
+  return finalizePlan(buildPlanFromRows(rows, 'json'));
 }
 
 /**

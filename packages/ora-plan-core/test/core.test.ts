@@ -20,6 +20,12 @@ describe('ora-plan-core', () => {
     expect(plan.allNodes.find((n) => n.id === 1)?.selfTime).toBeGreaterThan(0);
   });
 
+  it('builds the same plan from rows without the text parsers', () => {
+    const a = src.parsePlan(JSON.stringify(rows));
+    const b = src.parsePlanRows(rows);
+    expect(b.allNodes.map((n) => [n.id, n.selfTime])).toEqual(a.allNodes.map((n) => [n.id, n.selfTime]));
+  });
+
   it('runs the advisor on a plan without metadata', () => {
     const plan = src.parsePlan(JSON.stringify(rows));
     const report = src.runAdvisor(plan, null);

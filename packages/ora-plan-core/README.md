@@ -13,7 +13,7 @@ const report = runAdvisor(plan, null);          // no metadata bundle: metadata-
 for (const f of report.findings) console.log(f.severity, f.title, f.nodeIds);
 ```
 
-Exports: `parsePlan`/`parsePlans`/`detectFormat`, the individual parsers and `buildPlanFromRows`, the plan types
+Exports: `parsePlan`/`parsePlans`/`detectFormat`, `parsePlanRows` (row objects only, tree-shakes the text parsers away), the individual parsers and `buildPlanFromRows`, the plan types
 (`ParsedPlan`, `PlanNode`, ...), `analysis` and `format` helpers, `runAdvisor` with `DEFAULT_THRESHOLDS`,
 `Finding`/`AdvisorReport`, and the metadata bundle types.
 

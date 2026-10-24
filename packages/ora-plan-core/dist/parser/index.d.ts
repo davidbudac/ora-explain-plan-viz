@@ -2,6 +2,12 @@ import type { ParsedPlan } from '../types.js';
 import type { DetectedFormat } from './types.js';
 export declare function detectFormat(input: string): DetectedFormat;
 /**
+ * Build a plan straight from V$SQL_PLAN-style row objects (what the JSON parser reads), with the
+ * same post-parse derivations as `parsePlan`. Unlike `parsePlan` it pulls in no text/XML parsers,
+ * so bundlers can drop them.
+ */
+export declare function parsePlanRows(rows: Record<string, unknown>[]): ParsedPlan;
+/**
  * Parse an execution plan from any supported format.
  * Automatically detects the format and uses the appropriate parser.
  *

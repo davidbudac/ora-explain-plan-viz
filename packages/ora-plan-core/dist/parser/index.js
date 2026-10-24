@@ -1,6 +1,6 @@
 import { dbmsXplanParser, extractDbmsXplanSegments } from "./dbmsXplanParser.js";
 import { sqlMonitorTextParser, sqlMonitorXmlParser } from "./sqlMonitorParser.js";
-import { jsonPlanParser } from "./jsonPlanParser.js";
+import { buildPlanFromRows, jsonPlanParser } from "./jsonPlanParser.js";
 import { csvPlanParser, splitCsvPlanBatches } from "./csvPlanParser.js";
 import { xbiParser } from "./xbiParser.js";
 import { normalizeNewlines } from "./values.js";
@@ -50,6 +50,14 @@ function finalizePlan(plan) {
     computeEstimatedRowTotals(plan);
     computeSelfCosts(plan);
     return plan;
+}
+/**
+ * Build a plan straight from V$SQL_PLAN-style row objects (what the JSON parser reads), with the
+ * same post-parse derivations as `parsePlan`. Unlike `parsePlan` it pulls in no text/XML parsers,
+ * so bundlers can drop them.
+ */
+export function parsePlanRows(rows) {
+    return finalizePlan(buildPlanFromRows(rows, 'json'));
 }
 /**
  * Parse an execution plan from any supported format.
