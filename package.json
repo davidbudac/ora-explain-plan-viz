@@ -3,12 +3,16 @@
   "private": true,
   "version": "1.1.0",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:pages": "APP_BASE_PATH=/ora-explain-plan-viz/ npm run build",
     "lint": "eslint .",
     "typecheck": "tsc -b",
+    "build:core": "node packages/ora-plan-core/scripts/build.mjs",
     "test": "vitest run --environment jsdom",
     "eval:repro": "tsx evals/run.ts",
     "eval:analyze": "tsx evals/analyze.ts",

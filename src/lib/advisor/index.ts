@@ -1,5 +1,2 @@
-export type { FindingSeverity, Finding, RuleContext, AdvisorRule, AdvisorReport, FindObjectFn } from './types';
-export { DEFAULT_THRESHOLDS, type AdvisorThresholds } from './config';
-export { runAdvisor } from './engine';
-export { findImplicitConversions, type ConversionHit } from './predicates';
-export { ALL_RULES } from './rules';
+// Moved to @davidbudac/ora-plan-core (packages/ora-plan-core); re-exported so existing imports keep working.
+export * from '../../../packages/ora-plan-core/src/advisor/index';
