@@ -35,3 +35,6 @@ evals/scenarios/*/
 
 # Xcode build output and prototypes
 prototypes/
+
+# The shared core package ships its built output (consumed by vendored copies).
+!/packages/ora-plan-core/dist
