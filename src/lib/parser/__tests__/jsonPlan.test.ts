@@ -442,4 +442,33 @@ describe('JSON Plan Parser - shared row mappings', () => {
     expect(plan.allNodes[1].projection).toBe('"E"."ID"[NUMBER,22]');
     expect(plan.allNodes[0].projection).toBeUndefined();
   });
+
+  it('reads sql_text / sql_fulltext from the first row', () => {
+    const a = jsonPlanParser.parse(
+      JSON.stringify([{ id: 0, operation: 'SELECT STATEMENT', sql_text: 'select 1 from dual' }]),
+    );
+    expect(a.sqlText).toBe('select 1 from dual');
+    const b = jsonPlanParser.parse(
+      JSON.stringify([{ id: 0, operation: 'SELECT STATEMENT', sql_fulltext: 'select 2 from dual' }]),
+    );
+    expect(b.sqlText).toBe('select 2 from dual');
+    const c = jsonPlanParser.parse(JSON.stringify([{ id: 0, operation: 'SELECT STATEMENT' }]));
+    expect(c.sqlText).toBeUndefined();
+  });
+
+  it.each([
+    ['absent parent_id', {}],
+    ['null parent_id', { parent_id: null }],
+  ])('roots a plan whose ids start at 1 (%s on root)', (_name, rootExtra) => {
+    const plan = jsonPlanParser.parse(
+      JSON.stringify([
+        { id: 1, ...rootExtra, depth: 0, operation: 'SELECT STATEMENT' },
+        { id: 2, parent_id: 1, depth: 1, operation: 'TABLE ACCESS FULL' },
+        { id: 3, parent_id: 1, depth: 1, operation: 'INDEX RANGE SCAN' },
+      ]),
+    );
+    expect(plan.rootNode?.id).toBe(1);
+    expect(plan.rootNode?.children.map(c => c.id)).toEqual([2, 3]);
+    expect(plan.allNodes).toHaveLength(3);
+  });
 });

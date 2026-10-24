@@ -128,11 +128,13 @@ export function buildPlanFromRows(rows: Record<string, unknown>[], source: PlanS
     getStr(normalized[0], 'plan_hash') || undefined;
   const sqlId = getStr(normalized[0], 'sql_id') || undefined;
   const childNumber = getInt(normalized[0], 'child_number');
+  const sqlText = getStr(normalized[0], 'sql_text', 'sql_fulltext');
 
   return {
     planHashValue,
     sqlId,
     childNumber,
+    sqlText,
     rootNode,
     allNodes,
     totalCost,
