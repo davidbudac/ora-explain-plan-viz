@@ -37,8 +37,10 @@ const MENU_ITEM_CLASS =
   `w-full px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-800 focus-visible:bg-slate-100 dark:focus-visible:bg-slate-800 ${FOCUS_RING_INSET}`;
 const MENU_HEADING_CLASS =
   'px-3 pt-2 pb-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide';
-const CHIP_CLASS =
-  'px-2 py-0.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-medium';
+// Read-only plan flags: dashed-outline mono tags, so they never read as the
+// solid-bordered, icon-led buttons (e.g. "Add metadata") on the same row.
+const FLAG_BASE = 'inline-flex items-center px-1.5 py-px border border-dashed rounded-sm font-mono text-[10px] uppercase tracking-wide cursor-default select-none';
+const CHIP_CLASS = `${FLAG_BASE} border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400`;
 const BADGE_BASE = 'text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded';
 
 /** Marks a top-bar button's text as collapsible (see `useTopBarMode`). */
@@ -377,14 +379,17 @@ export function InputPanel() {
                 planSqlId={parsedPlan.sqlId}
                 onDetach={() => detachMetadataBundle(activePlanIndex)}
               />
-              <span className={CHIP_CLASS}>{getSourceDisplayName(parsedPlan.source)}</span>
-              {parsedPlan.hasActualStats && <span className={CHIP_CLASS}>Actual Stats</span>}
-              {parsedPlan.bindVariables && parsedPlan.bindVariables.length > 0 && (
-                <span className={CHIP_CLASS}>
-                  {parsedPlan.bindVariables.length} bind{parsedPlan.bindVariables.length !== 1 ? 's' : ''}
-                </span>
-              )}
-              <PlanNoteChips parsedPlan={parsedPlan} />
+              {/* Flags (not actions) sit apart on the right. */}
+              <ul aria-label="Plan properties" className="ml-auto flex items-center flex-wrap justify-end gap-1">
+                <li className={CHIP_CLASS}>{getSourceDisplayName(parsedPlan.source)}</li>
+                {parsedPlan.hasActualStats && <li className={CHIP_CLASS}>Actual Stats</li>}
+                {parsedPlan.bindVariables && parsedPlan.bindVariables.length > 0 && (
+                  <li className={CHIP_CLASS}>
+                    {parsedPlan.bindVariables.length} bind{parsedPlan.bindVariables.length !== 1 ? 's' : ''}
+                  </li>
+                )}
+                <PlanNoteChips parsedPlan={parsedPlan} />
+              </ul>
             </div>
           )}
 
@@ -518,7 +523,7 @@ export function InputPanel() {
   );
 }
 
-const NOTE_CHIP_CLASS = 'px-2 py-0.5 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 rounded text-[11px] font-medium';
+const NOTE_CHIP_CLASS = `${FLAG_BASE} border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-400`;
 
 function PlanNoteChips({ parsedPlan }: { parsedPlan: ParsedPlan }) {
   const notes = parsedPlan.notes;
@@ -528,52 +533,52 @@ function PlanNoteChips({ parsedPlan }: { parsedPlan: ParsedPlan }) {
   return (
     <>
       {notes?.dynamicSampling && (
-        <span className={NOTE_CHIP_CLASS} title="Dynamic sampling — statistics were sampled at parse time; estimates may be less reliable">
+        <li className={NOTE_CHIP_CLASS} title="Dynamic sampling — statistics were sampled at parse time; estimates may be less reliable">
           Dyn. sampling{notes.dynamicSamplingLevel ? ` (L${notes.dynamicSamplingLevel})` : ''}
-        </span>
+        </li>
       )}
       {notes?.planDirectives && (
-        <span className={NOTE_CHIP_CLASS} title="SQL plan directives were used — the optimizer adjusted estimates based on past misestimates">
+        <li className={NOTE_CHIP_CLASS} title="SQL plan directives were used — the optimizer adjusted estimates based on past misestimates">
           Plan directives
-        </span>
+        </li>
       )}
       {notes?.cardinalityFeedback && (
-        <span className={NOTE_CHIP_CLASS} title="Cardinality feedback — the optimizer re-estimated based on a prior execution; the plan may change between executions">
+        <li className={NOTE_CHIP_CLASS} title="Cardinality feedback — the optimizer re-estimated based on a prior execution; the plan may change between executions">
           Card. feedback
-        </span>
+        </li>
       )}
       {notes?.statisticsFeedback && (
-        <span className={NOTE_CHIP_CLASS} title="Statistics feedback — the optimizer re-estimated based on a prior execution; the plan may change between executions">
+        <li className={NOTE_CHIP_CLASS} title="Statistics feedback — the optimizer re-estimated based on a prior execution; the plan may change between executions">
           Stats feedback
-        </span>
+        </li>
       )}
       {notes?.adaptivePlan && (
-        <span className={NOTE_CHIP_CLASS} title="This is an adaptive plan — the final shape was decided at runtime">
+        <li className={NOTE_CHIP_CLASS} title="This is an adaptive plan — the final shape was decided at runtime">
           Adaptive plan
-        </span>
+        </li>
       )}
       {notes?.sqlProfile && (
-        <span className={NOTE_CHIP_CLASS} title={`SQL profile "${notes.sqlProfile}" was applied to this plan`}>
-          Profile "{notes.sqlProfile}"
-        </span>
+        <li className={NOTE_CHIP_CLASS} title={`SQL profile "${notes.sqlProfile}" was applied to this plan`}>
+          Profile <span className="normal-case">"{notes.sqlProfile}"</span>
+        </li>
       )}
       {notes?.sqlPlanBaseline && (
-        <span className={NOTE_CHIP_CLASS} title={`SQL plan baseline "${notes.sqlPlanBaseline}" was applied to this plan`}>
-          Baseline "{notes.sqlPlanBaseline}"
-        </span>
+        <li className={NOTE_CHIP_CLASS} title={`SQL plan baseline "${notes.sqlPlanBaseline}" was applied to this plan`}>
+          Baseline <span className="normal-case">"{notes.sqlPlanBaseline}"</span>
+        </li>
       )}
       {notes?.outline && (
-        <span className={NOTE_CHIP_CLASS} title={`Outline "${notes.outline}" was used to shape this plan`}>
-          Outline "{notes.outline}"
-        </span>
+        <li className={NOTE_CHIP_CLASS} title={`Outline "${notes.outline}" was used to shape this plan`}>
+          Outline <span className="normal-case">"{notes.outline}"</span>
+        </li>
       )}
       {dopDowngrade && (
-        <span
-          className="px-2 py-0.5 border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded text-[11px] font-medium"
+        <li
+          className={`${FLAG_BASE} border-red-300 dark:border-red-800 text-red-700 dark:text-red-400`}
           title={`DOP downgraded: requested ${dopDowngrade.requested} PX servers, allocated ${dopDowngrade.allocated}`}
         >
           DOP {dopDowngrade.allocated}/{dopDowngrade.requested}
-        </span>
+        </li>
       )}
     </>
   );
