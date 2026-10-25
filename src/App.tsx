@@ -359,11 +359,11 @@ function HowToGetAPlan() {
   );
 }
 
-const LEFT_PANEL_MIN = 250;
+const LEFT_PANEL_MIN = 200;
 const RIGHT_PANEL_MIN = 300;
 const PANEL_MAX_RATIO = 0.3;
 const CENTER_MIN_WIDTH = 400;
-const DEFAULT_LEFT_PANEL_WIDTH = 280;
+const DEFAULT_LEFT_PANEL_WIDTH = 224;
 const DEFAULT_RIGHT_PANEL_WIDTH = 320;
 
 type ResizeSide = 'left' | 'right';
