@@ -13,7 +13,8 @@ interface Column {
  * Models know this format cold, so the analysis context uses it regardless
  * of what format the plan was originally pasted in. Actuals columns are
  * emitted only when the plan carries runtime statistics; columns that are
- * empty for every row are dropped entirely.
+ * empty for every row are dropped entirely. Inactive adaptive-plan rows get
+ * DBMS_XPLAN's `-` Id prefix.
  */
 export function renderPlanTable(plan: ParsedPlan): string {
   if (plan.allNodes.length === 0) return '';
@@ -25,7 +26,7 @@ export function renderPlanTable(plan: ParsedPlan): string {
   const num = (v?: number) => formatNumberShort(v) ?? '';
 
   const candidates: Column[] = [
-    { header: 'Id', align: 'right', value: (n) => String(n.id) },
+    { header: 'Id', align: 'right', value: (n) => (n.inactive ? `- ${n.id}` : String(n.id)) },
     { header: 'Operation', align: 'left', value: indent },
     { header: 'Name', align: 'left', value: (n) => n.objectName ?? '' },
     ...(plan.hasActualStats
@@ -37,6 +38,8 @@ export function renderPlanTable(plan: ParsedPlan): string {
           { header: 'A-Rows', align: 'right', value: (n: PlanNode) => num(n.actualRows) } as Column,
           { header: 'A-Time', align: 'right', value: (n: PlanNode) => formatTimeShort(n.actualTime) ?? '' } as Column,
           { header: 'A-Self', align: 'right', value: (n: PlanNode) => formatTimeShort(n.selfTime) ?? '' } as Column,
+          { header: 'Buffers', align: 'right', value: (n: PlanNode) => num(n.logicalReads) } as Column,
+          { header: 'Act%', align: 'right', value: (n: PlanNode) => (n.activityPercent === undefined ? '' : n.activityPercent.toFixed(1)) } as Column,
         ]
       : []),
     { header: 'Cost', align: 'right', value: (n) => num(n.cost) },

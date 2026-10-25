@@ -18,6 +18,7 @@ import { ShareResultDialog } from './components/ShareResultDialog';
 import { PopoutWindow } from './components/PopoutWindow';
 import { BaselineScriptModal } from './components/BaselineScriptModal';
 import { ClientReportModal } from './components/ClientReportModal';
+import { AgentHandoffDialog } from './components/AgentHandoffDialog';
 import { PrivacyBadge } from './components/PrivacyBadge';
 import { MetadataExplorer } from './components/metadata/MetadataExplorer';
 import { BundleAttachChooser, ExampleBadges } from './components/InputPanel';
@@ -410,6 +411,7 @@ function AppContent() {
     metadataBundle, metadataPopoutOpen, setMetadataPopoutOpen,
     baselineDialogOpen, baselineDialogKind, setBaselineDialogOpen,
     reportDialogOpen, setReportDialogOpen,
+    handoffDialogOpen, setHandoffDialogOpen,
     filterPanelCollapsed, setFilterPanelCollapsed,
     detailPanelCollapsed, setDetailPanelCollapsed,
     focusMode, setFocusMode,
@@ -602,6 +604,9 @@ function AppContent() {
       {walkthroughOpen && anyPlanParsed && <Walkthrough />}
       {reportDialogOpen && activeParsedPlan && (
         <ClientReportModal onClose={() => setReportDialogOpen(false)} />
+      )}
+      {handoffDialogOpen && activeParsedPlan && (
+        <AgentHandoffDialog onClose={() => setHandoffDialogOpen(false)} />
       )}
       {metadataPopoutOpen && metadataBundle && (
         <PopoutWindow title="Metadata Explorer" onClose={() => setMetadataPopoutOpen(false)}>

@@ -208,6 +208,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     share,
     setBaselineDialogOpen,
     setReportDialogOpen,
+    setHandoffDialogOpen,
     setConnectPanelOpen,
     treeLayoutDirection,
     setTreeLayoutDirection,
@@ -646,6 +647,16 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     });
 
     commands.push({
+      id: 'export-agent-handoff',
+      label: 'Export agent handoff…',
+      category: 'Export & Share',
+      kind: 'action',
+      keywords: ['agent', 'handoff', 'prompt', 'ai', 'llm', 'claude', 'codex', 'chatgpt', 'copilot', 'markdown', 'md', 'skill', 'analyze', 'tune'],
+      execute: () => setHandoffDialogOpen(true),
+      isAvailable: () => parsedPlan !== null,
+    });
+
+    commands.push({
       id: 'share-url',
       label: 'Share plan via URL',
       category: 'Export & Share',
@@ -854,7 +865,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     setNodeIndicatorMetric, setHighlightStyle, setVisualizationMaximized,
     setInputPanelCollapsed, setFilterPanelCollapsed,
     setDetailPanelCollapsed, setFocusMode, setHotspotsEnabled, setTreeCompareEnabled,
-    exportAnnotatedPlan, requestClearAnnotations, share, onExportPng, setBaselineDialogOpen, setReportDialogOpen, setConnectPanelOpen,
+    exportAnnotatedPlan, requestClearAnnotations, share, onExportPng, setBaselineDialogOpen, setReportDialogOpen, setHandoffDialogOpen, setConnectPanelOpen,
     toggleNodeDisplayOption, enableAllDisplayOptions, disableAllDisplayOptions,
     treeLayoutDirection, setTreeLayoutDirection, treeMinimap, setTreeMinimap, loadExample,
     treeActions, hasSelection, flameMetric, setFlameMetric,

@@ -55,6 +55,13 @@ function renderParseWarnings(plan: ParsedPlan): string[] {
   ];
 }
 
+/** Name the `-` Id prefix renderPlanTable puts on inactive adaptive-plan rows. */
+function renderInactiveLegend(plan: ParsedPlan): string[] {
+  return plan.allNodes.some((n) => n.inactive)
+    ? ['Adaptive plan: rows whose Id starts with "-" are inactive (the optimizer did not use them).']
+    : [];
+}
+
 /** Build the core plan table plus every togglable section that has data. */
 export function buildAnalyzeSections(
   plan: ParsedPlan,
@@ -65,6 +72,7 @@ export function buildAnalyzeSections(
   if (plan.sqlId) header.push(`SQL_ID: ${plan.sqlId}`);
   if (plan.planHashValue) header.push(`Plan hash value: ${plan.planHashValue}`);
   header.push(`Source format: ${plan.source}${plan.hasActualStats ? ' (with runtime statistics)' : ' (optimizer estimates only)'}`);
+  header.push(...renderInactiveLegend(plan));
   header.push(...renderParseWarnings(plan));
 
   const core = `${header.join('\n')}\n\n${renderPlanTable(plan)}`;
@@ -158,12 +166,14 @@ export function buildCompareSections(planA: ParsedPlan, planB: ParsedPlan): Sect
     return bits.join(', ');
   };
 
+  const table = (plan: ParsedPlan) => [...renderInactiveLegend(plan), renderPlanTable(plan)].join('\n');
+
   const core = [
     `=== PLAN A (${label(planA, 'baseline')}) ===`,
-    renderPlanTable(planA),
+    table(planA),
     '',
     `=== PLAN B (${label(planB, 'candidate')}) ===`,
-    renderPlanTable(planB),
+    table(planB),
     '',
     '=== NODE MATCH DIGEST (A -> B) ===',
     renderCompareDigest(planA, planB),
