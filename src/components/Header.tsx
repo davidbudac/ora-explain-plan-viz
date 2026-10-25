@@ -143,7 +143,8 @@ const ICON_PATHS = {
   forward: 'M9 5l7 7-7 7',
   clipboard: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
   folder: 'M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z',
-  agent: 'M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z',
+  // Robot head with an outgoing arrow: hand the plan to an agent.
+  agent: 'M9 2v3 M5 5h8a3 3 0 013 3v4a3 3 0 01-3 3H5a3 3 0 01-3-3V8a3 3 0 013-3z M6.5 10h.01 M11.5 10h.01 M13 20h9m0 0l-3-3m3 3l-3 3',
 } as const;
 
 /**
@@ -628,6 +629,20 @@ export function HeaderActions() {
           )}
         </button>
 
+        {/* Agent handoff — same dialog as File → Agent handoff (.md)… */}
+        <button
+          type="button"
+          onClick={() => setHandoffDialogOpen(true)}
+          disabled={parsedPlan === null}
+          className={`${ICON_BTN} disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500 dark:disabled:hover:text-slate-400`}
+          aria-label="Agent handoff"
+          title="Agent handoff — a Markdown prompt with the plan and analysis for Claude Code, Codex, ChatGPT or another agent"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={ICON_PATHS.agent} />
+          </svg>
+        </button>
+
         <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" aria-hidden="true" />
 
         {/* Focus mode — docked side panels give way to floating instruments.
@@ -729,6 +744,9 @@ export function HeaderActions() {
             <>
               <MenuItem icon={<ItemIcon d={ICON_PATHS.share} />} disabled={!hasAnyInput} onSelect={() => { closeCompact(); handleShare(); }}>
                 <span>Share plan via URL</span>
+              </MenuItem>
+              <MenuItem icon={<ItemIcon d={ICON_PATHS.agent} />} disabled={parsedPlan === null} onSelect={() => { closeCompact(); setHandoffDialogOpen(true); }}>
+                <span>Agent handoff (.md)…</span>
               </MenuItem>
               <MenuCheckboxRow
                 label="Focus mode"
