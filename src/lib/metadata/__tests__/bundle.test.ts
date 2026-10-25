@@ -299,440 +299,91 @@ describe('parseBundle', () => {
   });
 });
 
-describe('parseBundle — partitioning and DDL fields', () => {
-  it('round-trips a bundle carrying the new partitioning, locality, and ddl fields without loss', () => {
-    const json = JSON.stringify({
+describe('parseBundle — versions and passthrough', () => {
+  function envelope(version: number, extra: Record<string, unknown> = {}) {
+    return {
       format: 'ora-plan-metadata',
-      version: 1,
-      captured_at: '2026-07-05T10:00:00Z',
-      source: { db_name: 'PROD1', oracle_version: '19.0.0.0.0', container_name: 'PDB1' },
-      plan_ref: { sql_id: 'an05rsj1up1k5', plan_hash_value: 3001234567 },
-      objects: {
-        'ADHOC.SALES': {
-          type: 'TABLE',
-          ddl: 'CREATE TABLE "ADHOC"."SALES" (...) PARTITION BY RANGE ("SALE_DATE") INTERVAL (NUMTOYMINTERVAL(1,\'MONTH\')) (...) ;',
-          stats: {
-            num_rows: 9600000,
-            blocks: 168000,
-            avg_row_len: 48,
-            last_analyzed: '2026-06-01T02:00:00Z',
-            stale_stats: 'NO',
-            partitioned: true,
-            partition_count: 24,
-            partition_type: 'RANGE',
-            subpartition_type: 'NONE',
-            interval: "NUMTOYMINTERVAL(1,'MONTH')",
-            partition_key: ['SALE_DATE'],
-            subpartition_key: [],
-          },
-          columns: {},
-          indexes: ['ADHOC.SALES_CUST_IX'],
-        },
-        'ADHOC.SALES_CUST_IX': {
-          type: 'INDEX',
-          ddl: 'CREATE INDEX "ADHOC"."SALES_CUST_IX" ON "ADHOC"."SALES" ("CUSTOMER_ID") LOCAL ;',
-          stats: {
-            uniqueness: 'NONUNIQUE',
-            index_type: 'NORMAL',
-            status: 'VALID',
-            visibility: 'VISIBLE',
-            partitioned: true,
-            clustering_factor: 5400000,
-            blevel: 2,
-            leaf_blocks: 21000,
-            distinct_keys: 120000,
-            partition_type: 'RANGE',
-            locality: 'LOCAL',
-            partition_key: ['SALE_DATE'],
-          },
-          columns: ['CUSTOMER_ID'],
-          table: 'ADHOC.SALES',
-        },
-      },
-      coverage_warnings: [],
-    });
-
-    const bundle = parseBundle(json);
-
-    const sales = bundle.objects['ADHOC.SALES'];
-    expect(sales?.type).toBe('TABLE');
-    if (sales?.type === 'TABLE') {
-      expect(sales.ddl).toContain('PARTITION BY RANGE');
-      expect(sales.stats.partition_type).toBe('RANGE');
-      expect(sales.stats.subpartition_type).toBe('NONE');
-      expect(sales.stats.interval).toBe("NUMTOYMINTERVAL(1,'MONTH')");
-      expect(sales.stats.partition_key).toEqual(['SALE_DATE']);
-      expect(sales.stats.subpartition_key).toEqual([]);
-    }
-
-    const idx = bundle.objects['ADHOC.SALES_CUST_IX'];
-    expect(idx?.type).toBe('INDEX');
-    if (idx?.type === 'INDEX') {
-      expect(idx.ddl).toContain('LOCAL');
-      expect(idx.stats.locality).toBe('LOCAL');
-      expect(idx.stats.partition_type).toBe('RANGE');
-      expect(idx.stats.partition_key).toEqual(['SALE_DATE']);
-    }
-  });
-
-  it('still parses an existing v1 bundle that omits all the new optional fields (regression guard)', () => {
-    const json = JSON.stringify({
-      format: 'ora-plan-metadata',
-      version: 1,
-      captured_at: '2026-05-15T10:23:00Z',
-      source: { db_name: 'PROD1', oracle_version: '19.0.0.0.0', container_name: 'PDB1' },
-      plan_ref: { sql_id: 'abc123def456', plan_hash_value: 1234567890 },
-      objects: {
-        'SH.SALES': {
-          type: 'TABLE',
-          stats: {
-            num_rows: 1200000,
-            blocks: 15000,
-            avg_row_len: 60,
-            last_analyzed: '2026-05-01T00:00:00Z',
-            stale_stats: 'NO',
-            partitioned: false,
-          },
-          columns: {},
-          indexes: ['SH.SALES_IDX'],
-        },
-        'SH.SALES_IDX': {
-          type: 'INDEX',
-          stats: {
-            uniqueness: 'NONUNIQUE',
-            index_type: 'NORMAL',
-            status: 'VALID',
-            visibility: 'VISIBLE',
-            partitioned: false,
-            clustering_factor: 100,
-            blevel: 1,
-            leaf_blocks: 50,
-            distinct_keys: 10,
-          },
-          columns: ['ID'],
-          table: 'SH.SALES',
-        },
-      },
-      coverage_warnings: [],
-    });
-
-    const bundle = parseBundle(json);
-
-    const sales = bundle.objects['SH.SALES'];
-    expect(sales?.type).toBe('TABLE');
-    if (sales?.type === 'TABLE') {
-      expect(sales.stats.partition_type).toBeUndefined();
-      expect(sales.ddl).toBeUndefined();
-    }
-
-    const idx = bundle.objects['SH.SALES_IDX'];
-    expect(idx?.type).toBe('INDEX');
-    if (idx?.type === 'INDEX') {
-      expect(idx.stats.locality).toBeUndefined();
-      expect(idx.ddl).toBeUndefined();
-    }
-  });
-});
-
-describe('parseBundle — v2 fields', () => {
-  it('parses a v2 bundle carrying constraints, segment/physical, extended stats, system params, optimizer env, and SQL management', () => {
-    const json = JSON.stringify({
-      format: 'ora-plan-metadata',
-      version: 2,
-      captured_at: '2026-07-06T10:00:00Z',
-      source: { db_name: 'PROD1', oracle_version: '19.27.0.0.0', container_name: 'PDB1' },
-      plan_ref: { sql_id: 'gwt6xjc6gcs2f', plan_hash_value: 767733636 },
-      objects: {
-        'HR.EMPLOYEES': {
-          type: 'TABLE',
-          stats: {
-            num_rows: 500000,
-            blocks: 4200,
-            avg_row_len: 64,
-            last_analyzed: '2026-04-01T03:15:00Z',
-            stale_stats: 'NO',
-            partitioned: false,
-          },
-          columns: {
-            ID: {
-              data_type: 'NUMBER',
-              nullable: false,
-              num_distinct: 500000,
-              num_nulls: 0,
-              low_value: '1',
-              high_value: '500000',
-              density: 0.000002,
-              histogram: { type: 'NONE', buckets: 0 },
-            },
-            SYS_STUAB12$XK9F: {
-              data_type: 'NUMBER',
-              nullable: true,
-              num_distinct: 160,
-              num_nulls: 0,
-              low_value: '1',
-              high_value: '160',
-              density: 0.00625,
-              histogram: { type: 'FREQUENCY', buckets: 20 },
-              virtual: true,
-              hidden: true,
-            },
-          },
-          indexes: ['HR.EMPLOYEES_PK'],
-          constraints: {
-            primary_key: { name: 'EMPLOYEES_PK', columns: ['ID'] },
-            foreign_keys: [
-              {
-                name: 'EMPLOYEES_DEPT_FK',
-                columns: ['DEPT_ID'],
-                ref_owner: 'HR',
-                ref_table: 'DEPARTMENTS',
-                ref_columns: ['ID'],
-                delete_rule: 'SET NULL',
-              },
-            ],
-            checks: [
-              { name: 'CK_ID_POSITIVE', condition: '"ID" > 0', generated: false },
-              { name: 'SYS_C0080001', condition: '"ID" IS NOT NULL', generated: true },
-            ],
-          },
-          segment: { bytes: 34078720, extents: 42 },
-          physical: { compression: 'DISABLED', degree: '1', temporary: false, cache: false },
-          extended_stats: [
-            { extension_name: 'SYS_STUAB12$XK9F', extension: '("DEPT_ID","ROLE_ID")', has_histogram: true },
-          ],
-        },
-        'HR.EMPLOYEES_PK': {
-          type: 'INDEX',
-          stats: {
-            uniqueness: 'UNIQUE',
-            index_type: 'NORMAL',
-            status: 'VALID',
-            visibility: 'VISIBLE',
-            partitioned: false,
-            clustering_factor: 100,
-            blevel: 1,
-            leaf_blocks: 50,
-            distinct_keys: 500000,
-            num_rows: 500000,
-            avg_leaf_blocks_per_key: 1,
-            avg_data_blocks_per_key: 1,
-            last_analyzed: '2026-04-01T03:15:00Z',
-            degree: '1',
-            compression: 'DISABLED',
-          },
-          columns: ['ID'],
-          table: 'HR.EMPLOYEES',
-          segment: { bytes: 65536, extents: 8 },
-        },
-      },
-      coverage_warnings: [],
-      system_params: {
-        db_block_size: 8192,
-        optimizer_features_enable: '19.1.0',
-        optimizer_index_cost_adj: 100,
-        optimizer_index_caching: 0,
-      },
-      optimizer_env: [{ name: 'optimizer_dynamic_sampling', value: '4' }],
-      sql_management: {
-        baselines: [
-          {
-            plan_name: 'SQL_PLAN_abcdefgh',
-            sql_handle: 'SQL_1234567890abcdef',
-            enabled: true,
-            accepted: true,
-            fixed: false,
-          },
-        ],
-        directives: [
-          {
-            directive_id: '13469005177969830000',
-            type: 'DYNAMIC_SAMPLING',
-            state: 'USABLE',
-            reason: 'SINGLE TABLE CARDINALITY MISESTIMATE',
-            objects: [
-              { owner: 'HR', object_name: 'EMPLOYEES', subobject_name: null, object_type: 'TABLE' },
-            ],
-          },
-        ],
-      },
-    });
-
-    const bundle = parseBundle(json);
-
-    expect(bundle.version).toBe(2);
-    expect(bundle.system_params?.db_block_size).toBe(8192);
-    expect(bundle.optimizer_env?.[0].name).toBe('optimizer_dynamic_sampling');
-    expect(bundle.sql_management?.baselines?.[0].plan_name).toBe('SQL_PLAN_abcdefgh');
-    // NUMBER-backed directive_id must round-trip as a string (exceeds 2^53).
-    expect(bundle.sql_management?.directives?.[0].directive_id).toBe('13469005177969830000');
-
-    const emp = bundle.objects['HR.EMPLOYEES'];
-    expect(emp?.type).toBe('TABLE');
-    if (emp?.type === 'TABLE') {
-      expect(emp.constraints?.primary_key?.name).toBe('EMPLOYEES_PK');
-      expect(emp.constraints?.foreign_keys?.[0].ref_table).toBe('DEPARTMENTS');
-      expect(emp.constraints?.checks?.some((c) => c.generated)).toBe(true);
-      expect(emp.segment?.bytes).toBe(34078720);
-      expect(emp.physical?.compression).toBe('DISABLED');
-      expect(emp.extended_stats?.[0].extension_name).toBe('SYS_STUAB12$XK9F');
-      expect(emp.columns['SYS_STUAB12$XK9F'].virtual).toBe(true);
-      expect(emp.columns['SYS_STUAB12$XK9F'].hidden).toBe(true);
-    }
-
-    const idx = bundle.objects['HR.EMPLOYEES_PK'];
-    expect(idx?.type).toBe('INDEX');
-    if (idx?.type === 'INDEX') {
-      expect(idx.stats.num_rows).toBe(500000);
-      expect(idx.segment?.bytes).toBe(65536);
-    }
-  });
-
-  it('still parses an inline v1 bundle that omits every v2 field (regression guard)', () => {
-    const json = JSON.stringify({
-      format: 'ora-plan-metadata',
-      version: 1,
-      captured_at: '2026-05-15T10:23:00Z',
-      source: { db_name: 'PROD1', oracle_version: '19.0.0.0.0', container_name: 'PDB1' },
-      plan_ref: { sql_id: 'abc123def456', plan_hash_value: 1234567890 },
-      objects: {
-        'SH.SALES': {
-          type: 'TABLE',
-          stats: {
-            num_rows: 1200000,
-            blocks: 15000,
-            avg_row_len: 60,
-            last_analyzed: '2026-05-01T00:00:00Z',
-            stale_stats: 'NO',
-            partitioned: false,
-          },
-          columns: {},
-          indexes: [],
-        },
-      },
-      coverage_warnings: [],
-    });
-
-    const bundle = parseBundle(json);
-    expect(bundle.version).toBe(1);
-    expect(bundle.system_params).toBeUndefined();
-    expect(bundle.optimizer_env).toBeUndefined();
-    expect(bundle.sql_management).toBeUndefined();
-    const sales = bundle.objects['SH.SALES'];
-    expect(sales?.type).toBe('TABLE');
-    if (sales?.type === 'TABLE') {
-      expect(sales.constraints).toBeUndefined();
-      expect(sales.segment).toBeUndefined();
-    }
-  });
-
-  it('rejects version 4 with a message naming the supported versions', () => {
-    const json = JSON.stringify({
-      format: 'ora-plan-metadata',
-      version: 4,
+      version,
       captured_at: '2026-05-15T10:23:00Z',
       source: { db_name: 'PROD1', oracle_version: '19.0.0.0.0', container_name: 'PDB1' },
       plan_ref: { sql_id: 'abc123def456', plan_hash_value: 1234567890 },
       objects: {},
       coverage_warnings: [],
-    });
+      ...extra,
+    };
+  }
 
-    expect(() => parseBundle(json)).toThrow(/unsupported version: 4/);
-    expect(() => parseBundle(json)).toThrow(/supports versions 1, 2, 3/);
+  it.each([1, 2, 3])('accepts version %i', (version) => {
+    expect(parseBundle(JSON.stringify(envelope(version))).version).toBe(version);
   });
-});
 
-describe('parseBundle — v3 histogram endpoints', () => {
-  it('accepts version 3 and round-trips per-column histogram endpoints', () => {
-    const json = JSON.stringify({
-      format: 'ora-plan-metadata',
-      version: 3,
-      captured_at: '2026-08-26T10:00:00Z',
-      source: { db_name: 'PROD1', oracle_version: '19.27.0.0.0', container_name: 'PDB1' },
-      plan_ref: { sql_id: 'gwt6xjc6gcs2f', plan_hash_value: 767733636 },
+  // parseBundle only checks the envelope; every payload field (v1 partitioning/DDL, v2 constraints,
+  // segment, extended stats, system params, SQL management, v3 histogram endpoints) must come back
+  // exactly as written — nothing added, dropped or rewritten.
+  it('returns every payload field unchanged', () => {
+    const payload = envelope(3, {
       objects: {
-        'HR.EMPLOYEES': {
+        'ADHOC.SALES': {
           type: 'TABLE',
+          ddl: 'CREATE TABLE "ADHOC"."SALES" (...) PARTITION BY RANGE ("SALE_DATE") ;',
           stats: {
-            num_rows: 500000,
-            blocks: 4200,
-            avg_row_len: 64,
-            last_analyzed: '2026-04-01T03:15:00Z',
-            stale_stats: 'NO',
-            partitioned: false,
+            num_rows: 9600000, blocks: 168000, avg_row_len: 48, last_analyzed: '2026-06-01T02:00:00Z',
+            stale_stats: 'NO', partitioned: true, partition_count: 24, partition_type: 'RANGE',
+            subpartition_type: 'NONE', interval: "NUMTOYMINTERVAL(1,'MONTH')", partition_key: ['SALE_DATE'], subpartition_key: [],
           },
           columns: {
             STATUS: {
-              data_type: 'VARCHAR2',
-              nullable: true,
-              num_distinct: 3,
-              num_nulls: 0,
-              low_value: 'ACTIVE',
-              high_value: 'RETIRED',
-              density: 0.000001,
-              histogram: {
-                type: 'FREQUENCY',
-                buckets: 3,
-                endpoints: [
-                  { value: 'ACTIVE', endpoint_number: 480000 },
-                  { value: 'INACTIVE', endpoint_number: 499000 },
-                  { value: 'RETIRED', endpoint_number: 500000 },
-                ],
-              },
+              data_type: 'VARCHAR2', nullable: true, num_distinct: 3, num_nulls: 0, low_value: 'ACTIVE', high_value: 'RETIRED', density: 0.000001,
+              histogram: { type: 'FREQUENCY', buckets: 2, endpoints: [{ value: 'ACTIVE', endpoint_number: 480000 }, { value: 'RETIRED', endpoint_number: 500000 }] },
             },
-            DEPT_ID: {
-              data_type: 'NUMBER',
-              nullable: false,
-              num_distinct: 5000,
-              num_nulls: 0,
-              low_value: '1',
-              high_value: '5000',
-              density: 0.0002,
-              histogram: {
-                type: 'HYBRID',
-                buckets: 254,
-                endpoints: [
-                  { value: 1, endpoint_number: 1, repeat_count: 1 },
-                  { value: 42, endpoint_number: 9000, repeat_count: 8500 },
-                  { value: 5000, endpoint_number: 500000, repeat_count: 3 },
-                ],
-              },
-            },
-            ID: {
-              data_type: 'NUMBER',
-              nullable: false,
-              num_distinct: 500000,
-              num_nulls: 0,
-              low_value: '1',
-              high_value: '500000',
-              density: 0.000002,
-              histogram: { type: 'NONE', buckets: 0 },
+            SYS_STUAB12$XK9F: {
+              data_type: 'NUMBER', nullable: true, num_distinct: 160, num_nulls: 0, low_value: '1', high_value: '160', density: 0.00625,
+              histogram: { type: 'HYBRID', buckets: 1, endpoints: [{ value: 42, endpoint_number: 9000, repeat_count: 8500 }] },
+              virtual: true, hidden: true,
             },
           },
-          indexes: [],
+          indexes: ['ADHOC.SALES_CUST_IX'],
+          constraints: {
+            primary_key: { name: 'SALES_PK', columns: ['ID'] },
+            foreign_keys: [{ name: 'SALES_CUST_FK', columns: ['CUSTOMER_ID'], ref_owner: 'ADHOC', ref_table: 'CUSTOMERS', ref_columns: ['ID'], delete_rule: 'SET NULL' }],
+            checks: [{ name: 'SYS_C0080001', condition: '"ID" IS NOT NULL', generated: true }],
+          },
+          segment: { bytes: 34078720, extents: 42 },
+          physical: { compression: 'DISABLED', degree: '1', temporary: false, cache: false },
+          extended_stats: [{ extension_name: 'SYS_STUAB12$XK9F', extension: '("DEPT_ID","ROLE_ID")', has_histogram: true }],
+        },
+        'ADHOC.SALES_CUST_IX': {
+          type: 'INDEX',
+          ddl: 'CREATE INDEX "ADHOC"."SALES_CUST_IX" ON "ADHOC"."SALES" ("CUSTOMER_ID") LOCAL ;',
+          stats: {
+            uniqueness: 'NONUNIQUE', index_type: 'NORMAL', status: 'VALID', visibility: 'VISIBLE', partitioned: true,
+            clustering_factor: 5400000, blevel: 2, leaf_blocks: 21000, distinct_keys: 120000, num_rows: 9600000,
+            partition_type: 'RANGE', locality: 'LOCAL', partition_key: ['SALE_DATE'],
+          },
+          columns: ['CUSTOMER_ID'],
+          table: 'ADHOC.SALES',
+          segment: { bytes: 65536, extents: 8 },
         },
       },
-      coverage_warnings: [],
+      system_params: { db_block_size: 8192, optimizer_features_enable: '19.1.0' },
+      optimizer_env: [{ name: 'optimizer_dynamic_sampling', value: '4' }],
+      sql_management: {
+        baselines: [{ plan_name: 'SQL_PLAN_abcdefgh', sql_handle: 'SQL_1234567890abcdef', enabled: true, accepted: true, fixed: false }],
+        // NUMBER-backed directive_id exceeds 2^53, so the gather script emits it as a string.
+        directives: [{
+          directive_id: '13469005177969830000', type: 'DYNAMIC_SAMPLING', state: 'USABLE', reason: 'SINGLE TABLE CARDINALITY MISESTIMATE',
+          objects: [{ owner: 'ADHOC', object_name: 'SALES', subobject_name: null, object_type: 'TABLE' }],
+        }],
+      },
     });
 
-    const bundle = parseBundle(json);
+    expect(parseBundle(JSON.stringify(payload))).toStrictEqual(payload);
+  });
 
-    expect(bundle.version).toBe(3);
-    const emp = bundle.objects['HR.EMPLOYEES'];
-    expect(emp?.type).toBe('TABLE');
-    if (emp?.type === 'TABLE') {
-      const status = emp.columns['STATUS'].histogram;
-      expect(status.type).toBe('FREQUENCY');
-      expect(status.endpoints).toHaveLength(3);
-      expect(status.endpoints?.[0]).toEqual({ value: 'ACTIVE', endpoint_number: 480000 });
-      expect(status.endpoints?.[0].repeat_count).toBeUndefined();
-
-      const dept = emp.columns['DEPT_ID'].histogram;
-      expect(dept.type).toBe('HYBRID');
-      expect(dept.endpoints?.[1]).toEqual({ value: 42, endpoint_number: 9000, repeat_count: 8500 });
-
-      // NONE histograms carry no endpoints, matching the gather script.
-      expect(emp.columns['ID'].histogram.endpoints).toBeUndefined();
-    }
+  it('rejects version 4 with a message naming the supported versions', () => {
+    const json = JSON.stringify(envelope(4));
+    expect(() => parseBundle(json)).toThrow(/unsupported version: 4/);
+    expect(() => parseBundle(json)).toThrow(/supports versions 1, 2, 3/);
   });
 });
 

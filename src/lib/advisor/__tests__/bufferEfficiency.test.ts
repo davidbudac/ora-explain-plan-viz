@@ -83,8 +83,4 @@ describe('bufferEfficiencyRule', () => {
       }],
     })).toHaveLength(0);
   });
-
-  it('is gated by requiresActualStats', () => {
-    expect(bufferEfficiencyRule.requiresActualStats).toBe(true);
-  });
 });

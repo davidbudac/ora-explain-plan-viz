@@ -13,3 +13,20 @@ for (const key of ['localStorage', 'sessionStorage'] as const) {
     Object.defineProperty(globalThis, key, { value: dom.window[key], configurable: true, writable: true });
   }
 }
+
+// jsdom has no matchMedia; the plan provider reads prefers-color-scheme on
+// init and several components query pointer / width media. Install a
+// never-matching stub (node-environment tests have no window; tests that need
+// a matching query stub it themselves).
+if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
+  window.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  })) as typeof window.matchMedia;
+}

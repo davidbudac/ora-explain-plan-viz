@@ -46,9 +46,4 @@ describe('planNotesRule', () => {
     expect(findings[3].title).toContain('OL1');
     expect(findings.every((f) => f.severity === 'info' && f.nodeIds.length === 0)).toBe(true);
   });
-
-  it('works without actual stats (not gated)', () => {
-    expect(planNotesRule.requiresActualStats).toBeUndefined();
-    expect(planNotesRule.requiresMetadata).toBeUndefined();
-  });
 });

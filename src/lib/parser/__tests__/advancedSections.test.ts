@@ -65,13 +65,10 @@ describe('ADVANCED fixture (DISPLAY_CURSOR, 19c)', () => {
     ]);
   });
 
+  // Node 2's query block / alias and node 16's predicates are checked in predicatesAndAdaptive.test.ts.
   it('still reads predicates and query blocks identically', () => {
     expect(node(plan, 5).accessPredicates).toBe('"O"."OWNER#"="U"."USER#"');
     expect(node(plan, 9).accessPredicates).toBe('"U"."NAME"=:B2');
-    expect(node(plan, 16).accessPredicates).toBe('"IO"."OBJ#"="I"."BO#" AND "IO"."TYPE#"=2');
-    expect(node(plan, 16).filterPredicates).toBe('"IO"."TYPE#"=2');
-    expect(node(plan, 2).queryBlock).toBe('SET$1');
-    expect(node(plan, 2).objectAlias).toBe('O@SEL$1');
     expect(node(plan, 32).objectAlias).toBe('L@SEL$14');
     expect(node(plan, 28).filterPredicates).toBe('NULL IS NOT NULL');
   });

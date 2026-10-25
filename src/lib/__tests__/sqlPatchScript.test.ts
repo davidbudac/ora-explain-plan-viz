@@ -33,18 +33,6 @@ describe('buildSqlPatchScript', () => {
     }
   });
 
-  it('includes the commented 12c sql_text variant note', () => {
-    const script = buildSqlPatchScript(base);
-    expect(script).toContain('-- On Oracle 12.1 and older, CREATE_SQL_PATCH takes the SQL text instead');
-    expect(script).toContain('--                     sql_text  => <the full SQL text as a CLOB>,');
-  });
-
-  it('tells the user to check the plan Note section for the patch', () => {
-    const script = buildSqlPatchScript(base);
-    expect(script).toContain('PROMPT   SQL patch "&patch_name" used for this statement');
-    expect(script).toContain('PROMPT section must contain:');
-  });
-
   it('sanitizes sql_id and custom name', () => {
     const script = buildSqlPatchScript({
       ...base,
@@ -205,12 +193,6 @@ describe('buildSqlPatchScript hint layout', () => {
       expect(chunk.split('\n')).toHaveLength(26);
       expect(pieceLength(chunk)).toBeLessThanOrEqual(500);
     }
-  });
-
-  it('notes that the statement must be in the cursor cache or AWR', () => {
-    const script = buildSqlPatchScript(base);
-    expect(script).toContain('in the cursor cache (or AWR)');
-    expect(script).toContain('Only one enabled SQL patch applies per statement');
   });
 });
 

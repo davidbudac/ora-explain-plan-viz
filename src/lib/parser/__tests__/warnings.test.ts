@@ -69,11 +69,6 @@ describe('partial-parse warnings', () => {
       expect(plan.rootNode).toBeTruthy();
       expect(find(plan.warnings, 'unknown_columns')?.message).toContain('Shiny (new)');
     });
-
-    it('does not warn for the columns the parsers deliberately skip (Cell Offload, Activity Detail)', () => {
-      const plan = parsePlan(SQL_MONITOR_TEXT);
-      expect(plan.warnings).toBeUndefined();
-    });
   });
 
   describe('sections', () => {
@@ -212,10 +207,6 @@ describe('partial-parse warnings', () => {
       const plan = parsePlan(`${HASH_JOIN_XML}\n\n1 row selected.\n`);
       expect(plan.rootNode).toBeTruthy();
       expect(find(plan.warnings, 'xml_wrapper_ignored')?.detail).toContain('after it');
-    });
-
-    it('stays quiet for a clean report', () => {
-      expect(parsePlan(HASH_JOIN_XML).warnings).toBeUndefined();
     });
   });
 

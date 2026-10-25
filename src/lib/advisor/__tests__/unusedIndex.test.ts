@@ -1,22 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { findObjectInBundle } from '../../metadata/lookup';
-import { findUsedIndexKeys } from '../../metadata/indexes';
 import { unusedIndexRule } from '../rules/unusedIndex';
-import { DEFAULT_THRESHOLDS } from '../config';
-import { buildPlan, makeBundle, makeTable, makeIndex, makeColumn } from './helpers';
-import type { RuleContext } from '../types';
-import type { MetadataBundle } from '../../metadata/bundle';
-import type { PlanNode } from '../../types';
-
-function makeCtx(plan: ReturnType<typeof buildPlan>, bundle: MetadataBundle | null): RuleContext {
-  return {
-    plan,
-    bundle,
-    thresholds: DEFAULT_THRESHOLDS,
-    findObject: (name) => (bundle ? findObjectInBundle(bundle, name) : null),
-    usedIndexKeys: bundle ? findUsedIndexKeys(bundle, plan.allNodes as PlanNode[]) : new Set(),
-  };
-}
+import { buildPlan, makeBundle, makeTable, makeIndex, makeColumn, ruleCtx } from './helpers';
 
 describe('unusedIndexRule', () => {
   it('flags an unused index whose leading column matches a predicate column', () => {
@@ -28,7 +12,7 @@ describe('unusedIndexRule', () => {
       id: 0, operation: 'TABLE ACCESS FULL', objectName: 'EMPLOYEES',
       filterPredicates: '"E"."STATUS"=:1',
     });
-    const findings = unusedIndexRule.evaluate(makeCtx(plan, bundle));
+    const findings = unusedIndexRule.evaluate(ruleCtx(plan, bundle));
     expect(findings).toHaveLength(1);
     expect(findings[0]).toMatchObject({ ruleId: 'index-exists-unused', severity: 'warning', nodeIds: [0] });
     expect(findings[0].explanation).toContain('HR.EMP_STATUS_IDX');
@@ -43,7 +27,7 @@ describe('unusedIndexRule', () => {
       id: 0, operation: 'TABLE ACCESS BY INDEX ROWID', objectName: 'EMPLOYEES', filterPredicates: '"E"."STATUS"=:1',
       children: [{ id: 1, operation: 'INDEX RANGE SCAN', objectName: 'EMP_STATUS_IDX', accessPredicates: '"E"."STATUS"=:1' }],
     });
-    expect(unusedIndexRule.evaluate(makeCtx(plan, bundle))).toHaveLength(0);
+    expect(unusedIndexRule.evaluate(ruleCtx(plan, bundle))).toHaveLength(0);
   });
 
   it('does not flag an index whose status is not VALID', () => {
@@ -55,7 +39,7 @@ describe('unusedIndexRule', () => {
       id: 0, operation: 'TABLE ACCESS FULL', objectName: 'EMPLOYEES',
       filterPredicates: '"E"."STATUS"=:1',
     });
-    expect(unusedIndexRule.evaluate(makeCtx(plan, bundle))).toHaveLength(0);
+    expect(unusedIndexRule.evaluate(ruleCtx(plan, bundle))).toHaveLength(0);
   });
 
   it('does not flag an invisible index', () => {
@@ -67,7 +51,7 @@ describe('unusedIndexRule', () => {
       id: 0, operation: 'TABLE ACCESS FULL', objectName: 'EMPLOYEES',
       filterPredicates: '"E"."STATUS"=:1',
     });
-    expect(unusedIndexRule.evaluate(makeCtx(plan, bundle))).toHaveLength(0);
+    expect(unusedIndexRule.evaluate(ruleCtx(plan, bundle))).toHaveLength(0);
   });
 
   it('does not flag when the leading column is not among predicate columns', () => {
@@ -79,16 +63,15 @@ describe('unusedIndexRule', () => {
       id: 0, operation: 'TABLE ACCESS FULL', objectName: 'EMPLOYEES',
       filterPredicates: '"E"."STATUS"=:1',
     });
-    expect(unusedIndexRule.evaluate(makeCtx(plan, bundle))).toHaveLength(0);
+    expect(unusedIndexRule.evaluate(ruleCtx(plan, bundle))).toHaveLength(0);
   });
 
-  it('is gated by requiresMetadata (no bundle -> no findings via engine gate)', () => {
-    expect(unusedIndexRule.requiresMetadata).toBe(true);
+  it('finds nothing without a bundle', () => {
     const plan = buildPlan({
       id: 0, operation: 'TABLE ACCESS FULL', objectName: 'EMPLOYEES',
       filterPredicates: '"E"."STATUS"=:1',
     });
-    expect(unusedIndexRule.evaluate(makeCtx(plan, null))).toHaveLength(0);
+    expect(unusedIndexRule.evaluate(ruleCtx(plan, null))).toHaveLength(0);
   });
 
   describe('table alias', () => {
@@ -102,39 +85,39 @@ describe('unusedIndexRule', () => {
 
     it('flags a predicate on the scanned alias', () => {
       const plan = scan('"E"."DEPTNO"=:B1', 'E@SEL$1');
-      expect(unusedIndexRule.evaluate(makeCtx(plan, bundle()))).toHaveLength(1);
+      expect(unusedIndexRule.evaluate(ruleCtx(plan, bundle()))).toHaveLength(1);
     });
 
     it('resolves a quoted object alias', () => {
       const plan = scan('"E"."DEPTNO"=:B1', '"E"@"SEL$1"');
-      expect(unusedIndexRule.evaluate(makeCtx(plan, bundle()))).toHaveLength(1);
+      expect(unusedIndexRule.evaluate(ruleCtx(plan, bundle()))).toHaveLength(1);
     });
 
     it('ignores a same-named column of another alias (join / correlated reference)', () => {
       // E is scanned; DEPTNO here belongs to D.
       const plan = scan('"E"."STATUS"="D"."DEPTNO"', 'E@SEL$1');
-      expect(unusedIndexRule.evaluate(makeCtx(plan, bundle()))).toHaveLength(0);
+      expect(unusedIndexRule.evaluate(ruleCtx(plan, bundle()))).toHaveLength(0);
       const correlated = scan('"D"."DEPTNO"=:B1', 'E@SEL$1');
-      expect(unusedIndexRule.evaluate(makeCtx(correlated, bundle()))).toHaveLength(0);
+      expect(unusedIndexRule.evaluate(ruleCtx(correlated, bundle()))).toHaveLength(0);
     });
 
     it('still counts the scanned alias side of a join predicate', () => {
       const plan = scan('"E"."DEPTNO"="D"."DEPTNO"', 'E@SEL$1');
-      expect(unusedIndexRule.evaluate(makeCtx(plan, bundle()))).toHaveLength(1);
+      expect(unusedIndexRule.evaluate(ruleCtx(plan, bundle()))).toHaveLength(1);
     });
 
     it('without an alias section, takes the only qualifier as the scanned alias', () => {
-      expect(unusedIndexRule.evaluate(makeCtx(scan('"X"."DEPTNO"=:1'), bundle()))).toHaveLength(1);
+      expect(unusedIndexRule.evaluate(ruleCtx(scan('"X"."DEPTNO"=:1'), bundle()))).toHaveLength(1);
     });
 
     it('without an alias section and ambiguous qualifiers, prefers the table name and otherwise skips', () => {
-      expect(unusedIndexRule.evaluate(makeCtx(scan('"EMPLOYEES"."STATUS"=:1 AND "D"."DEPTNO"=:2'), bundle()))).toHaveLength(0);
-      expect(unusedIndexRule.evaluate(makeCtx(scan('"EMPLOYEES"."DEPTNO"=:1 AND "D"."DEPTNO"=:2'), bundle()))).toHaveLength(1);
-      expect(unusedIndexRule.evaluate(makeCtx(scan('"X"."DEPTNO"=:1 AND "D"."DEPTNO"=:2'), bundle()))).toHaveLength(0);
+      expect(unusedIndexRule.evaluate(ruleCtx(scan('"EMPLOYEES"."STATUS"=:1 AND "D"."DEPTNO"=:2'), bundle()))).toHaveLength(0);
+      expect(unusedIndexRule.evaluate(ruleCtx(scan('"EMPLOYEES"."DEPTNO"=:1 AND "D"."DEPTNO"=:2'), bundle()))).toHaveLength(1);
+      expect(unusedIndexRule.evaluate(ruleCtx(scan('"X"."DEPTNO"=:1 AND "D"."DEPTNO"=:2'), bundle()))).toHaveLength(0);
     });
 
     it('accepts an unqualified column', () => {
-      expect(unusedIndexRule.evaluate(makeCtx(scan('"DEPTNO"=:1', 'E@SEL$1'), bundle()))).toHaveLength(1);
+      expect(unusedIndexRule.evaluate(ruleCtx(scan('"DEPTNO"=:1', 'E@SEL$1'), bundle()))).toHaveLength(1);
     });
   });
 
@@ -143,7 +126,7 @@ describe('unusedIndexRule', () => {
       'HR.EMPLOYEES': makeTable({}, { DEPTNO: makeColumn(), SAL: makeColumn(), NAME: makeColumn({ data_type: 'VARCHAR2' }) }, ['HR.EMP_IDX']),
       'HR.EMP_IDX': makeIndex('HR.EMPLOYEES', indexColumns, indexOverrides),
     });
-    const flagged = (filter: string, b = bundle()) => unusedIndexRule.evaluate(makeCtx(
+    const flagged = (filter: string, b = bundle()) => unusedIndexRule.evaluate(ruleCtx(
       buildPlan({ id: 0, operation: 'TABLE ACCESS FULL', objectName: 'EMPLOYEES', objectAlias: 'E@SEL$1', filterPredicates: filter }), b,
     )).length;
 

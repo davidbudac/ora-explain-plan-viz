@@ -1,44 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { computeSelfTimes, computeHottestNodeId, walkPlanTree } from '../analysis';
-import type { ParsedPlan, PlanNode, PlanSource } from '../types';
-
-interface NodeSpec {
-  id: number;
-  actualTime?: number;
-  children?: NodeSpec[];
-}
-
-function buildPlan(spec: NodeSpec, source: PlanSource = 'sql_monitor_text'): ParsedPlan {
-  const allNodes: PlanNode[] = [];
-  const build = (s: NodeSpec, depth: number, parentId?: number): PlanNode => {
-    const node: PlanNode = {
-      id: s.id,
-      depth,
-      operation: `OP ${s.id}`,
-      actualTime: s.actualTime,
-      parentId,
-      children: [],
-    };
-    allNodes.push(node);
-    node.children = (s.children ?? []).map((c) => build(c, depth + 1, s.id));
-    return node;
-  };
-  const rootNode = build(spec, 0);
-  return {
-    rootNode,
-    allNodes,
-    totalCost: 0,
-    maxRows: 0,
-    source,
-    hasActualStats: allNodes.some((n) => n.actualTime !== undefined),
-  };
-}
-
-const byId = (plan: ParsedPlan, id: number) => plan.allNodes.find((n) => n.id === id)!;
+import { buildPlan, nodeById as byId } from './fixtures/buildPlan';
 
 describe('walkPlanTree', () => {
   it('visits parent before children, depth-first', () => {
-    const plan = buildPlan({ id: 0, children: [{ id: 1, children: [{ id: 2 }] }, { id: 3 }] });
+    const plan = buildPlan({ id: 0, kids: [{ id: 1, kids: [{ id: 2 }] }, { id: 3 }] });
     const order: number[] = [];
     walkPlanTree(plan.rootNode!, (n) => order.push(n.id));
     expect(order).toEqual([0, 1, 2, 3]);
@@ -50,8 +16,8 @@ describe('computeSelfTimes (cumulative sources)', () => {
     const plan = buildPlan({
       id: 0,
       actualTime: 1000,
-      children: [
-        { id: 1, actualTime: 900, children: [{ id: 2, actualTime: 700 }] },
+      kids: [
+        { id: 1, actualTime: 900, kids: [{ id: 2, actualTime: 700 }] },
       ],
     });
     computeSelfTimes(plan);
@@ -65,7 +31,7 @@ describe('computeSelfTimes (cumulative sources)', () => {
     const plan = buildPlan({
       id: 0,
       actualTime: 500,
-      children: [{ id: 1, actualTime: 400 }, { id: 2, actualTime: 300 }],
+      kids: [{ id: 1, actualTime: 400 }, { id: 2, actualTime: 300 }],
     });
     computeSelfTimes(plan);
     expect(byId(plan, 0).selfTime).toBe(0);
@@ -74,7 +40,7 @@ describe('computeSelfTimes (cumulative sources)', () => {
   it('leaves selfTime undefined when actualTime is missing', () => {
     const plan = buildPlan({
       id: 0,
-      children: [{ id: 1, actualTime: 100 }],
+      kids: [{ id: 1, actualTime: 100 }],
     });
     computeSelfTimes(plan);
     expect(byId(plan, 0).selfTime).toBeUndefined();
@@ -85,7 +51,7 @@ describe('computeSelfTimes (cumulative sources)', () => {
     const plan = buildPlan({
       id: 0,
       actualTime: 300,
-      children: [{ id: 1 }, { id: 2, actualTime: 100 }],
+      kids: [{ id: 1 }, { id: 2, actualTime: 100 }],
     });
     computeSelfTimes(plan);
     expect(byId(plan, 0).selfTime).toBe(200);
@@ -106,8 +72,8 @@ describe('computeSelfTimes (xbi source)', () => {
       {
         id: 0,
         actualTime: 600, // >>> Plan totals >>>
-        children: [
-          { id: 1, actualTime: 100, children: [{ id: 2, actualTime: 500 }] },
+        kids: [
+          { id: 1, actualTime: 100, kids: [{ id: 2, actualTime: 500 }] },
         ],
       },
       'xbi'
@@ -127,8 +93,8 @@ describe('computeSelfTimes (xbi source)', () => {
       {
         id: 0,
         actualTime: 1000,
-        children: [
-          { id: 1, actualTime: 250, children: [{ id: 2, actualTime: 750 }] },
+        kids: [
+          { id: 1, actualTime: 250, kids: [{ id: 2, actualTime: 750 }] },
         ],
       },
       'xbi'
@@ -145,8 +111,8 @@ describe('computeHottestNodeId', () => {
     const plan = buildPlan({
       id: 0,
       actualTime: 1000,
-      children: [
-        { id: 1, actualTime: 900, children: [{ id: 2, actualTime: 200 }] },
+      kids: [
+        { id: 1, actualTime: 900, kids: [{ id: 2, actualTime: 200 }] },
         { id: 3, actualTime: 90 },
       ],
     });
@@ -156,7 +122,7 @@ describe('computeHottestNodeId', () => {
     const leafHot = buildPlan({
       id: 0,
       actualTime: 1000,
-      children: [{ id: 1, actualTime: 990, children: [{ id: 2, actualTime: 980 }] }],
+      kids: [{ id: 1, actualTime: 990, kids: [{ id: 2, actualTime: 980 }] }],
     });
     computeSelfTimes(leafHot);
     expect(computeHottestNodeId(plan)).toBe(1);
@@ -164,7 +130,7 @@ describe('computeHottestNodeId', () => {
   });
 
   it('returns null without actual stats or plan', () => {
-    const plan = buildPlan({ id: 0, children: [{ id: 1 }] });
+    const plan = buildPlan({ id: 0, kids: [{ id: 1 }] });
     computeSelfTimes(plan);
     expect(computeHottestNodeId(plan)).toBeNull();
     expect(computeHottestNodeId(null)).toBeNull();

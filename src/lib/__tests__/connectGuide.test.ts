@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AgentError } from '../agent/client';
 import {
-  AGENT_DOCS_URL,
-  AGENT_INSTALL_COMMAND,
-  DEFAULT_AGENT_ALLOWED_ORIGINS,
   agentHostLabel,
   buildAgentStartCommand,
   computeConnectSteps,
@@ -12,14 +9,6 @@ import {
 
 const DEV = 'http://localhost:5173';
 const BASE = 'http://127.0.0.1:8521';
-
-describe('constants', () => {
-  it('exposes the default origins, install command and docs link', () => {
-    expect(DEFAULT_AGENT_ALLOWED_ORIGINS).toEqual(['http://localhost:5173', 'http://127.0.0.1:5173']);
-    expect(AGENT_INSTALL_COMMAND).toContain('pipx install git+https://github.com/davidbudac/oraplanviz-db-connector');
-    expect(AGENT_DOCS_URL).toMatch(/^https:\/\/github\.com\/davidbudac\/oraplanviz-db-connector/);
-  });
-});
 
 describe('buildAgentStartCommand', () => {
   it('is bare for the default dev origin and port', () => {

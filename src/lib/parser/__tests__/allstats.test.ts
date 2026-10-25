@@ -280,12 +280,6 @@ describe('real 19c captures', () => {
     expect(strip(tabbed)).toEqual(strip(spaced));
     expect(tabbed.hasActualStats).toBe(true);
   });
-
-  it('still parses adaptive inactive ("-") rows as normal rows', () => {
-    const plan = parsePlan(fixture('allstats-adaptive-19c.txt'));
-    expect(plan.allNodes.some((n) => n.id === 27)).toBe(true);
-    expect(plan.allNodes.some((n) => n.id === 29)).toBe(true);
-  });
 });
 
 describe('SQL Monitor "->" executing marker', () => {

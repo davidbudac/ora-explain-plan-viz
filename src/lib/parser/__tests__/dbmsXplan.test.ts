@@ -192,17 +192,29 @@ Plan hash value: 111222333
 | -  2 |   NESTED LOOPS       |      |    5 |   150 |    12   (0) |
 | -* 3 |    TABLE ACCESS FULL |  EMP |    5 |   100 |    7    (0) |
 -------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   3 - filter("E"."SAL">1000)
 `.trim();
 
     const [plan] = parseDbmsXplanPlans(ADAPTIVE_PLAN);
     expect(plan.allNodes).toHaveLength(4);
+    expect(plan.allNodes.filter((n) => n.inactive).map((n) => n.id)).toEqual([2, 3]);
 
     const inactiveNoStar = plan.allNodes.find((n) => n.id === 2)!;
-    expect(inactiveNoStar).toBeDefined();
+    expect(inactiveNoStar.inactive).toBe(true);
+    expect(inactiveNoStar.operation).toBe('NESTED LOOPS');
+    expect(inactiveNoStar.filterPredicates).toBeUndefined();
 
+    // The star flag is not kept on the node; it shows as the predicate attaching to id 3.
     const inactiveWithStar = plan.allNodes.find((n) => n.id === 3)!;
-    expect(inactiveWithStar).toBeDefined();
+    expect(inactiveWithStar.inactive).toBe(true);
     expect(inactiveWithStar.operation).toBe('TABLE ACCESS FULL');
+    expect(inactiveWithStar.objectName).toBe('EMP');
+    expect(inactiveWithStar.parentId).toBe(2);
+    expect(inactiveWithStar.filterPredicates).toBe('"E"."SAL">1000');
   });
 });
 
