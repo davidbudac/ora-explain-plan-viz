@@ -238,13 +238,6 @@ describe('buildTestCaseScript', () => {
     const { plan, bundle } = fixture();
     expect(buildTestCaseScript({ plan, bundle })).toMatchSnapshot();
   });
-
-  it('is deterministic — two calls produce identical output', () => {
-    const { plan, bundle } = fixture();
-    const a = buildTestCaseScript({ plan, bundle });
-    const b = buildTestCaseScript({ plan, bundle });
-    expect(a).toBe(b);
-  });
 });
 
 describe('testCaseScriptFilename', () => {

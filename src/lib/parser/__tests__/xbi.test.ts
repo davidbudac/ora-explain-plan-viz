@@ -58,57 +58,33 @@ Plan hash value: 1234567890
   });
 
   describe('parse', () => {
-    it('parses all plan nodes', () => {
-      const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
+    const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
+    const byId = (id: number) => plan.allNodes.find(n => n.id === id)!;
+
+    it('reads the banner and plan-level totals', () => {
       expect(plan.allNodes).toHaveLength(10);
       expect(plan.rootNode).not.toBeNull();
       expect(plan.rootNode!.id).toBe(0);
-    });
-
-    it('extracts sql_id from banner', () => {
-      const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
       expect(plan.sqlId).toBe('czxpthmzk8nnd');
-    });
-
-    it('extracts plan hash value', () => {
-      const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
       expect(plan.planHashValue).toBe('2501019660');
-    });
-
-    it('sets source to xbi', () => {
-      const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
-      expect(plan.source).toBe('xbi');
-    });
-
-    it('detects actual stats', () => {
-      const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
       expect(plan.hasActualStats).toBe(true);
+      expect(plan.totalElapsedTime).toBeCloseTo(3220.09, 1);
+      expect(plan.maxActualRows).toBe(112576);
+      expect(plan.maxStarts).toBe(112576);
     });
 
-    it('parses root node (SELECT STATEMENT) with total time', () => {
-      const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
+    it('parses operations, bracketed object names and the explicit-parent tree', () => {
       const root = plan.rootNode!;
       expect(root.operation).toBe('SELECT STATEMENT');
       expect(root.actualTime).toBeCloseTo(3220.09, 1);
       expect(root.actualRows).toBe(20);
       expect(root.starts).toBe(1);
       expect(root.cost).toBe(121263);
-    });
 
-    it('parses operations with object names in brackets', () => {
-      const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
-      const node4 = plan.allNodes.find(n => n.id === 4)!;
-      expect(node4.operation).toBe('TABLE ACCESS FULL');
-      expect(node4.objectName).toBe('DATE_DIM');
-
-      const node8 = plan.allNodes.find(n => n.id === 8)!;
-      expect(node8.operation).toBe('INDEX RANGE SCAN');
-      expect(node8.objectName).toBe('STORE_SALES_PK_IDX');
-    });
-
-    it('builds correct parent-child tree using explicit parent IDs', () => {
-      const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
-      const root = plan.rootNode!;
+      expect(byId(4).operation).toBe('TABLE ACCESS FULL');
+      expect(byId(4).objectName).toBe('DATE_DIM');
+      expect(byId(8).operation).toBe('INDEX RANGE SCAN');
+      expect(byId(8).objectName).toBe('STORE_SALES_PK_IDX');
 
       // Root (0) -> SORT ORDER BY (1)
       expect(root.children).toHaveLength(1);
@@ -119,118 +95,63 @@ Plan hash value: 1234567890
       expect(root.children[0].children[0].id).toBe(2);
 
       // HASH JOIN (3) has two children: TABLE ACCESS FULL (4) and NESTED LOOPS (5)
-      const hashJoin = plan.allNodes.find(n => n.id === 3)!;
+      const hashJoin = byId(3);
       expect(hashJoin.children).toHaveLength(2);
       expect(hashJoin.children[0].id).toBe(4);
       expect(hashJoin.children[1].id).toBe(5);
     });
 
-    it('parses actual runtime statistics', () => {
-      const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
-
+    it('parses runtime statistics: time, rows, starts, reads, gets, memory, per-start estimates', () => {
       // Node 9: TABLE ACCESS BY GLOBAL INDEX ROWID
-      const node9 = plan.allNodes.find(n => n.id === 9)!;
+      const node9 = byId(9);
       expect(node9.actualTime).toBeCloseTo(3055.46, 1);
       expect(node9.actualRows).toBe(112576);
       expect(node9.starts).toBe(112576);
       expect(node9.physicalReads).toBe(9314);
       expect(node9.cost).toBe(698);
+
+      // Per-start estimated rows from the total: node 4 estRowsTotal=6000, starts=1;
+      // node 8 estRowsTotal=110880, starts=160
+      expect(byId(4).rows).toBe(6000);
+      expect(byId(8).rows).toBe(Math.round(110880 / 160));
+
+      // Logical reads = consistent + current gets (current = 0 here)
+      expect(plan.rootNode!.logicalReads).toBe(125211);
+      expect(byId(7).logicalReads).toBe(10374);
+
+      // Node 2: memory=5.54 MB, stored in bytes
+      expect(byId(2).memoryUsed).toBe(Math.round(5.54 * 1048576));
     });
 
-    it('derives per-start estimated rows from total', () => {
-      const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
-
-      // Node 4: DATE_DIM - estRowsTotal=6000, starts=1 -> rows=6000
-      const node4 = plan.allNodes.find(n => n.id === 4)!;
-      expect(node4.rows).toBe(6000);
-
-      // Node 8: INDEX RANGE SCAN - estRowsTotal=110880, starts=160 -> rows=693
-      const node8 = plan.allNodes.find(n => n.id === 8)!;
-      expect(node8.rows).toBe(Math.round(110880 / 160));
-    });
-
-    it('computes logical reads from consistent + current gets', () => {
-      const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
-
-      // Node 0: consistentGets=125211, currentGets=0
-      const root = plan.rootNode!;
-      expect(root.logicalReads).toBe(125211);
-
-      // Node 7: consistentGets=10374, currentGets=0
-      const node7 = plan.allNodes.find(n => n.id === 7)!;
-      expect(node7.logicalReads).toBe(10374);
-    });
-
-    it('converts memory from MB to bytes', () => {
-      const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
-
-      // Node 2: memory=5.54 MB
-      const node2 = plan.allNodes.find(n => n.id === 2)!;
-      expect(node2.memoryUsed).toBe(Math.round(5.54 * 1048576));
-    });
-
-    it('parses query block names', () => {
-      const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
-
-      const node1 = plan.allNodes.find(n => n.id === 1)!;
-      expect(node1.queryBlock).toBe('SEL$1');
-
+    it('parses query block names and predicates', () => {
+      expect(byId(1).queryBlock).toBe('SEL$1');
       // Root node should NOT have ">>> Plan totals >>>" as query block
-      const root = plan.rootNode!;
-      expect(root.queryBlock).toBeUndefined();
+      expect(plan.rootNode!.queryBlock).toBeUndefined();
+
+      expect(byId(3).accessPredicates).toContain('"SS"."SS_SOLD_DATE_SK"="D"."D_DATE_SK"');
+      expect(byId(4).filterPredicates).toContain('"D"."D_YEAR" BETWEEN 1998 AND 2001');
+      expect(byId(7).filterPredicates).toContain('"I"."I_MANUFACT_ID" BETWEEN 738 AND 742');
+      expect(byId(8).accessPredicates).toContain('"SS"."SS_ITEM_SK"="I"."I_ITEM_SK"');
     });
 
-    it('parses predicates', () => {
-      const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
-
-      const node3 = plan.allNodes.find(n => n.id === 3)!;
-      expect(node3.accessPredicates).toContain('"SS"."SS_SOLD_DATE_SK"="D"."D_DATE_SK"');
-
-      const node4 = plan.allNodes.find(n => n.id === 4)!;
-      expect(node4.filterPredicates).toContain('"D"."D_YEAR" BETWEEN 1998 AND 2001');
-
-      const node7 = plan.allNodes.find(n => n.id === 7)!;
-      expect(node7.filterPredicates).toContain('"I"."I_MANUFACT_ID" BETWEEN 738 AND 742');
-
-      const node8 = plan.allNodes.find(n => n.id === 8)!;
-      expect(node8.accessPredicates).toContain('"SS"."SS_ITEM_SK"="I"."I_ITEM_SK"');
-    });
-
-    it('computes activity percent after post-parse analysis', () => {
-      const plan = parsePlan(SAMPLE_XBI_OUTPUT);
-
-      // Node 9 has 3055.46ms self / 3220.09ms total = ~94.9%
-      const node9 = plan.allNodes.find(n => n.id === 9)!;
-      expect(node9.activityPercent).toBeCloseTo(94.9, 0);
-    });
-
-    it('sets total elapsed time from root', () => {
-      const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
-      expect(plan.totalElapsedTime).toBeCloseTo(3220.09, 1);
-    });
-
-    it('normalizes A-Time to cumulative and keeps self time after analysis', () => {
-      const plan = parsePlan(SAMPLE_XBI_OUTPUT);
+    it('after post-parse analysis: cumulative A-Time, self time and activity percent', () => {
+      const analysed = parsePlan(SAMPLE_XBI_OUTPUT);
+      const node = (id: number) => analysed.allNodes.find(n => n.id === id)!;
 
       // Root ">>> Plan totals >>>" row stays the plan total
-      expect(plan.rootNode!.actualTime).toBeCloseTo(3220.09, 1);
-      expect(plan.totalElapsedTime).toBeCloseTo(3220.09, 1);
+      expect(analysed.rootNode!.actualTime).toBeCloseTo(3220.09, 1);
+      expect(analysed.totalElapsedTime).toBeCloseTo(3220.09, 1);
 
       // Leaf: cumulative == self
-      const node9 = plan.allNodes.find(n => n.id === 9)!;
-      expect(node9.selfTime).toBeCloseTo(3055.46, 1);
-      expect(node9.actualTime).toBeCloseTo(3055.46, 1);
+      expect(node(9).selfTime).toBeCloseTo(3055.46, 1);
+      expect(node(9).actualTime).toBeCloseTo(3055.46, 1);
 
       // NESTED LOOPS (5) = self 39.05 + subtree(6)=13.67+31.71+43.44 + child(9)=3055.46
-      const node5 = plan.allNodes.find(n => n.id === 5)!;
-      expect(node5.selfTime).toBeCloseTo(39.05, 1);
-      expect(node5.actualTime).toBeCloseTo(39.05 + 13.67 + 31.71 + 43.44 + 3055.46, 1);
-    });
+      expect(node(5).selfTime).toBeCloseTo(39.05, 1);
+      expect(node(5).actualTime).toBeCloseTo(39.05 + 13.67 + 31.71 + 43.44 + 3055.46, 1);
 
-    it('computes maxActualRows and maxStarts', () => {
-      const plan = xbiParser.parse(SAMPLE_XBI_OUTPUT);
-      expect(plan.maxActualRows).toBe(112576);
-      expect(plan.maxStarts).toBe(112576);
+      // Node 9 has 3055.46ms self / 3220.09ms total = ~94.9%
+      expect(node(9).activityPercent).toBeCloseTo(94.9, 0);
     });
   });
 

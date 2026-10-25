@@ -70,6 +70,17 @@ describe('describeBrush', () => {
   });
 });
 
+describe('validateExport versions', () => {
+  it('accepts a v1 export (no metadataBundle field)', () => {
+    expect(validateExport({ ...exportWith({}), version: 1 })).toBe(true);
+  });
+
+  it('rejects unknown version numbers', () => {
+    expect(validateExport({ ...exportWith({}), version: 3 })).toBe(false);
+    expect(validateExport({ ...exportWith({}), version: 0 })).toBe(false);
+  });
+});
+
 describe('validateExport with per-node styles', () => {
   it('accepts highlights with a valid style and legacy highlights without one', () => {
     expect(validateExport(exportWith({ '1': { nodeId: 1, color: 'red', style: 'underline' }, '2': { nodeId: 2, color: 'blue' } }))).toBe(true);

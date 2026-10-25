@@ -1,5 +1,3 @@
-/** @jsxRuntime automatic */
-/** @jsxImportSource react */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { buttonByText, cleanup, click, render } from './testUtils';

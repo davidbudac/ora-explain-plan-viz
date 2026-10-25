@@ -1,5 +1,3 @@
-/** @jsxRuntime automatic */
-/** @jsxImportSource react */
 import { act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';

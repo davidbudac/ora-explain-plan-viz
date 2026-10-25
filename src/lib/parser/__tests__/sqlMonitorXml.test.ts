@@ -40,32 +40,22 @@ Plan hash value: 123456
   });
 
   describe('Hash Join example (sql-monitor-xml-hash-join.txt)', () => {
-    let result: ReturnType<typeof sqlMonitorXmlParser.parse>;
+    const result = sqlMonitorXmlParser.parse(readFixture('sql-monitor-xml-hash-join.txt'));
+    const byId = (id: number) => result.allNodes.find(n => n.id === id);
 
-    it('parses without errors', () => {
-      const xml = readFixture('sql-monitor-xml-hash-join.txt');
-      result = sqlMonitorXmlParser.parse(xml);
-      expect(result.rootNode).not.toBeNull();
-    });
-
-    it('extracts SQL ID from report_parameters', () => {
-      expect(result.sqlId).toBe('an05rsj1up1k5');
-    });
-
-    it('extracts plan hash from target attribute', () => {
-      expect(result.planHashValue).toBe('2341252972');
-    });
-
-    it('extracts SQL text from target/sql_fulltext', () => {
-      expect(result.sqlText).toContain('select');
+    it('extracts SQL ID, plan hash, SQL text and global stats', () => {
+      expect(result.sqlId).toBe('an05rsj1up1k5'); // report_parameters
+      expect(result.planHashValue).toBe('2341252972'); // target attribute
+      expect(result.sqlText).toContain('select'); // target/sql_fulltext
       expect(result.sqlText).toContain('employees');
+      expect(result.hasActualStats).toBe(true);
+      // Global elapsed_time = 1755 microseconds = 1.755 ms
+      expect(result.totalElapsedTime).toBeCloseTo(1.755, 2);
     });
 
-    it('parses all 6 operations', () => {
+    it('parses all 6 operations into the correct tree', () => {
+      expect(result.rootNode).not.toBeNull();
       expect(result.allNodes).toHaveLength(6);
-    });
-
-    it('builds correct tree structure', () => {
       expect(result.rootNode!.id).toBe(0);
       expect(result.rootNode!.operation).toBe('SELECT STATEMENT');
       expect(result.rootNode!.children).toHaveLength(1); // HASH JOIN id=1
@@ -74,147 +64,67 @@ Plan hash value: 123456
       expect(result.rootNode!.children[0].children).toHaveLength(2); // HASH JOIN id=2, TABLE ACCESS id=5
     });
 
-    it('combines name + options into full operation name', () => {
-      const tableAccess = result.allNodes.find(n => n.id === 3);
-      expect(tableAccess?.operation).toBe('TABLE ACCESS FULL');
+    it('combines name + options and reads object names from nested <object><name> elements', () => {
+      expect(byId(3)?.operation).toBe('TABLE ACCESS FULL');
+      expect(byId(3)?.objectName).toBe('DEPARTMENTS');
+      expect(byId(4)?.objectName).toBe('EMPLOYEES');
+      expect(byId(5)?.objectName).toBe('ROLES');
     });
 
-    it('extracts object names from nested <object><name> elements', () => {
-      const departments = result.allNodes.find(n => n.id === 3);
-      expect(departments?.objectName).toBe('DEPARTMENTS');
-
-      const employees = result.allNodes.find(n => n.id === 4);
-      expect(employees?.objectName).toBe('EMPLOYEES');
-
-      const roles = result.allNodes.find(n => n.id === 5);
-      expect(roles?.objectName).toBe('ROLES');
+    it('extracts actual rows (cardinality stat), starts and max_memory from plan_monitor', () => {
+      expect(byId(0)?.actualRows).toBe(1);
+      expect(byId(1)?.actualRows).toBe(1);
+      expect(byId(2)?.actualRows).toBe(2);
+      expect(byId(4)?.actualRows).toBe(10);
+      expect(byId(0)?.starts).toBe(1);
+      expect(byId(1)?.memoryUsed).toBe(923648);
     });
 
-    it('extracts actual rows (cardinality stat) from plan_monitor', () => {
-      const root = result.allNodes.find(n => n.id === 0);
-      expect(root?.actualRows).toBe(1);
-
-      const hashJoin1 = result.allNodes.find(n => n.id === 1);
-      expect(hashJoin1?.actualRows).toBe(1);
-
-      const hashJoin2 = result.allNodes.find(n => n.id === 2);
-      expect(hashJoin2?.actualRows).toBe(2);
-
-      const employees = result.allNodes.find(n => n.id === 4);
-      expect(employees?.actualRows).toBe(10);
-    });
-
-    it('extracts starts from plan_monitor stats', () => {
-      const root = result.allNodes.find(n => n.id === 0);
-      expect(root?.starts).toBe(1);
-    });
-
-    it('extracts max_memory from plan_monitor stats', () => {
-      const hashJoin1 = result.allNodes.find(n => n.id === 1);
-      expect(hashJoin1?.memoryUsed).toBe(923648);
-    });
-
-    it('extracts optimizer estimates (cost, rows, bytes)', () => {
-      const hashJoin1 = result.allNodes.find(n => n.id === 1);
+    it('extracts optimizer estimates, predicates and query block from the plan section', () => {
+      const hashJoin1 = byId(1);
       expect(hashJoin1?.cost).toBe(6);
       expect(hashJoin1?.rows).toBe(3);
       expect(hashJoin1?.bytes).toBe(192);
-    });
-
-    it('extracts predicates from plan section', () => {
-      const hashJoin1 = result.allNodes.find(n => n.id === 1);
       expect(hashJoin1?.accessPredicates).toContain('"R"."ID"="E"."ROLE_ID"');
-
-      const departments = result.allNodes.find(n => n.id === 3);
-      expect(departments?.filterPredicates).toContain('Department Name 1');
-    });
-
-    it('has actual stats flag set', () => {
-      expect(result.hasActualStats).toBe(true);
-    });
-
-    it('reports source as sql_monitor_xml', () => {
-      expect(result.source).toBe('sql_monitor_xml');
-    });
-
-    it('calculates total elapsed time from global stats', () => {
-      // Global elapsed_time = 1755 microseconds = 1.755 ms
-      expect(result.totalElapsedTime).toBeCloseTo(1.755, 2);
-    });
-
-    it('extracts query block from plan section', () => {
-      const hashJoin1 = result.allNodes.find(n => n.id === 1);
       expect(hashJoin1?.queryBlock).toBe('SEL$9E43CB6E');
+      expect(byId(3)?.filterPredicates).toContain('Department Name 1');
     });
   });
 
   describe('Nested Loops example (sql-monitor-xml-nested-loops.txt)', () => {
-    let result: ReturnType<typeof sqlMonitorXmlParser.parse>;
+    const result = sqlMonitorXmlParser.parse(readFixture('sql-monitor-xml-nested-loops.txt'));
+    const byId = (id: number) => result.allNodes.find(n => n.id === id);
 
-    it('parses without errors', () => {
-      const xml = readFixture('sql-monitor-xml-nested-loops.txt');
-      result = sqlMonitorXmlParser.parse(xml);
+    it('extracts metadata, all 13 operations and the global elapsed time', () => {
       expect(result.rootNode).not.toBeNull();
-    });
-
-    it('extracts correct metadata', () => {
       expect(result.sqlId).toBe('g8f4kw2n7m103');
       expect(result.planHashValue).toBe('891273456');
-    });
-
-    it('parses all 13 operations', () => {
       expect(result.allNodes).toHaveLength(13);
-    });
-
-    it('handles INDEX operations with options', () => {
-      const indexRangeScan = result.allNodes.find(n => n.id === 6);
-      expect(indexRangeScan?.operation).toBe('INDEX RANGE SCAN');
-      expect(indexRangeScan?.objectName).toBe('CUST_REGION_IX');
-
-      const indexUniqueScan = result.allNodes.find(n => n.id === 12);
-      expect(indexUniqueScan?.operation).toBe('INDEX UNIQUE SCAN');
-      expect(indexUniqueScan?.objectName).toBe('PROD_PK');
-    });
-
-    it('handles SORT ORDER BY operation', () => {
-      const sort = result.allNodes.find(n => n.id === 1);
-      expect(sort?.operation).toBe('SORT ORDER BY');
-    });
-
-    it('extracts high starts count for nested loop children', () => {
-      // ORDER_ITEMS accessed 3842 times (from nested loop)
-      const orderItems = result.allNodes.find(n => n.id === 9);
-      expect(orderItems?.starts).toBe(3842);
-
-      // PRODUCTS accessed 5012 times
-      const products = result.allNodes.find(n => n.id === 11);
-      expect(products?.starts).toBe(5012);
-    });
-
-    it('extracts memory and temp usage', () => {
-      const sort = result.allNodes.find(n => n.id === 1);
-      expect(sort?.memoryUsed).toBe(1245184);
-      expect(sort?.tempUsed).toBe(2097152);
-    });
-
-    it('extracts physical read stats', () => {
-      const orders = result.allNodes.find(n => n.id === 7);
-      expect(orders?.physicalReads).toBe(689);
-    });
-
-    it('shows actual vs estimated row differences', () => {
-      const root = result.allNodes.find(n => n.id === 0);
-      expect(root?.actualRows).toBe(5012); // actual
-      expect(root?.rows).toBeUndefined();  // SELECT STATEMENT has no estimated rows in plan
-
-      const sort = result.allNodes.find(n => n.id === 1);
-      expect(sort?.rows).toBe(4500);       // estimated
-      expect(sort?.actualRows).toBe(5012); // actual - slightly more
-    });
-
-    it('has correct global elapsed time', () => {
       // Global elapsed_time = 2451000 microseconds = 2451 ms
       expect(result.totalElapsedTime).toBeCloseTo(2451, 0);
+    });
+
+    it('handles INDEX operations with options and SORT ORDER BY', () => {
+      expect(byId(6)?.operation).toBe('INDEX RANGE SCAN');
+      expect(byId(6)?.objectName).toBe('CUST_REGION_IX');
+      expect(byId(12)?.operation).toBe('INDEX UNIQUE SCAN');
+      expect(byId(12)?.objectName).toBe('PROD_PK');
+      expect(byId(1)?.operation).toBe('SORT ORDER BY');
+    });
+
+    it('extracts nested-loop starts, memory/temp, physical reads and actual vs estimated rows', () => {
+      // ORDER_ITEMS accessed 3842 times, PRODUCTS 5012 times (from nested loops)
+      expect(byId(9)?.starts).toBe(3842);
+      expect(byId(11)?.starts).toBe(5012);
+
+      expect(byId(1)?.memoryUsed).toBe(1245184);
+      expect(byId(1)?.tempUsed).toBe(2097152);
+      expect(byId(7)?.physicalReads).toBe(689);
+
+      expect(byId(0)?.actualRows).toBe(5012); // actual
+      expect(byId(0)?.rows).toBeUndefined();  // SELECT STATEMENT has no estimated rows in plan
+      expect(byId(1)?.rows).toBe(4500);       // estimated
+      expect(byId(1)?.actualRows).toBe(5012); // actual - slightly more
     });
   });
 
@@ -310,15 +220,10 @@ Plan hash value: 123456
   });
 
   describe('Partition pruning example (27-sql_monitor-Partitioned Star Query.txt)', () => {
-    let result: ReturnType<typeof sqlMonitorXmlParser.parse>;
+    const result = sqlMonitorXmlParser.parse(readExample('27-sql_monitor-Partitioned Star Query.txt'));
 
-    it('parses without errors', () => {
-      const xml = readExample('27-sql_monitor-Partitioned Star Query.txt');
-      result = sqlMonitorXmlParser.parse(xml);
+    it('extracts Pstart/Pstop on the partitioned table scan and surfaces PX operators', () => {
       expect(result.rootNode).not.toBeNull();
-    });
-
-    it('extracts Pstart/Pstop partition range on the partitioned table scan', () => {
       // The interval-partitioned SALES_PART fact is pruned to partitions 15-20
       // (the six months 2025-03 .. 2025-08).
       const salesScan = result.allNodes.find(
@@ -327,31 +232,22 @@ Plan hash value: 123456
       expect(salesScan).toBeDefined();
       expect(salesScan!.pstart).toBe('15');
       expect(salesScan!.pstop).toBe('20');
-    });
 
-    it('surfaces parallel execution (PX) operators', () => {
       const pxNodes = result.allNodes.filter((n) => n.operation.startsWith('PX '));
       expect(pxNodes.length).toBeGreaterThan(0);
     });
   });
 
   describe('Partition range iterator example (28-sql_monitor-Partition Range Iterator.txt)', () => {
-    let result: ReturnType<typeof sqlMonitorXmlParser.parse>;
+    const result = sqlMonitorXmlParser.parse(readExample('28-sql_monitor-Partition Range Iterator.txt'));
 
-    it('parses without errors', () => {
-      const xml = readExample('28-sql_monitor-Partition Range Iterator.txt');
-      result = sqlMonitorXmlParser.parse(xml);
+    it('has a PARTITION RANGE ITERATOR with Pstart/Pstop, and the same range on the child SALES_PART scan', () => {
       expect(result.rootNode).not.toBeNull();
-    });
-
-    it('has an explicit PARTITION RANGE ITERATOR operator with Pstart/Pstop', () => {
       const iterator = result.allNodes.find((n) => n.operation === 'PARTITION RANGE ITERATOR');
       expect(iterator).toBeDefined();
       expect(iterator!.pstart).toBe('15');
       expect(iterator!.pstop).toBe('20');
-    });
 
-    it('carries the same partition range on the child SALES_PART scan', () => {
       const salesScan = result.allNodes.find(
         (n) => n.objectName === 'SALES_PART' && n.operation.startsWith('TABLE ACCESS'),
       );
@@ -395,38 +291,29 @@ Plan hash value: 123456
   });
 
   describe('Activity timeline (23-sql_monitor-Window Sort Spill.txt)', () => {
-    let result: ReturnType<typeof sqlMonitorXmlParser.parse>;
+    const result = sqlMonitorXmlParser.parse(readExample('23-sql_monitor-Window Sort Spill.txt'));
+    const byId = (id: number) => result.allNodes.find((n) => n.id === id)!;
 
-    it('parses without errors', () => {
-      const xml = readExample('23-sql_monitor-Window Sort Spill.txt');
-      result = sqlMonitorXmlParser.parse(xml);
+    it('parses report-level activity_detail into activityTimeline (User I/O and Cpu samples)', () => {
       expect(result.rootNode).not.toBeNull();
-    });
-
-    it('parses report-level activity_detail into activityTimeline', () => {
       expect(result.activityTimeline).toBeDefined();
       expect(result.activityTimeline!.bucketCount).toBe(11);
       expect(result.activityTimeline!.bucketIntervalSecs).toBe(1);
       expect(result.activityTimeline!.durationSecs).toBe(9);
       expect(result.activityTimeline!.samples).toHaveLength(9);
-    });
 
-    it('includes a User I/O sample with event and line', () => {
       const sample = result.activityTimeline!.samples.find(
         (s) => s.waitClass === 'User I/O' && s.event === 'direct path write temp' && s.line === 4
       );
       expect(sample).toBeDefined();
       expect(sample!.bucket).toBe(4);
       expect(sample!.count).toBe(1);
-    });
 
-    it('includes Cpu samples', () => {
       const cpuSamples = result.activityTimeline!.samples.filter((s) => s.waitClass === 'Cpu');
       expect(cpuSamples.length).toBe(7); // buckets 2,3,5,6,7,8,10
     });
 
     it('sets first/last-active offsets (seconds from sql_exec_start=07/04/2026 18:51:54)', () => {
-      const byId = (id: number) => result.allNodes.find((n) => n.id === id)!;
       expect(byId(0).firstActiveOffset).toBe(1);
       expect(byId(0).lastActiveOffset).toBe(9);
       expect(byId(0).firstRowOffset).toBe(9);
@@ -443,7 +330,6 @@ Plan hash value: 123456
     });
 
     it('populates activityPercent from the timeline, dominant on line 4', () => {
-      const byId = (id: number) => result.allNodes.find((n) => n.id === id)!;
       // line 4 (WINDOW SORT, id=4): 6 of 9 samples = 66.67%
       expect(byId(4).activityPercent).toBeCloseTo((6 / 9) * 100, 5);
       // line 3 (WINDOW SORT PUSHED RANK, id=3): 2 of 9 = 22.22%
@@ -460,28 +346,17 @@ Plan hash value: 123456
   });
 
   describe('No activity_detail (21-sql_monitor-Star Schema Rollup.txt)', () => {
-    let result: ReturnType<typeof sqlMonitorXmlParser.parse>;
+    const result = sqlMonitorXmlParser.parse(readExample('21-sql_monitor-Star Schema Rollup.txt'));
 
-    it('parses without errors', () => {
-      const xml = readExample('21-sql_monitor-Star Schema Rollup.txt');
-      result = sqlMonitorXmlParser.parse(xml);
+    it('leaves activityTimeline and activityPercent undefined but still fills offsets from timestamps (all 0s here)', () => {
       expect(result.rootNode).not.toBeNull();
-    });
-
-    it('activityTimeline is undefined', () => {
       expect(result.activityTimeline).toBeUndefined();
-    });
-
-    it('firstActiveOffset/lastActiveOffset are still populated from timestamps (all 0s here)', () => {
       expect(result.allNodes).toHaveLength(9);
       for (const node of result.allNodes) {
         expect(node.firstActiveOffset).toBe(0);
         expect(node.lastActiveOffset).toBe(0);
         expect(node.firstRowOffset).toBeUndefined();
       }
-    });
-
-    it('does not regress activityPercent (no samples, stays undefined)', () => {
       expect(result.allNodes.every((n) => n.activityPercent === undefined)).toBe(true);
     });
   });

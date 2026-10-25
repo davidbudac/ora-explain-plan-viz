@@ -1,5 +1,3 @@
-/** @jsxRuntime automatic */
-/** @jsxImportSource react */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SelectionBreadcrumb } from '../SelectionBreadcrumb';
 import { collapseCrumbs, crumbTitle } from '../../lib/breadcrumb';

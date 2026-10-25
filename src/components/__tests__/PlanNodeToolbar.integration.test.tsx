@@ -1,55 +1,19 @@
-/** @jsxRuntime automatic */
-/** @jsxImportSource react */
 import { act, useLayoutEffect } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReactFlow, ReactFlowProvider } from '@xyflow/react';
 import type { Node, NodeTypes } from '@xyflow/react';
-import { PlanProvider, usePlan } from '../../hooks/usePlanContext';
+import { usePlan } from '../../hooks/usePlanContext';
 import { PlanNodeMemo } from '../nodes/PlanNode';
 import type { PlanNodeData } from '../nodes/PlanNode';
-import { ConfirmProvider, ToastProvider } from '../ui';
 import { cleanup, click, press, render } from '../ui/__tests__/testUtils';
+import { SIMPLE_PLAN, installLayoutShims, withPlanProviders } from '../ui/__tests__/planContext';
+import type { PlanCtx as Ctx } from '../ui/__tests__/planContext';
 import { defaultNodeDisplayOptions } from '../../lib/settings';
 import type { PlanNode as PlanNodeType } from '../../lib/types';
 
-const PLAN_TEXT = `Plan hash value: 1234567890
-
---------------------------------------------------------------------------------
-| Id  | Operation                    | Name       | Rows  | Bytes | Cost (%CPU)|
---------------------------------------------------------------------------------
-|   0 | SELECT STATEMENT             |            |     1 |    10 |     5   (0)|
-|   1 |  TABLE ACCESS FULL           | ORDERS     |     1 |    10 |     5   (0)|
---------------------------------------------------------------------------------
-`;
-
 const nodeTypes = { planNode: PlanNodeMemo } as unknown as NodeTypes;
 
-type Ctx = ReturnType<typeof usePlan>;
-
-beforeAll(() => {
-  // React Flow needs a few browser APIs jsdom lacks
-  class RO {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  }
-  (globalThis as Record<string, unknown>).ResizeObserver ??= RO;
-  (globalThis as Record<string, unknown>).DOMMatrixReadOnly ??= class {
-    m22 = 1;
-  };
-  if (typeof window.matchMedia !== 'function') {
-    window.matchMedia = ((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: () => {},
-      removeListener: () => {},
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      dispatchEvent: () => false,
-    })) as typeof window.matchMedia;
-  }
-});
+beforeAll(installLayoutShims);
 
 beforeEach(() => {
   localStorage.clear();
@@ -92,20 +56,15 @@ function Scene({ onCtx, ready, onNodeClick }: { onCtx: (ctx: Ctx) => void; ready
 async function mountScene() {
   let ctx: Ctx | null = null;
   const onNodeClick = vi.fn();
-  const tree = (ready: boolean) => (
-    <ToastProvider>
-      <ConfirmProvider>
-        <PlanProvider>
-          <ReactFlowProvider>
-            <Scene onCtx={(c) => (ctx = c)} ready={ready} onNodeClick={onNodeClick} />
-          </ReactFlowProvider>
-        </PlanProvider>
-      </ConfirmProvider>
-    </ToastProvider>
-  );
+  const tree = (ready: boolean) =>
+    withPlanProviders(
+      <ReactFlowProvider>
+        <Scene onCtx={(c) => (ctx = c)} ready={ready} onNodeClick={onNodeClick} />
+      </ReactFlowProvider>,
+    );
   const view = render(tree(false));
   await act(async () => {
-    await ctx!.loadAndParsePlan(PLAN_TEXT, undefined, { recordRecent: false, skipConfirm: true });
+    await ctx!.loadAndParsePlan(SIMPLE_PLAN, undefined, { recordRecent: false, skipConfirm: true });
   });
   vi.useFakeTimers();
   view.rerender(tree(true));

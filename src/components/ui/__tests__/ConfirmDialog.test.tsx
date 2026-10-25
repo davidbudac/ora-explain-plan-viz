@@ -1,5 +1,3 @@
-/** @jsxRuntime automatic */
-/** @jsxImportSource react */
 import { act, useState } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ConfirmProvider, useConfirm } from '../ConfirmDialog';

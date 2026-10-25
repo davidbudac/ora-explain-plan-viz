@@ -1,24 +1,11 @@
-/** @jsxRuntime automatic */
-/** @jsxImportSource react */
 import { act, memo, useLayoutEffect } from 'react';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { PlanProvider, usePlan, useDraftInput } from '../usePlanContext';
-import { ConfirmProvider, ToastProvider } from '../../components/ui';
+import { afterEach, describe, expect, it } from 'vitest';
+import { usePlan, useDraftInput } from '../usePlanContext';
 import { cleanup, render } from '../../components/ui/__tests__/testUtils';
+import { SIMPLE_PLAN, withPlanProviders } from '../../components/ui/__tests__/planContext';
+import type { PlanCtx } from '../../components/ui/__tests__/planContext';
 
-const PLAN_TEXT = `Plan hash value: 1234567890
-
---------------------------------------------------------------------------------
-| Id  | Operation                    | Name       | Rows  | Bytes | Cost (%CPU)|
---------------------------------------------------------------------------------
-|   0 | SELECT STATEMENT             |            |     1 |    10 |     5   (0)|
-|   1 |  TABLE ACCESS FULL           | ORDERS     |     1 |    10 |     5   (0)|
---------------------------------------------------------------------------------
-`;
-
-type Ctx = ReturnType<typeof usePlan>;
-
-const probe: { ctx: Ctx | null; draft: string; contextRenders: number; draftRenders: number } = {
+const probe: { ctx: PlanCtx | null; draft: string; contextRenders: number; draftRenders: number } = {
   ctx: null,
   draft: '',
   contextRenders: 0,
@@ -45,33 +32,14 @@ const DraftProbe = memo(function DraftProbe() {
 });
 
 function Harness({ tick }: { tick: number }) {
-  return (
-    <ToastProvider>
-      <ConfirmProvider>
-        <PlanProvider>
-          <ContextProbe />
-          <DraftProbe />
-          <span data-tick={tick} />
-        </PlanProvider>
-      </ConfirmProvider>
-    </ToastProvider>
+  return withPlanProviders(
+    <>
+      <ContextProbe />
+      <DraftProbe />
+      <span data-tick={tick} />
+    </>,
   );
 }
-
-beforeAll(() => {
-  if (typeof window.matchMedia !== 'function') {
-    window.matchMedia = ((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: () => {},
-      removeListener: () => {},
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      dispatchEvent: () => false,
-    })) as typeof window.matchMedia;
-  }
-});
 
 afterEach(() => {
   cleanup();
@@ -84,7 +52,7 @@ afterEach(() => {
 async function mountWithPlan() {
   const view = render(<Harness tick={0} />);
   await act(async () => {
-    await probe.ctx!.loadAndParsePlan(PLAN_TEXT, undefined, { recordRecent: false, skipConfirm: true });
+    await probe.ctx!.loadAndParsePlan(SIMPLE_PLAN, undefined, { recordRecent: false, skipConfirm: true });
   });
   expect(probe.ctx!.parsedPlan).not.toBeNull();
   return view;
@@ -97,7 +65,7 @@ describe('plan context value stability', () => {
     view.rerender(<Harness tick={1} />);
     const after = probe.ctx!;
     expect(after).toBe(before);
-    for (const key of Object.keys(before) as Array<keyof Ctx>) {
+    for (const key of Object.keys(before) as Array<keyof PlanCtx>) {
       expect(after[key], `${String(key)} changed identity`).toBe(before[key]);
     }
   });
@@ -129,7 +97,7 @@ describe('plan context value stability', () => {
 
   it('picks up a re-parse of the drawer text (rawInput) even though drafts are ignored', async () => {
     await mountWithPlan();
-    act(() => probe.ctx!.setInput(PLAN_TEXT.replace('ORDERS', 'CUSTOMERS')));
+    act(() => probe.ctx!.setInput(SIMPLE_PLAN.replace('ORDERS', 'CUSTOMERS')));
     const before = probe.ctx!;
     await act(async () => {
       await before.parsePlan();

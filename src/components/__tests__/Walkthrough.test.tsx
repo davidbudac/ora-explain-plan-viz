@@ -1,5 +1,3 @@
-/** @jsxRuntime automatic */
-/** @jsxImportSource react */
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WalkthroughView } from '../Walkthrough';

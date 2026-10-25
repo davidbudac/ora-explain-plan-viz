@@ -1,38 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Self-contained SDK mock: minimal error hierarchy + a capturable stream() fn.
-const streamMock = vi.fn();
-const constructorMock = vi.fn();
+// Shared SDK stand-in (error hierarchy + capturable stream()), so the anthropic
+// provider runs without the real SDK.
+vi.mock('@anthropic-ai/sdk', async () => (await import('./anthropicSdkMock')).anthropicSdkModule());
 
-vi.mock('@anthropic-ai/sdk', () => {
-  class APIError extends Error {
-    status: number | undefined;
-    constructor(message: string, status?: number) {
-      super(message);
-      this.status = status;
-    }
-  }
-  class APIUserAbortError extends APIError {}
-  class APIConnectionError extends APIError {}
-  class AuthenticationError extends APIError {}
-  class RateLimitError extends APIError {}
-  class BadRequestError extends APIError {}
-
-  class Anthropic {
-    beta = { messages: { stream: streamMock } };
-    constructor(opts: unknown) {
-      constructorMock(opts);
-    }
-    static APIError = APIError;
-    static APIUserAbortError = APIUserAbortError;
-    static APIConnectionError = APIConnectionError;
-    static AuthenticationError = AuthenticationError;
-    static RateLimitError = RateLimitError;
-    static BadRequestError = BadRequestError;
-  }
-  return { default: Anthropic };
-});
-
+import { streamMock, constructorMock } from './anthropicSdkMock';
 import Anthropic from '@anthropic-ai/sdk';
 import { streamAnthropic } from '../providers/anthropic';
 import { AiError } from '../types';
