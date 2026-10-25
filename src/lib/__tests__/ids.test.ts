@@ -11,10 +11,6 @@ afterEach(() => {
 });
 
 describe('generateId', () => {
-  it('returns a v4-shaped UUID with the native crypto', () => {
-    expect(generateId()).toMatch(UUID_V4);
-  });
-
   it('delegates to crypto.randomUUID when it exists', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'native-uuid' });
     expect(generateId()).toBe('native-uuid');

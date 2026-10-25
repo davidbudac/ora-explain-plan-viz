@@ -18,23 +18,11 @@ describe('Live-captured SQL Monitor XML examples', () => {
   describe.each(LIVE_EXAMPLES)('%s', (filename) => {
     const raw = readExample(filename);
 
-    it('is detected as SQL Monitor XML', () => {
+    it('is detected as SQL Monitor XML and parses with more than 5 nodes and actual rows', () => {
       expect(sqlMonitorXmlParser.canParse(raw)).toBe(true);
-    });
-
-    it('parses successfully with more than 5 nodes', () => {
       const result = sqlMonitorXmlParser.parse(raw);
       expect(result.rootNode).not.toBeNull();
       expect(result.allNodes.length).toBeGreaterThan(5);
-    });
-
-    it('reports source as sql_monitor_xml', () => {
-      const result = sqlMonitorXmlParser.parse(raw);
-      expect(result.source).toBe('sql_monitor_xml');
-    });
-
-    it('has actual rows on at least one node', () => {
-      const result = sqlMonitorXmlParser.parse(raw);
       expect(result.hasActualStats).toBe(true);
       const withActuals = result.allNodes.filter(
         (n) => n.actualRows !== undefined && n.actualRows !== null

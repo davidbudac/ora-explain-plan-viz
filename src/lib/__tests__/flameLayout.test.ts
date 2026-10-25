@@ -282,19 +282,6 @@ describe('computeFlameLayout', () => {
     expect(r1.x1 - r1.x0).toBeCloseTo(50, 5);
     expect(r2.x1 - r2.x0).toBeCloseTo(50, 5);
   });
-
-  it('produces a rollup map keyed by node id covering the whole subtree', () => {
-    const root = buildNode({
-      id: 0,
-      actualTime: 10,
-      children: [{ id: 1, actualTime: 5 }, { id: 2, actualTime: 5 }],
-    });
-    const values = rollupMetric(root, 'actualTime');
-    expect(values.size).toBe(3);
-    expect(values.get(0)).toBe(10);
-    expect(values.get(1)).toBe(5);
-    expect(values.get(2)).toBe(5);
-  });
 });
 
 describe('adaptive plans: inactive operations', () => {
@@ -320,6 +307,7 @@ describe('adaptive plans: inactive operations', () => {
 
   it('gives inactive nodes no value of their own, so only active descendants roll up through them', () => {
     const time = rollupMetric(adaptive(), 'actualTime');
+    expect(time.size).toBe(5); // keyed by node id over the whole subtree
     expect(time.get(3)).toBe(0);
     expect(time.get(1)).toBe(60); // = active child 2, not its own 90
     expect(time.get(0)).toBe(100);

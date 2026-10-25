@@ -1,41 +1,16 @@
-/** @jsxRuntime automatic */
-/** @jsxImportSource react */
-import { act, useLayoutEffect } from 'react';
+import { act } from 'react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { PlanProvider, usePlan } from '../../hooks/usePlanContext';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { NodeDetailBody } from '../NodeDetailPanel';
 import { SqlTextView } from '../views/SqlTextView';
-import { ConfirmProvider, ToastProvider } from '../ui';
-import { cleanup, render } from '../ui/__tests__/testUtils';
+import { cleanup } from '../ui/__tests__/testUtils';
+import { loadPlan, renderPlanContext } from '../ui/__tests__/planContext';
 
 const ADVANCED = readFileSync(
   resolve(__dirname, '../../lib/parser/__tests__/fixtures/advanced-allstats-19c.txt'),
   'utf8',
 );
-
-type Ctx = ReturnType<typeof usePlan>;
-
-beforeAll(() => {
-  (globalThis as Record<string, unknown>).ResizeObserver ??= class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  };
-  if (typeof window.matchMedia !== 'function') {
-    window.matchMedia = ((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: () => {},
-      removeListener: () => {},
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      dispatchEvent: () => false,
-    })) as typeof window.matchMedia;
-  }
-});
 
 beforeEach(() => {
   localStorage.clear();
@@ -44,28 +19,9 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 async function mount(ui: React.ReactNode) {
-  const latest: { ctx: Ctx | null } = { ctx: null };
-  function Probe() {
-    const ctx = usePlan();
-    useLayoutEffect(() => {
-      latest.ctx = ctx;
-    });
-    return null;
-  }
-  render(
-    <ToastProvider>
-      <ConfirmProvider>
-        <PlanProvider>
-          <Probe />
-          {ui}
-        </PlanProvider>
-      </ConfirmProvider>
-    </ToastProvider>,
-  );
-  await act(async () => {
-    await latest.ctx!.loadAndParsePlan(ADVANCED, undefined, { recordRecent: false, skipConfirm: true });
-  });
-  return () => latest.ctx!;
+  const plan = renderPlanContext(ui);
+  await loadPlan(plan, ADVANCED);
+  return plan.current;
 }
 
 describe('ADVANCED sections in the UI', () => {

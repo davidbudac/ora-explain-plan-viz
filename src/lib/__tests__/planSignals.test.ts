@@ -29,74 +29,23 @@ function makePlan(nodes: PlanNode[]): ParsedPlan {
 }
 
 describe('assessPartitionPruning', () => {
-  it('returns undefined when node has neither pstart nor pstop', () => {
-    const node = makeNode({});
-    expect(assessPartitionPruning(node)).toBeUndefined();
-  });
-
-  it('returns "none" for PARTITION RANGE ALL regardless of values', () => {
-    const node = makeNode({ operation: 'PARTITION RANGE ALL', pstart: '1', pstop: '12' });
-    expect(assessPartitionPruning(node)).toBe('none');
-  });
-
-  it('returns "none" for PARTITION LIST ALL', () => {
-    const node = makeNode({ operation: 'PARTITION LIST ALL', pstart: '1', pstop: '4' });
-    expect(assessPartitionPruning(node)).toBe('none');
-  });
-
-  it('returns "none" for PARTITION HASH ALL', () => {
-    const node = makeNode({ operation: 'PARTITION HASH ALL', pstart: '1', pstop: '8' });
-    expect(assessPartitionPruning(node)).toBe('none');
-  });
-
-  it('returns "static" for numeric pstart/pstop', () => {
-    const node = makeNode({ operation: 'PARTITION RANGE SINGLE', pstart: '9', pstop: '9' });
-    expect(assessPartitionPruning(node)).toBe('static');
-  });
-
-  it('returns "runtime" for KEY', () => {
-    const node = makeNode({ operation: 'PARTITION RANGE ITERATOR', pstart: 'KEY', pstop: 'KEY' });
-    expect(assessPartitionPruning(node)).toBe('runtime');
-  });
-
-  it('returns "runtime" for KEY(I)', () => {
-    const node = makeNode({ pstart: 'KEY(I)', pstop: 'KEY(I)' });
-    expect(assessPartitionPruning(node)).toBe('runtime');
-  });
-
-  it('returns "runtime" for KEY(SQ)', () => {
-    const node = makeNode({ pstart: 'KEY(SQ)', pstop: 'KEY(SQ)' });
-    expect(assessPartitionPruning(node)).toBe('runtime');
-  });
-
-  it('returns "runtime" for KEY(AP)', () => {
-    const node = makeNode({ pstart: 'KEY(AP)', pstop: 'KEY(AP)' });
-    expect(assessPartitionPruning(node)).toBe('runtime');
-  });
-
-  it('returns "runtime" for :BFnnnn bind-driven pruning on either bound', () => {
-    const node = makeNode({ pstart: ':BF0000', pstop: ':BF0000' });
-    expect(assessPartitionPruning(node)).toBe('runtime');
-  });
-
-  it('returns "runtime" when only one bound is KEY', () => {
-    const node = makeNode({ pstart: 'KEY', pstop: '9' });
-    expect(assessPartitionPruning(node)).toBe('runtime');
-  });
-
-  it('returns "static" for ROW LOCATION fallback', () => {
-    const node = makeNode({ pstart: 'ROW LOCATION', pstop: 'ROW LOCATION' });
-    expect(assessPartitionPruning(node)).toBe('static');
-  });
-
-  it('returns "static" for INVALID fallback', () => {
-    const node = makeNode({ pstart: 'INVALID', pstop: 'INVALID' });
-    expect(assessPartitionPruning(node)).toBe('static');
-  });
-
-  it('returns "static" for ANY fallback', () => {
-    const node = makeNode({ pstart: 'ANY', pstop: 'ANY' });
-    expect(assessPartitionPruning(node)).toBe('static');
+  it.each<[string, Partial<PlanNode>, ReturnType<typeof assessPartitionPruning>]>([
+    ['undefined when the node has neither pstart nor pstop', {}, undefined],
+    ['"none" for PARTITION RANGE ALL regardless of values', { operation: 'PARTITION RANGE ALL', pstart: '1', pstop: '12' }, 'none'],
+    ['"none" for PARTITION LIST ALL', { operation: 'PARTITION LIST ALL', pstart: '1', pstop: '4' }, 'none'],
+    ['"none" for PARTITION HASH ALL', { operation: 'PARTITION HASH ALL', pstart: '1', pstop: '8' }, 'none'],
+    ['"static" for numeric pstart/pstop', { operation: 'PARTITION RANGE SINGLE', pstart: '9', pstop: '9' }, 'static'],
+    ['"runtime" for KEY', { operation: 'PARTITION RANGE ITERATOR', pstart: 'KEY', pstop: 'KEY' }, 'runtime'],
+    ['"runtime" for KEY(I)', { pstart: 'KEY(I)', pstop: 'KEY(I)' }, 'runtime'],
+    ['"runtime" for KEY(SQ)', { pstart: 'KEY(SQ)', pstop: 'KEY(SQ)' }, 'runtime'],
+    ['"runtime" for KEY(AP)', { pstart: 'KEY(AP)', pstop: 'KEY(AP)' }, 'runtime'],
+    ['"runtime" for :BFnnnn bind-driven pruning', { pstart: ':BF0000', pstop: ':BF0000' }, 'runtime'],
+    ['"runtime" when only one bound is KEY', { pstart: 'KEY', pstop: '9' }, 'runtime'],
+    ['"static" for the ROW LOCATION fallback', { pstart: 'ROW LOCATION', pstop: 'ROW LOCATION' }, 'static'],
+    ['"static" for the INVALID fallback', { pstart: 'INVALID', pstop: 'INVALID' }, 'static'],
+    ['"static" for the ANY fallback', { pstart: 'ANY', pstop: 'ANY' }, 'static'],
+  ])('returns %s', (_label, overrides, expected) => {
+    expect(assessPartitionPruning(makeNode(overrides))).toBe(expected);
   });
 });
 

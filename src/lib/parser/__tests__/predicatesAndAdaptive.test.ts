@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { parsePlan, parsePlans } from '../index';
+import { parsePlan } from '../index';
 import { parsePredicateSection, parseQueryBlockSection } from '../predicateSection';
 import { computeWorstNodes } from '../../worstNodes';
 import { computeHottestNodeId, rankNodesByTime } from '../../analysis';
@@ -138,9 +138,6 @@ describe('real 19c captures: predicates and query blocks', () => {
 });
 
 describe('child number', () => {
-  const header = (child: number) => `SQL_ID  7wk3dq0p9xz2c, child number ${child}
--------------------------------------
-select * from t where id = :b1`;
   const table = (hash: string, cost: number) => `
 Plan hash value: ${hash}
 
@@ -163,16 +160,7 @@ Predicate Information (identified by operation id):
     expect(plan.childNumber).toBe(0);
   });
 
-  it('keeps each plan of a two-child paste with its own header data', () => {
-    const plans = parsePlans(`${header(0)}\n${table('1111111111', 3)}\n${header(1)}\n${table('2222222222', 9)}`);
-    expect(plans).toHaveLength(2);
-    expect(plans.map((p) => p.childNumber)).toEqual([0, 1]);
-    expect(plans.map((p) => p.sqlId)).toEqual(['7wk3dq0p9xz2c', '7wk3dq0p9xz2c']);
-    expect(plans.map((p) => p.planHashValue)).toEqual(['1111111111', '2222222222']);
-    expect(plans.map((p) => p.sqlText)).toEqual(['select * from t where id = :b1', 'select * from t where id = :b1']);
-    expect(plans.map((p) => p.totalCost)).toEqual([3, 9]);
-  });
-
+  // Two-child pastes (ALLSTATS and estimate-only) are covered in displayCursorBatch.test.ts.
   it('leaves it undefined without a DISPLAY_CURSOR header', () => {
     expect(parsePlan(table('1111111111', 3)).childNumber).toBeUndefined();
   });

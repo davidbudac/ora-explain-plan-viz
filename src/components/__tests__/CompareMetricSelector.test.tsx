@@ -1,5 +1,3 @@
-/** @jsxRuntime automatic */
-/** @jsxImportSource react */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CompareMetric } from '../../lib/compare';
 

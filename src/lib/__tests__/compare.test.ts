@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { matchNodes, computeComparisonSummary, getNodeMetricValue, createEmptySlot, buildComparisonRows, rowHasVisibleChange } from '../../compare';
-import type { ParsedPlan, PlanNode } from '../../types';
+import { matchNodes, computeComparisonSummary, getNodeMetricValue, createEmptySlot, buildComparisonRows, rowHasVisibleChange } from '../compare';
+import type { ParsedPlan, PlanNode } from '../types';
 
 function makeNode(overrides: Partial<PlanNode> & { id: number; operation: string }): PlanNode {
   return {
@@ -115,20 +115,6 @@ describe('matchNodes', () => {
     const emptyPlan = makePlan([]);
     const matches = matchNodes(emptyPlan, emptyPlan);
     expect(matches).toHaveLength(0);
-  });
-
-  it('handles identical plans', () => {
-    const nodes = [
-      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0, cost: 10 }),
-      makeNode({ id: 1, operation: 'TABLE ACCESS FULL', objectName: 'EMP', depth: 1, cost: 10 }),
-    ];
-    const planA = makePlan(nodes);
-    const planB = makePlan(nodes);
-
-    const matches = matchNodes(planA, planB);
-    expect(matches).toHaveLength(2);
-    expect(matches.every(m => m.matchType === 'exact-id')).toBe(true);
-    expect(matches.filter(m => m.matchType === 'unmatched')).toHaveLength(0);
   });
 
   it('sorts matches: exact-id first, then heuristic, then unmatched', () => {

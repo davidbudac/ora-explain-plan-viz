@@ -71,10 +71,33 @@ describe('two concatenated DISPLAY_CURSOR outputs (same SQL_ID, different plan h
     expect(second).toContain('SQL_ID  7wk3dq0p9xz2c');
   });
 
-  it('parses both plans with actual stats and the SQL_ID from their own header', () => {
+  // Estimate-only (no ALLSTATS) pair of children: Rows / Bytes / Cost columns.
+  const estimateHeader = (child: number) => `SQL_ID  7wk3dq0p9xz2c, child number ${child}
+-------------------------------------
+select * from t where id = :b1`;
+  const estimateTable = (hash: string, cost: number) => `
+Plan hash value: ${hash}
+
+----------------------------------------------------------
+| Id  | Operation         | Name | Rows  | Bytes | Cost  |
+----------------------------------------------------------
+|   0 | SELECT STATEMENT  |      |     1 |     5 |     ${cost} |
+|*  1 |  TABLE ACCESS FULL| T    |     1 |     5 |     ${cost} |
+----------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - filter("ID"=:B1)
+`;
+  const estimateInput = `${estimateHeader(0)}\n${estimateTable('1111111111', 3)}\n${estimateHeader(1)}\n${estimateTable('2222222222', 9)}`;
+
+  it('parses each child with its own header data, for ALLSTATS and estimate-only column sets', () => {
     const plans = parsePlans(input);
     expect(plans).toHaveLength(2);
     expect(plans.map((p) => p.planHashValue)).toEqual(['1111111111', '2222222222']);
+    expect(plans.map((p) => p.childNumber)).toEqual([0, 1]);
+    expect(plans.map((p) => p.sqlText)).toEqual([SQL, SQL]);
     for (const plan of plans) {
       expect(plan.hasActualStats).toBe(true);
       expect(plan.sqlId).toBe('7wk3dq0p9xz2c');
@@ -84,5 +107,13 @@ describe('two concatenated DISPLAY_CURSOR outputs (same SQL_ID, different plan h
     expect(plans[1].allNodes.find((n) => n.id === 2)!.operation).toBe('HASH JOIN');
     expect(plans[0].allNodes.find((n) => n.id === 4)!.actualRows).toBe(107);
     expect(plans[1].allNodes.find((n) => n.id === 4)!.starts).toBe(1);
+
+    const estimates = parsePlans(estimateInput);
+    expect(estimates).toHaveLength(2);
+    expect(estimates.map((p) => p.childNumber)).toEqual([0, 1]);
+    expect(estimates.map((p) => p.sqlId)).toEqual(['7wk3dq0p9xz2c', '7wk3dq0p9xz2c']);
+    expect(estimates.map((p) => p.planHashValue)).toEqual(['1111111111', '2222222222']);
+    expect(estimates.map((p) => p.sqlText)).toEqual(['select * from t where id = :b1', 'select * from t where id = :b1']);
+    expect(estimates.map((p) => p.totalCost)).toEqual([3, 9]);
   });
 });

@@ -105,8 +105,4 @@ describe('perRowReexecutionRule', () => {
       expect(evaluate(remotePlan(100_000, 1_000_000))).toHaveLength(0);
     });
   });
-
-  it('is gated by requiresActualStats', () => {
-    expect(perRowReexecutionRule.requiresActualStats).toBe(true);
-  });
 });

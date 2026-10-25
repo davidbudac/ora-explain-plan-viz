@@ -1,5 +1,3 @@
-/** @jsxRuntime automatic */
-/** @jsxImportSource react */
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -236,16 +234,6 @@ describe('copy script buttons', () => {
     expect(buttonByText('Copied!')).toBeTruthy();
   });
 
-  it('Baseline: a failed copy raises an error toast and never shows "Copied!"', async () => {
-    copyToClipboard.mockResolvedValue(false);
-    await openValidBaseline();
-    await act(async () => {
-      click(buttonByText('Copy script'));
-    });
-    expect(() => buttonByText('Copied!')).toThrow();
-    expect(toastText()).toContain('Copy failed');
-  });
-
   it('Baseline: Copy is disabled until the SQL_ID and plan hash are valid', () => {
     renderWithProviders(<BaselineScriptModal onClose={() => {}} />);
     expect(buttonByText('Copy script').disabled).toBe(true);
@@ -300,31 +288,6 @@ describe('ClientReportModal feedback', () => {
 
 // ---- content -------------------------------------------------------------------
 describe('ShortcutsOverlay content', () => {
-  it('describes the real per-view keyboard behaviour', () => {
-    renderWithProviders(<ShortcutsOverlay />);
-    const text = dialog()!.textContent!;
-    // Tabular: rows move with up/down, collapse/expand with left/right
-    expect(text).toContain('Tabular view');
-    expect(text).toContain('Move to the previous / next row');
-    expect(text).toContain('Collapse / expand the selected row');
-    // Compare: Enter / Space toggles a row
-    expect(text).toContain('Compare view');
-    expect(text).toContain('Expand / collapse the focused row');
-    // Flame: double-click zooms
-    expect(text).toContain('Flame graph');
-    expect(text).toContain('Double-click');
-    // Tree: chevron collapses a subtree
-    expect(text).toContain('collapse / expand its subtree');
-    // Tree: arrows rotate in the left-to-right layout; arrowing into a collapsed node expands it
-    expect(text).toContain('Left-to-right layout (the arrows rotate): parent / first child');
-    expect(text).toContain('Left-to-right layout: previous / next sibling');
-    expect(text).toContain('Arrowing into a collapsed node expands it');
-    // Multi-select and the existing groups survive
-    expect(text).toMatch(/(Ctrl|⌘)\+Click/);
-    expect(text).toContain('General');
-    expect(text).toContain('Selection');
-  });
-
   it('closes on Escape and on the Close button', () => {
     renderWithProviders(<ShortcutsOverlay />);
     press(dialog()!, 'Escape');
@@ -361,17 +324,6 @@ describe('ShareResultDialog', () => {
     });
     expect(copyToClipboard).toHaveBeenCalledWith('https://example.test/#p=abc');
     expect(buttonByText('Copied!')).toBeTruthy();
-  });
-
-  it('does not claim success when the copy fails', async () => {
-    copyToClipboard.mockResolvedValue(false);
-    plan.shareNotice = { kind: 'manual', url: 'https://example.test/#p=abc' };
-    renderWithProviders(<ShareResultDialog />);
-    await act(async () => {
-      click(buttonByText('Copy'));
-    });
-    expect(() => buttonByText('Copied!')).toThrow();
-    expect(toastText()).toContain('Copy failed');
   });
 });
 

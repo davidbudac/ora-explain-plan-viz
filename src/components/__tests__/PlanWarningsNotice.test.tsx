@@ -1,5 +1,3 @@
-/** @jsxRuntime automatic */
-/** @jsxImportSource react */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PlanWarningsNotice } from '../PlanWarningsNotice';
 import { cleanup, click, render } from '../ui/__tests__/testUtils';

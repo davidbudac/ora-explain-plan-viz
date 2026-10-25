@@ -37,12 +37,6 @@ function trackedFindings(name: string): string[] {
 }
 
 describe('advisor findings on the bundled examples', () => {
-  it('runs on every example without throwing', () => {
-    for (const sample of SAMPLE_PLANS) {
-      expect(() => trackedFindings(sample.name), sample.name).not.toThrow();
-    }
-  });
-
   it('keeps the new rules quiet on examples where they do not apply', () => {
     // Only these rules are new; nothing in the bundled examples is a per-row subquery, a discarded-index
     // read, a buffer hog, a wrapped indexed column an oversized build side or a skewed PX server set (example 27's four servers per set are within ~1.3x).

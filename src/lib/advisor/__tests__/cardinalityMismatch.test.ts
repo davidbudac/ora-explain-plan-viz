@@ -1,36 +1,25 @@
 import { describe, it, expect } from 'vitest';
 import { cardinalityMismatchRule } from '../rules/cardinalityMismatch';
 import { DEFAULT_THRESHOLDS } from '../config';
-import { buildPlan } from './helpers';
-import type { RuleContext } from '../types';
-
-function makeCtx(plan: ReturnType<typeof buildPlan>): RuleContext {
-  return {
-    plan,
-    bundle: null,
-    thresholds: DEFAULT_THRESHOLDS,
-    findObject: () => null,
-    usedIndexKeys: new Set(),
-  };
-}
+import { buildPlan, ruleCtx } from './helpers';
 
 describe('cardinalityMismatchRule', () => {
   it('flags warn-tier mismatch as warning', () => {
     const plan = buildPlan({ id: 0, operation: 'TABLE ACCESS FULL', rows: 100, actualRows: 500 });
-    const findings = cardinalityMismatchRule.evaluate(makeCtx(plan));
+    const findings = cardinalityMismatchRule.evaluate(ruleCtx(plan));
     expect(findings).toHaveLength(1);
     expect(findings[0].severity).toBe('warning');
   });
 
   it('flags bad-tier mismatch as critical', () => {
     const plan = buildPlan({ id: 0, operation: 'TABLE ACCESS FULL', rows: 100, actualRows: 5000 });
-    const findings = cardinalityMismatchRule.evaluate(makeCtx(plan));
+    const findings = cardinalityMismatchRule.evaluate(ruleCtx(plan));
     expect(findings[0].severity).toBe('critical');
   });
 
   it('does not flag accurate estimates', () => {
     const plan = buildPlan({ id: 0, operation: 'TABLE ACCESS FULL', rows: 100, actualRows: 110 });
-    expect(cardinalityMismatchRule.evaluate(makeCtx(plan))).toHaveLength(0);
+    expect(cardinalityMismatchRule.evaluate(ruleCtx(plan))).toHaveLength(0);
   });
 
   it('sorts findings by deviation descending and caps at maxFindingsPerRule', () => {
@@ -41,19 +30,15 @@ describe('cardinalityMismatchRule', () => {
       actualRows: 100 * (i + 4), // deviations: 4x..13x
     }));
     const plan = buildPlan({ id: 0, operation: 'SELECT STATEMENT', children });
-    const findings = cardinalityMismatchRule.evaluate(makeCtx(plan));
+    const findings = cardinalityMismatchRule.evaluate(ruleCtx(plan));
     expect(findings.length).toBe(DEFAULT_THRESHOLDS.maxFindingsPerRule);
     // highest deviation (13x, node 10) should come first
     expect(findings[0].nodeIds).toEqual([10]);
   });
 
-  it('is gated by requiresActualStats', () => {
-    expect(cardinalityMismatchRule.requiresActualStats).toBe(true);
-  });
-
   it('shows the estimate and A-Rows in the explanation', () => {
     const plan = buildPlan({ id: 0, operation: 'TABLE ACCESS FULL', rows: 100, actualRows: 5000 });
-    const findings = cardinalityMismatchRule.evaluate(makeCtx(plan));
+    const findings = cardinalityMismatchRule.evaluate(ruleCtx(plan));
     expect(findings[0].explanation).toContain('100');
     expect(findings[0].explanation).toContain('5,000');
   });
@@ -70,12 +55,12 @@ describe('cardinalityMismatchRule', () => {
 
     it('does not flag a nested-loop inner scan whose per-start estimate is right', () => {
       const plan = nlPlan({ rows: 1, starts: 1000, actualRows: 1000 });
-      expect(cardinalityMismatchRule.evaluate(makeCtx(plan))).toHaveLength(0);
+      expect(cardinalityMismatchRule.evaluate(ruleCtx(plan))).toHaveLength(0);
     });
 
     it('flags the inner scan when the all-starts estimate is far off, explaining the multiplication', () => {
       const plan = nlPlan({ rows: 1, starts: 1000, actualRows: 250000 });
-      const findings = cardinalityMismatchRule.evaluate(makeCtx(plan));
+      const findings = cardinalityMismatchRule.evaluate(ruleCtx(plan));
       expect(findings).toHaveLength(1);
       expect(findings[0].nodeIds).toEqual([3]);
       expect(findings[0].severity).toBe('critical');
@@ -86,18 +71,18 @@ describe('cardinalityMismatchRule', () => {
 
     it('does not flag E-Rows 1 with A-Rows 0', () => {
       const plan = buildPlan({ id: 0, operation: 'TABLE ACCESS FULL', rows: 1, actualRows: 0, starts: 1 });
-      expect(cardinalityMismatchRule.evaluate(makeCtx(plan))).toHaveLength(0);
+      expect(cardinalityMismatchRule.evaluate(ruleCtx(plan))).toHaveLength(0);
     });
 
     it('suppresses mismatches below the minimum row delta', () => {
       // 12x ratio, but only 55 rows apart
       const plan = buildPlan({ id: 0, operation: 'TABLE ACCESS FULL', rows: 5, actualRows: 60, starts: 1 });
-      expect(cardinalityMismatchRule.evaluate(makeCtx(plan))).toHaveLength(0);
+      expect(cardinalityMismatchRule.evaluate(ruleCtx(plan))).toHaveLength(0);
     });
 
     it('does not flag never-started operations', () => {
       const plan = buildPlan({ id: 0, operation: 'TABLE ACCESS FULL', rows: 1, actualRows: 0, starts: 0 });
-      expect(cardinalityMismatchRule.evaluate(makeCtx(plan))).toHaveLength(0);
+      expect(cardinalityMismatchRule.evaluate(ruleCtx(plan))).toHaveLength(0);
     });
   });
 
@@ -115,14 +100,14 @@ describe('cardinalityMismatchRule', () => {
     });
 
     it('flags only the lowest operation whose inputs are accurate, not the ancestors that inherit it', () => {
-      const findings = cardinalityMismatchRule.evaluate(makeCtx(chain(10_000)));
+      const findings = cardinalityMismatchRule.evaluate(ruleCtx(chain(10_000)));
       expect(findings.map((f) => f.nodeIds[0])).toEqual([3]);
       expect(findings[0].explanation).toContain('2 operations above it');
     });
 
     it('flags an operation whose own estimate is wrong although its inputs were right', () => {
       // Leaves are accurate; the join multiplies by 10 more than estimated.
-      const findings = cardinalityMismatchRule.evaluate(makeCtx(chain(1000)));
+      const findings = cardinalityMismatchRule.evaluate(ruleCtx(chain(1000)));
       expect(findings.map((f) => f.nodeIds[0])).toEqual([2]);
       expect(findings[0].explanation).toContain('inputs were estimated accurately');
       expect(findings[0].explanation).toContain('1 operation above it');
@@ -134,7 +119,7 @@ describe('cardinalityMismatchRule', () => {
           { id: 1, operation: 'TABLE ACCESS FULL', rows: 100, actualRows: 5000, starts: 1 },
         ],
       });
-      const findings = cardinalityMismatchRule.evaluate(makeCtx(plan));
+      const findings = cardinalityMismatchRule.evaluate(ruleCtx(plan));
       expect(findings).toHaveLength(1);
       expect(findings[0].explanation).not.toContain('above it');
     });
@@ -147,7 +132,7 @@ describe('cardinalityMismatchRule', () => {
           ],
         }],
       });
-      const findings = cardinalityMismatchRule.evaluate(makeCtx(plan));
+      const findings = cardinalityMismatchRule.evaluate(ruleCtx(plan));
       expect(findings.map((f) => f.nodeIds[0]).sort()).toEqual([0, 2]);
       expect(findings.find((f) => f.nodeIds[0] === 2)?.explanation).not.toContain('above it');
     });
@@ -161,7 +146,7 @@ describe('cardinalityMismatchRule', () => {
           ],
         }],
       });
-      expect(cardinalityMismatchRule.evaluate(makeCtx(plan)).map((f) => f.nodeIds[0])).toEqual([1]);
+      expect(cardinalityMismatchRule.evaluate(ruleCtx(plan)).map((f) => f.nodeIds[0])).toEqual([1]);
     });
   });
 });

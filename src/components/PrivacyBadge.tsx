@@ -5,7 +5,6 @@
 export function PrivacyBadge() {
   return (
     <div
-      data-testid="privacy-badge"
       className="mb-5 flex max-w-md items-start gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-left text-emerald-900 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-200"
     >
       <svg

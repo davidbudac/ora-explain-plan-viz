@@ -129,49 +129,10 @@ describe('JSON Plan Parser', () => {
       },
     ]);
 
-    it('parses all nodes', () => {
-      const result = jsonPlanParser.parse(sampleJson);
+    const result = jsonPlanParser.parse(sampleJson);
+
+    it('parses all nodes and builds the tree from parent_id', () => {
       expect(result.allNodes).toHaveLength(5);
-    });
-
-    it('sets source to json', () => {
-      const result = jsonPlanParser.parse(sampleJson);
-      expect(result.source).toBe('json');
-    });
-
-    it('detects actual stats', () => {
-      const result = jsonPlanParser.parse(sampleJson);
-      expect(result.hasActualStats).toBe(true);
-    });
-
-    it('combines operation + options', () => {
-      const result = jsonPlanParser.parse(sampleJson);
-      expect(result.allNodes[1].operation).toBe('HASH GROUP BY');
-      expect(result.allNodes[3].operation).toBe('TABLE ACCESS FULL');
-    });
-
-    it('converts elapsed time from microseconds to milliseconds', () => {
-      const result = jsonPlanParser.parse(sampleJson);
-      // 12074670 us = 12074.67 ms
-      expect(result.allNodes[0].actualTime).toBeCloseTo(12074.67, 1);
-      // 5199570 us = 5199.57 ms
-      expect(result.allNodes[1].actualTime).toBeCloseTo(5199.57, 1);
-    });
-
-    it('parses actual rows', () => {
-      const result = jsonPlanParser.parse(sampleJson);
-      expect(result.allNodes[0].actualRows).toBe(263);
-      expect(result.allNodes[2].actualRows).toBe(17287456);
-    });
-
-    it('parses estimated rows (cardinality)', () => {
-      const result = jsonPlanParser.parse(sampleJson);
-      expect(result.allNodes[0].rows).toBe(1000);
-      expect(result.allNodes[2].rows).toBe(50000);
-    });
-
-    it('builds correct tree structure from parent_id', () => {
-      const result = jsonPlanParser.parse(sampleJson);
       const root = result.rootNode!;
       expect(root.id).toBe(0);
       expect(root.children).toHaveLength(1);
@@ -183,44 +144,31 @@ describe('JSON Plan Parser', () => {
       expect(root.children[0].children[0].children[1].id).toBe(4);
     });
 
-    it('parses predicates', () => {
-      const result = jsonPlanParser.parse(sampleJson);
+    it('combines operation + options and maps objects, aliases, cost and predicates', () => {
+      expect(result.allNodes[1].operation).toBe('HASH GROUP BY');
+      expect(result.allNodes[3].operation).toBe('TABLE ACCESS FULL');
+      expect(result.allNodes[3].objectName).toBe('DATE_DIM');
+      expect(result.allNodes[4].objectName).toBe('WEB_SALES');
+      expect(result.allNodes[3].objectAlias).toBe('D@SEL$1');
+      expect(result.allNodes[0].cost).toBe(15234);
       expect(result.allNodes[2].accessPredicates).toBe('"WS"."WS_SOLD_DATE_SK"="D"."D_DATE_SK"');
       expect(result.allNodes[3].filterPredicates).toBe('"D"."D_YEAR"=2001');
     });
 
-    it('parses object names', () => {
-      const result = jsonPlanParser.parse(sampleJson);
-      expect(result.allNodes[3].objectName).toBe('DATE_DIM');
-      expect(result.allNodes[4].objectName).toBe('WEB_SALES');
-    });
-
-    it('parses object aliases', () => {
-      const result = jsonPlanParser.parse(sampleJson);
-      expect(result.allNodes[3].objectAlias).toBe('D@SEL$1');
-    });
-
-    it('parses cost', () => {
-      const result = jsonPlanParser.parse(sampleJson);
-      expect(result.allNodes[0].cost).toBe(15234);
-    });
-
-    it('parses memory used', () => {
-      const result = jsonPlanParser.parse(sampleJson);
+    it('maps estimated (cardinality) and actual rows, actual stats and memory used', () => {
+      expect(result.hasActualStats).toBe(true);
+      expect(result.allNodes[0].rows).toBe(1000);
+      expect(result.allNodes[2].rows).toBe(50000);
+      expect(result.allNodes[0].actualRows).toBe(263);
+      expect(result.allNodes[2].actualRows).toBe(17287456);
       expect(result.allNodes[0].memoryUsed).toBe(2097152);
     });
 
-    it('detects cardinality mismatches', () => {
-      const result = jsonPlanParser.parse(sampleJson);
-      // Node 2: estimated 50000, actual 17287456 -> ~346x over
-      const hashJoin = result.allNodes[2];
-      expect(hashJoin.rows).toBe(50000);
-      expect(hashJoin.actualRows).toBe(17287456);
-    });
-
-    it('calculates totalElapsedTime from root', () => {
-      const result = jsonPlanParser.parse(sampleJson);
-      // Root actualTime = 12074670 us = 12074.67 ms
+    it('converts elapsed time from microseconds to milliseconds, totalElapsedTime from the root', () => {
+      // 12074670 us = 12074.67 ms
+      expect(result.allNodes[0].actualTime).toBeCloseTo(12074.67, 1);
+      // 5199570 us = 5199.57 ms
+      expect(result.allNodes[1].actualTime).toBeCloseTo(5199.57, 1);
       expect(result.totalElapsedTime).toBeCloseTo(12074.67, 1);
     });
   });

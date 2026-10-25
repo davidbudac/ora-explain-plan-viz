@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseNoteSection } from '../noteSection';
+import type { PlanNotes } from '../noteSection';
 
 function lines(text: string): string[] {
   return text.split('\n');
@@ -19,89 +20,26 @@ Plan hash value: 123
     expect(parseNoteSection(input)).toBeUndefined();
   });
 
-  it('recognizes dynamic sampling and extracts the level', () => {
-    const input = lines(`
+  it.each<[string, string, Partial<PlanNotes>]>([
+    ['recognizes dynamic sampling and extracts the level', 'dynamic statistics used: dynamic sampling (level=4)', { dynamicSampling: true, dynamicSamplingLevel: 4 }],
+    ['recognizes dynamic sampling phrased as "dynamic sampling used"', 'dynamic sampling used for this statement', { dynamicSampling: true, dynamicSamplingLevel: undefined }],
+    ['recognizes SQL plan directives used', 'SQL plan directive used for this statement', { planDirectives: true }],
+    ['recognizes cardinality feedback used', 'cardinality feedback used for this statement', { cardinalityFeedback: true }],
+    ['recognizes statistics feedback used', 'statistics feedback used for this statement', { statisticsFeedback: true }],
+    ['recognizes adaptive plan marker', "this is an adaptive plan (rows marked '-' are inactive)", { adaptivePlan: true }],
+    ['extracts a quoted SQL profile name', 'SQL profile "SYS_SQLPROF_0123456789abcdef" used for this statement', { sqlProfile: 'SYS_SQLPROF_0123456789abcdef' }],
+    ['extracts a quoted SQL plan baseline name', 'SQL plan baseline "SQL_PLAN_abc123def456" used for this statement', { sqlPlanBaseline: 'SQL_PLAN_abc123def456' }],
+    ['extracts a quoted outline name', 'outline "SYS_OUTLINE_001" used for this statement', { outline: 'SYS_OUTLINE_001' }],
+  ])('%s', (_name, note, expected) => {
+    const notes = parseNoteSection(lines(`
 Note
 -----
-   - dynamic statistics used: dynamic sampling (level=4)
-`);
-    const notes = parseNoteSection(input);
-    expect(notes?.dynamicSampling).toBe(true);
-    expect(notes?.dynamicSamplingLevel).toBe(4);
-  });
-
-  it('recognizes dynamic sampling phrased as "dynamic sampling used"', () => {
-    const input = lines(`
-Note
------
-   - dynamic sampling used for this statement
-`);
-    const notes = parseNoteSection(input);
-    expect(notes?.dynamicSampling).toBe(true);
-    expect(notes?.dynamicSamplingLevel).toBeUndefined();
-  });
-
-  it('recognizes SQL plan directives used', () => {
-    const input = lines(`
-Note
------
-   - SQL plan directive used for this statement
-`);
-    expect(parseNoteSection(input)?.planDirectives).toBe(true);
-  });
-
-  it('recognizes cardinality feedback used', () => {
-    const input = lines(`
-Note
------
-   - cardinality feedback used for this statement
-`);
-    expect(parseNoteSection(input)?.cardinalityFeedback).toBe(true);
-  });
-
-  it('recognizes statistics feedback used', () => {
-    const input = lines(`
-Note
------
-   - statistics feedback used for this statement
-`);
-    expect(parseNoteSection(input)?.statisticsFeedback).toBe(true);
-  });
-
-  it('recognizes adaptive plan marker', () => {
-    const input = lines(`
-Note
------
-   - this is an adaptive plan (rows marked '-' are inactive)
-`);
-    expect(parseNoteSection(input)?.adaptivePlan).toBe(true);
-  });
-
-  it('extracts a quoted SQL profile name', () => {
-    const input = lines(`
-Note
------
-   - SQL profile "SYS_SQLPROF_0123456789abcdef" used for this statement
-`);
-    expect(parseNoteSection(input)?.sqlProfile).toBe('SYS_SQLPROF_0123456789abcdef');
-  });
-
-  it('extracts a quoted SQL plan baseline name', () => {
-    const input = lines(`
-Note
------
-   - SQL plan baseline "SQL_PLAN_abc123def456" used for this statement
-`);
-    expect(parseNoteSection(input)?.sqlPlanBaseline).toBe('SQL_PLAN_abc123def456');
-  });
-
-  it('extracts a quoted outline name', () => {
-    const input = lines(`
-Note
------
-   - outline "SYS_OUTLINE_001" used for this statement
-`);
-    expect(parseNoteSection(input)?.outline).toBe('SYS_OUTLINE_001');
+   - ${note}
+`));
+    expect(notes).toBeDefined();
+    for (const key of Object.keys(expected) as (keyof PlanNotes)[]) {
+      expect(notes?.[key], key).toBe(expected[key]);
+    }
   });
 
   it('recognizes multiple flags within one Note block', () => {

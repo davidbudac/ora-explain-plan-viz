@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hasActiveFilters, isFilterActive, matchesFilters, neutralFilterPatch } from '../filtering';
+import { isFilterActive, matchesFilters, neutralFilterPatch } from '../filtering';
 import type { FilterState, NodeDisplayOptions, PlanNode } from '../types';
 
 const displayOptions: NodeDisplayOptions = {
@@ -46,36 +46,6 @@ function makeFilters(overrides: Partial<FilterState> = {}): FilterState {
     ...overrides,
   };
 }
-
-describe('hasActiveFilters', () => {
-  it('returns false for default filters', () => {
-    expect(hasActiveFilters(makeFilters())).toBe(false);
-  });
-
-  it('detects search text', () => {
-    expect(hasActiveFilters(makeFilters({ searchText: 'EMP' }))).toBe(true);
-    expect(hasActiveFilters(makeFilters({ searchText: '   ' }))).toBe(false);
-  });
-
-  it('detects operation and predicate type filters', () => {
-    expect(hasActiveFilters(makeFilters({ operationTypes: ['TABLE ACCESS FULL'] }))).toBe(true);
-    expect(hasActiveFilters(makeFilters({ predicateTypes: ['access'] }))).toBe(true);
-  });
-
-  it('detects threshold filters', () => {
-    expect(hasActiveFilters(makeFilters({ minCost: 10 }))).toBe(true);
-    expect(hasActiveFilters(makeFilters({ maxCost: 500 }))).toBe(true);
-    expect(hasActiveFilters(makeFilters({ minActualRows: 1 }))).toBe(true);
-    expect(hasActiveFilters(makeFilters({ minActualTime: 100 }))).toBe(true);
-    expect(hasActiveFilters(makeFilters({ minCardinalityMismatch: 3 }))).toBe(true);
-  });
-
-  it('ignores display-only options', () => {
-    const filters = makeFilters({ animateEdges: true, focusSelection: true });
-    filters.nodeDisplayOptions.showRows = false;
-    expect(hasActiveFilters(filters)).toBe(false);
-  });
-});
 
 function makeNode(overrides: Partial<PlanNode> = {}): PlanNode {
   return {
@@ -129,13 +99,6 @@ describe('isFilterActive', () => {
     });
     filters.nodeDisplayOptions = { ...displayOptions, showCost: false, showRows: false };
     expect(isFilterActive(filters)).toBe(false);
-  });
-
-  it('agrees with hasActiveFilters', () => {
-    const samples = [makeFilters(), makeFilters({ minCost: 3 }), makeFilters({ searchText: 'x' })];
-    for (const filters of samples) {
-      expect(isFilterActive(filters)).toBe(hasActiveFilters(filters));
-    }
   });
 
   it('when inactive, matchesFilters accepts every node (neutral really is neutral)', () => {
