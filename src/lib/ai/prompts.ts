@@ -5,7 +5,7 @@ import type { AiReportKind } from './types';
  * could shift report quality. Joins offline eval results with production
  * feedback (see docs/plans/ai-plan-analysis.md, Phase 2.5).
  */
-export const PROMPT_VERSION = 1;
+export const PROMPT_VERSION = 2;
 
 export interface ModelPreset {
   id: string;

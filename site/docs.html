@@ -152,6 +152,7 @@
       <a href="#metadata">Schema metadata</a>
       <a href="#baseline">SQL Plan Baseline / SQL Patch script</a>
       <a href="#client-report">Client report</a>
+      <a href="#agent-handoff">Agent handoff</a>
       <a href="#db-connector">Database connector</a>
       <a href="#ai">AI analysis</a>
 
@@ -661,6 +662,9 @@ SQL&gt; @plan_to_url.sql an05rsj1up1k5 "" MONITOR  -- SQL Monitor TEXT report (T
 
       <h3>Client report</h3>
       <p>A self-contained HTML document with the plan, your notes and all findings. See <a href="#client-report">Client report</a>.</p>
+
+      <h3>Agent handoff</h3>
+      <p>One Markdown prompt that hands the plan to Claude Code, Codex, ChatGPT or another agent. See <a href="#agent-handoff">Agent handoff</a>.</p>
     </section>
 
     <!-- ---------- Metadata ---------- -->
@@ -748,6 +752,44 @@ SQL&gt; @gather_plan_metadata.sql LIST "HR.EMPLOYEES,HR.DEPARTMENTS"</code></pre
         <li>Raw plan appendix</li>
       </ul>
       <p>Download as <code>.html</code> or open the print view and save as PDF. Fully offline.</p>
+    </section>
+
+    <!-- ---------- Agent handoff ---------- -->
+    <section id="agent-handoff">
+      <p class="eyebrow">Going deeper</p>
+      <h2>Agent handoff<a class="anchor" href="#agent-handoff">#</a></h2>
+      <p>
+        <em>File → Agent handoff (.md)…</em> (or <em>Export agent handoff…</em> in the command palette) builds one Markdown prompt
+        for a coding or chat agent of your choice. Copy it, or download it as <code>.md</code>, and paste it into the agent.
+        The app sends nothing anywhere; you choose where the prompt goes.
+      </p>
+      <p>The prompt holds, in order:</p>
+      <ul>
+        <li>The task, and <strong>your question</strong> (optional: "it ran in 2 s last week and takes 40 s now, why?")</li>
+        <li>How to read the numbers: E-Rows per start against A-Rows over all starts, cumulative cost and time, adaptive rows, coarse SQL Monitor time</li>
+        <li>An inventory of what the data holds, and for each missing piece (runtime statistics, predicates, SQL text, binds, schema metadata, waits, outline) the exact query that fetches it</li>
+        <li>How to ask you for more data: one numbered list, each request with its reason and ready-to-run, read-only SQL</li>
+        <li>The answer shape: summary, findings by plan line, prioritized recommendations, data requests, how to verify</li>
+        <li>The plan data: the plan table, then whichever of SQL text, predicates, notes, binds, hints &amp; outline, execution metadata, ASH activity, plan signals, the advisor's findings, your annotations, projected schema metadata and the original plan text are present</li>
+      </ul>
+      <p>
+        Untick any section to leave it out; the agent is told it was withheld. The token estimate updates as you go.
+        With two plans loaded you can hand off the comparison instead (both plan tables plus the node match digest).
+      </p>
+
+      <h3>The companion skill</h3>
+      <p>
+        <code>oracle-plan-analysis</code> is an agent skill that teaches the workflow behind the prompt: take inventory, locate
+        the time, walk down to the first cardinality divergence, decide whether to ask, recommend (statistics first, plan control
+        last), report. It carries a catalogue of plan patterns and the read-only queries to request (statistics, histograms, indexes,
+        execution and plan history, binds, waits per line, baselines/profiles/patches), checked on Oracle 19c.
+      </p>
+      <ul>
+        <li><strong>Claude Code</strong>: download it from the dialog (<em>Download skill (.zip)</em>) and unzip into <code>~/.claude/skills/</code>, or run <code>npx skills add davidbudac/ora-explain-plan-viz</code></li>
+        <li><strong>claude.ai</strong>: upload the downloaded <code>.zip</code> as a skill</li>
+        <li><strong>Any other agent</strong>: tick <em>Embed the analysis playbook</em> and the whole skill travels inside the prompt</li>
+      </ul>
+      <p>The skill's source is <a href="https://github.com/davidbudac/ora-explain-plan-viz/tree/main/skills/oracle-plan-analysis">skills/oracle-plan-analysis</a> in the repository.</p>
     </section>
 
     <!-- ---------- DB connector ---------- -->
@@ -973,6 +1015,7 @@ oraplanviz-agent --allow-origin http://localhost:8081</code></pre>
         <li><strong>Share URLs</strong> contain the plan itself, compressed. Treat a share link like the plan text: anyone with the link has the plan. Nothing is stored server-side.</li>
         <li><strong>Annotations</strong> stay in this browser (session autosave) unless you export them or put them in a share link.</li>
         <li><strong>Database connector</strong> traffic stays on your machine (browser ↔ 127.0.0.1). Credentials are never sent to the app's host.</li>
+        <li><strong>Agent handoff</strong> is built in the browser and copied or downloaded; it goes only where you paste it. It contains your SQL text, object names and any bind values, so review the included sections first.</li>
         <li><strong>AI analysis</strong> (when enabled) sends the plan and optional metadata to the provider you chose, only when you click Run. Keys live in sessionStorage for the tab's lifetime.</li>
       </ul>
       <p>Plans often contain object names and literal values from predicates. If that is sensitive, self-host the app on your own network; the behavior is identical.</p>
