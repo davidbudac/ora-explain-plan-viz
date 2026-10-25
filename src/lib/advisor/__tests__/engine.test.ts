@@ -55,25 +55,57 @@ describe('runAdvisor', () => {
   });
 
   it('gates requiresMetadata rules when bundle is null', () => {
-    const bundle = makeBundle({
-      'HR.EMPLOYEES': makeTable({ stale_stats: 'YES' }),
-    });
+    // An always-firing probe: only the engine's gate can suppress it.
+    const probe = {
+      id: 'probe-metadata',
+      requiresMetadata: true,
+      evaluate: () => [{ ruleId: 'probe-metadata', severity: 'info', nodeIds: [0], title: 'probe', explanation: '', suggestion: '' }],
+    };
     const plan = buildPlan({ id: 0, operation: 'TABLE ACCESS FULL', objectName: 'EMPLOYEES' });
-
-    const withoutBundle = runAdvisor(plan, null);
-    expect(withoutBundle.findings.some((f) => f.ruleId === 'stats-issues')).toBe(false);
-
-    const withBundle = runAdvisor(plan, bundle, { ...DEFAULT_THRESHOLDS });
-    expect(withBundle.findings.some((f) => f.ruleId === 'stats-issues')).toBe(true);
+    ALL_RULES.push(probe as never);
+    try {
+      expect(runAdvisor(plan, null, { ...DEFAULT_THRESHOLDS }).findings.some((f) => f.ruleId === 'probe-metadata')).toBe(false);
+      const withBundle = runAdvisor(plan, makeBundle({ 'HR.EMPLOYEES': makeTable({ stale_stats: 'YES' }) }), { ...DEFAULT_THRESHOLDS });
+      expect(withBundle.findings.some((f) => f.ruleId === 'probe-metadata')).toBe(true);
+      expect(withBundle.findings.some((f) => f.ruleId === 'stats-issues')).toBe(true);
+    } finally {
+      ALL_RULES.pop();
+    }
   });
 
   it('gates requiresActualStats rules when plan has no actual stats', () => {
-    const plan = buildPlan(
-      { id: 0, operation: 'TABLE ACCESS FULL', rows: 100 },
-      { hasActualStats: false },
-    );
-    const report = runAdvisor(plan, null);
-    expect(report.findings.some((f) => f.ruleId === 'cardinality-mismatch')).toBe(false);
+    // A 20x mismatch that cardinality-mismatch reports once the plan claims actual stats.
+    const spec = { id: 0, operation: 'TABLE ACCESS FULL', rows: 100, actualRows: 2000, starts: 1 };
+    expect(runAdvisor(buildPlan(spec), null).findings.some((f) => f.ruleId === 'cardinality-mismatch')).toBe(true);
+    const gated = runAdvisor(buildPlan(spec, { hasActualStats: false }), null);
+    expect(gated.findings.some((f) => f.ruleId === 'cardinality-mismatch')).toBe(false);
+  });
+
+  it('declares the expected data requirements for every rule', () => {
+    const expected: Record<string, { actualStats?: true; metadata?: true }> = {
+      'implicit-conversion': {},
+      'nested-loop-volume': { actualStats: true },
+      'merge-join-cartesian': {},
+      'selective-full-scan': {},
+      'index-exists-unused': { metadata: true },
+      'cardinality-mismatch': { actualStats: true },
+      'spill-to-disk': {},
+      'stats-issues': { metadata: true },
+      'partition-no-pruning': {},
+      'parallel-signals': {},
+      'per-row-reexecution': { actualStats: true },
+      'index-rows-discarded': { actualStats: true },
+      'buffer-gets-per-row': { actualStats: true },
+      'plan-notes': {},
+      'function-on-indexed-column': { metadata: true },
+      'hash-join-build-side': {},
+      'px-skew': {},
+    };
+    const actual = Object.fromEntries(ALL_RULES.map((r) => [r.id, {
+      ...(r.requiresActualStats ? { actualStats: true } : {}),
+      ...(r.requiresMetadata ? { metadata: true } : {}),
+    }]));
+    expect(actual).toEqual(expected);
   });
 
   it('caches by identity: same plan+bundle+thresholds refs return the same report object', () => {

@@ -1,33 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { findObjectInBundle } from '../../metadata/lookup';
 import { statsIssuesRule } from '../rules/statsIssues';
-import { DEFAULT_THRESHOLDS } from '../config';
-import { buildPlan, makeBundle, makeTable, makeColumn } from './helpers';
-import type { RuleContext } from '../types';
-import type { MetadataBundle } from '../../metadata/bundle';
-
-function makeCtx(plan: ReturnType<typeof buildPlan>, bundle: MetadataBundle | null): RuleContext {
-  return {
-    plan,
-    bundle,
-    thresholds: DEFAULT_THRESHOLDS,
-    findObject: (name) => (bundle ? findObjectInBundle(bundle, name) : null),
-    usedIndexKeys: new Set(),
-  };
-}
+import { buildPlan, makeBundle, makeTable, makeColumn, ruleCtx } from './helpers';
 
 describe('statsIssuesRule', () => {
   it('flags stale-stats as warning', () => {
     const bundle = makeBundle({ 'HR.EMPLOYEES': makeTable({ stale_stats: 'YES' }) });
     const plan = buildPlan({ id: 0, operation: 'TABLE ACCESS FULL', objectName: 'EMPLOYEES' });
-    const findings = statsIssuesRule.evaluate(makeCtx(plan, bundle));
+    const findings = statsIssuesRule.evaluate(ruleCtx(plan, bundle));
     expect(findings.some((f) => f.title.includes('stale stats') && f.severity === 'warning')).toBe(true);
   });
 
   it('flags missing-stats as warning', () => {
     const bundle = makeBundle({ 'HR.EMPLOYEES': makeTable({ last_analyzed: null }) });
     const plan = buildPlan({ id: 0, operation: 'TABLE ACCESS FULL', objectName: 'EMPLOYEES' });
-    const findings = statsIssuesRule.evaluate(makeCtx(plan, bundle));
+    const findings = statsIssuesRule.evaluate(ruleCtx(plan, bundle));
     expect(findings.some((f) => f.title.includes('missing stats') && f.severity === 'warning')).toBe(true);
   });
 
@@ -38,7 +24,7 @@ describe('statsIssuesRule', () => {
       id: 0, operation: 'TABLE ACCESS FULL', objectName: 'EMPLOYEES',
       filterPredicates: '"E"."STATUS"=:1', rows: 100, actualRows: 5000,
     }, { hasActualStats: true });
-    const findings = statsIssuesRule.evaluate(makeCtx(plan, bundle));
+    const findings = statsIssuesRule.evaluate(ruleCtx(plan, bundle));
     const mismatch = findings.find((f) => f.title.includes('mismatch no histogram'));
     expect(mismatch).toBeDefined();
     expect(mismatch!.severity).toBe('info');
@@ -53,7 +39,7 @@ describe('statsIssuesRule', () => {
         { id: 2, operation: 'TABLE ACCESS BY INDEX ROWID', objectName: 'EMPLOYEES' },
       ],
     });
-    const findings = statsIssuesRule.evaluate(makeCtx(plan, bundle));
+    const findings = statsIssuesRule.evaluate(ruleCtx(plan, bundle));
     const staleFinding = findings.find((f) => f.title.includes('stale stats'));
     expect(staleFinding!.nodeIds.sort()).toEqual([1, 2]);
   });
@@ -61,12 +47,11 @@ describe('statsIssuesRule', () => {
   it('returns no findings for a healthy table', () => {
     const bundle = makeBundle({ 'HR.EMPLOYEES': makeTable() });
     const plan = buildPlan({ id: 0, operation: 'TABLE ACCESS FULL', objectName: 'EMPLOYEES' });
-    expect(statsIssuesRule.evaluate(makeCtx(plan, bundle))).toHaveLength(0);
+    expect(statsIssuesRule.evaluate(ruleCtx(plan, bundle))).toHaveLength(0);
   });
 
-  it('is gated by requiresMetadata', () => {
-    expect(statsIssuesRule.requiresMetadata).toBe(true);
+  it('finds nothing without a bundle', () => {
     const plan = buildPlan({ id: 0, operation: 'TABLE ACCESS FULL', objectName: 'EMPLOYEES' });
-    expect(statsIssuesRule.evaluate(makeCtx(plan, null))).toHaveLength(0);
+    expect(statsIssuesRule.evaluate(ruleCtx(plan, null))).toHaveLength(0);
   });
 });

@@ -1,18 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mergeJoinCartesianRule } from '../rules/mergeJoinCartesian';
-import { DEFAULT_THRESHOLDS } from '../config';
-import { buildPlan } from './helpers';
-import type { RuleContext } from '../types';
-
-function makeCtx(plan: ReturnType<typeof buildPlan>): RuleContext {
-  return {
-    plan,
-    bundle: null,
-    thresholds: DEFAULT_THRESHOLDS,
-    findObject: () => null,
-    usedIndexKeys: new Set(),
-  };
-}
+import { buildPlan, ruleCtx } from './helpers';
 
 describe('mergeJoinCartesianRule', () => {
   it('flags a warning-tier cartesian join', () => {
@@ -24,7 +12,7 @@ describe('mergeJoinCartesianRule', () => {
         { id: 2, operation: 'TABLE ACCESS FULL', rows: 200 },
       ],
     });
-    const findings = mergeJoinCartesianRule.evaluate(makeCtx(plan));
+    const findings = mergeJoinCartesianRule.evaluate(ruleCtx(plan));
     expect(findings).toHaveLength(1);
     expect(findings[0].severity).toBe('warning');
   });
@@ -38,7 +26,7 @@ describe('mergeJoinCartesianRule', () => {
         { id: 2, operation: 'TABLE ACCESS FULL', rows: 5000 },
       ],
     });
-    const findings = mergeJoinCartesianRule.evaluate(makeCtx(plan));
+    const findings = mergeJoinCartesianRule.evaluate(ruleCtx(plan));
     expect(findings).toHaveLength(1);
     expect(findings[0].severity).toBe('critical');
   });
@@ -52,7 +40,7 @@ describe('mergeJoinCartesianRule', () => {
         { id: 2, operation: 'TABLE ACCESS FULL', rows: 5000 },
       ],
     });
-    expect(mergeJoinCartesianRule.evaluate(makeCtx(plan))).toHaveLength(0);
+    expect(mergeJoinCartesianRule.evaluate(ruleCtx(plan))).toHaveLength(0);
   });
 
   it('prefers actualRows over rows when present', () => {
@@ -64,7 +52,7 @@ describe('mergeJoinCartesianRule', () => {
         { id: 2, operation: 'TABLE ACCESS FULL', rows: 200 },
       ],
     });
-    expect(mergeJoinCartesianRule.evaluate(makeCtx(plan))).toHaveLength(1);
+    expect(mergeJoinCartesianRule.evaluate(ruleCtx(plan))).toHaveLength(1);
   });
 
   it('does not flag non-cartesian merge joins', () => {
@@ -76,7 +64,7 @@ describe('mergeJoinCartesianRule', () => {
         { id: 2, operation: 'TABLE ACCESS FULL', rows: 5000 },
       ],
     });
-    expect(mergeJoinCartesianRule.evaluate(makeCtx(plan))).toHaveLength(0);
+    expect(mergeJoinCartesianRule.evaluate(ruleCtx(plan))).toHaveLength(0);
   });
 
   it('ignores nodes without exactly 2 children', () => {
@@ -85,7 +73,7 @@ describe('mergeJoinCartesianRule', () => {
       operation: 'MERGE JOIN CARTESIAN',
       children: [{ id: 1, operation: 'TABLE ACCESS FULL', rows: 5000 }],
     });
-    expect(mergeJoinCartesianRule.evaluate(makeCtx(plan))).toHaveLength(0);
+    expect(mergeJoinCartesianRule.evaluate(ruleCtx(plan))).toHaveLength(0);
   });
 
   describe('BUFFER SORT replay', () => {
@@ -103,7 +91,7 @@ describe('mergeJoinCartesianRule', () => {
           },
         ],
       });
-      const findings = mergeJoinCartesianRule.evaluate(makeCtx(plan));
+      const findings = mergeJoinCartesianRule.evaluate(ruleCtx(plan));
       expect(findings).toHaveLength(1);
       // 1e9 (1,000 x 1,000,000) would be critical; the real product is 1e6.
       expect(findings[0].severity).toBe('warning');
@@ -120,7 +108,7 @@ describe('mergeJoinCartesianRule', () => {
           { id: 2, operation: 'BUFFER SORT', actualRows: 250_000, starts: 500, children: [{ id: 3, operation: 'TABLE ACCESS FULL', rows: 500 }] },
         ],
       });
-      const findings = mergeJoinCartesianRule.evaluate(makeCtx(plan));
+      const findings = mergeJoinCartesianRule.evaluate(ruleCtx(plan));
       expect(findings).toHaveLength(1);
       expect(findings[0].explanation).toContain(`combines ${n(500)} rows with ${n(500)} rows`);
     });
@@ -134,7 +122,7 @@ describe('mergeJoinCartesianRule', () => {
           { id: 2, operation: 'BUFFER SORT', actualRows: 50_000, starts: 5000, children: [{ id: 3, operation: 'TABLE ACCESS FULL', actualRows: 10, starts: 1 }] },
         ],
       });
-      expect(mergeJoinCartesianRule.evaluate(makeCtx(plan))).toHaveLength(0);
+      expect(mergeJoinCartesianRule.evaluate(ruleCtx(plan))).toHaveLength(0);
     });
 
     it('escalates on the actual join output', () => {
@@ -145,7 +133,7 @@ describe('mergeJoinCartesianRule', () => {
           { id: 2, operation: 'BUFFER SORT', actualRows: 25_000_000, starts: 5000, children: [{ id: 3, operation: 'TABLE ACCESS FULL', actualRows: 5000, starts: 1 }] },
         ],
       });
-      expect(mergeJoinCartesianRule.evaluate(makeCtx(plan))[0].severity).toBe('critical');
+      expect(mergeJoinCartesianRule.evaluate(ruleCtx(plan))[0].severity).toBe('critical');
     });
 
     it('with estimates only, treats the BUFFER SORT E-Rows as the per-start buffered size', () => {
@@ -156,7 +144,7 @@ describe('mergeJoinCartesianRule', () => {
           { id: 2, operation: 'BUFFER SORT', rows: 300, children: [{ id: 3, operation: 'TABLE ACCESS FULL', rows: 300 }] },
         ],
       });
-      const findings = mergeJoinCartesianRule.evaluate(makeCtx(plan));
+      const findings = mergeJoinCartesianRule.evaluate(ruleCtx(plan));
       expect(findings).toHaveLength(1);
       expect(findings[0].explanation).toContain(`producing up to ${n(60_000)} rows`);
     });

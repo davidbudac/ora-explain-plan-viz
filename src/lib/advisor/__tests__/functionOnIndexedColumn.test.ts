@@ -71,8 +71,4 @@ describe('functionOnIndexedColumnRule', () => {
   it('does not repeat what implicit-conversion already reports for the same column', () => {
     expect(evaluate(fullScan('TO_CHAR("E"."ENAME")=\'1\''))).toHaveLength(0);
   });
-
-  it('requires metadata', () => {
-    expect(functionOnIndexedColumnRule.requiresMetadata).toBe(true);
-  });
 });

@@ -1,20 +1,17 @@
-/** @jsxRuntime automatic */
-/** @jsxImportSource react */
-import { act, useLayoutEffect } from 'react';
+import { act } from 'react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReactFlow, ReactFlowProvider } from '@xyflow/react';
 import type { Node, NodeTypes } from '@xyflow/react';
-import { PlanProvider, usePlan } from '../../hooks/usePlanContext';
 import { PlanNodeMemo } from '../nodes/PlanNode';
 import type { PlanNodeData } from '../nodes/PlanNode';
 import { TabularView } from '../views/TabularView';
 import { Legend } from '../Legend';
 import { InputPanel } from '../InputPanel';
 import { PlanTabs } from '../PlanTabs';
-import { ConfirmProvider, ToastProvider } from '../ui';
 import { cleanup, render } from '../ui/__tests__/testUtils';
+import { installLayoutShims, loadPlan, renderPlanContext } from '../ui/__tests__/planContext';
 import { DENSITY_PRESETS } from '../../lib/density';
 import type { DensityPreset } from '../../lib/density';
 import { COLOR_SCHEMES } from '../../lib/types';
@@ -39,31 +36,8 @@ const ADAPTIVE_PLAN = readFileSync(
 );
 
 const nodeTypes = { planNode: PlanNodeMemo } as unknown as NodeTypes;
-type Ctx = ReturnType<typeof usePlan>;
 
-beforeAll(() => {
-  class RO {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  }
-  (globalThis as Record<string, unknown>).ResizeObserver ??= RO;
-  (globalThis as Record<string, unknown>).DOMMatrixReadOnly ??= class {
-    m22 = 1;
-  };
-  if (typeof window.matchMedia !== 'function') {
-    window.matchMedia = ((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: () => {},
-      removeListener: () => {},
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      dispatchEvent: () => false,
-    })) as typeof window.matchMedia;
-  }
-});
+beforeAll(installLayoutShims);
 
 beforeEach(() => {
   localStorage.clear();
@@ -138,29 +112,8 @@ describe('tree node, inactive adaptive operation', () => {
 });
 
 function renderWithPlan(ui: React.ReactNode, planText = ADAPTIVE_PLAN) {
-  const latest: { ctx: Ctx | null } = { ctx: null };
-  function Probe() {
-    const ctx = usePlan();
-    useLayoutEffect(() => {
-      latest.ctx = ctx;
-    });
-    return null;
-  }
-  render(
-    <ToastProvider>
-      <ConfirmProvider>
-        <PlanProvider>
-          <Probe />
-          {ui}
-        </PlanProvider>
-      </ConfirmProvider>
-    </ToastProvider>,
-  );
-  const load = () =>
-    act(async () => {
-      await latest.ctx!.loadAndParsePlan(planText, undefined, { recordRecent: false, skipConfirm: true });
-    });
-  return { ctx: () => latest.ctx!, load };
+  const plan = renderPlanContext(ui);
+  return { ctx: plan.current, load: () => loadPlan(plan, planText) };
 }
 
 describe('tabular view, inactive adaptive operation', () => {

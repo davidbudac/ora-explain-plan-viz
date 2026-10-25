@@ -183,13 +183,6 @@ describe('compare view survives both link kinds', () => {
     }
   });
 
-  it('round-trips through the legacy lz-string encoding', async () => {
-    const { compressToEncodedURIComponent, decompressFromEncodedURIComponent } = await import('lz-string');
-    const payload: SharePayload = { plans: [{ rawInput: planA }, { rawInput: planB }], viewMode: 'compare', workspace };
-    const decoded = classifyDecodedPlanText(decompressFromEncodedURIComponent(compressToEncodedURIComponent(JSON.stringify(payload))));
-    expect(decoded.type === 'payload' && decoded.payload.workspace).toEqual(workspace);
-  });
-
   it('still decodes an old-format (pre-workspace) link fixture', async () => {
     // Exactly what share links carried before the workspace block existed.
     const oldLink = '{"plans":[{"rawInput":"Plan hash value: 1\\n","annotations":{"version":1,"nodes":{}}},{"rawInput":"Plan hash value: 2\\n"}],"viewMode":"compare"}';

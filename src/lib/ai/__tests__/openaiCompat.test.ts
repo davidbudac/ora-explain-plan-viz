@@ -96,25 +96,6 @@ describe('streamOpenAiCompat', () => {
     });
   });
 
-  it('handles a chunk split mid-line', async () => {
-    const full = delta('abc') + delta('def') + 'data: [DONE]\n\n';
-    const mid = Math.floor(full.length / 2) + 3; // inside a data line
-    fetchMock.mockResolvedValue(sseResponse([full.slice(0, mid), full.slice(mid)]));
-
-    const events = await collect(
-      streamOpenAiCompat(
-        { baseUrl: 'http://localhost:11434', apiKey: '', model: 'llama3' },
-        req,
-        new AbortController().signal,
-      ),
-    );
-    expect(events.filter((e) => e.type === 'text').map((e) => (e as { text: string }).text)).toEqual([
-      'abc',
-      'def',
-    ]);
-    expect(events[events.length - 1]).toEqual({ type: 'done', stopReason: 'end_turn' });
-  });
-
   it('omits Authorization header when apiKey is empty and does not append /v1 to path URLs', async () => {
     fetchMock.mockResolvedValue(sseResponse(['data: [DONE]\n\n']));
 

@@ -1,18 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { nestedLoopVolumeRule } from '../rules/nestedLoopVolume';
-import { DEFAULT_THRESHOLDS } from '../config';
-import { buildPlan } from './helpers';
-import type { RuleContext } from '../types';
-
-function makeCtx(plan: ReturnType<typeof buildPlan>): RuleContext {
-  return {
-    plan,
-    bundle: null,
-    thresholds: DEFAULT_THRESHOLDS,
-    findObject: () => null,
-    usedIndexKeys: new Set(),
-  };
-}
+import { buildPlan, ruleCtx } from './helpers';
 
 describe('nestedLoopVolumeRule', () => {
   it('flags a warning-tier nested loop with high probe count and inner volume', () => {
@@ -24,7 +12,7 @@ describe('nestedLoopVolumeRule', () => {
         { id: 2, operation: 'TABLE ACCESS BY INDEX ROWID', starts: 10_000, actualRows: 100_000 },
       ],
     });
-    const findings = nestedLoopVolumeRule.evaluate(makeCtx(plan));
+    const findings = nestedLoopVolumeRule.evaluate(ruleCtx(plan));
     expect(findings).toHaveLength(1);
     expect(findings[0].severity).toBe('warning');
     expect(findings[0].nodeIds).toEqual([0]);
@@ -39,7 +27,7 @@ describe('nestedLoopVolumeRule', () => {
         { id: 2, operation: 'TABLE ACCESS BY INDEX ROWID', starts: 100_000, actualRows: 1_000_000 },
       ],
     });
-    const findings = nestedLoopVolumeRule.evaluate(makeCtx(plan));
+    const findings = nestedLoopVolumeRule.evaluate(ruleCtx(plan));
     expect(findings).toHaveLength(1);
     expect(findings[0].severity).toBe('critical');
   });
@@ -53,7 +41,7 @@ describe('nestedLoopVolumeRule', () => {
         { id: 2, operation: 'TABLE ACCESS BY INDEX ROWID', starts: 100, actualRows: 100 },
       ],
     });
-    expect(nestedLoopVolumeRule.evaluate(makeCtx(plan))).toHaveLength(0);
+    expect(nestedLoopVolumeRule.evaluate(ruleCtx(plan))).toHaveLength(0);
   });
 
   it('does not flag non-nested-loop joins', () => {
@@ -65,10 +53,10 @@ describe('nestedLoopVolumeRule', () => {
         { id: 2, operation: 'TABLE ACCESS FULL', starts: 1_000_000, actualRows: 2_000_000 },
       ],
     });
-    expect(nestedLoopVolumeRule.evaluate(makeCtx(plan))).toHaveLength(0);
+    expect(nestedLoopVolumeRule.evaluate(ruleCtx(plan))).toHaveLength(0);
   });
 
-  it('is gated by requiresActualStats via the engine (rule itself needs actual stats fields to fire)', () => {
+  it('finds nothing on a nested loop without actual stats', () => {
     const plan = buildPlan({
       id: 0,
       operation: 'NESTED LOOPS',
@@ -77,8 +65,7 @@ describe('nestedLoopVolumeRule', () => {
         { id: 2, operation: 'TABLE ACCESS BY INDEX ROWID' },
       ],
     });
-    expect(nestedLoopVolumeRule.evaluate(makeCtx(plan))).toHaveLength(0);
-    expect(nestedLoopVolumeRule.requiresActualStats).toBe(true);
+    expect(nestedLoopVolumeRule.evaluate(ruleCtx(plan))).toHaveLength(0);
   });
 
   it('falls back to outer actualRows for probe count when inner starts is undefined', () => {
@@ -90,7 +77,7 @@ describe('nestedLoopVolumeRule', () => {
         { id: 2, operation: 'TABLE ACCESS BY INDEX ROWID', actualRows: 100_000 },
       ],
     });
-    const findings = nestedLoopVolumeRule.evaluate(makeCtx(plan));
+    const findings = nestedLoopVolumeRule.evaluate(ruleCtx(plan));
     expect(findings).toHaveLength(1);
   });
 
@@ -100,7 +87,7 @@ describe('nestedLoopVolumeRule', () => {
       operation: 'NESTED LOOPS',
       children: [{ id: 1, operation: 'TABLE ACCESS FULL', actualRows: 1_000_000 }],
     });
-    expect(nestedLoopVolumeRule.evaluate(makeCtx(plan))).toHaveLength(0);
+    expect(nestedLoopVolumeRule.evaluate(ruleCtx(plan))).toHaveLength(0);
   });
 
   it('mentions a REMOTE inner side: every probe is a network round trip', () => {
@@ -112,7 +99,7 @@ describe('nestedLoopVolumeRule', () => {
         { id: 2, operation: 'REMOTE', starts: 10_000, actualRows: 100_000 },
       ],
     });
-    const findings = nestedLoopVolumeRule.evaluate(makeCtx(plan));
+    const findings = nestedLoopVolumeRule.evaluate(ruleCtx(plan));
     expect(findings).toHaveLength(1);
     expect(findings[0].explanation).toContain('round trip');
     expect(findings[0].suggestion).toContain('DRIVING_SITE');

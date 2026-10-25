@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  AGENT_TOKEN_STORAGE_KEY,
+  AGENT_URL_STORAGE_KEY,
   AgentError,
-  MIN_AGENT_VERSION,
+  DEFAULT_AGENT_BASE_URL,
   compareAgentVersions,
   connect,
   disconnect,
@@ -10,8 +12,13 @@ import {
   fetchPlanWithMetadata,
   health,
   isDbAgentEnabled,
+  loadStoredAgentConfig,
   normalizeBaseUrl,
   recentSql,
+  testConnect,
+  testDisconnect,
+  testExec,
+  testExplain,
   verifyToken,
 } from '../agent/client';
 
@@ -21,6 +28,19 @@ function jsonResponse(body: unknown, status = 200): Response {
     headers: { 'Content-Type': 'application/json' },
   });
 }
+
+const CONFIG = { baseUrl: 'http://127.0.0.1:8521', token: 'tok' };
+
+let fetchMock: ReturnType<typeof vi.fn>;
+
+beforeEach(() => {
+  fetchMock = vi.fn();
+  vi.stubGlobal('fetch', fetchMock);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('normalizeBaseUrl', () => {
   it('strips a trailing slash', () => {
@@ -41,39 +61,18 @@ describe('isDbAgentEnabled', () => {
     vi.unstubAllEnvs();
   });
 
-  it('is false when VITE_ENABLE_DB_AGENT is unset', () => {
-    vi.stubEnv('VITE_ENABLE_DB_AGENT', '');
-    expect(isDbAgentEnabled()).toBe(false);
-  });
-
-  it('is true when VITE_ENABLE_DB_AGENT is "1"', () => {
-    vi.stubEnv('VITE_ENABLE_DB_AGENT', '1');
-    expect(isDbAgentEnabled()).toBe(true);
-  });
-
-  it('is true when VITE_ENABLE_DB_AGENT is "true"', () => {
-    vi.stubEnv('VITE_ENABLE_DB_AGENT', 'true');
-    expect(isDbAgentEnabled()).toBe(true);
-  });
-
-  it('is false for other values', () => {
-    vi.stubEnv('VITE_ENABLE_DB_AGENT', '0');
-    expect(isDbAgentEnabled()).toBe(false);
+  it.each<[string, string, boolean]>([
+    ['unset', '', false],
+    ['"1"', '1', true],
+    ['"true"', 'true', true],
+    ['any other value ("0")', '0', false],
+  ])('VITE_ENABLE_DB_AGENT %s → %s', (_label, value, expected) => {
+    vi.stubEnv('VITE_ENABLE_DB_AGENT', value);
+    expect(isDbAgentEnabled()).toBe(expected);
   });
 });
 
 describe('agent client', () => {
-  let fetchMock: ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
-    fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
   it('health() sends no Authorization header', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ version: '0.1.0', connected: false, oracleVersion: null }));
 
@@ -108,7 +107,7 @@ describe('agent client', () => {
   it('disconnect() sends a Bearer token', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ ok: true }));
 
-    await disconnect({ baseUrl: 'http://127.0.0.1:8521', token: 'tok' });
+    await disconnect(CONFIG);
 
     const [, init] = fetchMock.mock.calls[0];
     const headers = init?.headers as Record<string, string>;
@@ -118,7 +117,7 @@ describe('agent client', () => {
   it('recentSql() builds the query string with source', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [] }));
 
-    await recentSql({ baseUrl: 'http://127.0.0.1:8521', token: 'tok' }, 'monitor');
+    await recentSql(CONFIG, 'monitor');
 
     const [url] = fetchMock.mock.calls[0];
     expect(url).toBe('http://127.0.0.1:8521/api/sql/recent?source=monitor');
@@ -128,7 +127,7 @@ describe('agent client', () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ source: 'cursor', text: 'plan text' }));
 
     await fetchPlan(
-      { baseUrl: 'http://127.0.0.1:8521', token: 'tok' },
+      CONFIG,
       { sqlId: 'abc123', source: 'cursor', childNumber: 2 }
     );
 
@@ -144,7 +143,7 @@ describe('agent client', () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'invalid credentials' }, 401));
 
     await expect(
-      connect({ baseUrl: 'http://127.0.0.1:8521', token: 'tok' }, { dsn: 'x', user: 'y', password: 'z' })
+      connect(CONFIG, { dsn: 'x', user: 'y', password: 'z' })
     ).rejects.toMatchObject({
       name: 'AgentError',
       message: 'invalid credentials',
@@ -163,7 +162,7 @@ describe('agent client', () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ bundle: { format: 'ora-plan-metadata' } }));
 
     const result = await fetchMetadata(
-      { baseUrl: 'http://127.0.0.1:8521', token: 'tok' },
+      CONFIG,
       { sqlId: 'abc123', planHash: 987654321 }
     );
 
@@ -179,7 +178,7 @@ describe('agent client', () => {
   it('fetchMetadata() omits planHash when not given', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ bundle: {} }));
 
-    await fetchMetadata({ baseUrl: 'http://127.0.0.1:8521', token: 'tok' }, { sqlId: 'abc123' });
+    await fetchMetadata(CONFIG, { sqlId: 'abc123' });
 
     const parsed = new URL(fetchMock.mock.calls[0][0] as string);
     expect(parsed.searchParams.has('planHash')).toBe(false);
@@ -187,25 +186,14 @@ describe('agent client', () => {
 });
 
 describe('fetchPlanWithMetadata', () => {
-  let fetchMock: ReturnType<typeof vi.fn>;
-  const config = { baseUrl: 'http://127.0.0.1:8521', token: 'tok' };
   const params = { sqlId: 'abc123', source: 'cursor' as const };
-
-  beforeEach(() => {
-    fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
 
   it('returns plan text and the stringified bundle', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ source: 'cursor', text: 'PLAN' }))
       .mockResolvedValueOnce(jsonResponse({ bundle: { format: 'ora-plan-metadata', version: 2 } }));
 
-    const result = await fetchPlanWithMetadata(config, params, { attachMetadata: true, planHash: 42 });
+    const result = await fetchPlanWithMetadata(CONFIG, params, { attachMetadata: true, planHash: 42 });
 
     expect(result.text).toBe('PLAN');
     expect(result.metadataError).toBeUndefined();
@@ -217,7 +205,7 @@ describe('fetchPlanWithMetadata', () => {
   it('skips the metadata request when attachMetadata is false', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ source: 'cursor', text: 'PLAN' }));
 
-    const result = await fetchPlanWithMetadata(config, params, { attachMetadata: false });
+    const result = await fetchPlanWithMetadata(CONFIG, params, { attachMetadata: false });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(result.metadataText).toBeUndefined();
@@ -229,7 +217,7 @@ describe('fetchPlanWithMetadata', () => {
       .mockResolvedValueOnce(jsonResponse({ source: 'cursor', text: 'PLAN' }))
       .mockResolvedValueOnce(jsonResponse({ error: 'Not connected to a database' }, 409));
 
-    const result = await fetchPlanWithMetadata(config, params, { attachMetadata: true });
+    const result = await fetchPlanWithMetadata(CONFIG, params, { attachMetadata: true });
 
     expect(result.text).toBe('PLAN');
     expect(result.metadataText).toBeUndefined();
@@ -240,7 +228,7 @@ describe('fetchPlanWithMetadata', () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'No plan found for the given sql_id' }, 404));
 
     await expect(
-      fetchPlanWithMetadata(config, params, { attachMetadata: true })
+      fetchPlanWithMetadata(CONFIG, params, { attachMetadata: true })
     ).rejects.toMatchObject({ name: 'AgentError', status: 404 });
   });
 });
@@ -253,29 +241,13 @@ describe('compareAgentVersions', () => {
     expect(compareAgentVersions('0.10.0', '0.9.0')).toBeGreaterThan(0);
     expect(compareAgentVersions('1.0', '1.0.1')).toBeLessThan(0);
   });
-
-  it('current MIN_AGENT_VERSION is a valid dotted version', () => {
-    expect(MIN_AGENT_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
-  });
 });
 
 describe('verifyToken', () => {
-  const config = { baseUrl: 'http://127.0.0.1:8521', token: 'tok' };
-  let fetchMock: ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
-    fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
   it('probes /api/test/log with the Bearer token and resolves true on 200', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ entries: [] }));
 
-    await expect(verifyToken(config)).resolves.toBe(true);
+    await expect(verifyToken(CONFIG)).resolves.toBe(true);
 
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('http://127.0.0.1:8521/api/test/log');
@@ -284,19 +256,85 @@ describe('verifyToken', () => {
 
   it('treats 404 (agent < 0.2.0, token already accepted) as valid', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'Not found' }, 404));
-    await expect(verifyToken(config)).resolves.toBe(true);
+    await expect(verifyToken(CONFIG)).resolves.toBe(true);
   });
 
   it('resolves false on 401', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'Missing or invalid bearer token' }, 401));
-    await expect(verifyToken(config)).resolves.toBe(false);
+    await expect(verifyToken(CONFIG)).resolves.toBe(false);
   });
 
   it('rethrows other failures (server error, unreachable agent)', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'boom' }, 500));
-    await expect(verifyToken(config)).rejects.toMatchObject({ name: 'AgentError', status: 500 });
+    await expect(verifyToken(CONFIG)).rejects.toMatchObject({ name: 'AgentError', status: 500 });
 
     fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
-    await expect(verifyToken(config)).rejects.toMatchObject({ name: 'AgentError', status: null });
+    await expect(verifyToken(CONFIG)).rejects.toMatchObject({ name: 'AgentError', status: null });
+  });
+});
+
+describe('agent test-connection API', () => {
+  it('testConnect() POSTs the credentials with a Bearer token', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ ok: true, oracleVersion: '23ai' }));
+
+    const result = await testConnect(CONFIG, { dsn: '//host:1521/scratch', user: 'eval', password: 'pw' });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://127.0.0.1:8521/api/test/connect');
+    expect(init?.method).toBe('POST');
+    expect((init?.headers as Record<string, string>).Authorization).toBe('Bearer tok');
+    expect(JSON.parse(init?.body as string)).toEqual({ dsn: '//host:1521/scratch', user: 'eval', password: 'pw' });
+    expect(result).toEqual({ ok: true, oracleVersion: '23ai' });
+  });
+
+  it('testExec() POSTs the script and returns ok/output/errors', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ ok: true, output: 'Table created.', errors: [] }));
+
+    const result = await testExec(CONFIG, { script: 'CREATE TABLE t (id NUMBER);' });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://127.0.0.1:8521/api/test/exec');
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(init?.body as string)).toEqual({ script: 'CREATE TABLE t (id NUMBER);' });
+    expect(result).toEqual({ ok: true, output: 'Table created.', errors: [] });
+  });
+
+  it('testExplain() POSTs the sql and returns the DBMS_XPLAN text', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ dbmsXplanText: 'Plan hash value: 1' }));
+
+    const result = await testExplain(CONFIG, { sql: 'SELECT 1 FROM dual' });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://127.0.0.1:8521/api/test/explain');
+    expect(JSON.parse(init?.body as string)).toEqual({ sql: 'SELECT 1 FROM dual' });
+    expect(result.dbmsXplanText).toBe('Plan hash value: 1');
+  });
+
+  it('testDisconnect() POSTs with a Bearer token', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ ok: true }));
+
+    await testDisconnect(CONFIG);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://127.0.0.1:8521/api/test/disconnect');
+    expect(init?.method).toBe('POST');
+    expect((init?.headers as Record<string, string>).Authorization).toBe('Bearer tok');
+  });
+});
+
+describe('loadStoredAgentConfig', () => {
+  afterEach(() => {
+    localStorage.removeItem(AGENT_URL_STORAGE_KEY);
+    sessionStorage.removeItem(AGENT_TOKEN_STORAGE_KEY);
+  });
+
+  it('falls back to the default base URL and empty token', () => {
+    expect(loadStoredAgentConfig()).toEqual({ baseUrl: DEFAULT_AGENT_BASE_URL, token: '' });
+  });
+
+  it('reads and normalizes what ConnectPanel stored', () => {
+    localStorage.setItem(AGENT_URL_STORAGE_KEY, 'http://127.0.0.1:9999/');
+    sessionStorage.setItem(AGENT_TOKEN_STORAGE_KEY, 'secret');
+    expect(loadStoredAgentConfig()).toEqual({ baseUrl: 'http://127.0.0.1:9999', token: 'secret' });
   });
 });

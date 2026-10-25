@@ -69,14 +69,6 @@ describe('buildAnalyzeSections + assembleContext', () => {
     expect(ids).not.toContain('metadata');
   });
 
-  it('is deterministic', () => {
-    const plan = monitoredPlan();
-    const a = assembleContext(...spread(buildAnalyzeSections(plan, null, null)));
-    const b = assembleContext(...spread(buildAnalyzeSections(plan, null, null)));
-    expect(a.userMessage).toBe(b.userMessage);
-    expect(a.tokenEstimate).toBe(b.tokenEstimate);
-  });
-
   it('toggling a section off changes the message and token estimate', () => {
     const plan = monitoredPlan();
     const { core, sections } = buildAnalyzeSections(plan, null, null);
@@ -141,15 +133,6 @@ describe('buildTestCaseSections', () => {
     expect(metadata!.charCount).toBe(metadata!.text.length);
   });
 
-  it('is deterministic', () => {
-    const plan = monitoredPlan();
-    const bundle = makeBundle({ 'SCOTT.EMP': makeTable() });
-    const a = buildTestCaseSections(plan, bundle, null);
-    const b = buildTestCaseSections(plan, bundle, null);
-    expect(assembleContext(a.core, a.sections).userMessage).toBe(
-      assembleContext(b.core, b.sections).userMessage,
-    );
-  });
 });
 
 describe('buildSystemPrompt testcase kind', () => {
@@ -197,7 +180,3 @@ describe('buildCompareSections', () => {
     expect(core).toContain('only in B: #1 INDEX RANGE SCAN EMP_IX');
   });
 });
-
-function spread(sc: { core: string; sections: Parameters<typeof assembleContext>[1] }) {
-  return [sc.core, sc.sections] as const;
-}

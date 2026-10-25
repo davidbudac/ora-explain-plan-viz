@@ -43,7 +43,6 @@ describe('large plan fixture (~2,000 operations)', () => {
 
   it('runs the advisor to completion, once per plan object', () => {
     const report = runAdvisor(plan, null);
-    expect(report.findings.length).toBeGreaterThanOrEqual(0);
     // The context and the tree view both ask; the second call must be free.
     expect(runAdvisor(plan, null)).toBe(report);
   });

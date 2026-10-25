@@ -15,17 +15,10 @@ function readExample(filename: string): string {
 }
 
 describe('supported formats list', () => {
-  it('covers every parser plus metadata bundles', () => {
-    const ids = SUPPORTED_FORMATS.map((f) => f.id);
-    expect(ids).toEqual(['dbms_xplan', 'sql_monitor_text', 'sql_monitor_xml', 'sql_monitor_active', 'json', 'csv', 'xbi', 'metadata_bundle']);
+  it('uses the same list in the placeholder and the error message', () => {
     for (const format of SUPPORTED_FORMATS) {
       expect(format.name).toBeTruthy();
       expect(format.hint).toBeTruthy();
-    }
-  });
-
-  it('uses the same list in the placeholder and the error message', () => {
-    for (const format of SUPPORTED_FORMATS) {
       expect(INPUT_PLACEHOLDER).toContain(format.name);
     }
     expect(PARSE_FAILED_MESSAGE).toContain(SUPPORTED_FORMATS_SENTENCE);

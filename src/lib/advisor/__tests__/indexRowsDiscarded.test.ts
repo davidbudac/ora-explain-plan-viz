@@ -54,8 +54,4 @@ describe('indexRowsDiscardedRule', () => {
     expect(findings[0].suggestion).toContain('Add STATUS to');
     expect(findings[0].suggestion).not.toContain('REGION');
   });
-
-  it('is gated by requiresActualStats', () => {
-    expect(indexRowsDiscardedRule.requiresActualStats).toBe(true);
-  });
 });

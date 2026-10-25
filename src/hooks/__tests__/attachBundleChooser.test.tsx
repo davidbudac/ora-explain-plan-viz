@@ -1,71 +1,12 @@
-/** @jsxRuntime automatic */
-/** @jsxImportSource react */
-import { act, useLayoutEffect } from 'react';
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { PlanProvider, usePlan } from '../usePlanContext';
-import { ConfirmProvider, ToastProvider } from '../../components/ui';
-import { cleanup, render } from '../../components/ui/__tests__/testUtils';
+import { act } from 'react';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { cleanup } from '../../components/ui/__tests__/testUtils';
+import { loadPlan, renderPlanContext } from '../../components/ui/__tests__/planContext';
 import sampleBundle from '../../examples/sample-metadata-bundle.json';
 
 // The sample bundle has no SQL_ID, so attaching it always opens the pairing
 // chooser (needs-choice) once a plan is loaded.
 const BUNDLE_TEXT = JSON.stringify(sampleBundle);
-
-const PLAN_TEXT = `Plan hash value: 1234567890
-
---------------------------------------------------------------------------------
-| Id  | Operation                    | Name       | Rows  | Bytes | Cost (%CPU)|
---------------------------------------------------------------------------------
-|   0 | SELECT STATEMENT             |            |     1 |    10 |     5   (0)|
-|   1 |  TABLE ACCESS FULL           | ORDERS     |     1 |    10 |     5   (0)|
---------------------------------------------------------------------------------
-`;
-
-type Ctx = ReturnType<typeof usePlan>;
-
-function renderPlanContext(): { current: () => Ctx } {
-  const latest: { ctx: Ctx | null } = { ctx: null };
-  function Probe() {
-    const ctx = usePlan();
-    useLayoutEffect(() => {
-      latest.ctx = ctx;
-    });
-    return null;
-  }
-  render(
-    <ToastProvider>
-      <ConfirmProvider>
-        <PlanProvider>
-          <Probe />
-        </PlanProvider>
-      </ConfirmProvider>
-    </ToastProvider>,
-  );
-  return { current: () => latest.ctx! };
-}
-
-async function loadPlan(ctx: { current: () => Ctx }) {
-  await act(async () => {
-    await ctx.current().loadAndParsePlan(PLAN_TEXT, undefined, { recordRecent: false, skipConfirm: true });
-  });
-  expect(ctx.current().parsedPlan).not.toBeNull();
-}
-
-beforeAll(() => {
-  // jsdom has no matchMedia; the provider reads prefers-color-scheme on init.
-  if (typeof window.matchMedia !== 'function') {
-    window.matchMedia = ((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: () => {},
-      removeListener: () => {},
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      dispatchEvent: () => false,
-    })) as typeof window.matchMedia;
-  }
-});
 
 beforeEach(() => {
   localStorage.clear();

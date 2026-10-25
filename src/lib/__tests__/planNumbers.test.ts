@@ -6,33 +6,14 @@ import {
   computeHottestNodeId,
   computeSelfCosts,
   computeSelfTimes,
+  effectiveChildren,
   planRootCost,
   rankNodesByTime,
 } from '../analysis';
 import { parsePlan } from '../parser';
 import { runAdvisor } from '../advisor';
-import type { ParsedPlan, PlanNode, PlanSource } from '../types';
-
-interface Spec extends Partial<Omit<PlanNode, 'children' | 'id' | 'operation' | 'depth' | 'parentId'>> {
-  id: number;
-  op: string;
-  kids?: Spec[];
-}
-
-function buildPlan(spec: Spec, source: PlanSource = 'sql_monitor_text'): ParsedPlan {
-  const allNodes: PlanNode[] = [];
-  const build = (s: Spec, depth: number, parentId?: number): PlanNode => {
-    const { op, kids, ...rest } = s;
-    const node: PlanNode = { ...rest, operation: op, depth, parentId, children: [] };
-    allNodes.push(node);
-    node.children = (kids ?? []).map((c) => build(c, depth + 1, s.id));
-    return node;
-  };
-  const rootNode = build(spec, 0);
-  return { rootNode, allNodes, totalCost: 0, maxRows: 0, source, hasActualStats: true };
-}
-
-const get = (plan: ParsedPlan, id: number) => plan.allNodes.find((n) => n.id === id)!;
+import type { PlanSource } from '../types';
+import { buildPlan, nodeById as get } from './fixtures/buildPlan';
 
 describe('computeEstimatedRowTotals', () => {
   it('multiplies per-start E-Rows by Starts on the inner side of a nested loop', () => {
@@ -222,6 +203,57 @@ describe('computeSelfCosts', () => {
     expect(get(plan, 1).selfCost).toBe(0); // 90 - 100 clamped
     expect(get(plan, 2).selfCost).toBe(60);
     expect(get(plan, 4).selfCost).toBeUndefined();
+  });
+});
+
+/**
+ * 3 UNION-ALL (cost 100, 100 ms)
+ * ├─ 4 FILTER (cost 60, 60 ms)
+ * └─ 27 HASH JOIN, inactive (cost 40, 40 ms)
+ *    ├─ 28 NESTED LOOPS (cost 10, 10 ms)
+ *    │  └─ 29 STATISTICS COLLECTOR, inactive (cost 4, 4 ms)
+ *    │     └─ 30 INDEX FULL SCAN (cost 3, 3 ms)
+ *    └─ 32 INDEX FULL SCAN, inactive (cost 1, 1 ms)
+ */
+const adaptivePlan = () =>
+  buildPlan({
+    id: 3, cost: 100, actualTime: 100, kids: [
+      { id: 4, cost: 60, actualTime: 60 },
+      { id: 27, cost: 40, actualTime: 40, inactive: true, kids: [
+        { id: 28, cost: 10, actualTime: 10, kids: [
+          { id: 29, cost: 4, actualTime: 4, inactive: true, kids: [{ id: 30, cost: 3, actualTime: 3 }] },
+        ] },
+        { id: 32, cost: 1, actualTime: 1, inactive: true },
+      ] },
+    ],
+  }, 'dbms_xplan');
+
+describe('effectiveChildren', () => {
+  it('keeps active children and looks through inactive ones', () => {
+    const plan = adaptivePlan();
+    expect(effectiveChildren(get(plan, 3)).map((n) => n.id)).toEqual([4, 28]);
+    expect(effectiveChildren(get(plan, 28)).map((n) => n.id)).toEqual([30]);
+    expect(effectiveChildren(get(plan, 4))).toEqual([]);
+  });
+});
+
+describe('self numbers in adaptive plans', () => {
+  it('self time subtracts only active work', () => {
+    const plan = adaptivePlan();
+    computeSelfTimes(plan);
+    expect(get(plan, 3).selfTime).toBe(30); // 100 − 60 (4) − 10 (28), not − 40 (27)
+    expect(get(plan, 28).selfTime).toBe(7); // 10 − 3 (30), not − 4 (29)
+    expect(get(plan, 30).selfTime).toBe(3);
+    for (const id of [27, 29, 32]) expect(get(plan, id).selfTime).toBeUndefined();
+    expect(plan.maxSelfTime).toBe(60); // leaf FILTER 4
+  });
+
+  it('self cost subtracts only active work', () => {
+    const plan = adaptivePlan();
+    computeSelfCosts(plan);
+    expect(get(plan, 3).selfCost).toBe(30);
+    expect(get(plan, 28).selfCost).toBe(7);
+    for (const id of [27, 29, 32]) expect(get(plan, id).selfCost).toBeUndefined();
   });
 });
 

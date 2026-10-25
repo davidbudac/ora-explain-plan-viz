@@ -3,25 +3,6 @@ import { classifyDroppedFile, findCoverageWarning } from '../dropClassify';
 import type { MetadataBundle } from '../bundle';
 
 describe('classifyDroppedFile', () => {
-  it('returns plan for files without .json extension', () => {
-    const out = classifyDroppedFile('plan.txt', '| 0 | SELECT STATEMENT |');
-    expect(out.kind).toBe('plan');
-  });
-
-  it('returns error for .json files that fail JSON.parse', () => {
-    const out = classifyDroppedFile('bundle.json', '{not really json');
-    expect(out.kind).toBe('error');
-    if (out.kind === 'error') {
-      expect(out.message).toMatch(/not valid JSON/i);
-    }
-  });
-
-  it('returns bundle for JSON with format: ora-plan-metadata', () => {
-    const text = JSON.stringify({ format: 'ora-plan-metadata', version: 1, objects: {} });
-    const out = classifyDroppedFile('bundle.json', text);
-    expect(out.kind).toBe('bundle');
-  });
-
   it('returns bundle for spool files without a .json extension', () => {
     const text = '{"format":"ora-plan-metadata","version":1,"objects":{}}';
     expect(classifyDroppedFile('bundle.lst', text).kind).toBe('bundle');

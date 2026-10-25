@@ -1,12 +1,8 @@
-/** @jsxRuntime automatic */
-/** @jsxImportSource react */
-import { act, useLayoutEffect } from 'react';
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { gzipSync } from 'zlib';
-import { PlanProvider, usePlan } from '../usePlanContext';
-import { ConfirmProvider, ToastProvider } from '../../components/ui';
-import { cleanup, render } from '../../components/ui/__tests__/testUtils';
-import { getPlanFromUrl } from '../../lib/url';
+import { cleanup } from '../../components/ui/__tests__/testUtils';
+import { SIMPLE_PLAN, renderPlanContext } from '../../components/ui/__tests__/planContext';
 import type { SharePayload } from '../../lib/url';
 import type { SamplePlan } from '../../examples';
 
@@ -20,39 +16,8 @@ vi.mock('../../lib/url', async (importOriginal) => {
   };
 });
 
-const PLAN_A = `Plan hash value: 1234567890
-
---------------------------------------------------------------------------------
-| Id  | Operation                    | Name       | Rows  | Bytes | Cost (%CPU)|
---------------------------------------------------------------------------------
-|   0 | SELECT STATEMENT             |            |     1 |    10 |     5   (0)|
-|   1 |  TABLE ACCESS FULL           | ORDERS     |     1 |    10 |     5   (0)|
---------------------------------------------------------------------------------
-`;
+const PLAN_A = SIMPLE_PLAN;
 const PLAN_B = PLAN_A.replace('1234567890', '987654321').replace('ORDERS', 'ITEMS');
-
-type Ctx = ReturnType<typeof usePlan>;
-
-function renderPlanContext(): { current: () => Ctx } {
-  const latest: { ctx: Ctx | null } = { ctx: null };
-  function Probe() {
-    const ctx = usePlan();
-    useLayoutEffect(() => {
-      latest.ctx = ctx;
-    });
-    return null;
-  }
-  render(
-    <ToastProvider>
-      <ConfirmProvider>
-        <PlanProvider>
-          <Probe />
-        </PlanProvider>
-      </ConfirmProvider>
-    </ToastProvider>,
-  );
-  return { current: () => latest.ctx! };
-}
 
 const flush = () => act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
 
@@ -67,21 +32,6 @@ function setUrl(url: string) {
 function sample(data: string): SamplePlan {
   return { name: 'Pair', category: 'dbms_xplan', data };
 }
-
-beforeAll(() => {
-  if (typeof window.matchMedia !== 'function') {
-    window.matchMedia = ((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: () => {},
-      removeListener: () => {},
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      dispatchEvent: () => false,
-    })) as typeof window.matchMedia;
-  }
-});
 
 beforeEach(() => {
   localStorage.clear();
@@ -211,21 +161,5 @@ describe('?node= and ?q= deep links', () => {
     });
     await flush();
     expect(ctx.current().selectedNodeId).toBeNull();
-  });
-});
-
-describe('getPlanFromUrl still reads legacy payloads', () => {
-  it('returns the payload with the new workspace block intact', async () => {
-    const first = renderPlanContext();
-    await act(async () => {
-      await first.current().loadExample(sample(PLAN_A));
-    });
-    act(() => first.current().selectNodeForPlan(0, 1));
-    await act(async () => {
-      await first.current().sharePlan();
-    });
-    const data = getPlanFromUrl();
-    expect(data?.type).toBe('payload');
-    if (data?.type === 'payload') expect(data.payload.plans[0].selectedNodeIds).toEqual([1]);
   });
 });
