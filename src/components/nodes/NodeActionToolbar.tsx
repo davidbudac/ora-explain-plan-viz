@@ -372,8 +372,11 @@ function Separator() {
 // Container: context + React Flow wiring
 // ---------------------------------------------------------------------------
 
-/** Total overlap of the pill with the card's top edge: a 28px pill centred on it. */
-const TOOLBAR_OFFSET = -14;
+/**
+ * Gap between the pill and the card's top edge, so a click aimed at the card
+ * does not land on the toolbar. The hide delay bridges the pointer across it.
+ */
+const TOOLBAR_OFFSET = 10;
 
 /** Ids of `node` and every descendant. */
 function subtreeIds(node: PlanNode): number[] {
