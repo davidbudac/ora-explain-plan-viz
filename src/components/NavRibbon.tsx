@@ -84,8 +84,6 @@ function resetTopBar(): void {
   setTitleMode('full');
 }
 
-const COMPARE_DISABLED_TITLE = 'Load a second plan (+ Add Plan) to enable comparison';
-
 const width = (el: Element) => Math.ceil(el.getBoundingClientRect().width);
 const sumWidths = (els: Element[]) => els.reduce((total, el) => total + width(el), 0);
 
@@ -224,6 +222,8 @@ export function ViewTabStrip() {
   const availableTabs = tabs.filter((tab) => {
     if (tab.id === 'sql') return Boolean(parsedPlan?.sqlText);
     if (tab.id === 'monitor') return parsedPlan?.source === 'sql_monitor_xml';
+    // Comparing needs two parsed plans; don't offer the tab before then.
+    if (tab.id === 'compare') return compareEnabled;
     return true;
   });
 
@@ -324,8 +324,7 @@ export function ViewTabStrip() {
   }, [overflowOpen, focusFirst]);
 
   const selectTab = useCallback(
-    (id: ViewMode, disabled: boolean) => {
-      if (disabled) return;
+    (id: ViewMode) => {
       setOverflowOpen(false);
       setViewMode(id);
     },
@@ -339,13 +338,10 @@ export function ViewTabStrip() {
   const visibleTabs = availableTabs.slice(0, visibleCount);
   const overflowTabs = availableTabs.slice(visibleCount);
   const activeIsHidden = overflowTabs.some((tab) => tab.id === viewMode);
-  const isTabDisabled = (id: ViewMode) => id === 'compare' && !compareEnabled;
 
   // Roving tabindex: one tab stop for the whole strip (the active tab, else the
   // first enabled one); arrow keys move between the visible tabs.
-  const rovingId =
-    visibleTabs.find((tab) => tab.id === viewMode)?.id ??
-    visibleTabs.find((tab) => !isTabDisabled(tab.id))?.id;
+  const rovingId = visibleTabs.find((tab) => tab.id === viewMode)?.id ?? visibleTabs[0]?.id;
 
   const onTabListKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
@@ -380,7 +376,6 @@ export function ViewTabStrip() {
           className="flex min-w-0 overflow-x-auto scrollbar-none"
         >
           {availableTabs.map((tab, index) => {
-            const isDisabled = isTabDisabled(tab.id);
             const isActive = viewMode === tab.id;
             const iconOnly = index >= labelledCount;
             return (
@@ -391,18 +386,15 @@ export function ViewTabStrip() {
                 aria-selected={isActive}
                 tabIndex={tab.id === rovingId ? 0 : -1}
                 data-view-tab
-                onClick={() => selectTab(tab.id, isDisabled)}
-                disabled={isDisabled}
-                title={isDisabled ? COMPARE_DISABLED_TITLE : tab.label}
+                onClick={() => selectTab(tab.id)}
+                title={tab.label}
                 className={`
                   shrink-0 flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md motion-safe:transition-all
                   ${index >= visibleCount ? 'hidden' : ''}
                   ${FOCUS_RING_INSET}
                   ${isActive
                     ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-400/30'
-                    : isDisabled
-                      ? 'text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-300/30 dark:hover:bg-slate-700/50'}
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-300/30 dark:hover:bg-slate-700/50'}
                 `}
               >
                 <ViewIcon mode={tab.id} />
@@ -445,8 +437,7 @@ export function ViewTabStrip() {
                 className="absolute right-0 top-full mt-1 w-44 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50"
               >
                 {overflowTabs.map((tab) => {
-                  const isDisabled = isTabDisabled(tab.id);
-                  const isActive = viewMode === tab.id;
+                        const isActive = viewMode === tab.id;
                   return (
                     <button
                       key={tab.id}
@@ -454,17 +445,14 @@ export function ViewTabStrip() {
                       role="menuitemradio"
                       aria-checked={isActive}
                       tabIndex={-1}
-                      onClick={() => selectTab(tab.id, isDisabled)}
-                      disabled={isDisabled}
-                      title={isDisabled ? COMPARE_DISABLED_TITLE : tab.label}
+                      onClick={() => selectTab(tab.id)}
+                      title={tab.label}
                       className={`
                         w-full px-3 py-2 flex items-center gap-2 text-left text-sm motion-safe:transition-colors
                         ${FOCUS_RING_INSET} focus-visible:bg-slate-100 dark:focus-visible:bg-slate-800
                         ${isActive
                           ? 'font-semibold text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800'
-                          : isDisabled
-                            ? 'text-slate-400 dark:text-slate-600 cursor-not-allowed'
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}
+                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}
                       `}
                     >
                       <ViewIcon mode={tab.id} />
