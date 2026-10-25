@@ -73,6 +73,28 @@ describe('renderPlanTable', () => {
     expect(byId(plan, 1).selfTime).toBe(3000);
   });
 
+  it('adds Buffers and Act% when the plan carries them, and marks inactive adaptive rows with "-"', () => {
+    const plan = buildPlan(
+      {
+        id: 0,
+        operation: 'SELECT STATEMENT',
+        children: [
+          { id: 1, operation: 'HASH JOIN', rows: 10, actualRows: 10, starts: 1, logicalReads: 1500 },
+          { id: 2, operation: 'NESTED LOOPS', rows: 10, starts: 0, inactive: true },
+        ],
+      },
+      { source: 'sql_monitor_xml', hasActualStats: true },
+    );
+    byId(plan, 1).activityPercent = 87.5;
+    const table = renderPlanTable(plan);
+    expect(table).toContain('Buffers');
+    expect(table).toContain('1.5K');
+    expect(table).toContain('Act%');
+    expect(table).toContain('87.5');
+    expect(table).toMatch(/\| +- 2 \| +NESTED LOOPS/);
+    expect(table).toMatch(/\| +1 \| +HASH JOIN/);
+  });
+
   it('drops columns that are empty for every row', () => {
     const table = renderPlanTable(estimatePlan());
     expect(table).not.toContain('Pstart');

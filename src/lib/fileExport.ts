@@ -23,6 +23,19 @@ export function downloadTextFile(
   filename: string,
   mimeType = 'text/plain;charset=utf-8',
 ): boolean {
+  return downloadFile(content, filename, mimeType);
+}
+
+/** `downloadTextFile` for binary content (e.g. a ZIP archive). */
+export function downloadBinaryFile(
+  content: Uint8Array<ArrayBuffer>,
+  filename: string,
+  mimeType = 'application/octet-stream',
+): boolean {
+  return downloadFile(content, filename, mimeType);
+}
+
+function downloadFile(content: BlobPart, filename: string, mimeType: string): boolean {
   let url: string | null = null;
   try {
     const blob = new Blob([content], { type: mimeType });

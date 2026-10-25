@@ -38,6 +38,10 @@ Notes and colour highlights on nodes, exported as JSON or baked into a shareable
 
 ![Annotate nodes and share via URL](site/assets/annotate.gif)
 
+### Agent handoff
+
+Hand the plan to Claude Code, Codex, ChatGPT or any other agent: *File → Agent handoff* builds one Markdown prompt with the plan, the app's analysis, your question, how to read Oracle's numbers, what data is missing and the exact SQL to fetch it. The companion [`oracle-plan-analysis`](skills/oracle-plan-analysis/SKILL.md) skill teaches the agent the workflow (`npx skills add davidbudac/ora-explain-plan-viz`, or download it from the dialog).
+
 ### AI plan analysis
 
 Optional AI-assisted review of the loaded plan (or a plan-A vs plan-B comparison): pick a provider (Anthropic, an OpenAI-compatible endpoint, or the local DB agent build), click Run, and get a streamed report with findings linked back to plan nodes. With a schema-metadata bundle attached, it can also build a runnable synthetic test case — a scratch-schema script (empty DDL + statistics + binds) that reproduces the plan without production data, plus alternative-plan experiments to try.

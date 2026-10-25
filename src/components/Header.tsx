@@ -143,6 +143,7 @@ const ICON_PATHS = {
   forward: 'M9 5l7 7-7 7',
   clipboard: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
   folder: 'M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z',
+  agent: 'M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z',
 } as const;
 
 /**
@@ -368,6 +369,7 @@ export function HeaderActions() {
     treeCompareEnabled,
     setCommandPaletteOpen,
     setReportDialogOpen,
+    setHandoffDialogOpen,
     setShortcutsOverlayOpen,
     startWalkthrough,
     setBaselineDialogOpen,
@@ -482,6 +484,14 @@ export function HeaderActions() {
         onSelect={() => { close(); handleCopyMarkdown(); }}
       >
         <span>Copy plan as Markdown</span>
+      </MenuItem>
+      <MenuItem
+        icon={<ItemIcon d={ICON_PATHS.agent} />}
+        disabled={parsedPlan === null}
+        title="A Markdown prompt with the plan, the app's analysis and instructions, for Claude Code, Codex, ChatGPT or another agent"
+        onSelect={() => { close(); setHandoffDialogOpen(true); }}
+      >
+        <span>Agent handoff (.md)…</span>
       </MenuItem>
       <MenuItem
         icon={<ItemIcon d={ICON_PATHS.camera} />}
