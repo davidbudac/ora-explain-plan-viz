@@ -21,6 +21,7 @@ src/
 │   ├── types.ts         # TypeScript interfaces, operation categories, colors, operation tooltips
 │   ├── settings.ts      # User settings persistence (localStorage); exports `defaultNodeDisplayOptions` / `defaultBehaviourOptions`
 │   ├── filtering.ts     # Node filtering logic (search, predicates, cost/rows/time/cardinality ranges)
+│   ├── filterThresholds.ts # Filter panel 'At least' thresholds: log-scale slider mapping, log histogram, typed-value parse/format (`1.5M`, `2s`, `10x`)
 │   ├── format.ts        # Number/time/bytes formatting + cardinality ratio utilities
 │   ├── analysis.ts      # Plan tree walking + hotspot/hottest-node detection helpers; `effectiveChildren` (skips inactive adaptive rows) feeds self cost/time
 │   ├── planSignals.ts   # Plan-level signal detection (partition pruning, parallelism, spills)
@@ -105,7 +106,7 @@ src/
 │   ├── viewIcons.tsx        # Icons for the view tabs
 │   ├── InputPanel.tsx       # Owns the single top bar (brand, SQL-ID drawer handle, plan/view tabs, DB Connect, Load Example/Recent, actions) + the input drawer; also the bundle-pairing chooser
 │   ├── ConnectPanel.tsx     # DB Connect walkthrough (start connector → token → database → pick a statement) with live status diagram; only with VITE_ENABLE_DB_AGENT=1
-│   ├── FilterPanel.tsx      # Filter by operation type, cost, search, predicates, cardinality mismatch
+│   ├── FilterPanel.tsx      # Filters: search (match stepper), collapsible Operation / Predicate count-tile toggles (count, label, colour cap), 'At least' log-scale thresholds with typed values; `FilterPanelBody` is shared with the narrow sheet and focus popover
 │   ├── NodeDetailPanel.tsx  # Node details, hotspots, annotations, cardinality analysis
 │   ├── SelectionBreadcrumb.tsx # Tree breadcrumb of the selected operation's path (crumbs select the ancestor) + 'Return to selected'
 │   ├── AnalysisOverview.tsx # Dismissible 'where to look first' card over Tree/Tabular/Sankey/Flame (once per loaded plan; palette reopens)
@@ -281,7 +282,7 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **AI Follow-up Chat**: After a completed AI report, a chat section in the AI tab lets the user ask follow-up questions (multi-turn via `streamChat`); when the DB agent feature is enabled, SQL blocks in test-case reports and chat replies get a "Run via agent" button that executes against the agent's scratch test connection only after explicit per-script user approval (script preview + destructive-statement warning) — nothing ever auto-runs or auto-sends
 - **AI Eval Harness**: `evals/` backtesting harness (Node + tsx + oracledb thin, outside the Vite build) measuring repro fidelity (does the generated test case reproduce the plan shape?) and analysis quality (does the AI find a known injected fault?) against a real Oracle scratch schema via `ORA_EVAL_*` env vars — see `evals/README.md`
 - **Cardinality Mismatch Analysis**: Detects divergence between A-Rows and the estimate over all starts (`estimatedRowsTotal`, see Architecture Notes) with severity badges (warn at 3x, bad at 10x); the advisor also needs a ≥100-row absolute difference
-- **Cardinality Mismatch Filter**: Slider in filter panel to show only nodes exceeding a mismatch threshold
+- **Cardinality Mismatch Filter**: 'Estimate off by' threshold in the filter panel shows only nodes exceeding a mismatch factor
 - **Spill-to-Disk Warnings**: Badge on nodes that use temp space, with details in node panel
 - **Operation Tooltips**: ~55 Oracle operations with expert descriptions shown on hover and in detail panel
 
