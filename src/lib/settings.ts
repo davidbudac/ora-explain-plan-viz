@@ -76,6 +76,11 @@ export interface UserSettings {
   aiOpenAiBaseUrl: string;
   aiOpenAiModel: string;
   aiSections: Record<AiSectionId, boolean>;
+
+  // Agent handoff export: the user's include/exclude choices per section id
+  // (unset ids use the section's default) and whether to embed the skill playbook.
+  agentHandoffSections: Record<string, boolean>;
+  agentHandoffPlaybook: boolean;
 }
 
 export const defaultNodeDisplayOptions: NodeDisplayOptions = { ...DENSITY_PRESETS.compact };
@@ -136,6 +141,8 @@ const defaultSettings: UserSettings = {
   aiOpenAiBaseUrl: '',
   aiOpenAiModel: '',
   aiSections: defaultAiSections,
+  agentHandoffSections: {},
+  agentHandoffPlaybook: false,
 };
 
 /**
@@ -197,6 +204,12 @@ export function loadSettings(theme?: Theme): UserSettings {
     if (parsed.treeMinimap && !TREE_MINIMAP_MODES.includes(parsed.treeMinimap)) {
       delete parsed.treeMinimap;
     }
+    if (parsed.agentHandoffSections !== undefined && !isBooleanRecord(parsed.agentHandoffSections)) {
+      delete parsed.agentHandoffSections;
+    }
+    if (parsed.agentHandoffPlaybook !== undefined && typeof parsed.agentHandoffPlaybook !== 'boolean') {
+      delete parsed.agentHandoffPlaybook;
+    }
 
     // Handle version migrations in the future
     if (parsed.version !== SETTINGS_VERSION) {
@@ -221,6 +234,11 @@ export function loadSettings(theme?: Theme): UserSettings {
     console.warn('Failed to load settings from localStorage');
     return themedDefaults;
   }
+}
+
+function isBooleanRecord(value: unknown): value is Record<string, boolean> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    && Object.values(value).every((v) => typeof v === 'boolean');
 }
 
 /**

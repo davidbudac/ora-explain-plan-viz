@@ -1028,6 +1028,9 @@ interface PlanContextValue {
   setBaselineDialogOpen: (open: boolean, kind?: 'baseline' | 'patch') => void;
   reportDialogOpen: boolean;
   setReportDialogOpen: (open: boolean) => void;
+  /** The agent handoff export dialog (File menu / palette). */
+  handoffDialogOpen: boolean;
+  setHandoffDialogOpen: (open: boolean) => void;
   connectPanelOpen: boolean;
   setConnectPanelOpen: (open: boolean) => void;
   walkthroughOpen: boolean;
@@ -1154,6 +1157,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setBaselineDialogOpenState(open);
   }, []);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [handoffDialogOpen, setHandoffDialogOpen] = useState(false);
   const [connectPanelOpen, setConnectPanelOpen] = useState(false);
   const [walkthroughOpen, setWalkthroughOpen] = useState(false);
   const [prevMetadataBundle, setPrevMetadataBundle] = useState<MetadataBundle | null>(null);
@@ -2776,6 +2780,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setBaselineDialogOpen,
     reportDialogOpen,
     setReportDialogOpen,
+    handoffDialogOpen,
+    setHandoffDialogOpen,
     connectPanelOpen,
     setConnectPanelOpen,
     walkthroughOpen,
@@ -2929,6 +2935,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setBaselineDialogOpen,
     reportDialogOpen,
     setReportDialogOpen,
+    handoffDialogOpen,
+    setHandoffDialogOpen,
     connectPanelOpen,
     setConnectPanelOpen,
     walkthroughOpen,

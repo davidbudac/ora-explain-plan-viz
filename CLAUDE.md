@@ -39,6 +39,9 @@ src/
 │   ├── overview.ts      # Analysis overview items ('where to look first': top advisor findings → hottest op → worst mismatch)
 │   ├── outlineHints.ts  # Outline-hint / Hint Report formatting (statement summary, 'Copy as hint block')
 │   ├── planMarkdown.ts  # Copy plan as Markdown (heading, SQL fence, operations table, predicates, notes)
+│   ├── agentHandoff.ts  # Agent handoff prompt (Markdown): task, question, number-reading rules, data inventory with fetch SQL, answer shape, then fenced plan data (reuses `ai/context` sections); analyze or compare
+│   ├── agentSkill.ts    # Bundles `skills/oracle-plan-analysis/` (`import.meta.glob` ?raw): flattened playbook for embedding + the skill as a .zip
+│   ├── zip.ts           # Minimal stored-only ZIP writer (CRC-32), for the skill download
 │   ├── filePicker.ts    # Programmatic 'Open plan file…' picker (File menu, palette, Cmd/Ctrl+O) → context `loadFiles`
 │   ├── pwa.ts           # Service-worker registration (production only) + 'New version available' toast
 │   ├── url.ts           # Shareable-URL encode/decode (gzip) for plan state (+ versioned `workspace` block) and `?example=&view=&node=&q=` deep-link params
@@ -121,6 +124,7 @@ src/
 │   ├── PrivacyBadge.tsx     # Start-screen "your plans never leave this browser" badge
 │   ├── AiAnalysisDialog.tsx # AI analysis setup dialog (provider, model, key, run analyze/compare)
 │   ├── ClientReportModal.tsx # Client report export dialog (title/client/author, sections, preview)
+│   ├── AgentHandoffDialog.tsx # Agent handoff export dialog (question, section toggles with token estimates, playbook embed, copy / .md, skill download)
 │   ├── MetadataChip.tsx     # Inline schema-metadata badge/chip
 │   ├── FormattedPredicate.tsx # Predicate rendering with column formatting
 │   ├── Legend.tsx           # Hideable color legend
@@ -156,6 +160,8 @@ src/
 ├── App.tsx
 ├── main.tsx
 └── index.css            # Tailwind imports + dark mode styles
+
+skills/oracle-plan-analysis/ # Companion agent skill: SKILL.md + references/patterns.md, data-requests.md (bundled into the app; `npx skills add davidbudac/ora-explain-plan-viz`)
 
 public/                  # Static assets: `manifest.webmanifest` (relative start_url/scope), `sw.js` (service worker, `__BUILD_ID__` stamped by vite.config.ts), product icons
 .github/workflows/       # `ci.yml` (lint + typecheck + tests on PRs and main), `deploy.yml` (build + deploy on push to main)
@@ -287,6 +293,10 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 ### Plan Baselines & SQL Patches
 - **Baseline Script Generator**: Generates a ready-to-run SQL*Plus script that creates a SQL Plan Baseline (via `DBMS_SPM`) for the loaded plan's SQL ID + plan hash value — from the cursor cache, AWR directly (19c+), or AWR via a temporary SQL Tuning Set (11.2+), with FIXED/ENABLED options, pre-check and verification queries, and a management crib sheet. Opened from the File menu, the plan tab's SPM chip or the command palette; fully offline — the user runs the script themselves
 - **SQL Patch Script**: The same dialog's *Script type* switch (context `baselineDialogKind`; `setBaselineDialogOpen(true, 'patch')`, palette "Create SQL Patch script…") builds a `DBMS_SQLDIAG.CREATE_SQL_PATCH` script (`lib/sqlPatchScript.ts`): SQL_ID, patch name (default `PLANVIZ_PATCH_<SQL_ID>`) and hint text prefilled with the plan's `outlineHints` (full outline pins the plan). The create block runs under `SET DEFINE OFF`, so hints may contain `&`
+
+### Agent Handoff
+- **Agent Handoff Export**: File menu / palette "Export agent handoff…" (context `handoffDialogOpen`) builds one Markdown prompt for an external agent (`lib/agentHandoff.ts` + `AgentHandoffDialog.tsx`): `<!-- oraplanviz-agent-handoff v1 -->` marker, task, the user's optional question, how to read Oracle's numbers, a "What this handoff contains" checklist (present / missing with the query that fetches it / withheld by the user), rules for asking for more data, the answer shape, then the plan data (always the regenerated plan table; toggleable sections from `buildAnalyzeSections` / `buildCompareSections` plus analyst notes and the original plan text, which starts off for XML/JSON/CSV and for text over 40k chars). Compare mode hands off the pair + match digest. Toggles persist (`agentHandoffSections`, `agentHandoffPlaybook`) except the raw-text one. Nothing is sent anywhere
+- **Companion Skill**: `skills/oracle-plan-analysis/` (model-invoked; workflow + `references/patterns.md` + `references/data-requests.md`). The dialog downloads it as a .zip (`oracle-plan-analysis/SKILL.md`, unzips into `~/.claude/skills/` or uploads to claude.ai) or embeds it as a playbook. The handoff's "Reading the numbers" and inventory fetch SQL are a compact copy of the skill's: change both together. The SQL in `data-requests.md` was run on Oracle 19c (dbmint) — re-run it after editing (gotcha: `SET SERVEROUTPUT OFF` must come before the statement, or `DISPLAY_CURSOR(NULL, NULL)` shows SQL*Plus's own `DBMS_OUTPUT` call)
 
 ### Client Report
 - **Client Report Export**: Packages the loaded plan, the consultant's annotations, and all derived analysis into a single self-contained HTML document for handing to a client — header metadata (title, client, prepared by, date, SQL ID, plan hash), free-text executive summary with headline stat cards and optimizer-note tags, SQL statement, full plan table (with hotspot marker, highlight chips, inline notes, estimate-quality column), consultant notes/groups/highlights, advisor findings with recommendations, top self-time hotspots, worst cardinality mismatches, predicates, execution environment + bind variables, and a raw-plan appendix. Section toggles, live preview iframe, download as `.html` or open a print view for save-as-PDF. Client/author names persist to localStorage. Opened from the top-bar document icon or the command palette (`clientReport.ts` + `ClientReportModal.tsx`); fully offline, nothing is uploaded
