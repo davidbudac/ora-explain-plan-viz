@@ -1,0 +1,1284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Oracle Plan Visualizer — 15s showreel</title>
+<style>
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:400; font-display:block;
+    src:url('fonts/inter-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:600; font-display:block;
+    src:url('fonts/inter-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family:'Inter'; font-style:normal; font-weight:800; font-display:block;
+    src:url('fonts/inter-latin-800-normal.woff2') format('woff2'); }
+  @font-face { font-family:'JetBrains Mono'; font-style:normal; font-weight:400; font-display:block;
+    src:url('fonts/jetbrains-mono-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family:'JetBrains Mono'; font-style:normal; font-weight:700; font-display:block;
+    src:url('fonts/jetbrains-mono-latin-700-normal.woff2') format('woff2'); }
+
+  html,body { margin:0; padding:0; background:#05070d; height:100%; overflow:hidden; }
+  body { display:flex; align-items:center; justify-content:center; }
+  #stage { width:100vw; max-width:calc(100vh * 16 / 9); aspect-ratio:16/9; position:relative; }
+  canvas { width:100%; height:100%; display:block; border-radius:2px; }
+  #hud { position:fixed; left:10px; bottom:8px; font:11px 'JetBrains Mono',monospace; color:#475569; }
+  body.render #hud { display:none; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas></div>
+<div id="hud"></div>
+<script>
+/* =====================================================================
+   Oracle Plan Visualizer — 15 second showreel
+   ---------------------------------------------------------------------
+   One deterministic canvas timeline. Nothing here reads a clock: every
+   pixel is a pure function of `t` (seconds), so the frame renderer can
+   seek to an exact time and the output is reproducible frame for frame.
+      window.__seek(t)      draw the frame at time t
+      window.__DURATION     total length in seconds
+   ===================================================================== */
+
+const W = 1920, H = 1080;
+const DURATION = 15.0;
+const SS = Number(new URLSearchParams(location.search).get('ss') || 1); // supersample
+
+const canvas = document.getElementById('c');
+canvas.width = W * SS; canvas.height = H * SS;
+const ctx = canvas.getContext('2d', { alpha: false });
+
+/* ------------------------------------------------------------- palette */
+const C = {
+  bg:      '#070a12',
+  bgLift:  '#0d1424',
+  panel:   'rgba(18,26,44,0.82)',
+  line:    'rgba(148,163,184,0.14)',
+  white:   '#f8fafc',
+  slate:   '#cbd5e1',
+  mid:     '#94a3b8',
+  dim:     '#64748b',
+  faint:   '#3b4a63',
+  blue:    '#3b82f6',
+  blueHot: '#60a5fa',
+  blueDeep:'#1d4ed8',
+  cyan:    '#22d3ee',
+  red:     '#ef4444',
+  redDeep: '#b91c1c',
+  amber:   '#f59e0b',
+  emerald: '#10b981',
+  violet:  '#8b5cf6',
+  pink:    '#ec4899',
+};
+// The app's own category hues (src/lib/types.ts)
+const CAT = {
+  table:  '#d97706',
+  index:  '#059669',
+  join:   '#2563eb',
+  agg:    '#db2777',
+  sort:   '#ea580c',
+  par:    '#e11d48',
+  other:  '#475569',
+};
+
+/* ------------------------------------------------------------- easings */
+const clamp = (v, a = 0, b = 1) => v < a ? a : v > b ? b : v;
+const lerp  = (a, b, p) => a + (b - a) * p;
+const mix   = (a, b, p) => lerp(a, b, clamp(p));
+/** local progress of [t0,t0+d] at time t */
+const seg = (t, t0, d) => clamp((t - t0) / d);
+const outCubic  = p => 1 - Math.pow(1 - p, 3);
+const outQuint  = p => 1 - Math.pow(1 - p, 5);
+const outExpo   = p => p >= 1 ? 1 : 1 - Math.pow(2, -10 * p);
+const inOutCubic= p => p < .5 ? 4*p*p*p : 1 - Math.pow(-2*p + 2, 3) / 2;
+const inOutExpo = p => p<=0?0:p>=1?1:p<.5?Math.pow(2,20*p-10)/2:(2-Math.pow(2,-20*p+10))/2;
+const inCubic   = p => p*p*p;
+const outBack   = (p, s = 1.9) => 1 + (s + 1) * Math.pow(p - 1, 3) + s * Math.pow(p - 1, 2);
+/** critically-ish damped spring settle, 0→1 */
+const settle    = (p, f = 3.1, d = 5.5) =>
+  p >= 1 ? 1 : 1 - Math.exp(-d * p) * Math.cos(f * Math.PI * p);
+/** 0→1→0 bump */
+const bump = (p) => p <= 0 || p >= 1 ? 0 : Math.sin(Math.PI * p);
+
+/* ------------------------------------------------------- seeded random */
+function mulberry(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const rnd = mulberry(20260926);
+const R = Array.from({ length: 4096 }, () => rnd());   // frozen noise pool
+let rp = 0; const rr = () => R[(rp++) & 4095];
+
+/* ---------------------------------------------------------- primitives */
+function rect(x, y, w, h, r = 0) {
+  ctx.beginPath();
+  if (r > 0) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h);
+}
+function fillRect(x, y, w, h, r, fill) { rect(x, y, w, h, r); ctx.fillStyle = fill; ctx.fill(); }
+function strokeRect(x, y, w, h, r, s, lw = 1) {
+  rect(x, y, w, h, r); ctx.strokeStyle = s; ctx.lineWidth = lw; ctx.stroke();
+}
+function glow(color, blur, fn) {
+  ctx.save(); ctx.shadowColor = color; ctx.shadowBlur = blur; fn(); ctx.restore();
+}
+const sans = (size, weight = 600, ls = 0) => {
+  ctx.font = `${weight} ${size}px Inter, system-ui, sans-serif`;
+  ctx.letterSpacing = ls + 'px';
+};
+const mono = (size, weight = 400, ls = 0) => {
+  ctx.font = `${weight} ${size}px 'JetBrains Mono', monospace`;
+  ctx.letterSpacing = ls + 'px';
+};
+function text(str, x, y, fill, align = 'left', baseline = 'alphabetic') {
+  ctx.fillStyle = fill; ctx.textAlign = align; ctx.textBaseline = baseline;
+  ctx.fillText(str, x, y);
+}
+function alpha(a, fn) { ctx.save(); ctx.globalAlpha *= clamp(a); fn(); ctx.restore(); }
+/** hex + alpha → rgba() */
+function ha(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`;
+}
+
+/** Words rise out of a mask — the workhorse title animation. */
+function riseText(str, x, y, opts = {}) {
+  const { size = 64, weight = 800, ls = -1.2, color = C.white, t = 0,
+          stagger = 0.045, dur = 0.52, align = 'left', rise = 0.9, out = 1 } = opts;
+  sans(size, weight, ls);
+  const words = str.split(' ');
+  const widths = words.map(w => ctx.measureText(w + ' ').width);
+  const total = widths.reduce((a, b) => a + b, 0) - ctx.measureText(' ').width;
+  let cx = align === 'center' ? x - total / 2 : align === 'right' ? x - total : x;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(cx - 12, y - size * 1.12, total + 40, size * 1.55);
+  ctx.clip();
+  words.forEach((w, i) => {
+    const p = clamp((t - i * stagger) / dur);
+    if (p <= 0) { cx += widths[i]; return; }
+    const e = outExpo(p);
+    const dy = (1 - e) * size * rise;
+    ctx.globalAlpha = clamp(p * 2.2) * out;
+    sans(size, weight, ls);
+    text(w, cx, y + dy, color);
+    ctx.globalAlpha = 1;
+    cx += widths[i];
+  });
+  ctx.restore();
+  return total;
+}
+
+/** A small uppercase eyebrow with a leading accent rule. */
+function eyebrow(str, x, y, t, color = C.blue, size = 17) {
+  const p = outExpo(clamp(t / .4));
+  if (p <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = p;
+  const barW = 34 * p;
+  fillRect(x, y - size * .62, barW, 3, 1.5, color);
+  sans(size, 800, 3.4);
+  text(str.toUpperCase(), x + 46, y, ha(color, .95), 'left', 'middle');
+  ctx.restore();
+}
+
+/* =====================================================================
+   Backdrop — deep slate, slow drifting glow, hairline grid, vignette
+   ===================================================================== */
+function backdrop(t, tint = C.blueDeep, energy = 1) {
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+
+  const gx = 960 + Math.sin(t * .42) * 420, gy = 520 + Math.cos(t * .31) * 210;
+  let g = ctx.createRadialGradient(gx, gy, 0, gx, gy, 1150);
+  g.addColorStop(0, ha(tint, .20 * energy));
+  g.addColorStop(.45, ha(tint, .07 * energy));
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  // hairline grid, parallaxed a few pixels so the frame never feels static
+  const step = 64, ox = (t * 7) % step, oy = (t * 4) % step;
+  ctx.strokeStyle = 'rgba(148,163,184,0.045)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = -ox; x < W + step; x += step) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+  for (let y = -oy; y < H + step; y += step) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+  ctx.stroke();
+
+  g = ctx.createRadialGradient(960, 540, 380, 960, 540, 1180);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, 'rgba(0,0,0,0.72)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
+/** Fine film grain, drawn from the frozen noise pool so it stays deterministic. */
+let grainTile = null;
+function grain(t, strength = 0.032) {
+  if (!grainTile) {
+    grainTile = document.createElement('canvas');
+    grainTile.width = grainTile.height = 160;
+    const g = grainTile.getContext('2d');
+    const im = g.createImageData(160, 160);
+    for (let i = 0; i < 160 * 160; i++) {
+      const v = 128 + (R[i & 4095] - .5) * 255;
+      im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = v;
+      im.data[i * 4 + 3] = 255;
+    }
+    g.putImageData(im, 0, 0);
+  }
+  const f = Math.floor(t * 60);
+  ctx.save();
+  ctx.globalAlpha = strength;
+  ctx.globalCompositeOperation = 'overlay';
+  const pat = ctx.createPattern(grainTile, 'repeat');
+  ctx.translate(-(R[(f * 3) & 4095] * 160 | 0), -(R[(f * 3 + 1) & 4095] * 160 | 0));
+  ctx.fillStyle = pat; ctx.fillRect(0, 0, W + 160, H + 160);
+  ctx.restore();
+}
+
+/* =====================================================================
+   Content — one real-looking SQL Monitor plan, told twice:
+   once as the raw text nobody can read, once as the picture.
+   ===================================================================== */
+const PLAN_TEXT = `Plan hash value: 1247008444
+
+------------------------------------------------------------------------------------------------------------
+| Id | Operation                | Name          | Starts | E-Rows | A-Rows |   A-Time   | Buffers | Used-Mem |
+------------------------------------------------------------------------------------------------------------
+|  0 | SELECT STATEMENT         |               |      1 |        |     25 |00:00:03.31 |    412K |          |
+|  1 |  SORT GROUP BY ROLLUP    |               |      1 |     15 |     25 |00:00:03.31 |    412K | 4096  (0)|
+|* 2 |   HASH JOIN              |               |      1 |    247 |    248K|00:00:03.16 |    412K |  15M  (0)|
+|  3 |    TABLE ACCESS FULL     | DIM_STORES    |      1 |    209 |    209 |00:00:00.01 |     12 |          |
+|* 4 |    HASH JOIN             |               |      1 |    247 |    248K|00:00:02.95 |    412K |  11M  (0)|
+|* 5 |     TABLE ACCESS FULL    | DIM_PRODUCTS  |      1 |    100 |    100 |00:00:00.01 |      8 |          |
+|* 6 |     HASH JOIN            |               |      1 |    404 |    407K|00:00:02.61 |    412K |  16M  (0)|
+|* 7 |      TABLE ACCESS FULL   | DIM_CUSTOMERS |      1 |  25000 |  25000 |00:00:00.09 |   1102 |          |
+|* 8 |      TABLE ACCESS FULL   | SALES         |      1 |    898 |    997K|00:00:02.41 |    411K|          |
+------------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   2 - access("S"."STORE_ID"="ST"."STORE_ID")
+   4 - access("S"."PRODUCT_ID"="P"."PRODUCT_ID")
+   5 - filter(("P"."CATEGORY"='Apparel' OR "P"."CATEGORY"='Electronics' OR
+              "P"."CATEGORY"='Grocery' OR "P"."CATEGORY"='Home'))
+   6 - access("C"."CUSTOMER_ID"="S"."CUSTOMER_ID")
+   7 - filter(("C"."SEGMENT"='Consumer' OR "C"."SEGMENT"='Corporate'))
+   8 - filter(("S"."SALE_DATE">=TO_DATE('2024-01-01','yyyy-mm-dd') AND
+              "S"."SALE_DATE"<=TO_DATE('2024-06-30','yyyy-mm-dd')))
+
+Note
+-----
+   - dynamic statistics used: dynamic sampling (level=2)
+   - this is an adaptive plan
+   - 1 Sql Plan Directive used for this statement`.split('\n');
+
+/** index in PLAN_TEXT of the table row for plan line N */
+const TEXT_ROW_OF_ID = [5, 6, 7, 8, 9, 10, 11, 12, 13];
+
+/* Tree layout, hand-placed in a 1920x1080 "tree space". */
+const NW = 252, NH = 82;
+const NODES = [
+  { id:0, op:'SELECT STATEMENT',      obj:'',              cat:CAT.other, x: 848, y:  88, est:'',      act:'25',   cost:'3.3K', t:'3.31s' },
+  { id:1, op:'SORT GROUP BY ROLLUP',  obj:'',              cat:CAT.agg,   x: 848, y: 202, est:'15',    act:'25',   cost:'3.3K', t:'3.31s' },
+  { id:2, op:'HASH JOIN',             obj:'',              cat:CAT.join,  x: 848, y: 316, est:'247',   act:'248K', cost:'3.1K', t:'3.16s' },
+  { id:3, op:'TABLE ACCESS FULL',     obj:'DIM_STORES',    cat:CAT.table, x: 540, y: 446, est:'209',   act:'209',  cost:'12',   t:'0.01s' },
+  { id:4, op:'HASH JOIN',             obj:'',              cat:CAT.join,  x: 998, y: 446, est:'247',   act:'248K', cost:'2.9K', t:'2.95s' },
+  { id:5, op:'TABLE ACCESS FULL',     obj:'DIM_PRODUCTS',  cat:CAT.table, x: 740, y: 576, est:'100',   act:'100',  cost:'8',    t:'0.01s' },
+  { id:6, op:'HASH JOIN',             obj:'',              cat:CAT.join,  x:1146, y: 576, est:'404',   act:'407K', cost:'2.6K', t:'2.61s' },
+  { id:7, op:'TABLE ACCESS FULL',     obj:'DIM_CUSTOMERS', cat:CAT.table, x: 930, y: 706, est:'25000', act:'25000',cost:'1.1K', t:'0.09s' },
+  { id:8, op:'TABLE ACCESS FULL',     obj:'SALES',         cat:CAT.table, x:1300, y: 706, est:'898',   act:'997K', cost:'411K', t:'2.41s', hot:true, bad:true },
+];
+const EDGES = [[0,1],[1,2],[2,3],[2,4],[4,5],[4,6],[6,7],[6,8]];
+const nodeC = n => ({ x: n.x + NW / 2, y: n.y + NH / 2 });
+
+/* camera: screen = (tree - focus) * scale + centre */
+const CAM_TREE = { fx: 920, fy: 500, s: 1.0 };
+const camApply = (cam, x, y) => ({ x: (x - cam.fx) * cam.s + 960, y: (y - cam.fy) * cam.s + 540 });
+const camInv   = (cam, x, y) => ({ x: (x - 960) / cam.s + cam.fx, y: (y - 540) / cam.s + cam.fy });
+function pushCam(cam) {
+  ctx.save();
+  ctx.translate(960, 540); ctx.scale(cam.s, cam.s); ctx.translate(-cam.fx, -cam.fy);
+}
+const popCam = () => ctx.restore();
+
+/* =====================================================================
+   A plan node, drawn the way the app draws it at "compact" density:
+   category hairline on top, operation, object, EST/ACT pair, cost.
+   ===================================================================== */
+function planNode(n, o = {}) {
+  const { detail = 1, ringP = 0, dimmed = 0, lift = 0, badgeP = 0, ghost = false } = o;
+  const x = n.x + (o.dx || 0), y = n.y + (o.dy || 0);
+  const s = o.scale ?? 1;
+  ctx.save();
+  ctx.globalAlpha *= clamp(o.a ?? 1);
+  if (s !== 1) { ctx.translate(x + NW / 2, y + NH / 2); ctx.scale(s, s); ctx.translate(-(x + NW / 2), -(y + NH / 2)); }
+
+  if (lift > 0) { ctx.shadowColor = 'rgba(0,0,0,.65)'; ctx.shadowBlur = 26 * lift; ctx.shadowOffsetY = 10 * lift; }
+  fillRect(x, y, NW, NH, 7, dimmed ? 'rgba(14,20,34,.72)' : 'rgba(20,28,47,.96)');
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  strokeRect(x + .5, y + .5, NW - 1, NH - 1, 7, dimmed ? 'rgba(148,163,184,.12)' : 'rgba(148,163,184,.22)');
+
+  // category hairline
+  ctx.save();
+  rect(x, y, NW, NH, 7); ctx.clip();
+  fillRect(x, y, NW, 3, 0, n.hot ? C.red : n.cat);
+  ctx.restore();
+
+  if (ghost) { ctx.restore(); return; }   // wireframe only, for the end-card backdrop
+
+  const fade = clamp(detail);
+  // operation + object
+  mono(13, 700, .2);
+  text(n.op, x + 13, y + 24, dimmed ? C.dim : C.slate);
+  if (n.obj) { mono(12, 400, .1); text(n.obj, x + 13, y + 41, dimmed ? C.faint : ha(C.blueHot, .85)); }
+
+  if (fade > 0.02) {
+    ctx.save(); ctx.globalAlpha *= fade;
+    const by = y + NH - 26;
+    sans(9, 800, 1.6);
+    text('EST', x + 13, by, C.faint);
+    text('ACT', x + 106, by, C.faint);
+    text('COST', x + 190, by, C.faint);
+    mono(13, 700, 0);
+    text(n.est || '—', x + 13, by + 17, C.mid);
+    text(n.act || '—', x + 106, by + 17, n.bad ? C.red : C.slate);
+    text(n.cost, x + 190, by + 17, C.mid);
+    if (n.bad) {   // the app's estimate-quality arrow
+      mono(12, 700, 0);
+      text('▲', x + 106 + ctx.measureText(n.act).width + 6, by + 17, C.red);
+    }
+    ctx.restore();
+  }
+
+  // hotspot ring
+  if (ringP > 0) {
+    const pulse = .5 + .5 * Math.sin(ringP * Math.PI * 2 * 1.6);
+    ctx.save();
+    ctx.globalAlpha *= clamp(ringP * 3);
+    strokeRect(x - 3.5, y - 3.5, NW + 7, NH + 7, 10, ha(C.red, .55 + .45 * pulse), 2);
+    ctx.shadowColor = ha(C.red, .9); ctx.shadowBlur = 26 + 14 * pulse;
+    strokeRect(x - 3.5, y - 3.5, NW + 7, NH + 7, 10, ha(C.red, .85), 2);
+    ctx.restore();
+  }
+  if (badgeP > 0) {
+    const e = outBack(clamp(badgeP));
+    ctx.save();
+    ctx.translate(x + NW - 8, y - 12);
+    ctx.scale(e, e);
+    sans(11, 800, 1.2);
+    const label = 'HOTSPOT';
+    const w = ctx.measureText(label).width + 22;
+    fillRect(-w, -11, w, 22, 11, C.red);
+    text(label, -w / 2, 1, '#fff', 'center', 'middle');
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+/** Edge with an optional flow pulse travelling along it. */
+function planEdge(a, b, p = 1, o = {}) {
+  const A = nodeC(NODES[a]), B = nodeC(NODES[b]);
+  const x1 = A.x, y1 = NODES[a].y + NH, x2 = B.x, y2 = NODES[b].y;
+  const my = (y1 + y2) / 2;
+  ctx.save();
+  ctx.globalAlpha *= clamp(o.a ?? 1);
+  ctx.lineWidth = o.w ?? 2;
+  ctx.strokeStyle = o.color ?? 'rgba(148,163,184,.34)';
+  ctx.lineCap = 'round';
+  const len = Math.hypot(x2 - x1, y2 - y1) * 1.35;
+  ctx.setLineDash([len, len]);
+  ctx.lineDashOffset = len * (1 - clamp(p));
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.bezierCurveTo(x1, my, x2, my, x2, y2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  if (o.flow > 0) {
+    const fp = o.flow % 1;
+    const t3 = fp, u = 1 - t3;
+    const px = u*u*u*x1 + 3*u*u*t3*x1 + 3*u*t3*t3*x2 + t3*t3*t3*x2;
+    const py = u*u*u*y1 + 3*u*u*t3*my + 3*u*t3*t3*my + t3*t3*t3*y2;
+    glow(o.flowColor ?? C.blueHot, 16, () => {
+      ctx.fillStyle = o.flowColor ?? C.blueHot;
+      ctx.beginPath(); ctx.arc(px, py, 3.4, 0, 7); ctx.fill();
+    });
+  }
+  ctx.restore();
+}
+
+/* =====================================================================
+   Transitions
+   ===================================================================== */
+function flash(t, t0, dur, color, peak = .5) {
+  const p = seg(t, t0, dur); if (p <= 0 || p >= 1) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  ctx.globalAlpha = bump(p) * peak;
+  ctx.fillStyle = color; ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+/** A hard-edged accent bar that sweeps the frame — the beat marker. */
+function sweep(t, t0, dur, color = C.blue, dir = 1) {
+  const p = seg(t, t0, dur); if (p <= 0 || p >= 1) return;
+  const e = inOutExpo(p);
+  const y = dir > 0 ? -220 + e * (H + 440) : H + 220 - e * (H + 440);
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  const g = ctx.createLinearGradient(0, y - 190, 0, y + 190);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(.5, ha(color, .36 * (1 - Math.abs(p - .5) * .8)));
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, y - 190, W, 380);
+  ctx.globalAlpha = .75 * Math.sin(Math.PI * p);
+  ctx.fillStyle = ha(color, .9); ctx.fillRect(0, y - 1, W, 2.5);
+  ctx.restore();
+}
+
+/* =====================================================================
+   SCENE 1 (0.00 – 2.55)  the wall of text
+   ===================================================================== */
+const TXT = { x: 425, y: 150, lh: 26, size: 16.5 };
+function textRowPos(i) { return { x: TXT.x, y: TXT.y + i * TXT.lh }; }
+
+function paintPlanText(t, o = {}) {
+  const { reveal = 1, keepRows = null, globalA = 1 } = o;
+  mono(TXT.size, 400, 0);
+  const shown = PLAN_TEXT.length;
+  for (let i = 0; i < shown; i++) {
+    const p = clamp((reveal * (PLAN_TEXT.length + 7) - i) / 3.2);
+    if (p <= 0) continue;
+    let a = p * globalA;
+    const isRow = TEXT_ROW_OF_ID.includes(i);
+    if (keepRows !== null && !isRow) a *= keepRows;
+    if (a <= .004) continue;
+    const { x, y } = textRowPos(i);
+    const line = PLAN_TEXT[i];
+    let col = C.dim;
+    if (/^[-|=]+$/.test(line.trim())) col = C.faint;
+    else if (isRow) col = C.mid;
+    else if (/^(Plan hash|Predicate|Note)/.test(line)) col = ha(C.blueHot, .8);
+    ctx.save();
+    ctx.globalAlpha = clamp(a);
+    ctx.translate((1 - outExpo(p)) * -26, 0);
+    mono(TXT.size, isRow ? 400 : 400, 0);
+    text(line, x, y, col);
+    ctx.restore();
+  }
+  // the caret that runs ahead of the stream
+  if (reveal < 1) {
+    const idx = clamp(reveal * (PLAN_TEXT.length + 7) - 1, 0, PLAN_TEXT.length - 1);
+    const li = Math.floor(idx);
+    const { x, y } = textRowPos(li);
+    mono(TXT.size, 400, 0);
+    const w = ctx.measureText(PLAN_TEXT[li]).width;
+    alpha(globalA * (.35 + .65 * (Math.sin(t * 34) > 0 ? 1 : 0)), () =>
+      fillRect(x + w + 3, y - TXT.size + 3, 10, TXT.size + 4, 1, C.blueHot));
+  }
+}
+
+/** faint duplicate columns left and right so the frame reads as a WALL */
+function planTextWings(t, a) {
+  if (a <= .01) return;
+  ctx.save();
+  ctx.globalAlpha = a;
+  for (const dx of [-1160, 1160]) {
+    ctx.save();
+    ctx.translate(dx, ((t * 26) % TXT.lh) - TXT.lh);
+    mono(TXT.size, 400, 0);
+    for (let i = 0; i < PLAN_TEXT.length; i++) {
+      const { x, y } = textRowPos(i);
+      text(PLAN_TEXT[i], x, y, C.faint);
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+/** the dark scrim that lets titles sit on top of the plan-text wall */
+function planScrim(a) {
+  if (a <= .01) return;
+  ctx.save();
+  ctx.globalAlpha = clamp(a);
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, 'rgba(7,10,18,.55)');
+  g.addColorStop(.42, 'rgba(7,10,18,.90)');
+  g.addColorStop(1, 'rgba(7,10,18,.64)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
+function scene1(t) {
+  const reveal = outQuint(seg(t, .04, 1.25));
+  const wingA = .5 * seg(t, .3, .9);
+  planTextWings(t, wingA * .5);
+  paintPlanText(t, { reveal });
+
+  // scrim so the type can land on top of the wall
+  planScrim(seg(t, 1.05, .5));
+
+  alpha(1 - seg(t, 2.02, .24), () =>
+    eyebrow('Oracle execution plan · sql_id 1ut2mkhussb5g', 120, 96, t - .35, C.dim, 15));
+
+  const out = 1 - seg(t, 2.00, .28);
+  ctx.save(); ctx.globalAlpha = out;
+  riseText('Somewhere in here', 960, 508, { t: t - 1.18, size: 86, align: 'center', ls: -2.4 });
+  riseText('is the reason it is slow.', 960, 612, { t: t - 1.34, size: 86, align: 'center', ls: -2.4, color: C.mid });
+  ctx.restore();
+
+  // the line counter ticks up while the wall is still building
+  const cp = seg(t, .55, .62), cOut = 1 - seg(t, 1.36, .28);
+  if (cp > 0) {
+    ctx.save();
+    ctx.globalAlpha = cp * cOut;
+    const n = Math.round(outExpo(cp) * 1412);
+    mono(20, 700, 1);
+    const label = n.toLocaleString('en-US') + ' lines of plan text';
+    const w = ctx.measureText(label).width;
+    fillRect(960 - w / 2 - 22, 1000, w + 44, 44, 22, 'rgba(26,11,16,.96)');
+    strokeRect(960 - w / 2 - 22, 1000, w + 44, 44, 22, ha(C.red, .38));
+    text(label, 960, 1023, ha(C.red, .92), 'center', 'middle');
+    ctx.restore();
+  }
+}
+
+/* =====================================================================
+   SCENE 2 (2.35 – 5.10)  the text becomes a tree
+   ===================================================================== */
+function nodeMorph(i, t) {
+  // per-node timing, top of the plan first
+  const t0 = 2.62 + i * 0.055;
+  return { p: outQuint(seg(t, t0, .78)), raw: seg(t, t0, .78) };
+}
+
+function drawTree(t, o = {}) {
+  const { cam = CAM_TREE, morph = null, detail = 1, edgeT = 1, flowT = -1,
+          ring = 0, badge = 0, fade = 1, dimOthers = 0, ghost = false } = o;
+  pushCam(cam);
+
+  EDGES.forEach(([a, b], i) => {
+    const p = outCubic(clamp((edgeT - i * .055) / .42));
+    if (p <= 0) return;
+    const hotEdge = b === 8;
+    planEdge(a, b, p, {
+      a: fade,
+      w: hotEdge && dimOthers ? 2.6 : 2,
+      color: hotEdge && dimOthers ? ha(C.red, .5) : 'rgba(148,163,184,.34)',
+      flow: flowT >= 0 ? (flowT * .55 + i * .17) : -1,
+      flowColor: hotEdge ? C.red : C.blueHot,
+    });
+  });
+
+  NODES.forEach((n, i) => {
+    let a = fade, dx = 0, dy = 0, s = 1;
+    if (morph) {
+      const m = morph[i];
+      a *= m.a; dx = m.dx; dy = m.dy; s = m.s;
+    }
+    const dim = dimOthers && !n.hot ? dimOthers : 0;
+    planNode(n, {
+      a, dx, dy, scale: s, detail, ghost,
+      dimmed: dim, lift: 1 - dim * .7,
+      ringP: n.hot ? ring : 0,
+      badgeP: n.hot ? badge : 0,
+    });
+  });
+  popCam();
+}
+
+function scene2(t) {
+  // remaining text dissolves, the nine table rows fly out
+  const textOut = 1 - seg(t, 2.30, .4);
+  const rowsGone = seg(t, 2.62, .5);
+  if (textOut > 0) {
+    ctx.save(); ctx.globalAlpha = textOut;
+    paintPlanText(t, { reveal: 1, keepRows: 1, globalA: 1 });
+    ctx.restore();
+  }
+  // carry scene 1's scrim out so nothing pops at the cut
+  planScrim(1 - seg(t, 2.30, .55));
+
+  // crossfade: monospace row → node card
+  const morph = NODES.map((n, i) => {
+    const { p } = nodeMorph(i, t);
+    const from = textRowPos(TEXT_ROW_OF_ID[i]);
+    const fromTree = camInv(CAM_TREE, from.x + 250, from.y - TXT.size / 2);
+    return {
+      a: p < .08 ? 0 : clamp((p - .08) / .3),
+      dx: (fromTree.x - n.x - NW / 2) * (1 - p),
+      dy: (fromTree.y - n.y - NH / 2) * (1 - p),
+      s: lerp(.55, 1, settle(p, 1.15, 6)),
+    };
+  });
+
+  // the source rows fade as their card materialises
+  ctx.save();
+  mono(TXT.size, 400, 0);
+  NODES.forEach((n, i) => {
+    const { p } = nodeMorph(i, t);
+    const a = (1 - clamp(p * 2.6)) * (1 - rowsGone * .2);
+    if (a <= .01) return;
+    const { x, y } = textRowPos(TEXT_ROW_OF_ID[i]);
+    ctx.globalAlpha = a;
+    text(PLAN_TEXT[TEXT_ROW_OF_ID[i]], x, y, C.mid);
+  });
+  ctx.restore();
+
+  const drift = { fx: CAM_TREE.fx, fy: CAM_TREE.fy - seg(t, 3.4, 1.7) * 8, s: 1 + seg(t, 3.2, 1.9) * .035 };
+  drawTree(t, {
+    cam: drift, morph,
+    detail: seg(t, 3.25, .55),
+    edgeT: seg(t, 3.18, .95) * 1.5,
+    flowT: t > 4.05 ? (t - 4.05) : -1,
+  });
+
+  ctx.save();
+  ctx.globalAlpha = 1 - seg(t, 4.74, .28);
+  eyebrow('dbms_xplan · sql monitor · xml · json · xbi — auto-detected', 120, 852, t - 3.30, C.blue, 15);
+  riseText('Paste it. See it.', 120, 958, { t: t - 3.44, size: 88, ls: -2.6 });
+  ctx.restore();
+}
+
+/* =====================================================================
+   SCENE 3 (5.05 – 7.80)  the advisor points at the problem
+   ===================================================================== */
+const CAM_HOT = { fx: 1200, fy: 640, s: 1.45 };
+
+function findingRow(x, y, w, sev, title, meta, p) {
+  if (p <= 0) return;
+  const e = outExpo(p);
+  ctx.save();
+  ctx.globalAlpha = clamp(p * 1.6);
+  ctx.translate((1 - e) * -40, 0);
+  const col = sev === 'high' ? C.red : sev === 'med' ? C.amber : C.blue;
+  ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6;
+  fillRect(x, y, w, 52, 8, 'rgba(17,24,41,.97)');
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  strokeRect(x + .5, y + .5, w - 1, 51, 8, ha(col, .30));
+  fillRect(x, y + 8, 3, 36, 1.5, col);
+  ctx.beginPath(); ctx.arc(x + 26, y + 26, 5, 0, 7); ctx.fillStyle = col; ctx.fill();
+  sans(17, 600, .1); text(title, x + 46, y + 27, C.slate, 'left', 'middle');
+  mono(15, 700, 0); text(meta, x + w - 18, y + 27, ha(col, .95), 'right', 'middle');
+  ctx.restore();
+}
+
+function scene3(t) {
+  const zp = inOutCubic(seg(t, 5.05, .95));
+  const outP = seg(t, 7.46, .34);
+  const cam = {
+    fx: lerp(CAM_TREE.fx, CAM_HOT.fx, zp),
+    fy: lerp(CAM_TREE.fy - 8, CAM_HOT.fy, zp),
+    s:  lerp(1.035, CAM_HOT.s, zp) * (1 + outP * .06),
+  };
+  const dimP = seg(t, 5.5, .6) * .95;
+  drawTree(t, {
+    cam, detail: 1, edgeT: 1.5,
+    flowT: (t - 4.05),
+    ring: t > 5.42 ? (t - 5.42) : 0,
+    badge: seg(t, 5.62, .45),
+    dimOthers: dimP,
+    fade: 1 - outP,
+  });
+
+  ctx.save();
+  ctx.globalAlpha = 1 - outP;
+
+  // a soft left-edge scrim so the overlay column always reads over the graph
+  alpha(seg(t, 5.7, .5), () => {
+    const g = ctx.createLinearGradient(0, 0, 900, 0);
+    g.addColorStop(0, 'rgba(6,9,16,.92)');
+    g.addColorStop(.62, 'rgba(6,9,16,.78)');
+    g.addColorStop(1, 'rgba(6,9,16,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 900, H);
+  });
+
+  // ---- findings list
+  const fx = 118, fw = 640;
+  alpha(seg(t, 6.06, .3), () => {
+    sans(13, 800, 3);
+    text('PLAN ADVISOR — 3 FINDINGS', fx, 154, C.dim, 'left', 'middle');
+  });
+  findingRow(fx, 176, fw, 'high', 'Cardinality mismatch',  '1,110×', seg(t, 6.12, .4));
+  findingRow(fx, 236, fw, 'med',  'Selective full scan',   'SALES',  seg(t, 6.22, .4));
+  findingRow(fx, 296, fw, 'med',  'Stale optimizer stats', '2 objs', seg(t, 6.32, .4));
+
+  // ---- the hero callout
+  const cp = seg(t, 5.86, .55);
+  if (cp > 0) {
+    const e = outBack(cp, 1.2);
+    ctx.save();
+    ctx.globalAlpha *= clamp(cp * 2);
+    const cx = 118, cy = 388, cw = 640, ch = 268;
+    ctx.translate(cx + cw / 2, cy + ch / 2); ctx.scale(lerp(.92, 1, e), lerp(.92, 1, e));
+    ctx.translate(-(cx + cw / 2), -(cy + ch / 2));
+    ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 14;
+    fillRect(cx, cy, cw, ch, 14, 'rgba(18,25,42,.985)');
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    strokeRect(cx + .5, cy + .5, cw - 1, ch - 1, 14, ha(C.red, .38));
+    fillRect(cx, cy, cw, 3, 0, C.red);
+
+    sans(13, 800, 3);
+    text('SALES · TABLE ACCESS FULL', cx + 26, cy + 38, ha(C.red, .9), 'left', 'middle');
+
+    // est vs act bars
+    const bx = cx + 26, bw = 372;
+    const gp = outExpo(seg(t, 6.02, .85));
+    sans(12, 800, 1.8);
+    text('E-ROWS', bx, cy + 78, C.faint, 'left', 'middle');
+    text('A-ROWS', bx, cy + 142, C.faint, 'left', 'middle');
+    fillRect(bx, cy + 92, bw, 13, 6.5, 'rgba(148,163,184,.10)');
+    fillRect(bx, cy + 156, bw, 13, 6.5, 'rgba(148,163,184,.10)');
+    fillRect(bx, cy + 92, Math.max(7, bw * .012) * gp, 13, 6.5, C.mid);
+    fillRect(bx, cy + 156, bw * gp, 13, 6.5, C.red);
+    mono(19, 700, 0);
+    text('898', bx + 92, cy + 78, C.slate, 'left', 'middle');
+    const acted = Math.round(outExpo(seg(t, 6.02, .95)) * 997412);
+    text(acted.toLocaleString('en-US'), bx + 92, cy + 142, C.red, 'left', 'middle');
+
+    // the multiplier
+    const mp = seg(t, 6.42, .5);
+    if (mp > 0) {
+      ctx.save();
+      ctx.globalAlpha *= clamp(mp * 2);
+      const s2 = lerp(1.35, 1, outBack(mp, 2.4));
+      ctx.translate(cx + cw - 118, cy + 122); ctx.scale(s2, s2);
+      sans(56, 800, -2);
+      glow(ha(C.red, .8), 26, () => text('1,110×', 0, 0, C.red, 'center', 'middle'));
+      sans(11, 800, 1.8);
+      text('UNDER-ESTIMATED', 0, 34, ha(C.red, .72), 'center', 'middle');
+      ctx.restore();
+    }
+    alpha(seg(t, 6.6, .4), () => {
+      mono(15, 400, 0);
+      text('2.41s self time  ·  73% of runtime  ·  411K buffers', cx + 26, cy + 224, C.dim, 'left', 'middle');
+    });
+    ctx.restore();
+  }
+
+  eyebrow('no digging required', 118, 852, t - 5.58, C.red, 15);
+  riseText('The problem finds you.', 118, 958, { t: t - 5.70, size: 88, ls: -2.6 });
+  ctx.restore();
+}
+
+/* =====================================================================
+   SCENE 4 (7.66 – 10.22)  every angle
+   ===================================================================== */
+const PANELS = [
+  { x: 110, y: 176, w: 832, h: 318, label: 'FLAME GRAPH',  accent: C.amber },
+  { x: 978, y: 176, w: 832, h: 318, label: 'SANKEY',       accent: C.cyan  },
+  { x: 110, y: 530, w: 832, h: 318, label: 'TIMELINE · ASH', accent: C.violet },
+  { x: 978, y: 530, w: 832, h: 318, label: 'CALIBRATION',  accent: C.emerald },
+];
+
+function panelFrame(p, t0, t, body) {
+  const e = seg(t, t0, .62);
+  if (e <= 0) return;
+  const k = outExpo(e);
+  ctx.save();
+  ctx.globalAlpha *= clamp(e * 1.8);
+  ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
+  ctx.scale(lerp(.94, 1, k), lerp(.94, 1, k));
+  ctx.translate(-(p.x + p.w / 2), -(p.y + p.h / 2) + (1 - k) * 34);
+  ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 34; ctx.shadowOffsetY = 12;
+  fillRect(p.x, p.y, p.w, p.h, 14, 'rgba(13,20,35,.9)');
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  strokeRect(p.x + .5, p.y + .5, p.w - 1, p.h - 1, 14, 'rgba(148,163,184,.16)');
+  fillRect(p.x + 18, p.y + 16, 8, 8, 4, p.accent);
+  sans(12, 800, 2.6);
+  text(p.label, p.x + 36, p.y + 21, ha(p.accent, .9), 'left', 'middle');
+  ctx.save();
+  rect(p.x + 1, p.y + 34, p.w - 2, p.h - 35, 12); ctx.clip();
+  body(p, clamp((t - t0 - .18) / .9));
+  ctx.restore();
+  ctx.restore();
+}
+
+const FLAME = [
+  [0.00, 1.00, 'SELECT STATEMENT',            CAT.other],
+  [0.00, 1.00, 'SORT GROUP BY ROLLUP',        CAT.agg],
+  [0.00, 0.96, 'HASH JOIN',                   CAT.join],
+  [0.00, 0.04, 'DIM_STORES',                  CAT.table],
+  [0.04, 0.92, 'HASH JOIN',                   CAT.join],
+  [0.04, 0.03, 'DIM_PRODUCTS',                CAT.table],
+  [0.07, 0.89, 'HASH JOIN',                   CAT.join],
+  [0.07, 0.06, 'DIM_CUSTOMERS',               CAT.table],
+  [0.13, 0.83, 'SALES — TABLE ACCESS FULL',   C.red],
+];
+function flameBody(p, k) {
+  const ix = p.x + 22, iy = p.y + 52, iw = p.w - 44, rh = 26;
+  FLAME.forEach((f, i) => {
+    const kk = clamp((k - i * .05) / .5);
+    if (kk <= 0) return;
+    const e = outExpo(kk);
+    const bw = Math.max(3, iw * f[1] * e), bx = ix + iw * f[0];
+    const y = iy + i * rh;
+    fillRect(bx, y, bw, rh - 4, 3, ha(f[3], f[3] === C.red ? .85 : .55));
+    strokeRect(bx + .5, y + .5, bw - 1, rh - 5, 3, ha(f[3], .9));
+    if (bw > 120) {
+      ctx.save(); rect(bx, y, bw, rh - 4, 3); ctx.clip();
+      mono(12, 700, .2); text(f[2], bx + 8, y + 11.5, f[3] === C.red ? '#fff' : C.slate, 'left', 'middle');
+      ctx.restore();
+    }
+  });
+}
+
+const SANK = {
+  cols: [
+    [['SALES', .58, C.red], ['DIM_CUSTOMERS', .17, CAT.table],
+     ['DIM_PRODUCTS', .12, CAT.table], ['DIM_STORES', .13, CAT.table]],
+    [['HASH JOIN', .75, CAT.join], ['HASH JOIN', .25, CAT.join]],
+    [['GROUP BY ROLLUP', 1, CAT.agg]],
+  ],
+  links: [[0,0,1,0,.58],[0,1,1,0,.17],[0,2,1,1,.12],[0,3,1,1,.13],
+          [1,0,2,0,.75],[1,1,2,0,.25]],
+};
+function sankeyBody(p, k) {
+  const ix = p.x + 40, iy = p.y + 54, iw = p.w - 80, ih = p.h - 86;
+  const colX = [ix, ix + iw * .46, ix + iw * .93];
+  const bw = 15, gap = 16, scale = ih - gap * 3;
+  const geo = SANK.cols.map((col, ci) => {
+    const blockH = col.reduce((a, b) => a + b[1] * scale, 0) + gap * (col.length - 1);
+    let y = iy + (ih - blockH) / 2;
+    return col.map(([name, v, c]) => {
+      const g = { x: colX[ci], y, h: v * scale, c, name, v, inC: 0, outC: 0 };
+      y += g.h + gap; return g;
+    });
+  });
+  ctx.save();
+  rect(ix - 8, iy - 8, (iw + 16) * outExpo(k), ih + 16); ctx.clip();
+  SANK.links.forEach(([ac, ai, bc, bi, v]) => {
+    const a = geo[ac][ai], b = geo[bc][bi], h = v * scale;
+    const x1 = a.x + bw, x2 = b.x, mx = (x1 + x2) / 2;
+    const y1 = a.y + a.outC, y2 = b.y + b.inC;
+    a.outC += h; b.inC += h;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.bezierCurveTo(mx, y1, mx, y2, x2, y2);
+    ctx.lineTo(x2, y2 + h);
+    ctx.bezierCurveTo(mx, y2 + h, mx, y1 + h, x1, y1 + h);
+    ctx.closePath();
+    ctx.fillStyle = ha(a.c, .22); ctx.fill();
+    ctx.strokeStyle = ha(a.c, .38); ctx.lineWidth = 1; ctx.stroke();
+  });
+  geo.flat().forEach((g, i) => {
+    fillRect(g.x, g.y, bw, g.h, 3, ha(g.c, .92));
+    mono(11, 700, .2);
+    const right = g.x > ix + iw * .7;
+    text(g.name, right ? g.x - 9 : g.x + bw + 9, g.y + g.h / 2,
+         g.c === C.red ? C.red : C.mid, right ? 'right' : 'left', 'middle');
+  });
+  ctx.restore();
+}
+
+const ASH = { cpu: '#2563eb', io: '#059669', cluster: '#f59e0b', app: '#8b5cf6', other: '#64748b' };
+const TL = [
+  [0.00, 1.00, [[ASH.cpu, .5], [ASH.io, .5]]],
+  [0.00, 1.00, [[ASH.cpu, .7], [ASH.other, .3]]],
+  [0.02, 0.96, [[ASH.cpu, .4], [ASH.io, .6]]],
+  [0.02, 0.05, [[ASH.io, 1]]],
+  [0.08, 0.90, [[ASH.cpu, .45], [ASH.io, .55]]],
+  [0.09, 0.04, [[ASH.io, 1]]],
+  [0.14, 0.84, [[ASH.cpu, .35], [ASH.io, .65]]],
+  [0.15, 0.08, [[ASH.cpu, 1]]],
+  [0.22, 0.75, [[ASH.io, .74], [ASH.cluster, .16], [ASH.cpu, .10]]],
+];
+function timelineBody(p, k) {
+  const ix = p.x + 62, iy = p.y + 52, iw = p.w - 92, rh = 26;
+  ctx.strokeStyle = 'rgba(148,163,184,.10)'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 6; i++) {
+    const x = ix + iw * i / 6;
+    ctx.beginPath(); ctx.moveTo(x, iy - 4); ctx.lineTo(x, iy + TL.length * rh); ctx.stroke();
+  }
+  TL.forEach((r, i) => {
+    const kk = clamp((k - i * .045) / .55);
+    if (kk <= 0) return;
+    const e = outExpo(kk);
+    const y = iy + i * rh;
+    mono(11, 700, 0); text('#' + i, p.x + 22, y + 11, C.faint, 'left', 'middle');
+    const x0 = ix + iw * r[0], full = iw * r[1] * e;
+    let cx2 = x0;
+    r[2].forEach(([c, f]) => {
+      const w2 = full * f;
+      fillRect(cx2, y, Math.max(1.5, w2), rh - 8, 2, ha(c, i === 8 ? .95 : .7));
+      cx2 += w2;
+    });
+    if (i === 8) strokeRect(x0 - 2, y - 2, full + 4, rh - 4, 4, ha(C.red, .55 * e));
+  });
+  sans(11, 800, 1.6);
+  ['CPU', 'I/O WAIT', 'CLUSTER'].forEach((l, i) => {
+    const lx = p.x + 62 + i * 132, ly = p.y + p.h - 26;
+    fillRect(lx, ly - 4, 9, 9, 2, [ASH.cpu, ASH.io, ASH.cluster][i]);
+    text(l, lx + 16, ly, C.faint, 'left', 'middle');
+  });
+}
+
+const SCAT = Array.from({ length: 46 }, (_, i) => {
+  const ex = R[i * 7] * .9 + .05;
+  const drift = (R[i * 7 + 3] - .5) * .18;
+  return { ex, ay: clamp(ex + drift, .02, .98), big: false };
+});
+SCAT.push({ ex: .22, ay: .86, big: true }, { ex: .34, ay: .78, big: true }, { ex: .16, ay: .66, big: true });
+function scatterBody(p, k) {
+  const ix = p.x + 56, iy = p.y + 52, iw = p.w - 96, ih = p.h - 96;
+  ctx.strokeStyle = 'rgba(148,163,184,.10)';
+  for (let i = 0; i <= 4; i++) {
+    const gy = iy + ih * i / 4, gx = ix + iw * i / 4;
+    ctx.beginPath(); ctx.moveTo(ix, gy); ctx.lineTo(ix + iw, gy);
+    ctx.moveTo(gx, iy); ctx.lineTo(gx, iy + ih); ctx.stroke();
+  }
+  ctx.save();
+  ctx.setLineDash([7, 7]);
+  ctx.strokeStyle = ha(C.emerald, .55); ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(ix, iy + ih); ctx.lineTo(ix + iw * outExpo(k), iy + ih * (1 - outExpo(k)));
+  ctx.stroke();
+  ctx.restore();
+  SCAT.forEach((s, i) => {
+    const kk = s.big
+      ? clamp((k - .10 - (i - 46) * .06) / .35)
+      : clamp((k - (i % 12) * .03 - (i / SCAT.length) * .3) / .4);
+    if (kk <= 0) return;
+    const x = ix + iw * s.ex, y = iy + ih * (1 - s.ay);
+    const off = Math.abs(s.ay - s.ex);
+    const col = s.big ? C.red : off > .12 ? C.amber : C.emerald;
+    ctx.globalAlpha = clamp(kk) * (s.big ? 1 : .8);
+    glow(s.big ? ha(C.red, .85) : 'transparent', s.big ? 22 : 0, () => {
+      const rr2 = (s.big ? 9 + Math.sin(k * 9 + i) * 1.2 : 4.2) * outBack(kk, 2);
+      ctx.beginPath(); ctx.arc(x, y, Math.max(0, rr2), 0, 7);
+      ctx.fillStyle = ha(col, s.big ? .95 : .7); ctx.fill();
+    });
+    if (s.big) {
+      ctx.globalAlpha = clamp(kk) * .5;
+      ctx.setLineDash([3, 4]); ctx.strokeStyle = ha(C.red, .7); ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, iy + ih * (1 - s.ex)); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.globalAlpha = 1;
+  });
+  sans(11, 800, 1.6);
+  text('E-ROWS  →', ix, iy + ih + 24, C.faint, 'left', 'middle');
+  ctx.save();
+  ctx.translate(p.x + 28, iy + ih / 2); ctx.rotate(-Math.PI / 2);
+  text('A-ROWS  →', 0, 0, C.faint, 'center', 'middle');
+  ctx.restore();
+}
+
+function scene4(t) {
+  const outP = seg(t, 9.92, .28);
+  ctx.save();
+  ctx.globalAlpha = 1 - outP;
+  ctx.translate(0, outP * -26);
+  panelFrame(PANELS[0], 7.74, t, flameBody);
+  panelFrame(PANELS[1], 7.83, t, sankeyBody);
+  panelFrame(PANELS[2], 7.92, t, timelineBody);
+  panelFrame(PANELS[3], 8.01, t, scatterBody);
+  ctx.restore();
+
+  ctx.save(); ctx.globalAlpha = 1 - outP;
+  eyebrow('tree · compare · tabular · sankey · flame · text · sql · metadata · monitor', 118, 98, t - 7.84, C.blue, 14);
+  riseText('Ten views of one plan.', 960, 982, { t: t - 8.30, size: 76, ls: -2.2, align: 'center' });
+  ctx.restore();
+}
+
+/* =====================================================================
+   SCENE 5 (10.10 – 12.34)  before / after
+   ===================================================================== */
+const MW = 176, MH = 46;
+const MINI = [
+  { x: 292, y:   8, op:'SELECT STATEMENT', m:'25 rows',          c:CAT.other },
+  { x: 292, y:  78, op:'SORT GROUP BY',    m:'25 rows · rollup',  c:CAT.agg   },
+  { x: 292, y: 148, op:'HASH JOIN',        m:'248K rows',         c:CAT.join  },
+  { x:  96, y: 226, op:'TABLE ACCESS FULL',m:'DIM_STORES · 209',  c:CAT.table },
+  { x: 430, y: 226, op:'HASH JOIN',        m:'248K rows',         c:CAT.join  },
+  { x: 300, y: 304, op:'TABLE ACCESS FULL',m:'DIM_PRODUCTS · 100',c:CAT.table },
+  { x: 520, y: 382, op:'TABLE ACCESS FULL',m:'SALES · 2.41s',     c:CAT.table },
+];
+const MEDGES = [[0,1],[1,2],[2,3],[2,4],[4,5],[4,6]];
+
+function miniTree(ox, oy, t, opts) {
+  const { p, hot, swapP = 0 } = opts;
+  ctx.save();
+  ctx.translate(ox, oy);
+  MEDGES.forEach(([a, b], i) => {
+    const e = outCubic(clamp((p * 1.5 - i * .05) / .4));
+    if (e <= 0) return;
+    const A = MINI[a], B = MINI[b];
+    const x1 = A.x + MW / 2, y1 = A.y + MH, x2 = B.x + MW / 2, y2 = B.y, my = (y1 + y2) / 2;
+    const len = Math.hypot(x2 - x1, y2 - y1) * 1.4;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(148,163,184,.3)'; ctx.lineWidth = 1.7; ctx.lineCap = 'round';
+    ctx.setLineDash([len, len]); ctx.lineDashOffset = len * (1 - e);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.bezierCurveTo(x1, my, x2, my, x2, y2); ctx.stroke();
+    ctx.restore();
+  });
+  MINI.forEach((n, i) => {
+    const e = clamp((p * 1.6 - i * .055) / .35);
+    if (e <= 0) return;
+    const last = i === 6;
+    const col = last ? (hot ? C.red : C.emerald) : n.c;
+    ctx.save();
+    ctx.globalAlpha *= outCubic(e);
+    const yy = n.y + (1 - outExpo(e)) * 16;
+    fillRect(n.x, yy, MW, MH, 6, last ? ha(col, .14) : 'rgba(20,28,47,.95)');
+    strokeRect(n.x + .5, yy + .5, MW - 1, MH - 1, 6, last ? ha(col, .6) : 'rgba(148,163,184,.2)');
+    fillRect(n.x, yy, MW, 2.5, 0, col);
+    mono(12, 700, .1);
+    let label = n.op, sub = n.m;
+    if (last && !hot && outExpo(clamp(swapP)) > .5) {
+      label = 'INDEX RANGE SCAN'; sub = 'SALES_DT_IX · 0.08s';
+    }
+    text(label, n.x + 11, yy + 19, last ? col : C.slate);
+    mono(11, 400, 0);
+    text(sub, n.x + 11, yy + 35, last ? ha(col, .85) : C.faint);
+    ctx.restore();
+    if (last && hot) {
+      const pulse = .5 + .5 * Math.sin(t * 7);
+      ctx.save(); ctx.globalAlpha *= .8 * outCubic(e);
+      strokeRect(n.x - 3, n.y - 3, MW + 6, MH + 6, 9, ha(C.red, .35 + .4 * pulse), 1.6);
+      ctx.restore();
+    }
+  });
+  ctx.restore();
+}
+
+function deltaChip(x, y, w, label, from, to, delta, p, good = true) {
+  if (p <= 0) return;
+  const e = outBack(clamp(p), 1.5);
+  ctx.save();
+  ctx.globalAlpha *= clamp(p * 2);
+  ctx.translate(x + w / 2, y + 40);
+  ctx.scale(lerp(.9, 1, e), lerp(.9, 1, e));
+  ctx.translate(-(x + w / 2), -(y + 40) + (1 - e) * 20);
+  const col = good ? C.emerald : C.red;
+  fillRect(x, y, w, 80, 12, 'rgba(15,23,40,.9)');
+  strokeRect(x + .5, y + .5, w - 1, 79, 12, ha(col, .3));
+  sans(11, 800, 2.4); text(label, x + 18, y + 24, C.faint, 'left', 'middle');
+  mono(18, 700, 0);
+  text(from, x + 18, y + 54, C.mid, 'left', 'middle');
+  const fw = ctx.measureText(from).width;
+  sans(16, 600, 0); text('→', x + 25 + fw, y + 54, C.faint, 'left', 'middle');
+  mono(18, 700, 0); text(to, x + 50 + fw, y + 54, C.white, 'left', 'middle');
+  sans(26, 800, -.5);
+  glow(ha(col, .6), 16, () => text(delta, x + w - 18, y + 46, col, 'right', 'middle'));
+  ctx.restore();
+}
+
+function scene5(t) {
+  const outP = seg(t, 12.00, .3);
+  ctx.save(); ctx.globalAlpha = 1 - outP;
+
+  riseText('Before and after, side by side.', 960, 148, { t: t - 10.18, size: 66, ls: -2, align: 'center' });
+
+  const panes = [
+    { x: 90,   label: 'PLAN A', phv: '1247008444', hot: true,  col: C.red,     t0: 10.34 },
+    { x: 1070, label: 'PLAN B', phv: '3919086096', hot: false, col: C.emerald, t0: 10.46 },
+  ];
+  panes.forEach((pane, idx) => {
+    const p = seg(t, pane.t0, .8);
+    if (p <= 0) return;
+    const e = outExpo(seg(t, pane.t0, .55));
+    ctx.save();
+    ctx.globalAlpha *= clamp(seg(t, pane.t0, .3) * 1.6);
+    ctx.translate((1 - e) * (idx === 0 ? -70 : 70), 0);
+    const px = pane.x, py = 206, pw = 760, ph = 546;
+    ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 12;
+    fillRect(px, py, pw, ph, 14, 'rgba(12,19,33,.88)');
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    strokeRect(px + .5, py + .5, pw - 1, ph - 1, 14, ha(pane.col, .28));
+    fillRect(px, py, pw, 3, 0, pane.col);
+    sans(13, 800, 3);
+    text(pane.label, px + 24, py + 30, ha(pane.col, .95), 'left', 'middle');
+    mono(13, 400, 0);
+    text('PHV ' + pane.phv, px + 24 + 90, py + 30, C.faint, 'left', 'middle');
+    mono(15, 700, 0);
+    text(pane.hot ? '3.31s' : '0.36s', px + pw - 24, py + 30, pane.hot ? C.red : C.emerald, 'right', 'middle');
+    ctx.save();
+    rect(px + 1, py + 44, pw - 2, ph - 45, 12); ctx.clip();
+    miniTree(px + 24, py + 62, t, { p, hot: pane.hot, swapP: seg(t, 11.12, .5) });
+    ctx.restore();
+    ctx.restore();
+  });
+
+  // matched-node tie lines — only across the gutter between the two panes
+  const mp = seg(t, 11.0, .5);
+  if (mp > 0) {
+    ctx.save();
+    ctx.globalAlpha *= mp * .6;
+    ctx.setLineDash([4, 8]); ctx.strokeStyle = ha(C.blue, .55); ctx.lineWidth = 1.4;
+    const x1 = 90 + 760 + 6, x2 = 1070 - 6;
+    [0, 2, 4, 6].forEach((i, k) => {
+      const y = 206 + 62 + MINI[i].y + MH / 2;
+      ctx.beginPath();
+      ctx.moveTo(x1, y); ctx.lineTo(lerp(x1, x2, outCubic(clamp(mp * 1.7 - k * .14))), y);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  const cw = 420, gap = 30;
+  deltaChip(960 - cw * 1.5 - gap, 800, cw, 'COST',    '12,847', '2,310', '−82%', seg(t, 11.30, .45));
+  deltaChip(960 - cw / 2,         800, cw, 'A-TIME',  '3.31s',  '0.36s', '9.2×', seg(t, 11.40, .45));
+  deltaChip(960 + cw / 2 + gap,   800, cw, 'BUFFERS', '412K',   '3,180', '−99%', seg(t, 11.50, .45));
+  ctx.restore();
+}
+
+/* =====================================================================
+   SCENE 6 (12.22 – 15.00)  end card
+   ===================================================================== */
+const GLYPH = new Path2D(
+  'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
+);
+function brandGlyph(cx, cy, size, p) {
+  if (p <= 0) return;
+  const e = outExpo(clamp(p));
+  ctx.save();
+  ctx.globalAlpha *= clamp(p * 2);
+  ctx.translate(cx, cy);
+  ctx.scale(lerp(.6, 1, settle(clamp(p), 1.0, 6)) * size / 24, lerp(.6, 1, settle(clamp(p), 1.0, 6)) * size / 24);
+  ctx.translate(-12, -12);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 1.7;
+  ctx.strokeStyle = ha(C.blueHot, .25 + .75 * e);
+  ctx.shadowColor = ha(C.blue, .9); ctx.shadowBlur = 18;
+  ctx.stroke(GLYPH);
+  ctx.restore();
+}
+
+function chip(label, x, y, p, col = C.blue) {
+  if (p <= 0) return;
+  ctx.save();
+  ctx.globalAlpha *= clamp(p * 2);
+  sans(17, 600, .4);
+  const tw = ctx.measureText(label).width, w = tw + 66;
+  const e = outExpo(clamp(p));
+  ctx.translate(0, (1 - e) * 16);
+  fillRect(x - w / 2, y - 21, w, 42, 21, ha(col, .08));
+  strokeRect(x - w / 2, y - 21, w, 42, 21, ha(col, .34));
+  ctx.beginPath(); ctx.arc(x - w / 2 + 25, y, 4, 0, 7); ctx.fillStyle = col; ctx.fill();
+  text(label, x - w / 2 + 42, y + 1, C.slate, 'left', 'middle');
+  ctx.restore();
+  return w;
+}
+
+function scene6(t) {
+  // the tree lingers as a ghost so the end card still belongs to the product
+  const gp = seg(t, 12.22, 1.2);
+  ctx.save();
+  ctx.globalAlpha = .085 * (1 - seg(t, 12.3, 1.8) * .5);
+  drawTree(t, {
+    cam: { fx: 1050, fy: 452 - (t - 12.2) * 12, s: .94 + (t - 12.2) * .01 },
+    detail: 0, edgeT: 1.5, fade: 1, ghost: true,
+  });
+  ctx.restore();
+
+  brandGlyph(960, 318, 132, seg(t, 12.40, .8));
+
+  riseText('Oracle Plan Visualizer', 960, 516, { t: t - 12.62, size: 90, ls: -3, align: 'center', stagger: .06 });
+
+  alpha(seg(t, 13.02, .5), () => {
+    sans(30, 600, .2);
+    text('Paste a plan. Understand it in seconds.', 960, 584, C.mid, 'center', 'middle');
+  });
+
+  // accent rule
+  const rp2 = outExpo(seg(t, 12.98, .7));
+  if (rp2 > 0) {
+    const w = 300 * rp2;
+    const g = ctx.createLinearGradient(960 - w, 0, 960 + w, 0);
+    g.addColorStop(0, 'rgba(59,130,246,0)');
+    g.addColorStop(.5, ha(C.blue, .9));
+    g.addColorStop(1, 'rgba(59,130,246,0)');
+    ctx.fillStyle = g; ctx.fillRect(960 - w, 630, w * 2, 2);
+  }
+
+  const cy = 720;
+  chip('100% in your browser', 960 - 330, cy, seg(t, 13.28, .45), C.emerald);
+  chip('Nothing is uploaded',  960,       cy, seg(t, 13.38, .45), C.blue);
+  chip('Free & open source',   960 + 330, cy, seg(t, 13.48, .45), C.violet);
+
+  const up = seg(t, 13.70, .55);
+  if (up > 0) {
+    ctx.save();
+    ctx.globalAlpha *= clamp(up * 2);
+    mono(26, 700, .6);
+    const url = 'davidbudac.github.io/ora-explain-plan-viz';
+    text(url, 960, 856, C.blueHot, 'center', 'middle');
+    const uw = ctx.measureText(url).width;
+    fillRect(960 - uw / 2, 874, uw * outExpo(clamp((up - .25) / .6)), 2, 1, ha(C.blue, .7));
+    ctx.restore();
+  }
+  alpha(seg(t, 14.05, .5), () => {
+    sans(15, 600, 1.4);
+    text('DBMS_XPLAN  ·  SQL MONITOR  ·  XML  ·  JSON  ·  XBI', 960, 930, C.faint, 'center', 'middle');
+  });
+}
+
+/* =====================================================================
+   Compositor
+   ===================================================================== */
+function frame(t) {
+  ctx.save();
+  ctx.scale(SS, SS);
+
+  // backdrop tint follows the story beat
+  let tint = C.blueDeep, energy = 1;
+  if (t >= 5.0 && t < 7.8) { tint = '#7f1d1d'; energy = 1.15; }
+  else if (t >= 7.66 && t < 10.2) { tint = '#0e7490'; }
+  else if (t >= 12.2) { tint = C.blueDeep; energy = 1.5; }
+  backdrop(t, tint, energy);
+
+  // a slow global push-in keeps the whole film alive
+  const breathe = 1 + Math.sin(t * .55) * .004;
+  ctx.save();
+  ctx.translate(960, 540); ctx.scale(breathe, breathe); ctx.translate(-960, -540);
+
+  if (t < 2.30)               scene1(t);
+  if (t >= 2.30 && t < 5.05)  scene2(t);
+  if (t >= 5.05 && t < 7.80)  scene3(t);
+  if (t >= 7.66 && t < 10.22) scene4(t);
+  if (t >= 10.10 && t < 12.34) scene5(t);
+  if (t >= 12.22)             scene6(t);
+
+  ctx.restore();
+
+  // beats
+  sweep(t, 2.24, .55, C.blue, 1);
+  sweep(t, 7.60, .5, C.cyan, -1);
+  sweep(t, 12.16, .5, C.blueHot, 1);
+  flash(t, 5.40, .22, '#fca5a5', .16);
+  flash(t, 10.06, .26, '#93c5fd', .2);
+  flash(t, 12.20, .3, '#dbeafe', .3);
+
+  grain(t, .03);
+
+  // edge falloff
+  const g = ctx.createRadialGradient(960, 540, 560, 960, 540, 1250);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, 'rgba(0,0,0,0.5)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  // 6f fade up / 10f fade out
+  const fadeIn = clamp(t / .18), fadeOut = clamp((DURATION - t) / .30);
+  const f = Math.min(fadeIn, fadeOut);
+  if (f < 1) { ctx.fillStyle = `rgba(0,0,0,${1 - f})`; ctx.fillRect(0, 0, W, H); }
+
+  ctx.restore();
+}
+
+window.__DURATION = DURATION;
+window.__seek = (t) => { rp = 0; frame(clamp(t, 0, DURATION)); };
+window.__ready = document.fonts.ready.then(() => true);
+
+/* interactive preview (skipped by the renderer, which sets body.render) */
+if (!/[?&]render=1/.test(location.search)) {
+  const hud = document.getElementById('hud');
+  const t0 = performance.now();
+  (function loop() {
+    const t = ((performance.now() - t0) / 1000) % (DURATION + .6);
+    window.__seek(Math.min(t, DURATION));
+    hud.textContent = t.toFixed(2) + 's / ' + DURATION.toFixed(2) + 's';
+    requestAnimationFrame(loop);
+  })();
+} else {
+  document.body.classList.add('render');
+}
+</script>
+</body>
+</html>

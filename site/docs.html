@@ -581,11 +581,11 @@ SPOOL OFF</code></pre>
       <h2>Filtering &amp; search<a class="anchor" href="#filtering">#</a></h2>
       <p>The filter panel narrows what is drawn in every view. Nodes that don't match are dimmed (tree) or hidden (table). The active filter count shows on the collapsed rail.</p>
       <ul>
-        <li><strong>Search</strong> across operation, object name and predicates. Matches are highlighted inside node cards.</li>
-        <li><strong>Operation type</strong> checkboxes by category (table access, index access, joins, sorts, aggregations, parallel, partition, …).</li>
-        <li><strong>Cost threshold</strong>, and with runtime stats, <strong>A-Rows</strong>, <strong>A-Time</strong> and <strong>Starts</strong> ranges.</li>
-        <li><strong>Predicates</strong>: only nodes with access predicates, filter predicates, or both.</li>
-        <li><strong>Cardinality mismatch</strong> slider: show only nodes whose E/A ratio exceeds the threshold you set.</li>
+        <li><strong>Search</strong> across operation, object name and predicates. Matches are highlighted inside node cards; <kbd>Enter</kbd> / <kbd>Shift</kbd>+<kbd>Enter</kbd> (or the arrows in the field) step through them.</li>
+        <li><strong>Operation</strong> tiles, one per category in the plan (table access, index, join, sort, aggregation, parallel, partition, …): the number of operations, the name and the category's node colour. Click tiles to show only those categories (<em>any of</em>); the others fade.</li>
+        <li><strong>Predicate</strong> tiles: operations with access, filter or storage predicates, or none. A group with only one value in the plan is hidden.</li>
+        <li><strong>At least</strong> thresholds for cost and, with runtime stats, A-Rows, A-Time and how far the estimate is off (E-Rows vs A-Rows, as a factor). Drag the slider (log scale, so 10 rows and 10M rows both have room) or type a value such as <code>20K</code>, <code>1.5M</code>, <code>2s</code>, <code>500ms</code> or <code>10x</code>; clear the box to show all. The small histogram shows how the plan's operations are spread.</li>
+        <li>Sections collapse from their headers; <em>Reset</em> clears every filter and the footer shows how many operations are left.</li>
       </ul>
       <p>The <strong>Legend</strong> explains the current color scheme and badges. Toggle it with the icon in the workspace toolbar (also from the focus-mode pill, the Appearance menu or the command palette).</p>
     </section>
