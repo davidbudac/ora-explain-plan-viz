@@ -12,7 +12,9 @@ export function serviceWorkerUrls(baseUrl: string): { url: string; scope: string
 }
 
 export function registerServiceWorker(): void {
-  if (!import.meta.env.PROD || typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+  // The single-file release build has no sw.js next to it.
+  if (!import.meta.env.PROD || import.meta.env.MODE === 'single') return;
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
   const { url, scope } = serviceWorkerUrls(import.meta.env.BASE_URL);
 
   const register = async () => {
