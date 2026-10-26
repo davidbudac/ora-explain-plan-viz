@@ -41,3 +41,4 @@ prototypes/
 
 # Promo reel render output
 scripts/promo-reel/out/
+dist-single

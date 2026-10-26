@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Plugin } from 'vite'
+import { viteSingleFile } from 'vite-plugin-singlefile'
 
 function normalizeBasePath(value?: string): string {
   if (!value || value.trim() === '') {
@@ -47,15 +48,36 @@ function serviceWorkerBuildId(): Plugin {
   }
 }
 
-const base = normalizeBasePath(process.env.APP_BASE_PATH)
-
 // Honor a harness-assigned port (e.g. preview tooling) while keeping Vite's
 // default when PORT is unset.
 const port = process.env.PORT ? Number(process.env.PORT) : undefined
 
-export default defineConfig({
-  plugins: [react(), tailwindcss(), serviceWorkerBuildId()],
-  base,
-  server: { port },
-  preview: { port },
+// `vite build --mode single`: one self-contained index.html for release
+// downloads. Drops what only makes sense on a hosted origin (service worker,
+// manifest, analytics) and inlines the icon.
+function singleFileHtml(): Plugin {
+  const icon = readFileSync('public/icon.svg', 'utf8')
+  return {
+    name: 'single-file-html',
+    apply: 'build',
+    transformIndexHtml: (html) =>
+      html
+        .replace(/\s*<link rel="(apple-touch-icon|manifest)"[^>]*>/g, '')
+        .replace(/\s*<script data-goatcounter[^>]*><\/script>/, '')
+        .replace('href="/icon.svg"', `href="data:image/svg+xml,${encodeURIComponent(icon)}"`),
+  }
+}
+
+export default defineConfig(({ mode }) => {
+  const single = mode === 'single'
+  return {
+    plugins: single
+      ? [react(), tailwindcss(), singleFileHtml(), viteSingleFile()]
+      : [react(), tailwindcss(), serviceWorkerBuildId()],
+    base: single ? './' : normalizeBasePath(process.env.APP_BASE_PATH),
+    publicDir: single ? false : 'public',
+    build: single ? { outDir: 'dist-single' } : undefined,
+    server: { port },
+    preview: { port },
+  }
 })
