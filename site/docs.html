@@ -269,6 +269,17 @@
       </p>
       <p>The app is a static single-page application: the build produces a <code>dist/</code> directory of HTML, JS and CSS that any web server can serve.</p>
 
+      <h3>Option 0 — one HTML file (no server)</h3>
+      <p>
+        Every <a href="https://github.com/davidbudac/ora-explain-plan-viz/releases">GitHub release</a> attaches
+        <code>oraplanviz-vX.Y.Z.html</code>: the whole app in one file. Download it and open it straight from disk,
+        mail it to a colleague, or drop it on any file share or web server. It needs no network; the only outside
+        request is the Manrope web font, which falls back to a system font when offline. This copy doesn't install
+        as an offline app (there's no service worker), and share links made from it point at the hosted app (the plan
+        travels in the link's <code>#</code> fragment, which browsers never send to the server). Build it yourself with
+        <code>npm run build:single</code> (writes <code>dist-single/index.html</code>).
+      </p>
+
       <h3>Option A — Docker (recommended for self-hosting)</h3>
       <p>The repository ships a multi-stage <code>Dockerfile</code> (Node 20 build → nginx 1.27 runtime) and an <code>nginx.conf</code> with the SPA fallback already configured.</p>
 <pre><code>git clone https://github.com/davidbudac/ora-explain-plan-viz.git

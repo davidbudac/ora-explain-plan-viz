@@ -6,6 +6,8 @@
 
 Try it with the **Load Example** menu, read the **[documentation](https://davidbudac.github.io/ora-explain-plan-viz/welcome/docs.html)** (getting started, self-hosting with Docker, every feature), or see [how to get a plan out of Oracle](docs/input-formats.md).
 
+Prefer a file? Each [release](https://github.com/davidbudac/ora-explain-plan-viz/releases) attaches the whole app as one self-contained `oraplanviz-vX.Y.Z.html` — open it from disk, no server needed.
+
 ## What it does
 
 ### Paste → explore

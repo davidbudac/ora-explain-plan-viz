@@ -9,6 +9,8 @@ import {
   getSharedViewMode,
   classifyDecodedPlanText,
   SHARE_BUNDLE_MAX_URL_LENGTH,
+  shareBaseUrl,
+  PUBLIC_APP_URL,
   type SharePayload,
   type ShareResult,
 } from '../url';
@@ -257,5 +259,15 @@ describe('share payload: view mode + metadata bundles', () => {
     expect(getSharedViewMode({ plans: [], viewMode: 'ai-report' })).toBeNull();
     expect(getSharedViewMode({ plans: [], viewMode: '<script>' })).toBeNull();
     expect(getSharedViewMode({ plans: [], viewMode: 'compare' })).toBe('compare');
+  });
+});
+
+describe('shareBaseUrl', () => {
+  it('keeps a hosted page as the base', () => {
+    expect(shareBaseUrl('https://example.com/viz/?x=1').href).toBe('https://example.com/viz/?x=1');
+  });
+
+  it('points a file:// copy at the public app', () => {
+    expect(shareBaseUrl('file:///home/me/oraplanviz.html').href).toBe(PUBLIC_APP_URL);
   });
 });

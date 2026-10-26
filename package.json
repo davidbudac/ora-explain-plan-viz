@@ -10,6 +10,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:pages": "APP_BASE_PATH=/ora-explain-plan-viz/ npm run build",
+    "build:single": "tsc -b && vite build --mode single",
     "lint": "eslint .",
     "typecheck": "tsc -b",
     "build:core": "node packages/ora-plan-core/scripts/build.mjs",
@@ -58,6 +59,7 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4",
+    "vite-plugin-singlefile": "^2.3.4",
     "vitest": "^4.0.18"
   }
 }

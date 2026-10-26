@@ -165,7 +165,7 @@ src/
 skills/oracle-plan-analysis/ # Companion agent skill: SKILL.md + references/patterns.md, data-requests.md (bundled into the app; `npx skills add davidbudac/ora-explain-plan-viz`)
 
 public/                  # Static assets: `manifest.webmanifest` (relative start_url/scope), `sw.js` (service worker, `__BUILD_ID__` stamped by vite.config.ts), product icons
-.github/workflows/       # `ci.yml` (lint + typecheck + tests on PRs and main), `deploy.yml` (build + deploy on push to main)
+.github/workflows/       # `ci.yml` (lint + typecheck + tests on PRs and main), `deploy.yml` (build + deploy on push to main), `release.yml` (`v*` tag → GitHub release with `oraplanviz-<tag>.html` from `build:single`)
 
 evals/                   # AI eval harness (Node + tsx + oracledb thin; NOT part of the Vite build)
 ├── run.ts               # Repro-fidelity backtest (plan shape match in a scratch schema)
@@ -186,6 +186,9 @@ npm run dev
 
 # Build for production
 npm run build
+
+# Single self-contained HTML (dist-single/index.html; no SW/manifest/analytics, opens from file://)
+npm run build:single
 
 # Preview production build
 npm run preview
@@ -439,8 +442,11 @@ The plan context value is one `useMemo`. The input drawer's per-keystroke draft 
 ### Parsing Conventions
 Object/query-block aliases are normalised without quotes (text and SQL Monitor XML parsers) so they compare equal across formats. Text parsers normalise CRLF and expand tabs in plan-table lines (SQL*Plus prints tabs by default). `-` rows in adaptive plans are inactive; `->` is the SQL Monitor 'executing' marker, not an inactive row.
 
+### Single-File Release Build
+`vite build --mode single` (`npm run build:single`) uses `vite-plugin-singlefile` to inline everything into `dist-single/index.html`, with `base: './'` and no `public/`. `singleFileHtml()` in `vite.config.ts` strips the manifest/apple-touch-icon links and the goatcounter script and inlines `icon.svg`; `pwa.ts` skips registration when `MODE === 'single'`. Opened from `file://`, share links use `PUBLIC_APP_URL` as their base (`shareBaseUrl` in `url.ts`). Pushing a `v*` tag runs `release.yml`, which attaches `oraplanviz-<tag>.html` to a GitHub release.
+
 ### Service Worker
-`public/sw.js` is registered only in production builds (`pwa.ts`). Hashed `assets/` are cache-first; the app shell (scope root / `index.html`) is network-first with a cached fallback; shell + entry assets are precached on install. It never intercepts non-GET, cross-origin (AI providers, fonts) or DB-agent requests, and plan data never touches the cache. vite.config.ts stamps `__BUILD_ID__` so each deploy gets a new cache; cache matches ignore `Vary`.
+`public/sw.js` is registered only in production builds (`pwa.ts`), never in the single-file build. Hashed `assets/` are cache-first; the app shell (scope root / `index.html`) is network-first with a cached fallback; shell + entry assets are precached on install. It never intercepts non-GET, cross-origin (AI providers, fonts) or DB-agent requests, and plan data never touches the cache. vite.config.ts stamps `__BUILD_ID__` so each deploy gets a new cache; cache matches ignore `Vary`.
 
 ### Annotation System
 Annotations (`annotations.ts`) are an in-memory overlay per plan slot, persisted only as part of the session autosave (and share links). They include per-node notes/highlights and named groups. Export produces a versioned JSON with plan metadata for validation on re-import. A highlight is `{ nodeId, color, style? }` — `style` is optional so older saves still load (they render with the global `highlightStyle`); import validation rejects an unknown `style` in an export file, and `deserializeAnnotations` drops one. The context's node-scoped setters have `…ForPlan(planIndex, …)` variants (tree-compare panes each render their own plan) and `paintNodeWithBrush(planIndex, nodeId)` is a reducer-level toggle against the current brush (`highlightBrush` = persisted colour + `highlightStyle`).
