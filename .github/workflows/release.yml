@@ -1,0 +1,54 @@
+name: Release single-file build
+
+# Push a version tag (e.g. `git tag v1.2.0 && git push origin v1.2.0`) to
+# publish a GitHub release with the self-contained HTML attached.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to (re)build the release for
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.repository == 'davidbudac/ora-explain-plan-viz'
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build single file
+        run: |
+          npm run build:single
+          cp dist-single/index.html "oraplanviz-$TAG.html"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "oraplanviz-$TAG.html" --clobber
+          else
+            gh release create "$TAG" "oraplanviz-$TAG.html" --title "$TAG" --generate-notes
+          fi

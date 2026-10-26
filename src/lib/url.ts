@@ -285,6 +285,19 @@ export type ShareResult = {
   error: string;
 };
 
+/** Public app URL; share links made from a downloaded copy point here. */
+export const PUBLIC_APP_URL = 'https://davidbudac.github.io/ora-explain-plan-viz/';
+
+/**
+ * Base for a share link: the current page, or the public app when this is the
+ * single-file release opened from disk (a `file://` link means nothing to the
+ * recipient). The plan rides in the hash, which never reaches the server.
+ */
+export function shareBaseUrl(href: string): URL {
+  const url = new URL(href);
+  return url.protocol === 'file:' ? new URL(PUBLIC_APP_URL) : url;
+}
+
 /**
  * Legacy lz-string `?plan=` share URL builder. Used as a fallback for
  * browsers without CompressionStream, and kept so old links keep decoding.
@@ -292,7 +305,7 @@ export type ShareResult = {
 function buildLegacyShareUrl(payload: SharePayload): ShareResult {
   const json = JSON.stringify(payload);
   const compressed = compressToEncodedURIComponent(json);
-  const url = new URL(window.location.href);
+  const url = shareBaseUrl(window.location.href);
   url.searchParams.delete(URL_PARAM);
   url.searchParams.set(URL_PARAM, compressed);
   const fullUrl = url.toString();
@@ -323,7 +336,7 @@ export async function buildShareUrl(payload: SharePayload): Promise<ShareResult>
   const json = JSON.stringify(payload);
   const encoded = await encodeGzipPlanParam(json);
 
-  const url = new URL(window.location.href);
+  const url = shareBaseUrl(window.location.href);
   url.searchParams.delete(URL_PARAM);
 
   const hashParams = new URLSearchParams(url.hash.slice(1));
