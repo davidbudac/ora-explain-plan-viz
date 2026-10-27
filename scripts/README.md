@@ -130,9 +130,10 @@ SQL> @gather_plan_metadata.sql LIST "HR.EMPLOYEES" my_bundle.json
 ```
 
 Then paste the file's contents into the visualizer's input box (or into the
-gather dialog), or drop the file onto the input panel. The importer strips
-SQL*Plus noise (prompt lines, chunked line breaks) automatically, so a raw
-spool file works as-is.
+gather dialog), or drop the file onto the input panel. The importer finds the
+JSON by itself: it drops any prompt echo, markers and status lines before and
+after it and rejoins chunked or hard-wrapped lines, so a raw spool file or a
+whole terminal copy works as-is.
 
 **Container databases:** When run inside `CDB$ROOT`, the script emits a
 warning and stops — object statistics live inside PDBs.

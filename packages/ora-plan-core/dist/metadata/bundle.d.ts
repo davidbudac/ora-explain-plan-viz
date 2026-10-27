@@ -216,9 +216,30 @@ export interface CoverageWarning {
 /**
  * Cheap detection of bundle content anywhere in a piece of text, before any
  * cleanup. Used to route pasted or dropped input toward the bundle pipeline
- * regardless of file extension or surrounding SQL*Plus noise.
+ * regardless of file extension or surrounding SQL*Plus noise. `\s*` also
+ * matches line breaks, so a `"format"` / `:` / value split across lines
+ * still counts.
  */
 export declare function looksLikeMetadataBundle(text: string): boolean;
+/**
+ * Recover the bundle JSON from pasted terminal output or a SQL*Plus spool
+ * file, or null when no bundle start is found. Such text is rarely clean
+ * JSON: prompt echo (`SQL> SQL>   2   3 ...`) can share a line with the
+ * payload, marker and status lines sit around it, and the gather script emits
+ * the bundle through DBMS_OUTPUT in chunks, so raw line breaks land inside the
+ * JSON (even mid-string); terminals may also hard-wrap long lines and pad them
+ * with trailing spaces. All legitimate newlines and tabs in values are escaped
+ * (`\n`, `\t`) by the script, so raw line breaks carry no information and
+ * removing them is lossless.
+ *
+ * The start is the first `{` followed (ignoring whitespace) by `"format"`,
+ * else the first `{` that opens a line. From there line breaks and the
+ * spaces/tabs before them are removed, then a JSON-aware scan finds the brace
+ * that closes the top-level object and drops everything after it, escaping
+ * raw control characters inside strings. When the object never closes, the
+ * cleaned remainder is returned and `parseBundle` reports it as cut off.
+ */
+export declare function extractBundleJson(text: string): string | null;
 /**
  * Warning to surface when a structurally valid bundle carries no objects —
  * typically the gather script found nothing for the given SQL_ID.
