@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { MetadataBundle } from '../../lib/metadata/bundle';
 import { FOCUS_RING_INSET } from '../ui';
@@ -27,6 +27,13 @@ export function ObjectListSidebar({ bundle, selectedKey, onSelect }: ObjectListS
     };
   }, [bundle.objects, search]);
 
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!selectedKey) return;
+    const active = listRef.current?.querySelector('[aria-current="true"]');
+    if (active && typeof active.scrollIntoView === 'function') active.scrollIntoView({ block: 'nearest' });
+  }, [selectedKey]);
+
   const coverageKeys = useMemo(
     () => new Set(bundle.coverage_warnings.map((w) => w.object)),
     [bundle.coverage_warnings],
@@ -44,7 +51,7 @@ export function ObjectListSidebar({ bundle, selectedKey, onSelect }: ObjectListS
           className="w-full px-2 py-1.5 text-xs rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
         />
       </div>
-      <div className="flex-1 overflow-y-auto py-1">
+      <div ref={listRef} className="flex-1 overflow-y-auto py-1">
         <button
           type="button"
           onClick={() => onSelect(null)}
