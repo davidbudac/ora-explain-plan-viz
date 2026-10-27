@@ -1244,12 +1244,28 @@ function ColumnRow({
   );
 }
 
+/** Object name that opens the object in the Metadata view. */
+function ObjectLink({ objectKey, className }: { objectKey: string; className: string }) {
+  const { openMetadataObject } = usePlan();
+  return (
+    <button
+      type="button"
+      onClick={() => openMetadataObject(objectKey)}
+      title="Open in Metadata view"
+      aria-label={`Open ${objectKey} in Metadata view`}
+      className={`${className} hover:underline cursor-pointer text-left rounded ${FOCUS_RING}`}
+    >
+      <code>{objectKey}</code>
+    </button>
+  );
+}
+
 function ObjectBlock({ objectKey, stats }: { objectKey: string; stats: TableStats }) {
   const isStale = stats.stale_stats === 'YES';
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-3">
-        <code className="text-[13px] font-mono font-bold text-blue-600 dark:text-blue-400 break-all">{objectKey}</code>
+        <ObjectLink objectKey={objectKey} className="text-[13px] font-mono font-bold text-blue-600 dark:text-blue-400 break-all" />
         {isStale && (
           <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-500 text-white border border-amber-600 shadow-sm animate-pulse">
             STALE
@@ -1294,7 +1310,7 @@ function IndexObjectBlock({ objectKey, index }: { objectKey: string; index: impo
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-3">
-        <code className="text-[13px] font-mono font-bold text-blue-600 dark:text-blue-400 break-all">{objectKey}</code>
+        <ObjectLink objectKey={objectKey} className="text-[13px] font-mono font-bold text-blue-600 dark:text-blue-400 break-all" />
         <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-500 text-white border border-indigo-600 shadow-sm uppercase">
           INDEX
         </span>
@@ -1379,7 +1395,7 @@ function IndexRow({ index, usedHere }: { index: ResolvedIndex; usedHere: boolean
   return (
     <div className="text-[10px] rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 p-2 shadow-sm">
       <div className="flex items-center justify-between mb-1.5 gap-2">
-        <code className="font-mono font-bold text-slate-800 dark:text-slate-200 truncate">{index.key}</code>
+        <ObjectLink objectKey={index.key} className="font-mono font-bold text-slate-800 dark:text-slate-200 truncate" />
         <div className="flex items-center gap-1.5 shrink-0">
           {usedHere && (
             <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 uppercase">

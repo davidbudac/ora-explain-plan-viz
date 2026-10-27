@@ -688,6 +688,7 @@ SQL&gt; @plan_to_url.sql an05rsj1up1k5 "" MONITOR  -- SQL Monitor TEXT report (T
         constraints, simplified DDL, optimizer environment, and any baselines, profiles, patches or directives affecting the SQL)
         for the objects a plan touches. Attach one and the app annotates the plan with it.
       </p>
+      <p>Click a table or index name in the node details panel to jump straight to that object in the <em>Metadata</em> tab.</p>
 
       <h3>1. Gather the bundle</h3>
       <p>Use the generated script. Either click <em>Gather script</em> in the app (it pre-fills the SQL ID) or take <code>scripts/gather_plan_metadata.sql</code> from the repo and run it in SQL*Plus or SQLcl (Oracle 12.2+):</p>
