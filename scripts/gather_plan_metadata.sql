@@ -132,6 +132,16 @@ DECLARE
   -- to precede subprogram bodies in a declarative part.
   l_buffer CLOB;
 
+  -- All control characters U+0000..U+001F, for js_escape's cheap TRANSLATE
+  -- guard. Declared here because items must precede subprogram bodies.
+  g_ctrl_chars CONSTANT VARCHAR2(40) :=
+       CHR(1)  || CHR(2)  || CHR(3)  || CHR(4)  || CHR(5)
+    || CHR(6)  || CHR(7)  || CHR(8)  || CHR(9)  || CHR(10) || CHR(11)
+    || CHR(12) || CHR(13) || CHR(14) || CHR(15) || CHR(16) || CHR(17)
+    || CHR(18) || CHR(19) || CHR(20) || CHR(21) || CHR(22) || CHR(23)
+    || CHR(24) || CHR(25) || CHR(26) || CHR(27) || CHR(28) || CHR(29)
+    || CHR(30) || CHR(31);
+
   PROCEDURE add_warning(p_object IN VARCHAR2, p_reason IN VARCHAR2) IS
   BEGIN
     l_warn_count := l_warn_count + 1;
@@ -151,6 +161,22 @@ DECLARE
     l_out := REPLACE(l_out, CHR(10), '\n');
     l_out := REPLACE(l_out, CHR(13), '\r');
     l_out := REPLACE(l_out, CHR(9), '\t');
+    -- JSON forbids every other raw control character (U+0000..U+001F), e.g. a
+    -- stray CHR(0)/CHR(1) in a histogram endpoint value or in DDL. Cheap guard
+    -- first (one TRANSLATE that deletes the control characters), so the common
+    -- case pays nothing; the per-character loop only runs when one is present.
+    -- CHR(9), CHR(10) and CHR(13) were already replaced above. CHR(0) is kept
+    -- out of the TRANSLATE list and checked on its own.
+    IF NVL(LENGTH(TRANSLATE(l_out, 'x' || g_ctrl_chars, 'x')), 0) < LENGTH(l_out)
+       OR INSTR(l_out, CHR(0)) > 0
+    THEN
+      FOR i IN 0 .. 31 LOOP
+        IF INSTR(l_out, CHR(i)) > 0 THEN
+          l_out := REPLACE(l_out, CHR(i),
+                           '\u00' || LPAD(TO_CHAR(i, 'FMXX'), 2, '0'));
+        END IF;
+      END LOOP;
+    END IF;
     RETURN l_out;
   END;
 
@@ -1819,23 +1845,107 @@ BEGIN
   ----------------------------------------------------------------------------
   -- Emit
   ----------------------------------------------------------------------------
-  -- DBMS_OUTPUT is line-buffered; emit the bundle in chunks. Each PUT_LINE
-  -- inserts a line break at an arbitrary position (possibly mid-string) -
-  -- the visualizer strips raw newlines on import, and all legitimate
-  -- newlines in values are escaped as \n by js_string. Chunks stay well
-  -- under PUT_LINE's 32767-BYTE limit even for multibyte characters.
+  -- DBMS_OUTPUT is line-buffered, so the bundle is printed as many lines. A
+  -- line break is only legal JSON where whitespace is allowed, and SQL*Plus
+  -- (TRIMSPOOL / TRIMOUT) silently strips trailing spaces from every line, so
+  -- the bundle is NOT cut at arbitrary offsets. Instead the CLOB is walked
+  -- with a small JSON state machine (in-string / escape / \uXXXX) and:
+  --   * a line ends after every structural comma (outside a string), so each
+  --     object member and array element starts on its own line. The printed
+  --     text is then valid JSON exactly as it appears, and every line is short;
+  --   * only a very long string (typically a big DDL value) can push a line
+  --     past 8000 characters. It is then cut at the first "safe" point: never
+  --     next to a space or tab (TRIMOUT would eat it), never right after a
+  --     backslash and never inside a \uXXXX escape. Such a rare in-string cut
+  --     is not valid JSON on its own; the importer rejoins it by dropping the
+  --     raw line breaks (no legitimate newline survives in a value - js_escape
+  --     writes them as \n).
+  -- 8000 characters x 4 bytes (worst-case UTF-8) stays under PUT_LINE's
+  -- 32767-BYTE line limit. The CLOB is read in 2000-character pieces (one
+  -- DBMS_LOB.SUBSTR per piece, not per character; small pieces keep
+  -- SUBSTR(piece, i, 1) cheap in multibyte character sets, where finding
+  -- character i means scanning from the start of the piece) and the scan state carries
+  -- across piece boundaries, so an escape split between two pieces is intact.
   DECLARE
-    l_amount   INTEGER;
-    l_offset   INTEGER := 1;
+    c_line_max CONSTANT PLS_INTEGER := 8000;  -- soft cap for a line, in chars
+    c_piece    CONSTANT PLS_INTEGER := 2000;  -- CLOB read size, in chars
     l_total    INTEGER := DBMS_LOB.GETLENGTH(l_buffer);
-    l_chunk    VARCHAR2(32767);
+    l_off      INTEGER := 1;                  -- next CLOB offset to read
+    l_piece    VARCHAR2(32767);               -- current CLOB piece
+    l_plen     PLS_INTEGER;                   -- its length in characters
+    l_line     VARCHAR2(32767);               -- output line being built
+    l_llen     PLS_INTEGER := 0;              -- chars already in l_line
+    l_start    PLS_INTEGER;                   -- first piece char not yet in l_line
+    l_c        VARCHAR2(8);                   -- current character
+    l_prev     VARCHAR2(8) := NULL;           -- character before l_c (any piece)
+    l_in_str   BOOLEAN := FALSE;              -- inside a JSON string
+    l_esc      BOOLEAN := FALSE;              -- previous char was an unescaped backslash
+    l_hex      PLS_INTEGER := 0;              -- hex digits still owed by a \uXXXX
   BEGIN
-    WHILE l_offset <= l_total LOOP
-      l_amount := LEAST(8000, l_total - l_offset + 1);
-      l_chunk := DBMS_LOB.SUBSTR(l_buffer, l_amount, l_offset);
-      DBMS_OUTPUT.PUT_LINE(l_chunk);
-      l_offset := l_offset + l_amount;
+    WHILE l_off <= l_total LOOP
+      l_piece := DBMS_LOB.SUBSTR(l_buffer, LEAST(c_piece, l_total - l_off + 1), l_off);
+      l_plen  := LENGTH(l_piece);
+      EXIT WHEN l_plen IS NULL OR l_plen = 0;
+      l_off   := l_off + l_plen;
+      l_start := 1;
+
+      FOR i IN 1 .. l_plen LOOP
+        l_c := SUBSTR(l_piece, i, 1);
+
+        IF l_in_str THEN
+          -- Long-string safety valve: line is full and this is a safe cut
+          -- point (not mid-escape, no whitespace on either side of the cut).
+          IF NOT l_esc AND l_hex = 0
+             AND l_llen + (i - l_start) >= c_line_max
+             AND l_c NOT IN (' ', CHR(9))
+             AND l_prev NOT IN (' ', CHR(9))
+          THEN
+            l_line  := l_line || SUBSTR(l_piece, l_start, i - l_start);
+            DBMS_OUTPUT.PUT_LINE(l_line);
+            l_line  := NULL;
+            l_llen  := 0;
+            l_start := i;
+          END IF;
+
+          IF l_hex > 0 THEN
+            l_hex := l_hex - 1;                -- a hex digit of \uXXXX
+          ELSIF l_esc THEN
+            l_esc := FALSE;                    -- the escaped character
+            IF l_c = 'u' THEN
+              l_hex := 4;
+            END IF;
+          ELSIF l_c = '\' THEN
+            l_esc := TRUE;
+          ELSIF l_c = '"' THEN
+            l_in_str := FALSE;
+          END IF;
+        ELSE
+          IF l_c = '"' THEN
+            l_in_str := TRUE;
+          ELSIF l_c = ',' THEN
+            -- Structural comma: finish the line here (comma included).
+            l_line  := l_line || SUBSTR(l_piece, l_start, i - l_start + 1);
+            DBMS_OUTPUT.PUT_LINE(l_line);
+            l_line  := NULL;
+            l_llen  := 0;
+            l_start := i + 1;
+          END IF;
+        END IF;
+
+        l_prev := l_c;
+      END LOOP;
+
+      -- Piece done: park its unprinted tail in the line buffer.
+      IF l_start <= l_plen THEN
+        l_line := l_line || SUBSTR(l_piece, l_start, l_plen - l_start + 1);
+        l_llen := l_llen + (l_plen - l_start + 1);
+      END IF;
     END LOOP;
+
+    -- Last line (ends with the closing brace of the bundle).
+    IF l_llen > 0 THEN
+      DBMS_OUTPUT.PUT_LINE(l_line);
+    END IF;
   END;
 
   DBMS_LOB.FREETEMPORARY(l_buffer);
