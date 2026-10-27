@@ -1,58 +1,142 @@
 /**
  * Cheap detection of bundle content anywhere in a piece of text, before any
  * cleanup. Used to route pasted or dropped input toward the bundle pipeline
- * regardless of file extension or surrounding SQL*Plus noise.
+ * regardless of file extension or surrounding SQL*Plus noise. `\s*` also
+ * matches line breaks, so a `"format"` / `:` / value split across lines
+ * still counts.
  */
 export function looksLikeMetadataBundle(text) {
     return /"format"\s*:\s*"ora-plan-metadata"/.test(text);
 }
-const SQLPLUS_NOISE = [
-    /^\s*SQL>/,
-    /^\s*Enter value for /i,
-    /^\s*old\s+\d+:/,
-    /^\s*new\s+\d+:/,
-    /^\s*PL\/SQL procedure successfully completed/i,
-    /^\s*SP2-\d+/,
-    /^\s*$/,
-];
-/**
- * Recover the JSON payload from a SQL*Plus spool file. Spool output is rarely
- * clean JSON: interactive prompts leave `SQL> ...` / `Enter value for ...`
- * lines around the payload, and the gather script emits the bundle through
- * DBMS_OUTPUT in fixed-size chunks, which inserts a line break every N
- * characters — including inside string values. All legitimate newlines in the
- * payload are escaped (`\n`) by the script, so raw line breaks carry no
- * information and joining the payload lines back together is lossless.
- */
-function extractBundleJson(text) {
-    let lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
-    // The bundle always opens with `{"format"`. When output is copied from a
-    // live terminal session, the first chunk can share its line with prompt
-    // echo (`SQL> SQL>   2   3 ... {"format":...`), and the noise filter below
-    // would throw that whole line away \u2014 so locate the payload start inside
-    // lines first and cut the prefix off.
-    const startLine = lines.findIndex((line) => line.includes('{"format"'));
-    if (startLine !== -1) {
-        lines = lines.slice(startLine);
-        lines[0] = lines[0].slice(lines[0].indexOf('{"format"'));
+const BUNDLE_OPENER = '{"format"';
+function isWhitespace(code) {
+    return code === 32 || (code >= 9 && code <= 13) || code === 0xa0 || code === 0xfeff;
+}
+/** Index of the `{` that opens the bundle, or -1 when there is none. */
+function findBundleStart(text) {
+    // Terminals can hard-wrap anywhere, so `{"for` / `mat"` may sit on two
+    // lines: compare the opener while skipping all whitespace.
+    for (let i = text.indexOf('{'); i !== -1; i = text.indexOf('{', i + 1)) {
+        let k = 1;
+        let j = i + 1;
+        while (k < BUNDLE_OPENER.length && j < text.length) {
+            const c = text.charCodeAt(j);
+            if (isWhitespace(c)) {
+                j++;
+                continue;
+            }
+            if (c !== BUNDLE_OPENER.charCodeAt(k))
+                break;
+            k++;
+            j++;
+        }
+        if (k === BUNDLE_OPENER.length)
+            return i;
     }
-    const content = lines.filter((line) => !SQLPLUS_NOISE.some((re) => re.test(line)));
-    const start = content.findIndex((line) => line.trimStart().startsWith('{'));
-    if (start === -1)
-        return text.trim();
-    let end = -1;
-    for (let i = content.length - 1; i >= start; i--) {
-        if (content[i].trimEnd().endsWith('}')) {
-            end = i;
-            break;
+    // No recognisable opener: fall back to the first `{` that starts a line.
+    const m = /^[ \t]*\{/m.exec(text);
+    return m ? m.index + m[0].length - 1 : -1;
+}
+/** Drop every raw line break together with the spaces/tabs padding before it. */
+function joinLines(text) {
+    const parts = [];
+    let from = 0;
+    let i = 0;
+    while (i < text.length) {
+        const c = text.charCodeAt(i);
+        if (c === 32 || c === 9) {
+            let j = i + 1;
+            while (j < text.length && (text.charCodeAt(j) === 32 || text.charCodeAt(j) === 9))
+                j++;
+            const next = j < text.length ? text.charCodeAt(j) : -1;
+            if (next === 10 || next === 13) {
+                parts.push(text.slice(from, i));
+                i = j;
+                from = j;
+            }
+            else {
+                i = j;
+            }
+        }
+        else if (c === 10 || c === 13) {
+            parts.push(text.slice(from, i));
+            i++;
+            from = i;
+        }
+        else {
+            i++;
         }
     }
-    if (end === -1)
-        return text.trim();
-    const parts = content.slice(start, end + 1);
-    parts[0] = parts[0].trimStart();
-    parts[parts.length - 1] = parts[parts.length - 1].trimEnd();
+    parts.push(text.slice(from));
     return parts.join('');
+}
+/** Locate and clean the bundle JSON inside arbitrary text; null when no bundle starts. */
+function scanBundle(text) {
+    const src = text.replace(/^\uFEFF/, '');
+    const start = findBundleStart(src);
+    if (start === -1)
+        return null;
+    const s = joinLines(src.slice(start));
+    const parts = [];
+    let from = 0;
+    let inString = false;
+    let escaped = false;
+    let depth = 0;
+    for (let i = 0; i < s.length; i++) {
+        const c = s.charCodeAt(i);
+        if (inString) {
+            if (escaped) {
+                escaped = false;
+            }
+            else if (c === 92) {
+                escaped = true;
+            }
+            else if (c === 34) {
+                inString = false;
+            }
+            else if (c < 0x20) {
+                // A stray control character (form feed, NUL, tab...) is illegal raw in a JSON string.
+                parts.push(s.slice(from, i), `\\u${c.toString(16).padStart(4, '0')}`);
+                from = i + 1;
+            }
+        }
+        else if (c === 34) {
+            inString = true;
+        }
+        else if (c === 123 || c === 91) {
+            depth++;
+        }
+        else if (c === 125 || c === 93) {
+            depth--;
+            if (depth === 0) {
+                parts.push(s.slice(from, i + 1));
+                return { json: parts.join(''), closed: true };
+            }
+        }
+    }
+    parts.push(s.slice(from));
+    return { json: parts.join(''), closed: false };
+}
+/**
+ * Recover the bundle JSON from pasted terminal output or a SQL*Plus spool
+ * file, or null when no bundle start is found. Such text is rarely clean
+ * JSON: prompt echo (`SQL> SQL>   2   3 ...`) can share a line with the
+ * payload, marker and status lines sit around it, and the gather script emits
+ * the bundle through DBMS_OUTPUT in chunks, so raw line breaks land inside the
+ * JSON (even mid-string); terminals may also hard-wrap long lines and pad them
+ * with trailing spaces. All legitimate newlines and tabs in values are escaped
+ * (`\n`, `\t`) by the script, so raw line breaks carry no information and
+ * removing them is lossless.
+ *
+ * The start is the first `{` followed (ignoring whitespace) by `"format"`,
+ * else the first `{` that opens a line. From there line breaks and the
+ * spaces/tabs before them are removed, then a JSON-aware scan finds the brace
+ * that closes the top-level object and drops everything after it, escaping
+ * raw control characters inside strings. When the object never closes, the
+ * cleaned remainder is returned and `parseBundle` reports it as cut off.
+ */
+export function extractBundleJson(text) {
+    return scanBundle(text)?.json ?? null;
 }
 /**
  * Warning to surface when a structurally valid bundle carries no objects —
@@ -71,12 +155,19 @@ export function parseBundle(input) {
     try {
         parsed = JSON.parse(input);
     }
-    catch (strictErr) {
-        try {
-            parsed = JSON.parse(extractBundleJson(input));
+    catch {
+        const scan = scanBundle(input);
+        if (!scan) {
+            throw new Error('No metadata bundle found in the pasted text — expected JSON starting with {"format":"ora-plan-metadata"…');
         }
-        catch {
-            const detail = strictErr instanceof Error ? strictErr.message : String(strictErr);
+        if (!scan.closed) {
+            throw new Error('Metadata bundle looks cut off — the JSON ends before its closing brace. Copy everything up to the END marker (or the whole bundle.json).');
+        }
+        try {
+            parsed = JSON.parse(scan.json);
+        }
+        catch (err) {
+            const detail = err instanceof Error ? err.message : String(err);
             throw new Error(`Bundle is not valid JSON: ${detail}`);
         }
     }

@@ -177,6 +177,28 @@ describe('dirty guard', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('Gather: pasting terminal output keeps only the bundle JSON in the box', async () => {
+    renderWithProviders(<GatherScriptModal initialMode="manual" onClose={() => {}} />);
+    const box = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Script output to attach"]')!;
+    const json = '{"format":"ora-plan-metadata","version":1,"objects":{}}';
+    const paste = async (text: string) => {
+      const event = new Event('paste', { bubbles: true, cancelable: true });
+      Object.defineProperty(event, 'clipboardData', { value: { getData: () => text } });
+      await act(async () => {
+        box.dispatchEvent(event);
+      });
+      return event;
+    };
+
+    const cleaned = await paste(`SQL> SQL>   2   3 ${json.slice(0, 20)}\n${json.slice(20)}\n\nPL/SQL procedure successfully completed.\nSQL> `);
+    expect(cleaned.defaultPrevented).toBe(true);
+    expect(box.value).toBe(json);
+
+    // Text without a bundle is left to the browser's normal paste.
+    const plain = await paste('just some text');
+    expect(plain.defaultPrevented).toBe(false);
+  });
+
   it('Gather: the mode switch is a pressed-state toggle group', async () => {
     renderWithProviders(<GatherScriptModal initialMode="manual" onClose={() => {}} />);
     expect(buttonByText('Object list').getAttribute('aria-pressed')).toBe('true');

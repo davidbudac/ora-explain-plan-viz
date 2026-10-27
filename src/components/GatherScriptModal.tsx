@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import gatherScriptTemplate from '../../scripts/gather_plan_metadata.sql?raw';
 import { parseManualObjectList, formatManualListArg } from '../lib/metadata/manualList';
+import { extractBundleJson } from '../lib/metadata/bundle';
 import { buildGatherScript, downloadFilename, BUNDLE_SPOOL_FILE } from '../lib/metadata/gatherScript';
 import type { GatherTarget } from '../lib/metadata/gatherScript';
 import { downloadTextFile } from '../lib/fileExport';
@@ -322,7 +323,14 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
             value={outputText}
             aria-label="Script output to attach"
             onChange={(e) => setOutputText(e.target.value)}
-            placeholder="Paste the script's terminal output or the contents of bundle.json here… (SQL*Plus noise lines are fine — they are stripped automatically)"
+            onPaste={(e) => {
+              // Keep only the JSON: prompt echo, markers and trailing status lines are dropped on paste.
+              const cleaned = extractBundleJson(e.clipboardData.getData('text'));
+              if (cleaned === null) return;
+              e.preventDefault();
+              setOutputText(cleaned);
+            }}
+            placeholder="Paste the script's terminal output or the contents of bundle.json here… (SQL*Plus prompts, markers and any other non-JSON text around it are removed automatically)"
             spellCheck={false}
             rows={3}
             className="w-full px-2.5 py-1.5 text-xs font-mono rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 border border-slate-200 dark:border-slate-700"
