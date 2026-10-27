@@ -290,7 +290,7 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Operation Tooltips**: ~55 Oracle operations with expert descriptions shown on hover and in detail panel
 
 ### Schema Metadata
-- **Metadata Explorer**: Dedicated tab (and detachable pop-out window) that browses schema objects referenced by the plan — tables, indexes, and columns — with per-object detail panels and a bundle overview
+- **Metadata Explorer**: Dedicated tab (and detachable pop-out window) that browses schema objects referenced by the plan — tables, indexes, and columns — with per-object detail panels and a bundle overview; clicking an object name in the node details panel opens it there (context `openMetadataObject`, selection in `metadataSelectedKey`)
 - **Metadata Bundles**: Attach schema-metadata bundles to a plan; objects with metadata show inline badges/chips in the plan
 - **Gather Script**: Generates a SQL script to collect the schema metadata needed for a bundle from the database
 

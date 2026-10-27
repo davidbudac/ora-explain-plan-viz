@@ -1022,6 +1022,11 @@ interface PlanContextValue {
   setShortcutsOverlayOpen: (open: boolean) => void;
   metadataPopoutOpen: boolean;
   setMetadataPopoutOpen: (open: boolean) => void;
+  /** Object selected in the Metadata explorer (tab or popout); null = bundle overview. */
+  metadataSelectedKey: string | null;
+  setMetadataSelectedKey: (key: string | null) => void;
+  /** Select an object in the Metadata explorer and show it (switches to the Metadata tab unless popped out). */
+  openMetadataObject: (key: string) => void;
   baselineDialogOpen: boolean;
   baselineDialogKind: 'baseline' | 'patch';
   /** Opens/closes the SPM dialog; `kind` (default 'baseline') only applies when opening. */
@@ -1150,6 +1155,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
   const [metadataPopoutOpen, setMetadataPopoutOpen] = useState(false);
+  const [metadataSelectedKey, setMetadataSelectedKey] = useState<string | null>(null);
   const [baselineDialogOpen, setBaselineDialogOpenState] = useState(false);
   const [baselineDialogKind, setBaselineDialogKind] = useState<'baseline' | 'patch'>('baseline');
   const setBaselineDialogOpen = useCallback((open: boolean, kind: 'baseline' | 'patch' = 'baseline') => {
@@ -1700,6 +1706,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   // mirror another value ("you might not need an effect").
   if (metadataBundle !== prevMetadataBundle) {
     setPrevMetadataBundle(metadataBundle);
+    setMetadataSelectedKey(null);
     if (metadataPopoutOpen && !metadataBundle) {
       setMetadataPopoutOpen(false);
     }
@@ -2195,6 +2202,14 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const setViewMode = useCallback((mode: ViewMode) => {
     dispatch({ type: 'SET_VIEW_MODE', payload: mode });
   }, []);
+
+  const openMetadataObject = useCallback(
+    (key: string) => {
+      setMetadataSelectedKey(key);
+      if (!metadataPopoutOpen) dispatch({ type: 'SET_VIEW_MODE', payload: 'metadata' });
+    },
+    [metadataPopoutOpen],
+  );
 
   const setTreeCompareEnabled = useCallback((enabled: boolean) => {
     dispatch({ type: 'SET_TREE_COMPARE_ENABLED', payload: enabled });
@@ -2775,6 +2790,9 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setShortcutsOverlayOpen,
     metadataPopoutOpen,
     setMetadataPopoutOpen,
+    metadataSelectedKey,
+    setMetadataSelectedKey,
+    openMetadataObject,
     baselineDialogOpen,
     baselineDialogKind,
     setBaselineDialogOpen,
@@ -2930,6 +2948,9 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setShortcutsOverlayOpen,
     metadataPopoutOpen,
     setMetadataPopoutOpen,
+    metadataSelectedKey,
+    setMetadataSelectedKey,
+    openMetadataObject,
     baselineDialogOpen,
     baselineDialogKind,
     setBaselineDialogOpen,
