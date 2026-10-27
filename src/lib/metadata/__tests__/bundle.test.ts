@@ -1,5 +1,6 @@
+import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
-import { parseBundle, looksLikeMetadataBundle, emptyBundleWarning } from '../bundle';
+import { parseBundle, looksLikeMetadataBundle, emptyBundleWarning, extractBundleJson } from '../bundle';
 import type { MetadataBundle } from '../bundle';
 
 /** A structurally valid bundle large enough to exercise chunked emission. */
@@ -274,7 +275,7 @@ describe('parseBundle', () => {
 
   it('still rejects noise-wrapped input that contains no valid JSON payload', () => {
     expect(() => parseBundle('SQL> select 1 from dual;\nORA-00942: table or view does not exist\n')).toThrow(
-      /not valid JSON/i,
+      /No metadata bundle found/,
     );
   });
 
@@ -450,5 +451,135 @@ describe('emptyBundleWarning', () => {
   it('suggests the SQL_ID aged out when the empty bundle has no coverage warnings', () => {
     const bundle = makeBundle({}, []);
     expect(emptyBundleWarning(bundle)).toMatch(/aged out/i);
+  });
+});
+
+describe('parseBundle — terminal and spool captures of a real bundle', () => {
+  // The bundled sample, compacted the way the gather script prints it, and
+  // repeated under new object names until it spans several 8000-char chunks.
+  const sample = JSON.parse(
+    readFileSync('src/examples/22-sql_monitor-Cardinality Trap (NL).meta.json', 'utf8'),
+  ) as MetadataBundle;
+  const original: MetadataBundle = {
+    ...sample,
+    objects: Object.fromEntries(
+      [1, 2, 3, 4].flatMap((n) => Object.entries(sample.objects).map(([k, v]) => [`${k}_${n}`, v])),
+    ),
+  };
+  const json = JSON.stringify(original);
+  const chunk = (s: string, n: number) => s.match(new RegExp(`[\\s\\S]{1,${n}}`, 'g'))!;
+  const echo = 'SQL> SQL> ' + Array.from({ length: 300 }, (_, i) => `  ${i + 2}`).join('');
+  const cutOff = /looks cut off/;
+
+  it('has a payload big enough to span several DBMS_OUTPUT chunks', () => {
+    expect(json.length).toBeGreaterThan(16000);
+  });
+
+  it('joins 8000-char chunks, including breaks inside strings', () => {
+    expect(parseBundle(chunk(json, 8000).join('\n'))).toEqual(original);
+  });
+
+  it('cuts prompt echo glued to the first chunk, markers and trailing status lines', () => {
+    const text = `Gathering plan metadata - the JSON bundle will print below.\n==== PLAN-METADATA BUNDLE BEGIN ====\n${echo} ${chunk(json, 8000).join('\n')}\n\nPL/SQL procedure successfully completed.\n\n==== PLAN-METADATA BUNDLE END ====\nDone. Copy everything between the two markers and paste it into\nthe visualizer's gather dialog to attach it to your plan.\nSQL> `;
+    expect(parseBundle(text)).toEqual(original);
+  });
+
+  // A real space that happens to end a wrapped line is indistinguishable from
+  // padding and is dropped, so these wrap tests pick geometry where no line ends in one.
+  const endsInBlank = (lines: string[]) => lines.some((l) => /[ \t]$/.test(l));
+
+  it('rejoins a terminal hard-wrap at 97 columns even when {"format" is split across lines', () => {
+    // Prompt echo sized so the first wrap lands inside the opener: `{"f` / `ormat"`.
+    const wrapped = Array.from({ length: 26 }, (_, i) => 85 + i)
+      .flatMap((width) => [1, 2, 3, 4, 5, 6, 7, 8].map((back) => chunk(`SQL> ${'1'.repeat(width - back - 6)} ${json}`, width)))
+      .find((lines) => !endsInBlank(lines.slice(1)))!;
+    expect(wrapped).toBeDefined();
+    expect(wrapped.some((l) => l.includes('{"format"'))).toBe(false);
+    expect(parseBundle(wrapped.join('\n'))).toEqual(original);
+  });
+
+  it('removes trailing-space padding on wrapped lines', () => {
+    const lines = Array.from({ length: 140 }, (_, i) => 60 + i)
+      .map((w) => chunk(json, w))
+      .find((l) => !endsInBlank(l))!;
+    expect(lines).toBeDefined();
+    const padded = lines.map((l) => l.padEnd(220)).join('\n');
+    expect(padded).toMatch(/ \n/);
+    expect(parseBundle(padded)).toEqual(original);
+  });
+
+  it('handles CRLF line endings', () => {
+    expect(parseBundle(chunk(json, 8000).join('\r\n'))).toEqual(original);
+  });
+
+  it('ignores trailing text that itself contains braces', () => {
+    const text = `${chunk(json, 8000).join('\n')}\n\nElapsed: 00:00:01.23\nSome text } with brace}`;
+    expect(parseBundle(text)).toEqual(original);
+  });
+
+  it('parses the new script shape: one line break after every structural comma', () => {
+    let inString = false;
+    let escaped = false;
+    let out = '';
+    for (const ch of json) {
+      out += ch;
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === '\\') escaped = true;
+        else if (ch === '"') inString = false;
+      } else if (ch === '"') inString = true;
+      else if (ch === ',') out += '\n';
+    }
+    expect(out.split('\n').length).toBeGreaterThan(50);
+    expect(parseBundle(`SQL> ${out}\nPL/SQL procedure successfully completed.`)).toEqual(original);
+  });
+
+  it('escapes raw control characters inside a string value', () => {
+    const text = json.replace('"sql_id":"', '"sql_id":"ab\fc\u0000d');
+    expect(text).not.toBe(json);
+    const bundle = parseBundle(text);
+    expect(bundle.plan_ref.sql_id?.startsWith('ab\fc\u0000d')).toBe(true);
+  });
+
+  it('reports a bundle that stops before its closing brace as cut off', () => {
+    expect(() => parseBundle(chunk(json.slice(0, json.length - 200), 8000).join('\n'))).toThrow(cutOff);
+    expect(() => parseBundle(`SQL> ${json.slice(0, 500)}`)).toThrow(cutOff);
+  });
+
+  it('reports text without a bundle start as not found', () => {
+    expect(() => parseBundle('SQL> select 1 from dual;\nno json here')).toThrow(/No metadata bundle found/);
+    expect(() => parseBundle('Gathering...\n{ not a bundle')).toThrow(/Bundle is not valid JSON|cut off/);
+  });
+
+  it('extractBundleJson returns just the cleaned JSON, or null without a start', () => {
+    const small = JSON.stringify({ format: 'ora-plan-metadata', version: 3, objects: { 'A.B': { ddl: 'x\ty' } } });
+    expect(extractBundleJson(`noise ${chunk(small, 7).join('\n')} more noise }`)).toBe(small);
+    expect(extractBundleJson('nothing to see')).toBeNull();
+  });
+});
+
+describe('parseBundle — real Oracle 19c gather transcript', () => {
+  // Real capture (dbmint, 19.27, PDB1, 2026-10-27): the stamped screen-mode
+  // script piped into an interactive `sqlplus -L` session, as if pasted. The
+  // JSON start shares its line with the continuation-prompt echo, and the
+  // bundle is followed by the END marker and SQL*Plus status lines.
+  const transcript = readFileSync(
+    'src/lib/metadata/__tests__/fixtures/gather-screen-transcript-19c.txt',
+    'utf8',
+  );
+
+  it('imports the whole transcript', () => {
+    const bundle = parseBundle(transcript);
+    expect(bundle.plan_ref.sql_id).toBe('btjfm8w40umc7');
+    expect(Object.keys(bundle.objects)).toHaveLength(12);
+    expect(bundle.coverage_warnings).toEqual([]);
+  });
+
+  it('prints lines that are valid JSON as they stand', () => {
+    const start = transcript.indexOf('{"format"');
+    const end = transcript.lastIndexOf('}', transcript.indexOf('==== PLAN-METADATA BUNDLE END ===='));
+    const printed = transcript.slice(start, end + 1);
+    expect(printed.split('\n').length).toBeGreaterThan(100);
+    expect(() => JSON.parse(printed)).not.toThrow();
   });
 });
