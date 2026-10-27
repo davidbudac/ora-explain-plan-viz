@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { usePlan } from '../../hooks/usePlanContext';
 import type { MetadataBundle } from '../../lib/metadata/bundle';
 import { ObjectListSidebar } from './ObjectListSidebar';
 import { BundleOverview } from './BundleOverview';
@@ -16,7 +16,7 @@ interface MetadataExplorerProps {
  * tab case.
  */
 export function MetadataExplorer({ bundle }: MetadataExplorerProps) {
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const { metadataSelectedKey: selectedKey, setMetadataSelectedKey: setSelectedKey } = usePlan();
 
   const selected = selectedKey ? bundle.objects[selectedKey] : null;
 
