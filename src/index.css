@@ -77,6 +77,20 @@
   color: #333333;
 }
 
+.react-flow {
+  --xy-attribution-background-color: transparent;
+}
+.react-flow__panel.react-flow__attribution {
+  background: transparent;
+  font-size: 11px;
+}
+.react-flow__attribution a {
+  color: var(--color-slate-400);
+}
+.dark .react-flow__attribution a {
+  color: var(--color-slate-600);
+}
+
 /* Query block groups: click-through so canvas panning works inside them */
 .react-flow__node-queryBlockGroup {
   pointer-events: none !important;
@@ -88,16 +102,6 @@
 /* Edge animation flows from child to parent (upward) */
 .react-flow__edge.animated path {
   animation-direction: reverse !important;
-}
-
-/* Hand-drawn highlight breathing animation */
-@keyframes highlight-breathe {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-.highlight-breathe {
-  animation: highlight-breathe 3s ease-in-out infinite;
 }
 
 /* Horizontal scroll without a visible scrollbar (nav ribbon strips) */
@@ -401,10 +405,6 @@ pre code.hljs {
     transition-duration: 0.01ms !important;
     transition-delay: 0s !important;
     scroll-behavior: auto !important;
-  }
-
-  .highlight-breathe {
-    animation: none;
   }
 
   .animate-pulse,

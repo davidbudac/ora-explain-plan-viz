@@ -8,7 +8,6 @@ import { HighlightText } from '../HighlightText';
 import { NodeHoverCard, useNodeHoverCard } from './NodeHoverCard';
 import { NodeActionToolbar } from './NodeActionToolbar';
 import { isCoarsePointer, useNodeToolbarVisibility } from './useNodeToolbarVisibility';
-import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 import { getHighlightColorDef } from '../../lib/annotations';
 import type { HighlightColor, HighlightStyle } from '../../lib/annotations';
 import type { MetadataBadge } from '../../lib/metadata/badges';
@@ -71,7 +70,7 @@ function InactiveChip() {
     <span
       data-testid="inactive-chip"
       title={INACTIVE_NODE_TOOLTIP}
-      className="ml-1.5 align-middle px-1 py-px rounded border border-dashed border-slate-400 dark:border-slate-500 text-[9px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 whitespace-nowrap"
+      className="ml-1.5 align-middle px-1 py-px rounded border border-dashed border-slate-400 dark:border-slate-500 text-[11px] font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap"
     >
       inactive
     </span>
@@ -112,7 +111,6 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     planIndex,
   } = data;
   const isHorizontal = layoutDirection === 'LR';
-  const reducedMotion = usePrefersReducedMotion();
   const category = getOperationCategory(node.operation);
   const schemeColors = COLOR_SCHEMES[colorScheme];
   const colors = schemeColors[category] || schemeColors['Other'];
@@ -277,7 +275,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         toolbar.cardHover.onMouseLeave();
       }}
       className={`
-        group/node relative ${isCompact ? 'w-[200px]' : isTicker ? 'w-[240px]' : 'w-[260px]'} ${isTerminal ? 'rounded-none' : 'rounded-xl'} motion-safe:transition-all motion-safe:duration-300
+        group/node relative ${isCompact ? 'w-[200px]' : isTicker ? 'w-[240px]' : 'w-[260px]'} ${isTerminal ? 'rounded-none' : 'rounded-xl'} motion-safe:transition-[box-shadow,border-color,background-color,opacity] motion-safe:duration-200
         ${isTerminal
           ? 'shadow-[3px_3px_0_rgba(15,23,42,0.15)] dark:shadow-[3px_3px_0_rgba(0,0,0,0.45)]'
           : 'shadow-md shadow-slate-400/30 dark:shadow-lg dark:shadow-black/40'}
@@ -299,7 +297,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
           <svg
             viewBox="0 0 100 100"
             preserveAspectRatio="none"
-            className={`w-full h-full ${reducedMotion ? '' : 'highlight-breathe'}`}
+            className="w-full h-full"
             fill="none"
             overflow="visible"
             style={{ transform: 'rotate(-3deg)' }}
@@ -360,11 +358,11 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         </svg>
       )}
 
-      {/* Dot: pulsing colored circle in top-right corner */}
+      {/* Dot: colored circle in top-right corner */}
       {showHighlight && highlightStyle === 'dot' && (
         <div
-          className={`absolute -top-1.5 -right-1.5 z-10 pointer-events-none ${reducedMotion ? '' : 'highlight-breathe'}`}
-          style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: hexColor, boxShadow: `0 0 6px 2px ${hexColor}80` }}
+          className="absolute -top-1.5 -right-1.5 z-10 pointer-events-none"
+          style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: hexColor, boxShadow: '0 0 0 2px var(--canvas-bg)' }}
         />
       )}
 
@@ -382,14 +380,14 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         }
       >
         <div
-          className={`h-full ${indicator.color} motion-safe:transition-all`}
+          className={`h-full ${indicator.color}`}
           style={{ width: `${Math.min(100, indicator.ratio * 100)}%` }}
         />
       </div>
 
       <div className={isCompact ? 'p-2.5 pt-3.5' : 'p-3 pt-4'}>
         {/* Operation ID badge */}
-        <div className="absolute -top-2 -left-2 w-6 h-6 text-xs rounded-full bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 font-bold flex items-center justify-center shadow">
+        <div className="absolute -top-2 -left-2 w-6 h-6 text-xs rounded-full bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 font-medium flex items-center justify-center shadow">
           {node.id}
         </div>
 
@@ -414,11 +412,11 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
         {/* Operation name */}
         <div className="relative">
-          <div className={`font-semibold text-sm leading-tight mb-1 ${isTerminal ? 'font-mono tracking-tight' : ''} ${colors.text}`} title={tooltip}>
+          <div className={`font-medium text-sm leading-tight mb-1 ${isTerminal ? 'font-mono' : ''} ${colors.text}`} title={tooltip}>
             <HighlightText text={node.operation} query={searchText} />
             {isInactive && <InactiveChip />}
             {isTicker && !isCompact && options.showObjectName && node.objectName && (
-              <span className="font-mono font-semibold text-slate-700 dark:text-slate-200"> · <HighlightText text={node.objectName} query={searchText} /></span>
+              <span className="font-mono font-medium text-slate-700 dark:text-slate-200"> · <HighlightText text={node.objectName} query={searchText} /></span>
             )}
           </div>
           {showHighlight && highlightStyle === 'underline' && (
@@ -443,7 +441,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
 
         {/* Object name if present (ticker scheme renders it inline in the operation name) */}
         {(!isTicker || isCompact) && options.showObjectName && node.objectName && (
-          <div className={`text-sm font-semibold font-mono text-slate-700 dark:text-slate-200 truncate ${isCompact ? 'mb-1' : 'mb-2'}`}>
+          <div className={`text-sm font-medium font-mono text-slate-700 dark:text-slate-200 truncate ${isCompact ? 'mb-1' : 'mb-2'}`}>
             <HighlightText text={node.objectName} query={searchText} />
           </div>
         )}
@@ -451,7 +449,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         {/* Minimal density: one quiet mono metric line + a single amber warning dot */}
         {isCompact && (compactParts.length > 0 || compactWarnings.length > 0) && (
           <div
-            className="flex items-center gap-1.5 font-mono text-[11px] font-semibold leading-tight text-slate-500 dark:text-slate-400"
+            className="flex items-center gap-1.5 font-mono text-[11px] font-medium leading-tight text-slate-500 dark:text-slate-400"
             style={{ fontVariantNumeric: 'tabular-nums' }}
           >
             <span className="truncate">
@@ -512,14 +510,14 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
               >
                 {showRowsLine && (
                   <div>
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500">rows </span>
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500">rows </span>
                     {showEstRows && (
-                      <span className={showActRows ? 'text-slate-400 dark:text-slate-500' : 'font-semibold'} title={estRows.title}>
+                      <span className={showActRows ? 'text-slate-400 dark:text-slate-500' : 'font-medium'} title={estRows.title}>
                         {estRows.text}
                       </span>
                     )}
                     {showActRows && (
-                      <span className={`font-semibold ${
+                      <span className={`font-medium ${
                         cardSeverity === 'bad'
                           ? 'text-red-600 dark:text-red-400'
                           : cardSeverity === 'warn'
@@ -535,8 +533,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                   <div>
                     {showActualTimePart && (
                       <>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500">t </span>
-                        <span className="font-semibold">{formatTimeCompact(node.actualTime)}</span>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500">t </span>
+                        <span className="font-medium">{formatTimeCompact(node.actualTime)}</span>
                       </>
                     )}
                     {showActualTimePart && showStartsPart && (
@@ -544,8 +542,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                     )}
                     {showStartsPart && (
                       <>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500">starts </span>
-                        <span className="font-semibold">{formatNumberShort(node.starts)}</span>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500">starts </span>
+                        <span className="font-medium">{formatNumberShort(node.starts)}</span>
                       </>
                     )}
                   </div>
@@ -554,15 +552,15 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
                   <div>
                     {showCostPart && (
                       <>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500">cost </span>
-                        <span className="font-semibold">{formatNumberShort(node.cost)}</span>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500">cost </span>
+                        <span className="font-medium">{formatNumberShort(node.cost)}</span>
                       </>
                     )}
                     {showCostPart && showBytesPart && (
                       <span className="text-slate-300 dark:text-slate-600"> · </span>
                     )}
                     {showBytesPart && (
-                      <span className="font-semibold">{formatBytes(node.bytes)}</span>
+                      <span className="font-medium">{formatBytes(node.bytes)}</span>
                     )}
                   </div>
                 )}
@@ -631,12 +629,12 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         {!isRail && !isCompact && options.showPredicateIndicators && (node.accessPredicates || node.filterPredicates) && (
           <div className="flex gap-1 mt-2">
             {node.accessPredicates && (
-              <span className="rounded font-semibold px-1.5 py-0.5 text-xs bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200">
+              <span className="rounded font-medium px-1.5 py-0.5 text-xs bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200">
                 Access
               </span>
             )}
             {node.filterPredicates && (
-              <span className="rounded font-semibold px-1.5 py-0.5 text-xs bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200">
+              <span className="rounded font-medium px-1.5 py-0.5 text-xs bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200">
                 Filter
               </span>
             )}
@@ -672,7 +670,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
               )}
               {hasSpill && options.showSpillBadge && (
                 <span
-                  className="w-5 h-5 rounded bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 flex items-center justify-center text-[10px] font-bold shrink-0"
+                  className="w-5 h-5 rounded bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 flex items-center justify-center text-[11px] font-medium shrink-0"
                   title={`Spill to disk — temp space used${node.tempUsed !== undefined ? `: ${formatBytes(node.tempUsed)}` : ''}`}
                 >
                   ▾
@@ -680,7 +678,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
               )}
               {options.showPredicateIndicators && node.accessPredicates && (
                 <span
-                  className="w-5 h-5 rounded bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-700 flex items-center justify-center text-[10px] font-extrabold shrink-0"
+                  className="w-5 h-5 rounded bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-700 flex items-center justify-center text-[11px] font-extrabold shrink-0"
                   title={`Access: ${node.accessPredicates}`}
                 >
                   A
@@ -688,7 +686,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
               )}
               {options.showPredicateIndicators && node.filterPredicates && (
                 <span
-                  className="w-5 h-5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 flex items-center justify-center text-[10px] font-extrabold shrink-0"
+                  className="w-5 h-5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 flex items-center justify-center text-[11px] font-extrabold shrink-0"
                   title={`Filter: ${node.filterPredicates}`}
                 >
                   F
@@ -696,7 +694,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
               )}
               {options.showPartitionInfo && formatPartitionRange(node.pstart, node.pstop) && (
                 <span
-                  className="h-5 px-1 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-700 flex items-center justify-center text-[10px] font-extrabold shrink-0"
+                  className="h-5 px-1 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-700 flex items-center justify-center text-[11px] font-extrabold shrink-0"
                   title={`Partitions accessed — Pstart: ${node.pstart ?? '—'}, Pstop: ${node.pstop ?? '—'}`}
                 >
                   P {formatPartitionRange(node.pstart, node.pstop)}
@@ -704,7 +702,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
               )}
               {options.showQueryBlockBadge && node.queryBlock && (
                 <span
-                  className="ml-auto font-mono text-[10px] text-slate-400 dark:text-slate-500 truncate"
+                  className="ml-auto font-mono text-[11px] text-slate-400 dark:text-slate-500 truncate"
                   title={node.objectAlias ? `${node.queryBlock} · ${node.objectAlias}` : node.queryBlock}
                 >
                   {node.queryBlock}
@@ -747,11 +745,11 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
       {isCompact && anchorRect && (
         <NodeHoverCard anchorRect={anchorRect}>
           <div className="flex items-baseline gap-1.5 mb-2">
-            <span className="shrink-0 text-[10px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">{node.id}</span>
-            <span className={`font-semibold text-xs leading-tight ${colors.text}`}>{node.operation}</span>
+            <span className="shrink-0 text-[11px] font-medium text-slate-400 dark:text-slate-500 tabular-nums">{node.id}</span>
+            <span className={`font-medium text-xs leading-tight ${colors.text}`}>{node.operation}</span>
           </div>
           {node.objectName && (
-            <div className="font-mono text-xs font-semibold text-slate-700 dark:text-slate-200 truncate -mt-1 mb-2">
+            <div className="font-mono text-xs font-medium text-slate-700 dark:text-slate-200 truncate -mt-1 mb-2">
               {node.objectName}
             </div>
           )}
@@ -851,7 +849,7 @@ function SubtreeToggle({ nodeId, isHorizontal, isCollapsed, hiddenCount, hiddenM
       </button>
       {isCollapsed && hiddenCount > 0 && (
         <span
-          className={`pointer-events-none absolute z-20 whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-semibold tabular-nums shadow-sm
+          className={`pointer-events-none absolute z-20 whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[11px] font-medium tabular-nums shadow-sm
             border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200
             ${isHorizontal ? 'top-1/2 left-full ml-4 -translate-y-1/2' : 'top-full left-1/2 ml-4 -translate-y-1/2'}`}
         >
@@ -947,8 +945,8 @@ function EstActStatsGrid({ node, rows, hasActualStats, cardLabel, cardSeverity, 
         {hasActualStats && (
           <>
             <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80" />
-            <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Est</span>
-            <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80 text-right text-[10px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400">Act</span>
+            <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80 text-right text-[11px] font-medium text-slate-500 dark:text-slate-400">Est</span>
+            <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80 text-right text-[11px] font-medium text-blue-500 dark:text-blue-400">Act</span>
             <span className="px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80" />
           </>
         )}
@@ -960,13 +958,13 @@ function EstActStatsGrid({ node, rows, hasActualStats, cardLabel, cardSeverity, 
               <span className={`px-2 py-0.5 text-right font-mono tabular-nums ${rowBorder} ${
                 hasActualStats
                   ? r.est !== undefined ? 'text-slate-500 dark:text-slate-400' : 'text-slate-300 dark:text-slate-600'
-                  : 'font-semibold text-slate-900 dark:text-slate-100'
+                  : 'font-medium text-slate-900 dark:text-slate-100'
               }`} title={r.estTitle}>
                 {r.est ?? '—'}
               </span>
               {hasActualStats && (
                 <span className={`px-2 py-0.5 text-right font-mono tabular-nums ${rowBorder} ${
-                  r.act !== undefined ? 'font-semibold text-slate-900 dark:text-slate-100' : 'text-slate-300 dark:text-slate-600'
+                  r.act !== undefined ? 'font-medium text-slate-900 dark:text-slate-100' : 'text-slate-300 dark:text-slate-600'
                 }`}>
                   {r.act ?? '—'}
                 </span>
@@ -975,7 +973,7 @@ function EstActStatsGrid({ node, rows, hasActualStats, cardLabel, cardSeverity, 
                 <span className={`pl-0.5 pr-1.5 py-0.5 flex items-center justify-end ${rowBorder}`}>
                   {r.isRowsRow && cardLabel && cardSeverity !== 'good' ? (
                     <em
-                      className={`not-italic px-1 rounded text-[10px] font-bold whitespace-nowrap ${
+                      className={`not-italic px-1 rounded text-[11px] font-medium whitespace-nowrap ${
                         cardSeverity === 'bad'
                           ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
                           : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
@@ -985,7 +983,7 @@ function EstActStatsGrid({ node, rows, hasActualStats, cardLabel, cardSeverity, 
                       {cardLabel}
                     </em>
                   ) : r.isRowsRow && r.est !== undefined && r.act !== undefined ? (
-                    <em className="not-italic px-1 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" title="Estimate matches actual rows">
+                    <em className="not-italic px-1 rounded text-[11px] font-medium bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" title="Estimate matches actual rows">
                       ≈
                     </em>
                   ) : null}
@@ -1053,26 +1051,27 @@ function NodeBadgeRow({
     <div className={`flex flex-wrap gap-1 ${className}`}>
       {hasAdvisor && (
         <span
-          className={`px-1.5 py-0.5 text-[10px] rounded font-semibold flex items-center gap-0.5 ${ADVISOR_BADGE_CLASSES[advisorSeverity!]}`}
+          className={`px-1.5 py-0.5 text-[11px] rounded font-medium flex items-center gap-1 tabular-nums ${ADVISOR_BADGE_CLASSES[advisorSeverity!]}`}
           title={advisorTitles && advisorTitles.length > 0 ? advisorTitles.join('\n') : undefined}
         >
-          ⚠ {advisorCount ?? 1}
+          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9v4M12 17h.01" /></svg>
+          {advisorCount ?? 1}
         </span>
       )}
       {showHot && (
-        <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-[10px] rounded font-semibold flex items-center gap-0.5" title="Slowest operation in plan (self time, excluding children)">
+        <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-[11px] rounded font-medium flex items-center gap-0.5" title="Slowest operation in plan (self time, excluding children)">
           <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" /></svg>
           Hotspot
         </span>
       )}
       {showSpill && (
-        <span className="px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 text-[10px] rounded font-semibold" title="Spill to disk — temp space used">
+        <span className="px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 text-[11px] rounded font-medium" title="Spill to disk — temp space used">
           Spill
         </span>
       )}
       {showCardBadge && cardLabel && (
         <span
-          className={`px-1.5 py-0.5 text-[10px] rounded font-semibold ${
+          className={`px-1.5 py-0.5 text-[11px] rounded font-medium ${
             cardSeverity === 'bad'
               ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
               : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
@@ -1085,7 +1084,7 @@ function NodeBadgeRow({
       {metadataBadges?.map((badge) => (
         <span
           key={badge.kind}
-          className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[10px] rounded font-semibold border border-indigo-300 dark:border-indigo-700 flex items-center gap-0.5"
+          className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[11px] rounded font-medium border border-indigo-300 dark:border-indigo-700 flex items-center gap-0.5"
           title={badge.reason}
         >
           <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm11 1H6v8l4-2 4 2V6z" clipRule="evenodd" /></svg>
@@ -1097,14 +1096,14 @@ function NodeBadgeRow({
         </span>
       ))}
       {partitionPruning === 'none' && (
-        <span className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[10px] rounded font-semibold" title="No partition pruning — all partitions are scanned">
+        <span className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[11px] rounded font-medium" title="No partition pruning — all partitions are scanned">
           No pruning
         </span>
       )}
       {parallelSignals?.map((signal, idx) => (
         <span
           key={`px-${signal.kind}-${idx}`}
-          className="px-1.5 py-0.5 bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-[10px] rounded font-semibold"
+          className="px-1.5 py-0.5 bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-[11px] rounded font-medium"
           title={signal.reason}
         >
           {signal.kind === 'broadcast-large' ? 'Broadcast' : 'Serial point'}
@@ -1136,7 +1135,7 @@ function PartitionChip({ node, className = '' }: { node: PlanNodeType; className
   return (
     <div className={`flex gap-1 ${className}`}>
       <span
-        className="rounded font-semibold px-1.5 py-0.5 text-xs bg-indigo-200 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-200"
+        className="rounded font-medium px-1.5 py-0.5 text-xs bg-indigo-200 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-200"
         title={`Partitions accessed — Pstart: ${node.pstart ?? '—'}, Pstop: ${node.pstop ?? '—'}`}
       >
         Part {range}

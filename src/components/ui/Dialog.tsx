@@ -357,7 +357,7 @@ export function DialogHeader({
       } ${className}`}
     >
       <div className="min-w-0 flex-1">
-        <h2 id={id} className="text-[15px] font-semibold leading-snug text-slate-900 dark:text-slate-50">
+        <h2 id={id} className="text-[15px] font-medium leading-snug text-slate-900 dark:text-slate-50">
           {title}
         </h2>
         {description ? (

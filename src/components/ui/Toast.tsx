@@ -253,7 +253,7 @@ function ToastCard({ item, onDismiss }: { item: ToastItem; onDismiss: (id: strin
       </span>
       <div className="min-w-0 flex-1 break-words">
         {options.title ? (
-          <div className="font-semibold leading-snug text-slate-900 dark:text-slate-50">{options.title}</div>
+          <div className="font-medium leading-snug text-slate-900 dark:text-slate-50">{options.title}</div>
         ) : null}
         <div className="leading-snug">{options.message}</div>
         {options.action ? (
@@ -263,7 +263,7 @@ function ToastCard({ item, onDismiss }: { item: ToastItem; onDismiss: (id: strin
               options.action?.onClick();
               onDismiss(id);
             }}
-            className={`mt-1.5 rounded text-[12px] font-semibold text-blue-600 hover:underline dark:text-blue-400 ${FOCUS_RING}`}
+            className={`mt-1.5 rounded text-[12px] font-medium text-blue-600 hover:underline dark:text-blue-400 ${FOCUS_RING}`}
           >
             {options.action.label}
           </button>

@@ -207,7 +207,7 @@ function PredicateBlock({
     <div className="ml-[calc(0.875rem+0.25rem)] mt-0.5 flex items-end gap-1 min-w-0">
       <div
         ref={textRef}
-        className={`min-w-0 flex-1 text-[10px] font-mono text-slate-400 dark:text-slate-500 whitespace-pre-wrap break-all leading-tight ${clamped ? 'line-clamp-2' : ''}`}
+        className={`min-w-0 flex-1 text-[11px] font-mono text-slate-400 dark:text-slate-500 whitespace-pre-wrap break-all leading-tight ${clamped ? 'line-clamp-2' : ''}`}
       >
         {node.accessPredicates && (
           <span>
@@ -242,7 +242,7 @@ function PredicateBlock({
           }}
           aria-expanded={expanded}
           aria-label={expanded ? `Show less of the predicates for operation ${node.id}` : `Show all predicates for operation ${node.id}`}
-          className={`shrink-0 rounded px-1 text-[10px] font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 ${FOCUS_RING}`}
+          className={`shrink-0 rounded px-1 text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 ${FOCUS_RING}`}
         >
           {expanded ? 'less' : 'more'}
         </button>
@@ -739,7 +739,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
     : 0;
   const columnCount = visibleColumns.length;
 
-  const groupThClass = 'px-2 py-1 text-center text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700 select-none';
+  const groupThClass = 'px-2 py-1 text-center text-[11px] font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700 select-none';
   const thClass = 'relative px-2 py-1.5 text-left text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 sticky top-[22px] z-10 border-b border-slate-200 dark:border-slate-700 select-none';
   const thRightClass = 'text-right';
   const groupBorderClass = 'border-l border-slate-200 dark:border-slate-700';
@@ -1060,7 +1060,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                             <span
                               data-testid="inactive-tag"
                               title={INACTIVE_NODE_TOOLTIP}
-                              className="shrink-0 px-1 py-px rounded border border-dashed border-slate-400 dark:border-slate-500 text-[9px] font-bold uppercase tracking-wide not-italic text-slate-500 dark:text-slate-400"
+                              className="shrink-0 px-1 py-px rounded border border-dashed border-slate-400 dark:border-slate-500 text-[11px] font-medium not-italic text-slate-500 dark:text-slate-400"
                             >
                               inactive
                             </span>
@@ -1071,7 +1071,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                               <HighlightText
                                 text={node.objectName}
                                 query={searchText}
-                                className="font-semibold text-blue-700 dark:text-blue-300 whitespace-nowrap"
+                                className="font-medium text-blue-700 dark:text-blue-300 whitespace-nowrap"
                               />
                             </span>
                           )}
@@ -1080,15 +1080,15 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                             const desc = new Set<number>();
                             collectDescendantIds(node, desc);
                             return (
-                              <span className="px-1 py-0 text-[10px] font-medium bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded">
+                              <span className="px-1 py-0 text-[11px] font-medium bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded">
                                 +{desc.size}
                               </span>
                             );
                           })()}
                           {/* Hot badge */}
                           {isHot && (
-                            <span className="px-1 py-0 text-[10px] font-bold bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded">
-                              HOT
+                            <span className="px-1 py-0 text-[11px] font-medium bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded">
+                              Hot
                             </span>
                           )}
                           {/* Annotation note indicator */}
@@ -1108,7 +1108,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                             return (
                               <span
                                 key={group.id}
-                                className={`px-1 py-0 text-[10px] font-medium rounded border ${groupColorDef.groupBorder} ${groupColorDef.text}`}
+                                className={`px-1 py-0 text-[11px] font-medium rounded border ${groupColorDef.groupBorder} ${groupColorDef.text}`}
                                 title={group.note ? `${group.name}: ${group.note}` : group.name}
                               >
                                 {group.name}
@@ -1172,7 +1172,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                               {timeRatio >= 0.01 && (
                                 <span
                                   title={timeShareTitle}
-                                  className={`text-[10px] ${timeRatio >= 0.5 ? 'text-red-500' : timeRatio >= 0.25 ? 'text-orange-500' : timeRatio >= 0.1 ? 'text-yellow-600 dark:text-yellow-500' : 'text-slate-400 dark:text-slate-500'}`}
+                                  className={`text-[11px] ${timeRatio >= 0.5 ? 'text-red-500' : timeRatio >= 0.25 ? 'text-orange-500' : timeRatio >= 0.1 ? 'text-yellow-600 dark:text-yellow-500' : 'text-slate-400 dark:text-slate-500'}`}
                                 >
                                   {(timeRatio * 100).toFixed(0)}%
                                 </span>
@@ -1253,7 +1253,7 @@ export function TabularView({ planIndex }: TabularViewProps = {}) {
                         <td className="px-2 py-1.5 text-center font-mono tabular-nums">
                           {cardRatio !== undefined && (
                             <span className={
-                              cardSeverity === 'bad' ? 'text-red-600 dark:text-red-400 font-semibold' :
+                              cardSeverity === 'bad' ? 'text-red-600 dark:text-red-400 font-medium' :
                               cardSeverity === 'warn' ? 'text-amber-600 dark:text-amber-400' :
                               'text-slate-500 dark:text-slate-400'
                             }>

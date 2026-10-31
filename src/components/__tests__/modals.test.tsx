@@ -100,8 +100,8 @@ afterEach(() => {
 // ---- every modal is a proper dialog -----------------------------------------
 describe('modal dialogs', () => {
   const cases: Array<[string, () => React.ReactElement, string]> = [
-    ['BaselineScriptModal', () => <BaselineScriptModal onClose={() => {}} />, 'Create SQL Plan Baseline'],
-    ['GatherScriptModal', () => <GatherScriptModal onClose={() => {}} />, 'Gather Schema Metadata'],
+    ['BaselineScriptModal', () => <BaselineScriptModal onClose={() => {}} />, 'Create SQL plan baseline'],
+    ['GatherScriptModal', () => <GatherScriptModal onClose={() => {}} />, 'Gather schema metadata'],
     ['AiAnalysisDialog', () => <AiAnalysisDialog onClose={() => {}} />, 'AI Analyze Plan'],
     ['ShortcutsOverlay', () => <ShortcutsOverlay />, 'Keyboard shortcuts'],
   ];
@@ -128,7 +128,7 @@ describe('modal dialogs', () => {
     const titles = Array.from(document.querySelectorAll('[role="dialog"]')).map(
       (d) => document.getElementById(d.getAttribute('aria-labelledby')!)?.textContent,
     );
-    expect(titles).toEqual(expect.arrayContaining(['Export Client Report', 'Copy your share link']));
+    expect(titles).toEqual(expect.arrayContaining(['Export client report', 'Copy your share link']));
   });
 });
 
@@ -302,7 +302,7 @@ describe('ClientReportModal feedback', () => {
     vi.spyOn(window, 'open').mockReturnValue(null);
     renderWithProviders(<ClientReportModal onClose={() => {}} />);
     await act(async () => {
-      click(buttonByText('Print / Save as PDF'));
+      click(buttonByText('Print / save as PDF'));
     });
     expect(toastText()).toContain('Pop-up blocked');
   });
@@ -360,14 +360,14 @@ describe('BaselineScriptModal: SQL Patch mode', () => {
 
   it('opens in baseline mode with a script-type radiogroup, and switching changes the title', () => {
     renderWithProviders(<BaselineScriptModal initialSqlId="abc123" initialPlanHash="42" onClose={() => {}} />);
-    expect(title()).toBe('Create SQL Plan Baseline');
+    expect(title()).toBe('Create SQL plan baseline');
     expect(document.querySelector('[role="radiogroup"][aria-label="Script type"]')).not.toBeNull();
-    expect(radio('SQL Plan Baseline').getAttribute('aria-checked')).toBe('true');
+    expect(radio('SQL plan baseline').getAttribute('aria-checked')).toBe('true');
     expect(document.querySelector('input[placeholder^="e.g. 3001"]')).not.toBeNull();
 
-    click(radio('SQL Patch'));
-    expect(title()).toBe('Create SQL Patch');
-    expect(radio('SQL Patch').getAttribute('aria-checked')).toBe('true');
+    click(radio('SQL patch'));
+    expect(title()).toBe('Create SQL patch');
+    expect(radio('SQL patch').getAttribute('aria-checked')).toBe('true');
     // baseline-only fields are hidden
     expect(document.querySelector('input[placeholder^="e.g. 3001"]')).toBeNull();
     expect(document.body.textContent).not.toContain('Mark as FIXED');
@@ -377,7 +377,7 @@ describe('BaselineScriptModal: SQL Patch mode', () => {
     renderWithProviders(
       <BaselineScriptModal initialKind="patch" initialSqlId="abc123" initialOutlineHints={OUTLINE} onClose={() => {}} />,
     );
-    expect(title()).toBe('Create SQL Patch');
+    expect(title()).toBe('Create SQL patch');
     expect(hints().value).toBe(OUTLINE.join('\n'));
     expect(nameInput().value).toBe('PLANVIZ_PATCH_abc123');
     expect(document.body.textContent).toContain('pins the current plan');

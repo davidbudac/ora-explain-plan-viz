@@ -42,7 +42,7 @@ describe('GroupAnnotationDialog', () => {
     setup();
     const [dialog] = dialogs();
     expect(dialog.getAttribute('aria-modal')).toBe('true');
-    expect(dialog.textContent).toContain('Edit Group');
+    expect(dialog.textContent).toContain('Edit group');
   });
 
   it('asks before deleting and only deletes after the user confirms', async () => {

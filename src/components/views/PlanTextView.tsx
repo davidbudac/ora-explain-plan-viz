@@ -326,7 +326,7 @@ export function PlanTextView() {
         </div>
 
         {filterQuery && (
-          <span className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400" title="The Filters panel search is highlighted in yellow">
+          <span className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400" title="The filters panel search is highlighted in yellow">
             <span className="inline-block h-2.5 w-2.5 rounded-sm bg-yellow-200 dark:bg-yellow-700/60 ring-1 ring-yellow-400/60" aria-hidden="true" />
             Filter search
           </span>

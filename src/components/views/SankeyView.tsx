@@ -655,14 +655,14 @@ export function SankeyView() {
       {/* The metric switch lives in the filter panel, so say what the boxes mean here too */}
       <div
         className="absolute top-2 left-3 z-10 pointer-events-none rounded-md border border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/90 px-2 py-1 text-[11px] text-slate-600 dark:text-slate-300 shadow-sm"
-        title="Box height and flow width are proportional to the metric value. Change the metric in the Filters panel."
+        title="Box height and flow width are proportional to the metric value. Change the metric in the filters panel."
       >
-        Metric: <span className="font-semibold text-slate-800 dark:text-slate-100">{metricCaption}</span>
+        Metric: <span className="font-medium text-slate-800 dark:text-slate-100">{metricCaption}</span>
       </div>
       {error && (
         <div role="alert" className="absolute inset-0 z-30 flex items-center justify-center bg-white/80 dark:bg-slate-900/80 p-4">
           <div className="max-w-sm rounded-lg border border-red-200 dark:border-red-900/60 bg-white dark:bg-slate-800 p-4 shadow-md text-sm">
-            <div className="font-semibold text-red-700 dark:text-red-300">Couldn&apos;t draw the Sankey diagram</div>
+            <div className="font-medium text-red-700 dark:text-red-300">Couldn&apos;t draw the Sankey diagram</div>
             <p className="mt-1 break-words text-slate-600 dark:text-slate-300">{error}</p>
             <button
               type="button"
@@ -679,7 +679,7 @@ export function SankeyView() {
         <button
           type="button"
           onClick={() => setVerticalZoom((z) => Math.min(8, z * 1.4))}
-          className={`h-7 w-7 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm text-sm font-bold ${FOCUS_RING}`}
+          className={`h-7 w-7 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm text-sm font-medium ${FOCUS_RING}`}
           title="Stretch diagram vertically (makes thin operations readable)"
           aria-label="Stretch diagram vertically"
         >
@@ -689,7 +689,7 @@ export function SankeyView() {
           type="button"
           onClick={() => setVerticalZoom((z) => Math.max(1, z / 1.4))}
           disabled={verticalZoom <= 1}
-          className={`h-7 w-7 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm text-sm font-bold disabled:opacity-40 ${FOCUS_RING}`}
+          className={`h-7 w-7 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm text-sm font-medium disabled:opacity-40 ${FOCUS_RING}`}
           title="Shrink diagram vertically"
           aria-label="Shrink diagram vertically"
         >
@@ -699,7 +699,7 @@ export function SankeyView() {
           <button
             type="button"
             onClick={() => setVerticalZoom(1)}
-            className={`h-7 w-7 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm text-[10px] font-bold ${FOCUS_RING}`}
+            className={`h-7 w-7 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm text-[11px] font-medium ${FOCUS_RING}`}
             title="Reset vertical zoom"
             aria-label="Reset vertical zoom"
           >
@@ -716,7 +716,7 @@ export function SankeyView() {
             maxWidth: '280px',
           }}
         >
-          <div className="font-semibold mb-1">{tooltip.title}</div>
+          <div className="font-medium mb-1">{tooltip.title}</div>
           <div className="space-y-0.5">
             {tooltip.lines.map((line, index) => (
               <div key={`${line}-${index}`}>{line}</div>

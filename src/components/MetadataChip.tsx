@@ -102,7 +102,7 @@ export function MetadataChip({ bundle, warning, planSqlId, onDetach }: MetadataC
             <span
               role="img"
               aria-label={`${warningCount} warning${warningCount === 1 ? '' : 's'}`}
-              className="ml-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-400 text-amber-950 text-[10px] font-bold"
+              className="ml-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-400 text-amber-950 text-[11px] font-medium"
               title={`${warningCount} warning${warningCount === 1 ? '' : 's'}`}
             >
               !
@@ -116,7 +116,7 @@ export function MetadataChip({ bundle, warning, planSqlId, onDetach }: MetadataC
             className="absolute left-0 top-full mt-1 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50 p-3 text-xs"
           >
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Metadata bundle</h3>
+              <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100">Metadata bundle</h3>
               <button
                 type="button"
                 onClick={() => setShowPopover(false)}

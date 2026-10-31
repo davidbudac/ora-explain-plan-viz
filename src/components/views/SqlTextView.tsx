@@ -75,7 +75,7 @@ export function SqlTextView() {
             <summary
               className={`flex items-center justify-between gap-2 px-3 py-2 cursor-pointer list-none select-none rounded-md ${FOCUS_RING_INSET}`}
             >
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                 Outline hints <span className="font-mono normal-case tracking-normal">({outlineHints.length})</span>
               </span>
               <svg className="w-4 h-4 text-slate-300 group-open:rotate-180 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">

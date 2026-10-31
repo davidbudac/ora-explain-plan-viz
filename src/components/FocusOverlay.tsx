@@ -14,7 +14,7 @@ const GLASS =
 // Quiet slate chip — the pill has no room for a saturated accent, and blue
 // stays reserved for the active view tab and the Parse button.
 const CHIP_BASE =
-  `h-7 px-2.5 flex items-center gap-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap motion-safe:transition-colors ${FOCUS_RING}`;
+  `h-7 px-2.5 flex items-center gap-1.5 rounded-full text-[11px] font-medium whitespace-nowrap motion-safe:transition-colors ${FOCUS_RING}`;
 const CHIP_IDLE =
   'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800';
 const CHIP_ACTIVE =

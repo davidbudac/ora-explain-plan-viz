@@ -359,7 +359,7 @@ export function ScatterView() {
             className="absolute z-10 pointer-events-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-lg px-3 py-2 text-xs text-slate-800 dark:text-slate-100"
             style={{ left: `${tooltip.x + 12}px`, top: `${tooltip.y + 12}px`, maxWidth: '260px' }}
           >
-            <div className="font-semibold mb-1">{tooltip.title}</div>
+            <div className="font-medium mb-1">{tooltip.title}</div>
             <div className="space-y-0.5">
               {tooltip.lines.map((line, index) => (
                 <div key={`${line}-${index}`}>{line}</div>
