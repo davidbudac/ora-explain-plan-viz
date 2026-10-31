@@ -47,7 +47,7 @@ function SubViewButton({
       type="button"
       onClick={() => onClick(id)}
       aria-pressed={current === id}
-      className={`px-2 py-1 text-[10px] rounded transition-all font-semibold uppercase tracking-wider ${FOCUS_RING} ${
+      className={`px-2 py-1 text-[11px] rounded transition-colors font-medium ${FOCUS_RING} ${
         current === id
           ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-400/30'
           : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -84,7 +84,7 @@ export function ExperimentalView() {
   return (
     <div className="h-full flex flex-col bg-white dark:bg-slate-900">
       <div className="flex items-center gap-3 px-3 py-1.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90">
-        <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 ring-1 ring-violet-300/50 dark:ring-violet-700/50">
+        <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 ring-1 ring-violet-300/50 dark:ring-violet-700/50">
           Experimental
         </span>
         <div

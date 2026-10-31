@@ -104,7 +104,7 @@ afterEach(() => {
 describe('AgentHandoffDialog', () => {
   it('copies a handoff carrying the typed question', async () => {
     renderDialog();
-    expect(document.getElementById(dialog().getAttribute('aria-labelledby')!)?.textContent).toBe('Agent Handoff');
+    expect(document.getElementById(dialog().getAttribute('aria-labelledby')!)?.textContent).toBe('Agent handoff');
     await typeInto(dialog().querySelector('textarea')!, 'Why is it slow?');
     const markdown = await copyHandoff();
     expect(markdown).toContain('<!-- oraplanviz-agent-handoff v1 -->');

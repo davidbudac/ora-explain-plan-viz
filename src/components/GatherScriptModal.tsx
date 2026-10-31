@@ -107,7 +107,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
     <Dialog
       open
       onClose={onClose}
-      title="Gather Schema Metadata"
+      title="Gather schema metadata"
       size="lg"
       initialFocusRef={mode === 'sqlid' ? sqlIdRef : manualRef}
       dirty={dirty}
@@ -156,7 +156,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
         {mode === 'sqlid' ? (
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor={sqlIdInputId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
+              <label htmlFor={sqlIdInputId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
                 SQL_ID
               </label>
               <input
@@ -174,13 +174,13 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
                 }`}
               />
               {!sqlIdValid && (
-                <p className="mt-1 text-[10px] text-red-600 dark:text-red-400">
+                <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">
                   SQL_ID is up to 13 alphanumeric characters.
                 </p>
               )}
             </div>
             <div>
-              <label htmlFor={planHashInputId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
+              <label htmlFor={planHashInputId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
                 Plan hash <span className="font-normal normal-case text-slate-400">(optional)</span>
               </label>
               <input
@@ -197,7 +197,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
                 }`}
               />
               {!planHashValid && (
-                <p className="mt-1 text-[10px] text-red-600 dark:text-red-400">
+                <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">
                   Plan hash is digits only.
                 </p>
               )}
@@ -205,7 +205,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
           </div>
         ) : (
           <div>
-            <label htmlFor={manualInputId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
+            <label htmlFor={manualInputId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
               Objects ({manualParsed.items.length})
             </label>
             <textarea
@@ -219,13 +219,13 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
               className="w-full px-2.5 py-1.5 text-xs font-mono rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 border border-slate-200 dark:border-slate-700"
             />
             {manualParsed.errors.length > 0 && (
-              <ul className="mt-1 text-[10px] text-red-600 dark:text-red-400 list-disc list-inside space-y-0.5">
+              <ul className="mt-1 text-[11px] text-red-600 dark:text-red-400 list-disc list-inside space-y-0.5">
                 {manualParsed.errors.map((err, i) => (
                   <li key={i}>{err}</li>
                 ))}
               </ul>
             )}
-            <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
               Identifiers are upper-cased unless wrapped in double quotes. Indexes will be
               pulled in automatically for any table you list.
             </p>
@@ -233,7 +233,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
         )}
 
         <div>
-          <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+          <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">
             Run against the database
           </span>
           {!target && (
@@ -264,7 +264,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
                   Copy paste-ready script
                 </button>
               )}
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-snug">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
                 Paste the whole script into a SQL*Plus / SQLcl session. It prints the JSON
                 bundle between BEGIN/END markers — copy that back into the box below.
               </p>
@@ -278,7 +278,7 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
               >
                 Download .sql
               </button>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-snug">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
                 Run it with <code>@{target ? downloadFilename(target) : 'gather_plan_metadata.sql'}</code>{' '}
                 — no arguments needed. It writes <code>{BUNDLE_SPOOL_FILE}</code>, which you
                 can drop below or onto the input panel.
@@ -287,10 +287,10 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
           </div>
           {pasteScript && (
             <details className="mt-2">
-              <summary className={`text-[10px] text-slate-500 dark:text-slate-400 cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-300 rounded ${FOCUS_RING}`}>
+              <summary className={`text-[11px] text-slate-500 dark:text-slate-400 cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-300 rounded ${FOCUS_RING}`}>
                 Preview script ({pasteScript.split('\n').length} lines)
               </summary>
-              <pre className="mt-1 text-[10px] font-mono p-2 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 whitespace-pre overflow-auto max-h-72">
+              <pre className="mt-1 text-[11px] font-mono p-2 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 whitespace-pre overflow-auto max-h-72">
                 {pasteScript}
               </pre>
             </details>
@@ -299,13 +299,13 @@ export function GatherScriptModal({ initialSqlId, initialMode, onClose }: Gather
 
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
               Attach the output
             </span>
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className={`text-[10px] px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 ${FOCUS_RING}`}
+              className={`text-[11px] px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 ${FOCUS_RING}`}
             >
               Load file…
             </button>

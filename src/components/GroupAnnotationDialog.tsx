@@ -19,7 +19,7 @@ const SWATCH_FOCUS =
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:focus-visible:outline-blue-400';
 
 const FIELD_LABEL =
-  'block text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1';
+  'block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1';
 
 export function GroupAnnotationDialog({
   nodeIds,
@@ -69,7 +69,7 @@ export function GroupAnnotationDialog({
     <Dialog
       open
       onClose={onClose}
-      title={existingGroup ? 'Edit Group' : 'Create Group'}
+      title={existingGroup ? 'Edit group' : 'Create group'}
       size="sm"
       initialFocusRef={nameRef}
       dirty={dirty}
@@ -103,11 +103,11 @@ export function GroupAnnotationDialog({
                   onClick={() => setColor(colorDef.name)}
                   aria-pressed={color === colorDef.name}
                   aria-label={colorDef.label}
-                  className={`w-6 h-6 rounded-full transition-all ${SWATCH_FOCUS} ${
+                  className={`w-6 h-6 rounded-full transition-[box-shadow,opacity] ${SWATCH_FOCUS} ${
                     color === colorDef.name
                       ? `${colorDef.chipActive} ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900`
                       : colorDef.chip
-                  } hover:scale-110`}
+                  }`}
                   title={colorDef.label}
                 />
               ))}

@@ -92,7 +92,7 @@ export function ShortcutsOverlay() {
       <DialogBody className="space-y-4 pb-5">
         {SHORTCUT_GROUPS.map((group) => (
           <div key={group.title}>
-            <h3 className="text-[11px] font-semibold tracking-wide text-slate-500 dark:text-slate-400 uppercase mb-2">
+            <h3 className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-2">
               {group.title}
             </h3>
             <div className="space-y-1.5">

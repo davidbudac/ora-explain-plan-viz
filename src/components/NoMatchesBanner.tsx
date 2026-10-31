@@ -46,7 +46,7 @@ export function NoMatchesBanner({ visible, top = 12 }: NoMatchesBannerProps) {
           <button
             type="button"
             onClick={() => setFilters(neutralFilterPatch())}
-            className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors ${FOCUS_RING}`}
+            className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors ${FOCUS_RING}`}
           >
             Reset filters
           </button>

@@ -19,7 +19,7 @@ import { PanelResizeHandle } from './PanelEdgeTab';
 const HISTOGRAM_BUCKETS = 32;
 
 // One label style for every section, matching the details panel's section labels.
-const SECTION_LABEL = 'text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400';
+const SECTION_LABEL = 'text-[11px] font-medium text-slate-500 dark:text-slate-400';
 const HINT = 'text-[10.5px] font-normal normal-case tracking-normal text-slate-400 dark:text-slate-500';
 const ROW_LABEL = 'text-[11.5px] text-slate-700 dark:text-slate-300';
 // Two tiles per row at most, whatever the panel width.
@@ -87,11 +87,11 @@ export function FilterPanel({ panelWidth, onResizeStart, onResizeBy, minWidth, m
         <svg className="w-3.5 h-3.5 shrink-0 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
-        <span className="[writing-mode:vertical-rl] uppercase text-[10px] font-bold tracking-[0.14em] text-slate-500 dark:text-slate-400">
+        <span className="[writing-mode:vertical-rl] text-[11px] font-medium text-slate-500 dark:text-slate-400">
           Filters
         </span>
         {filtersActive && (
-          <span className="[writing-mode:vertical-rl] text-[10px] font-semibold font-mono tabular-nums text-amber-600 dark:text-amber-400">
+          <span className="[writing-mode:vertical-rl] text-[11px] font-medium font-mono tabular-nums text-amber-600 dark:text-amber-400">
             {filteredCount}/{totalCount}
           </span>
         )}
@@ -207,12 +207,12 @@ function CountTile({
       }`}
     >
       <span
-        className={`block text-[15px] leading-tight font-semibold font-mono tabular-nums ${pressed ? 'text-blue-700 dark:text-blue-300' : 'text-slate-900 dark:text-slate-100'}`}
+        className={`block text-[15px] leading-tight font-medium font-mono tabular-nums ${pressed ? 'text-blue-700 dark:text-blue-300' : 'text-slate-900 dark:text-slate-100'}`}
         aria-hidden="true"
       >
         {count}
       </span>
-      <span className="block truncate text-[10px] text-slate-500 dark:text-slate-400" aria-hidden="true">
+      <span className="block truncate text-[11px] text-slate-500 dark:text-slate-400" aria-hidden="true">
         {label}
       </span>
     </button>
@@ -518,7 +518,7 @@ export function FilterPanelBody() {
     <div className="flex flex-col min-h-full">
       {/* Title + reset (reset stays in place, greyed when there is nothing to reset) */}
       <div className="flex items-center justify-between px-3.5 pt-3 pb-2.5">
-        <h3 className="text-[13px] font-semibold text-slate-900 dark:text-slate-100">Filters</h3>
+        <h3 className="text-[13px] font-medium text-slate-900 dark:text-slate-100">Filters</h3>
         <button
           type="button"
           onClick={clearFilters}

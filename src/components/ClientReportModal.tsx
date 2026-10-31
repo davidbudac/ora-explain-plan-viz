@@ -128,7 +128,7 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
     <Dialog
       open
       onClose={onClose}
-      title="Export Client Report"
+      title="Export client report"
       size="lg"
       initialFocusRef={titleRef}
       dirty={dirty}
@@ -142,7 +142,7 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
 
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <label htmlFor={titleId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
+            <label htmlFor={titleId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
               Report title
             </label>
             <input
@@ -151,12 +151,12 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Query Performance Documentation"
+              placeholder="Query performance documentation"
               className={INPUT_CLASS}
             />
           </div>
           <div>
-            <label htmlFor={clientId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
+            <label htmlFor={clientId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
               Client
             </label>
             <input
@@ -169,7 +169,7 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
             />
           </div>
           <div>
-            <label htmlFor={preparedById} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
+            <label htmlFor={preparedById} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
               Prepared by
             </label>
             <input
@@ -182,7 +182,7 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
             />
           </div>
           <div className="col-span-2">
-            <label htmlFor={summaryId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
+            <label htmlFor={summaryId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
               Executive summary
             </label>
             <textarea
@@ -197,7 +197,7 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
         </div>
 
         <div>
-          <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+          <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">
             Sections
           </span>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
@@ -210,7 +210,7 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
                   className="mt-0.5"
                 />
                 <span>
-                  <span className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
+                  <span className="block text-xs font-medium text-slate-800 dark:text-slate-200">
                     {def.label}
                   </span>
                   <span className="block text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
@@ -228,7 +228,7 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
               type="button"
               onClick={download}
               disabled={!html}
-              className={`h-8 px-3 text-xs font-semibold rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${FOCUS_RING}`}
+              className={`h-8 px-3 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${FOCUS_RING}`}
             >
               Download .html
             </button>
@@ -236,15 +236,15 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
               type="button"
               onClick={openPrintView}
               disabled={!html}
-              className={`h-8 px-3 text-xs font-semibold rounded border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${FOCUS_RING}`}
+              className={`h-8 px-3 text-xs font-medium rounded border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${FOCUS_RING}`}
             >
-              Print / Save as PDF
+              Print / save as PDF
             </button>
           </div>
           <button
             type="button"
             onClick={() => setShowPreview(!showPreview)}
-            className={`mt-2 text-[10px] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 select-none ${FOCUS_RING}`}
+            className={`mt-2 text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 select-none ${FOCUS_RING}`}
             aria-expanded={showPreview}
           >
             {showPreview ? '▾ Hide preview' : '▸ Show preview'}

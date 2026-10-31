@@ -254,9 +254,9 @@ export function getMetricLabel(metric: CompareMetric): string {
     case 'bytes': return 'Bytes';
     case 'actualRows': return 'A-Rows';
     case 'actualTime': return 'A-Time';
-    case 'selfTime': return 'Self Time';
+    case 'selfTime': return 'Self time';
     case 'starts': return 'Starts';
-    case 'tempSpace': return 'Temp Space';
+    case 'tempSpace': return 'Temp space';
     case 'memoryUsed': return 'Memory';
   }
 }

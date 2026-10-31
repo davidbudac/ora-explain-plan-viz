@@ -22,11 +22,11 @@ const PLAN_HASH_RE = /^\d+$/;
 const PATCH_NAME_RE = /^[A-Za-z0-9_$#]{1,128}$/;
 
 const KIND_OPTIONS: { value: ScriptKind; label: string; sub: string }[] = [
-  { value: 'baseline', label: 'SQL Plan Baseline', sub: 'DBMS_SPM' },
-  { value: 'patch', label: 'SQL Patch', sub: 'DBMS_SQLDIAG' },
+  { value: 'baseline', label: 'SQL plan baseline', sub: 'DBMS_SPM' },
+  { value: 'patch', label: 'SQL patch', sub: 'DBMS_SQLDIAG' },
 ];
 
-const LABEL_CLASS = 'block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide';
+const LABEL_CLASS = 'block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1';
 
 function inputClass(ok: boolean, extra = ''): string {
   return `w-full px-2.5 py-1.5 text-xs font-mono rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 ${extra} ${
@@ -50,7 +50,7 @@ const SOURCE_OPTIONS: { value: BaselineSource; label: string; description: strin
   },
   {
     value: 'awr_sts',
-    label: 'AWR via SQL Tuning Set',
+    label: 'AWR via SQL tuning set',
     description:
       'Pre-19c compatible — stages the plan through a temporary STS. In a multitenant PDB this reads the CDB-root AWR.',
   },
@@ -130,7 +130,7 @@ export function BaselineScriptModal({
     <Dialog
       open
       onClose={onClose}
-      title={isPatch ? 'Create SQL Patch' : 'Create SQL Plan Baseline'}
+      title={isPatch ? 'Create SQL patch' : 'Create SQL plan baseline'}
       size="lg"
       initialFocusRef={sqlIdRef}
       dirty={dirty}
@@ -161,8 +161,8 @@ export function BaselineScriptModal({
                     : 'hover:bg-white/60 dark:hover:bg-slate-800'
                 }`}
               >
-                <span className="block text-xs font-semibold text-slate-800 dark:text-slate-200">{opt.label}</span>
-                <span className="block text-[10px] font-mono text-slate-500 dark:text-slate-400">{opt.sub}</span>
+                <span className="block text-xs font-medium text-slate-800 dark:text-slate-200">{opt.label}</span>
+                <span className="block text-[11px] font-mono text-slate-500 dark:text-slate-400">{opt.sub}</span>
               </button>
             );
           })}
@@ -200,7 +200,7 @@ export function BaselineScriptModal({
               className={inputClass(sqlId === '' || sqlIdValid)}
             />
             {sqlId !== '' && !sqlIdValid && (
-              <p className="mt-1 text-[10px] text-red-600 dark:text-red-400">
+              <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">
                 SQL_ID is up to 13 alphanumeric characters.
               </p>
             )}
@@ -220,7 +220,7 @@ export function BaselineScriptModal({
                 className={inputClass(planHash === '' || planHashValid)}
               />
               {planHash !== '' && !planHashValid && (
-                <p className="mt-1 text-[10px] text-red-600 dark:text-red-400">
+                <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">
                   Plan hash is digits only.
                 </p>
               )}
@@ -244,7 +244,7 @@ export function BaselineScriptModal({
                 className={inputClass(patchNameValid)}
               />
               {!patchNameValid && (
-                <p className="mt-1 text-[10px] text-red-600 dark:text-red-400">
+                <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">
                   Patch name is 1–128 letters, digits, <code>_</code>, <code>$</code> or <code>#</code>.
                 </p>
               )}
@@ -258,7 +258,7 @@ export function BaselineScriptModal({
                   <button
                     type="button"
                     onClick={() => setHintText(outlinePrefill)}
-                    className={`text-[10px] px-1.5 py-0.5 rounded text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 ${FOCUS_RING}`}
+                    className={`text-[11px] px-1.5 py-0.5 rounded text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 ${FOCUS_RING}`}
                   >
                     Use plan outline
                   </button>
@@ -274,24 +274,24 @@ export function BaselineScriptModal({
                 className={`${inputClass(true)} resize-y whitespace-pre`}
               />
               {outlinePrefill !== '' ? (
-                <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 leading-snug">
+                <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
                   Prefilled with this plan&apos;s full outline, which pins the current plan. Trim it to the hints you need.
                 </p>
               ) : (
-                <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 leading-snug">
+                <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
                   Hints come from DBMS_XPLAN <code>ADVANCED</code> / <code>+OUTLINE</code> output or a SQL Monitor XML
                   report, or type them by hand, e.g. <code>FULL(@&quot;SEL$1&quot; &quot;E&quot;@&quot;SEL$1&quot;)</code>.
                 </p>
               )}
               {hintsEmpty && (
-                <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Enter at least one hint.</p>
+                <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Enter at least one hint.</p>
               )}
             </div>
           </>
         ) : (
           <>
         <div>
-          <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+          <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">
             Source
           </span>
           <div className="flex flex-col gap-1.5">
@@ -313,7 +313,7 @@ export function BaselineScriptModal({
                   className="mt-0.5"
                 />
                 <span>
-                  <span className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
+                  <span className="block text-xs font-medium text-slate-800 dark:text-slate-200">
                     {opt.label}
                   </span>
                   <span className="block text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
@@ -334,7 +334,7 @@ export function BaselineScriptModal({
               className="mt-0.5"
             />
             <span>
-              <span className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
+              <span className="block text-xs font-medium text-slate-800 dark:text-slate-200">
                 Mark as FIXED
               </span>
               <span className="block text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
@@ -349,7 +349,7 @@ export function BaselineScriptModal({
               onChange={(e) => setEnabled(e.target.checked)}
               className="mt-0.5"
             />
-            <span className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
+            <span className="block text-xs font-medium text-slate-800 dark:text-slate-200">
               ENABLED
             </span>
           </label>
@@ -358,7 +358,7 @@ export function BaselineScriptModal({
         )}
 
         <div>
-          <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+          <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">
             Get the script
           </span>
           {!script && (
@@ -399,10 +399,10 @@ export function BaselineScriptModal({
           </div>
           {script && (
             <details className="mt-2">
-              <summary className={`text-[10px] text-slate-500 dark:text-slate-400 cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-300 rounded ${FOCUS_RING}`}>
+              <summary className={`text-[11px] text-slate-500 dark:text-slate-400 cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-300 rounded ${FOCUS_RING}`}>
                 Preview script ({script.split('\n').length} lines)
               </summary>
-              <pre className="mt-1 text-[10px] font-mono p-2 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 whitespace-pre overflow-auto max-h-72">
+              <pre className="mt-1 text-[11px] font-mono p-2 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 whitespace-pre overflow-auto max-h-72">
                 {script}
               </pre>
             </details>

@@ -150,12 +150,12 @@ function SqlScriptBlock({
   };
 
   const buttonClass =
-    'px-2 py-0.5 text-[10px] font-medium rounded border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors';
+    'px-2 py-0.5 text-[11px] font-medium rounded border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors';
 
   return (
     <div className="my-3 rounded-md border border-slate-200 dark:border-slate-700 overflow-hidden">
       <div className="flex items-center gap-2 px-2 py-1 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-        <span className="flex-1 text-[10px] font-mono text-slate-500 dark:text-slate-400 truncate">{filename}</span>
+        <span className="flex-1 text-[11px] font-mono text-slate-500 dark:text-slate-400 truncate">{filename}</span>
         <button type="button" onClick={copy} className={buttonClass}>
           {copied ? 'Copied' : 'Copy'}
         </button>
@@ -170,7 +170,7 @@ function SqlScriptBlock({
       </div>
       {approvalOpen && (
         <div className="p-2 space-y-2 border-b border-slate-200 dark:border-slate-700 bg-amber-50 dark:bg-amber-950/20">
-          <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">
+          <div className="text-[11px] font-medium text-slate-700 dark:text-slate-200">
             Run this exact script on the agent's test connection?
           </div>
           {DESTRUCTIVE_SQL.test(sql) && (
@@ -188,7 +188,7 @@ function SqlScriptBlock({
               type="button"
               onClick={confirmRun}
               disabled={running}
-              className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-colors"
+              className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-colors"
             >
               {running ? 'Running…' : 'Confirm & run'}
             </button>
@@ -272,7 +272,7 @@ function AiFindingRow({ finding, onNavigate }: { finding: AiFinding; onNavigate:
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="flex-1 min-w-0 text-left font-mono truncate font-semibold text-slate-700 dark:text-slate-200"
+          className="flex-1 min-w-0 text-left font-mono truncate font-medium text-slate-700 dark:text-slate-200"
         >
           {finding.title}
         </button>
@@ -284,7 +284,7 @@ function AiFindingRow({ finding, onNavigate }: { finding: AiFinding; onNavigate:
                 type="button"
                 onClick={() => onNavigate(nodeId)}
                 title={`Go to plan line ${nodeId}`}
-                className="min-w-4 h-4 px-0.5 rounded bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 text-[9px] font-bold flex items-center justify-center hover:bg-blue-600 dark:hover:bg-blue-400 transition-colors"
+                className="min-w-4 h-4 px-0.5 rounded bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 text-[11px] font-medium flex items-center justify-center hover:bg-blue-600 dark:hover:bg-blue-400 transition-colors"
               >
                 {nodeId}
               </button>
@@ -296,7 +296,7 @@ function AiFindingRow({ finding, onNavigate }: { finding: AiFinding; onNavigate:
         <div className="px-2 pb-2 pl-9 space-y-1">
           <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug">{finding.explanation}</p>
           {finding.suggestion && (
-            <p className={`text-[11px] italic leading-snug ${styles.text}`}>{finding.suggestion}</p>
+            <p className={`text-[11px] leading-snug ${styles.text}`}>{finding.suggestion}</p>
           )}
         </div>
       )}
@@ -388,7 +388,7 @@ export function AiReportView() {
     return (
       <div className="h-full flex items-center justify-center bg-neutral-50 dark:bg-neutral-950">
         <div className="max-w-md px-6 text-center">
-          <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
+          <h2 className="text-base font-medium text-neutral-900 dark:text-neutral-100">
             AI analysis is coming soon
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
@@ -409,7 +409,7 @@ export function AiReportView() {
 
   const providerBadge = report ? (
     <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-300">
-      <span className="font-semibold">{PROVIDER_LABELS[report.provider]}</span>
+      <span className="font-medium">{PROVIDER_LABELS[report.provider]}</span>
       <span className="font-mono text-slate-500 dark:text-slate-400">{report.model}</span>
     </span>
   ) : null;
@@ -435,7 +435,7 @@ export function AiReportView() {
     <div className="h-full flex flex-col bg-neutral-50 dark:bg-neutral-950">
       {/* Header bar */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-200 dark:border-slate-800 shrink-0">
-        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+        <span className="text-xs font-medium text-slate-700 dark:text-slate-200">
           AI {dialogMode === 'compare' ? 'plan comparison' : dialogMode === 'testcase' ? 'test case' : 'plan analysis'}
         </span>
         {providerBadge}
@@ -481,7 +481,7 @@ export function AiReportView() {
           {/* Error state (refusal explanation surfaces here too) */}
           {status === 'error' && error && (
             <div className="rounded-md border border-red-500/20 bg-red-50 dark:bg-red-950/30 px-3 py-2 space-y-2">
-              <div className="text-xs font-semibold text-red-700 dark:text-red-300">{errorMessage(error).title}</div>
+              <div className="text-xs font-medium text-red-700 dark:text-red-300">{errorMessage(error).title}</div>
               <div className="text-xs text-red-700/90 dark:text-red-300/90 leading-snug">{errorMessage(error).detail}</div>
               <div className="flex gap-2">
                 {error.kind === 'auth' ? (
@@ -533,7 +533,7 @@ export function AiReportView() {
           {/* Structured findings under the narrative */}
           {report?.findings && report.findings.length > 0 && (
             <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
-              <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              <div className="mb-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
                 Findings
               </div>
               <div className="space-y-1">
@@ -551,7 +551,7 @@ export function AiReportView() {
           {/* Follow-up conversation (after a completed report) */}
           {report && status === 'done' && (
             <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-3">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                 Follow-up chat
               </div>
 
@@ -590,7 +590,7 @@ export function AiReportView() {
                     <button
                       type="button"
                       onClick={cancel}
-                      className="ml-2 px-2 py-0.5 text-[10px] font-medium rounded border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                      className="ml-2 px-2 py-0.5 text-[11px] font-medium rounded border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                     >
                       Cancel
                     </button>
@@ -621,11 +621,11 @@ export function AiReportView() {
                     type="button"
                     disabled
                     title={AI_COMING_SOON_LABEL}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-md bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
+                    className="px-3 py-1.5 text-xs font-medium rounded-md bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
                   >
                     Send
                   </button>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                  <span className="text-[11px] text-slate-400 dark:text-slate-500">
                     Replies go to the same provider as the report{canRunViaAgent ? ' · agent script runs always require your confirmation' : ''}
                   </span>
                 </div>

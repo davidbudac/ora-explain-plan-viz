@@ -33,9 +33,9 @@ export function TableObjectDetail({ objectKey, table, bundle, onSelectObject }: 
   return (
     <div className="p-4 space-y-3 max-w-4xl">
       <div className="flex items-center justify-between gap-2">
-        <code className="text-sm font-mono font-bold text-blue-600 dark:text-blue-400 break-all">{objectKey}</code>
+        <code className="text-sm font-mono font-medium text-blue-600 dark:text-blue-400 break-all">{objectKey}</code>
         {table.stats.stale_stats === 'YES' && (
-          <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-500 text-white shrink-0 uppercase">Stale</span>
+          <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-amber-500 text-white shrink-0">Stale</span>
         )}
       </div>
 
@@ -43,9 +43,9 @@ export function TableObjectDetail({ objectKey, table, bundle, onSelectObject }: 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden">
           <StatItem label="Rows" value={formatNumberShort(table.stats.num_rows ?? undefined)} />
           <StatItem label="Blocks" value={formatNumberShort(table.stats.blocks ?? undefined)} />
-          <StatItem label="Avg Row Len" value={table.stats.avg_row_len != null ? `${table.stats.avg_row_len} B` : undefined} />
+          <StatItem label="Avg row len" value={table.stats.avg_row_len != null ? `${table.stats.avg_row_len} B` : undefined} />
           <StatItem label="Analyzed" value={formatDateShort(table.stats.last_analyzed)} />
-          {table.segment && <StatItem label="Segment Size" value={formatBytes(table.segment.bytes)} />}
+          {table.segment && <StatItem label="Segment size" value={formatBytes(table.segment.bytes)} />}
           {table.segment && <StatItem label="Extents" value={formatNumberShort(table.segment.extents)} />}
           {table.physical?.compression && (
             <StatItem
@@ -84,7 +84,7 @@ export function TableObjectDetail({ objectKey, table, bundle, onSelectObject }: 
         <Card title="Constraints">
           <div className="space-y-2 text-[11px]">
             {constraints!.primary_key && (
-              <ConstraintRow label="Primary Key" name={constraints!.primary_key.name} columns={constraints!.primary_key.columns} />
+              <ConstraintRow label="Primary key" name={constraints!.primary_key.name} columns={constraints!.primary_key.columns} />
             )}
             {constraints!.unique?.map((u) => (
               <ConstraintRow key={u.name} label="Unique" name={u.name} columns={u.columns} />
@@ -95,8 +95,8 @@ export function TableObjectDetail({ objectKey, table, bundle, onSelectObject }: 
               return (
                 <div key={fk.name} className="rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-2">
                   <div className="flex items-center gap-1.5 mb-1">
-                    <Tag>Foreign Key</Tag>
-                    <code className="font-mono font-semibold text-slate-800 dark:text-slate-200">{fk.name}</code>
+                    <Tag>Foreign key</Tag>
+                    <code className="font-mono font-medium text-slate-800 dark:text-slate-200">{fk.name}</code>
                   </div>
                   <div className="font-mono text-slate-600 dark:text-slate-400">
                     ({fk.columns.join(', ')}) →{' '}
@@ -121,7 +121,7 @@ export function TableObjectDetail({ objectKey, table, bundle, onSelectObject }: 
               <div key={c.name} className="rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-2">
                 <div className="flex items-center gap-1.5 mb-1">
                   <Tag>Check</Tag>
-                  <code className="font-mono font-semibold text-slate-800 dark:text-slate-200">{c.name}</code>
+                  <code className="font-mono font-medium text-slate-800 dark:text-slate-200">{c.name}</code>
                 </div>
                 <div className="font-mono text-slate-600 dark:text-slate-400">{c.condition ?? '—'}</div>
               </div>
@@ -130,7 +130,7 @@ export function TableObjectDetail({ objectKey, table, bundle, onSelectObject }: 
               <button
                 type="button"
                 onClick={() => setShowGenerated(true)}
-                className={`rounded text-[10px] font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 ${FOCUS_RING}`}
+                className={`rounded text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 ${FOCUS_RING}`}
               >
                 Show {hiddenGeneratedCount} system-generated NOT NULL check{hiddenGeneratedCount === 1 ? '' : 's'}
               </button>
@@ -139,7 +139,7 @@ export function TableObjectDetail({ objectKey, table, bundle, onSelectObject }: 
               <button
                 type="button"
                 onClick={() => setShowGenerated(false)}
-                className={`rounded text-[10px] font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 ${FOCUS_RING}`}
+                className={`rounded text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 ${FOCUS_RING}`}
               >
                 Hide system-generated checks
               </button>
@@ -149,12 +149,12 @@ export function TableObjectDetail({ objectKey, table, bundle, onSelectObject }: 
       )}
 
       {table.extended_stats && table.extended_stats.length > 0 && (
-        <Card title="Extended Statistics">
+        <Card title="Extended statistics">
           <div className="space-y-1.5">
             {table.extended_stats.map((es) => (
               <div key={es.extension_name} className="text-[11px] rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-2">
                 <div className="flex items-center justify-between gap-2">
-                  <code className="font-mono font-semibold text-slate-800 dark:text-slate-200">{es.extension_name}</code>
+                  <code className="font-mono font-medium text-slate-800 dark:text-slate-200">{es.extension_name}</code>
                   {es.has_histogram && <Tag>Histogram</Tag>}
                 </div>
                 <div className="font-mono text-slate-500 dark:text-slate-400 mt-0.5">{es.extension}</div>
@@ -175,7 +175,7 @@ export function TableObjectDetail({ objectKey, table, bundle, onSelectObject }: 
                 className="w-full text-left text-[11px] rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 p-2 transition-colors"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <code className="font-mono font-semibold text-slate-800 dark:text-slate-200 truncate">{idx.key}</code>
+                  <code className="font-mono font-medium text-slate-800 dark:text-slate-200 truncate">{idx.key}</code>
                   <span className="text-slate-400 dark:text-slate-500 shrink-0">{idx.object.stats.uniqueness}</span>
                 </div>
                 <div className="font-mono text-slate-500 dark:text-slate-400 mt-0.5 truncate">
@@ -197,7 +197,7 @@ function ConstraintRow({ label, name, columns }: { label: string; name: string; 
     <div className="rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-2">
       <div className="flex items-center gap-1.5 mb-1">
         <Tag>{label}</Tag>
-        <code className="font-mono font-semibold text-slate-800 dark:text-slate-200">{name}</code>
+        <code className="font-mono font-medium text-slate-800 dark:text-slate-200">{name}</code>
       </div>
       <div className="font-mono text-slate-600 dark:text-slate-400">({columns.join(', ')})</div>
     </div>

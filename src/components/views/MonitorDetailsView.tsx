@@ -14,7 +14,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
       <div className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{title}</h3>
+        <h3 className="text-sm font-medium text-slate-700 dark:text-slate-200">{title}</h3>
       </div>
       <div className="px-4 py-3">{children}</div>
     </div>
@@ -25,7 +25,7 @@ function Field({ label, value }: { label: string; value?: string | number | null
   if (value === undefined || value === null) return null;
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-medium">{label}</span>
+      <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">{label}</span>
       <span className="text-sm text-slate-800 dark:text-slate-200 font-mono">{value}</span>
     </div>
   );
@@ -38,7 +38,7 @@ function StatusBadge({ status }: { status: string }) {
   else if (upper.includes('EXECUTING')) color = 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300';
   else if (upper.includes('ERROR') || upper.includes('FAIL')) color = 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300';
   return (
-    <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded ${color}`}>{status}</span>
+    <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded ${color}`}>{status}</span>
   );
 }
 
@@ -58,19 +58,19 @@ function TimeBreakdownBar({ meta }: { meta: SqlMonitorMetadata }) {
     <div className="space-y-1.5">
       <div className="flex h-5 rounded overflow-hidden bg-slate-100 dark:bg-slate-800">
         {cpu > 0 && (
-          <div className="bg-emerald-500 dark:bg-emerald-600 transition-all" style={{ width: `${pct(cpu)}%` }}
+          <div className="bg-emerald-500 dark:bg-emerald-600" style={{ width: `${pct(cpu)}%` }}
             title={`CPU: ${fmt(cpu)} (${pct(cpu).toFixed(1)}%)`} />
         )}
         {io > 0 && (
-          <div className="bg-sky-500 dark:bg-sky-600 transition-all" style={{ width: `${pct(io)}%` }}
+          <div className="bg-sky-500 dark:bg-sky-600" style={{ width: `${pct(io)}%` }}
             title={`I/O Wait: ${fmt(io)} (${pct(io).toFixed(1)}%)`} />
         )}
         {plsql > 0 && (
-          <div className="bg-violet-500 dark:bg-violet-600 transition-all" style={{ width: `${pct(plsql)}%` }}
+          <div className="bg-violet-500 dark:bg-violet-600" style={{ width: `${pct(plsql)}%` }}
             title={`PL/SQL: ${fmt(plsql)} (${pct(plsql).toFixed(1)}%)`} />
         )}
         {other > 0 && (
-          <div className="bg-slate-400 dark:bg-slate-500 transition-all" style={{ width: `${pct(other)}%` }}
+          <div className="bg-slate-400 dark:bg-slate-500" style={{ width: `${pct(other)}%` }}
             title={`Other: ${fmt(other)} (${pct(other).toFixed(1)}%)`} />
         )}
       </div>
@@ -99,7 +99,7 @@ function skewLabel(metric: SkewMetric | undefined): string | undefined {
 /** Amber once the busiest server did at least twice the set's average work. */
 function skewClass(metric: SkewMetric | undefined): string {
   return metric?.ratio !== undefined && metric.ratio >= 2
-    ? 'text-amber-600 dark:text-amber-400 font-semibold'
+    ? 'text-amber-600 dark:text-amber-400 font-medium'
     : 'text-slate-600 dark:text-slate-300';
 }
 
@@ -135,7 +135,7 @@ function ParallelServersTable({ servers, meta }: { servers: ParallelServer[]; me
       <div className="overflow-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+            <tr className="text-left text-[11px] text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
               <th className={TH}>Server</th>
               <th className={TH}>Set</th>
               <th className={TH_NUM}>Elapsed</th>
@@ -228,21 +228,21 @@ export function MonitorDetailsView() {
   return (
     <div className="h-full overflow-auto bg-slate-50 dark:bg-slate-950 p-4 space-y-4">
       {/* Execution Summary */}
-      <Section title="Execution Summary">
+      <Section title="Execution summary">
         <div className="space-y-3">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-3">
             {meta.status && (
               <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-medium">Status</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Status</span>
                 <StatusBadge status={meta.status} />
               </div>
             )}
             <Field label="SQL ID" value={parsedPlan.sqlId} />
-            <Field label="Plan Hash" value={parsedPlan.planHashValue} />
-            <Field label="Exec Start" value={meta.sqlExecStart} />
+            <Field label="Plan hash" value={parsedPlan.planHashValue} />
+            <Field label="Exec start" value={meta.sqlExecStart} />
             <Field label="Duration" value={meta.duration !== undefined ? formatTimeDetailed(meta.duration * 1000) : undefined} />
-            <Field label="Elapsed Time" value={formatTimeDetailed(parsedPlan.totalElapsedTime)} />
-            <Field label="SQL Exec ID" value={meta.sqlExecId} />
+            <Field label="Elapsed time" value={formatTimeDetailed(parsedPlan.totalElapsedTime)} />
+            <Field label="SQL exec ID" value={meta.sqlExecId} />
           </div>
           <TimeBreakdownBar meta={meta} />
         </div>
@@ -261,10 +261,10 @@ export function MonitorDetailsView() {
             <Field label="Module" value={meta.module} />
             <Field label="Service" value={meta.service} />
             <Field label="Database" value={meta.dbUniqueName} />
-            <Field label="DB Version" value={meta.dbVersion} />
+            <Field label="DB version" value={meta.dbVersion} />
             <Field label="Platform" value={meta.dbPlatform} />
             <Field label="Host" value={meta.reportHostName} />
-            <Field label="CPU Cores" value={meta.cpuCores !== undefined
+            <Field label="CPU cores" value={meta.cpuCores !== undefined
               ? `${meta.cpuCores}${meta.hyperthread !== undefined ? (meta.hyperthread ? ' (HT)' : ' (no HT)') : ''}`
               : undefined} />
           </div>
@@ -273,7 +273,7 @@ export function MonitorDetailsView() {
 
       {/* SQL Text */}
       {parsedPlan.sqlText && (
-        <Section title="SQL Text">
+        <Section title="SQL text">
           <div className="space-y-2">
             <div className="flex justify-end">
               <CopyButton text={parsedPlan.sqlText} label="Copy SQL" className="border border-slate-300 dark:border-slate-600" />
@@ -289,11 +289,11 @@ export function MonitorDetailsView() {
 
       {/* Bind Variables */}
       {binds && binds.length > 0 && (
-        <Section title="Bind Variables">
+        <Section title="Bind variables">
           <div className="overflow-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                <tr className="text-left text-[11px] text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                   <th className="pb-1.5 pr-4 font-medium">#</th>
                   <th className="pb-1.5 pr-4 font-medium">Name</th>
                   <th className="pb-1.5 pr-4 font-medium">Type</th>
@@ -306,7 +306,7 @@ export function MonitorDetailsView() {
                     <td className="py-1 pr-4 font-mono text-slate-400">{b.position ?? i + 1}</td>
                     <td className="py-1 pr-4 font-mono font-medium text-slate-700 dark:text-slate-300">{b.name}</td>
                     <td className="py-1 pr-4 text-slate-500 dark:text-slate-400">{b.type ?? '—'}</td>
-                    <td className="py-1 font-mono text-slate-800 dark:text-slate-200">{b.value ?? <span className="text-slate-400 italic">null</span>}</td>
+                    <td className="py-1 font-mono text-slate-800 dark:text-slate-200">{b.value ?? <span className="text-slate-400">null</span>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -317,15 +317,15 @@ export function MonitorDetailsView() {
 
       {/* Resource Consumption */}
       {(meta.bufferGets || meta.readReqs || meta.readBytes || peakMemory || peakTemp) && (
-        <Section title="Resource Consumption">
+        <Section title="Resource consumption">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-3">
-            <Field label="Buffer Gets" value={formatNumberShort(meta.bufferGets)} />
-            <Field label="Physical Read Reqs" value={formatNumberShort(meta.readReqs)} />
-            <Field label="Physical Read Bytes" value={formatBytes(meta.readBytes)} />
-            <Field label="User Fetch Count" value={meta.userFetchCount?.toString()} />
-            <Field label="Peak Memory" value={formatBytes(peakMemory)} />
-            <Field label="Peak Temp Space" value={formatBytes(peakTemp)} />
-            <Field label="Total Cost" value={parsedPlan.totalCost > 0 ? formatNumberShort(parsedPlan.totalCost) : undefined} />
+            <Field label="Buffer gets" value={formatNumberShort(meta.bufferGets)} />
+            <Field label="Physical read reqs" value={formatNumberShort(meta.readReqs)} />
+            <Field label="Physical read bytes" value={formatBytes(meta.readBytes)} />
+            <Field label="User fetch count" value={meta.userFetchCount?.toString()} />
+            <Field label="Peak memory" value={formatBytes(peakMemory)} />
+            <Field label="Peak temp space" value={formatBytes(peakTemp)} />
+            <Field label="Total cost" value={parsedPlan.totalCost > 0 ? formatNumberShort(parsedPlan.totalCost) : undefined} />
             <Field label="Operations" value={parsedPlan.allNodes.length.toString()} />
           </div>
         </Section>
@@ -333,18 +333,18 @@ export function MonitorDetailsView() {
 
       {/* Parallel Servers */}
       {parallelServers && parallelServers.length > 0 && (
-        <Section title="Parallel Servers">
+        <Section title="Parallel servers">
           <ParallelServersTable servers={parallelServers} meta={meta} />
         </Section>
       )}
 
       {/* Optimizer Environment */}
       {meta.optimizerEnv && Object.keys(meta.optimizerEnv).length > 0 && (
-        <Section title="Optimizer Environment">
+        <Section title="Optimizer environment">
           <div className="overflow-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                <tr className="text-left text-[11px] text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                   <th className="pb-1.5 pr-4 font-medium">Parameter</th>
                   <th className="pb-1.5 font-medium">Value</th>
                 </tr>
@@ -364,11 +364,11 @@ export function MonitorDetailsView() {
 
       {/* Plan Info */}
       {planInfo.length > 0 && (
-        <Section title="Plan Info">
+        <Section title="Plan info">
           <div className="overflow-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                <tr className="text-left text-[11px] text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                   <th className="pb-1.5 pr-4 font-medium">Type</th>
                   <th className="pb-1.5 font-medium">Value</th>
                 </tr>
@@ -388,7 +388,7 @@ export function MonitorDetailsView() {
 
       {/* Outline Hints */}
       {outlineHints && outlineHints.length > 0 && (
-        <Section title="Outline Hints">
+        <Section title="Outline hints">
           <div className="space-y-2">
             <div className="flex justify-end">
               <CopyButton text={outlineHints.join('\n')} label="Copy all" className="border border-slate-300 dark:border-slate-600" />

@@ -38,7 +38,7 @@ function RenameInput({
         }
       }}
       className={`
-        w-24 mx-2 px-1 py-0 text-xs font-semibold bg-transparent border-b outline-none
+        w-24 mx-2 px-1 py-0 text-xs font-medium bg-transparent border-b outline-none
         ${isActive
           ? 'text-slate-900 dark:text-slate-100 border-slate-500 dark:border-slate-400 placeholder-slate-400'
           : 'text-slate-700 dark:text-slate-300 border-slate-400 dark:border-slate-500 placeholder-slate-400'
@@ -121,19 +121,19 @@ export function PlanTabs({ compact = false }: PlanTabsProps) {
                   onDoubleClick={() => setEditingIndex(index)}
                   aria-current={isActive ? 'true' : undefined}
                   title={`${name}${phv ? ` — PHV ${phv}${childNumber !== undefined ? ` · child ${childNumber}` : ''}` : ''}${slot.parsedPlan ? '' : ' (empty)'} · double-click to rename`}
-                  className={`flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 text-xs font-semibold rounded-md ${FOCUS_RING_INSET}`}
+                  className={`flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 text-xs font-medium rounded-md ${FOCUS_RING_INSET}`}
                 >
                   <span className="select-none">{name}</span>
                   {phv && (
                     <span
                       data-plan-tab-extra
-                      className={`font-mono text-[10px] ${isActive ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500'} ${extraClass}`}
+                      className={`font-mono text-[11px] ${isActive ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500'} ${extraClass}`}
                     >
                       PHV: {phv}
                     </span>
                   )}
                   {!slot.parsedPlan && (
-                    <span className={`text-[10px] italic ${isActive ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                    <span className={`text-[11px] ${isActive ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500'}`}>
                       (empty)
                     </span>
                   )}
@@ -163,7 +163,7 @@ export function PlanTabs({ compact = false }: PlanTabsProps) {
                   }}
                   aria-label={`SQL Plan Baseline script for ${name}`}
                   className={`
-                    shrink-0 mx-0.5 px-1 py-px text-[10px] font-semibold rounded border bg-transparent transition-colors
+                    shrink-0 mx-0.5 px-1 py-px text-[11px] font-medium rounded border bg-transparent transition-colors
                     border-slate-300/70 dark:border-slate-600/70 text-slate-500 dark:text-slate-400
                     hover:border-slate-400 dark:hover:border-slate-500 hover:text-slate-700 dark:hover:text-slate-200
                     ${FOCUS_RING} ${extraClass}
@@ -198,13 +198,13 @@ export function PlanTabs({ compact = false }: PlanTabsProps) {
           type="button"
           onClick={addPlanSlot}
           aria-label="Add plan"
-          className={`shrink-0 h-[30px] flex items-center gap-1 px-2 text-xs font-semibold rounded-md border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-400 dark:hover:border-slate-500 transition-colors ${FOCUS_RING_INSET}`}
+          className={`shrink-0 h-[30px] flex items-center gap-1 px-2 text-xs font-medium rounded-md border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-400 dark:hover:border-slate-500 transition-colors ${FOCUS_RING_INSET}`}
           title="Add another plan to compare"
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          <span data-plan-tab-extra className={`pr-0.5 ${extraClass}`}>Add Plan</span>
+          <span data-plan-tab-extra className={`pr-0.5 ${extraClass}`}>Add plan</span>
         </button>
       )}
 

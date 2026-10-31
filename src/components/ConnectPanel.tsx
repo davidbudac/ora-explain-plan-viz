@@ -84,11 +84,11 @@ function pageHost(): string {
 
 const inputClass =
   'h-8 px-2 text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 disabled:opacity-60';
-const labelClass = 'text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide';
+const labelClass = 'text-[11px] font-medium text-slate-500 dark:text-slate-400';
 const hintClass = 'text-[11px] text-slate-500 dark:text-slate-400';
-const buttonClass = `h-8 px-3 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed ${FOCUS_RING}`;
-const primaryButtonClass = `h-8 px-3 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold ${FOCUS_RING}`;
-const linkButtonClass = `text-[11px] font-semibold text-blue-600 dark:text-blue-400 underline-offset-2 hover:underline rounded ${FOCUS_RING}`;
+const buttonClass = `h-8 px-3 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed ${FOCUS_RING}`;
+const primaryButtonClass = `h-8 px-3 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium ${FOCUS_RING}`;
+const linkButtonClass = `text-[11px] font-medium text-blue-600 dark:text-blue-400 underline-offset-2 hover:underline rounded ${FOCUS_RING}`;
 const errorTextClass = 'text-xs text-red-600 dark:text-red-400 break-words [overflow-wrap:anywhere]';
 const warnTextClass = 'text-xs text-amber-700 dark:text-amber-400 break-words [overflow-wrap:anywhere]';
 const okTextClass = 'text-xs text-emerald-700 dark:text-emerald-400';
@@ -123,15 +123,15 @@ const ARROW_TONES: Record<Tone, string> = {
 function DiagramBox({ tone, title, detail }: { tone: Tone; title: string; detail: string }) {
   return (
     <div className={`min-w-0 flex-1 rounded-md border px-2 py-1 text-center leading-tight ${BOX_TONES[tone]}`}>
-      <div className="truncate text-[11px] font-semibold">{title}</div>
-      <div className="truncate text-[10px] opacity-80">{detail}</div>
+      <div className="truncate text-[11px] font-medium">{title}</div>
+      <div className="truncate text-[11px] opacity-80">{detail}</div>
     </div>
   );
 }
 
 function DiagramArrow({ tone }: { tone: Tone }) {
   return (
-    <span aria-hidden="true" className={`shrink-0 text-sm font-bold ${ARROW_TONES[tone]}`}>
+    <span aria-hidden="true" className={`shrink-0 text-sm font-medium ${ARROW_TONES[tone]}`}>
       ⇄
     </span>
   );
@@ -187,7 +187,7 @@ function StepItem({
         <span
           role="img"
           aria-label={`Step ${index}, ${STATUS_LABELS[status]}`}
-          className={`flex h-5 w-5 items-center justify-center rounded-full border text-[11px] font-bold ${MARKER_TONES[status]}`}
+          className={`flex h-5 w-5 items-center justify-center rounded-full border text-[11px] font-medium ${MARKER_TONES[status]}`}
         >
           {marker}
         </span>
@@ -200,7 +200,7 @@ function StepItem({
       </div>
       <div className={`min-w-0 flex-1 ${last ? '' : 'pb-3'}`}>
         <div
-          className={`text-xs font-semibold leading-5 ${status === 'locked' ? 'text-slate-400 dark:text-slate-600' : 'text-slate-800 dark:text-slate-100'}`}
+          className={`text-xs font-medium leading-5 ${status === 'locked' ? 'text-slate-400 dark:text-slate-600' : 'text-slate-800 dark:text-slate-100'}`}
         >
           {title}
         </div>
@@ -598,12 +598,12 @@ export function ConnectPanel() {
     >
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Connect to a database</h2>
+        <h2 className="text-sm font-medium text-slate-800 dark:text-slate-100">Connect to a database</h2>
         <a
           href={AGENT_DOCS_URL}
           target="_blank"
           rel="noreferrer"
-          className={`text-[11px] font-semibold text-blue-600 hover:underline dark:text-blue-400 rounded ${FOCUS_RING}`}
+          className={`text-[11px] font-medium text-blue-600 hover:underline dark:text-blue-400 rounded ${FOCUS_RING}`}
         >
           Setup guide ↗
         </a>
@@ -730,7 +730,7 @@ export function ConnectPanel() {
                     onClick={() => setShowToken((v) => !v)}
                     aria-pressed={showToken}
                     aria-label={showToken ? 'Hide token' : 'Show token'}
-                    className={`h-8 px-2 text-[11px] font-semibold rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 ${FOCUS_RING}`}
+                    className={`h-8 px-2 text-[11px] font-medium rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 ${FOCUS_RING}`}
                   >
                     {showToken ? 'Hide' : 'Show'}
                   </button>
@@ -833,7 +833,7 @@ export function ConnectPanel() {
                 aria-selected={pickTab === id}
                 aria-controls={`connect-tabpanel-${id}`}
                 onClick={() => setPickTab(id)}
-                className={`h-7 px-2.5 text-[11px] font-semibold rounded-md border transition-colors ${FOCUS_RING} ${
+                className={`h-7 px-2.5 text-[11px] font-medium rounded-md border transition-colors ${FOCUS_RING} ${
                   pickTab === id
                     ? 'border-blue-600 bg-blue-600 text-white dark:border-blue-400 dark:bg-blue-400 dark:text-slate-950'
                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
@@ -852,7 +852,7 @@ export function ConnectPanel() {
                     type="button"
                     aria-pressed={source === 'cursor'}
                     onClick={() => setSource('cursor')}
-                    className={`h-7 px-2 text-[11px] font-semibold ${FOCUS_RING} ${source === 'cursor' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}
+                    className={`h-7 px-2 text-[11px] font-medium ${FOCUS_RING} ${source === 'cursor' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}
                   >
                     Cursor cache
                   </button>
@@ -861,11 +861,11 @@ export function ConnectPanel() {
                     aria-pressed={source === 'monitor'}
                     onClick={() => setSource('monitor')}
                     title="SQL Monitor requires the Oracle Tuning Pack license"
-                    className={`flex h-7 items-center gap-1 px-2 text-[11px] font-semibold ${FOCUS_RING} ${source === 'monitor' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}
+                    className={`flex h-7 items-center gap-1 px-2 text-[11px] font-medium ${FOCUS_RING} ${source === 'monitor' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}
                   >
                     SQL Monitor
-                    <span className={`rounded px-1 text-[9px] font-bold uppercase ${source === 'monitor' ? 'bg-white/25' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'}`}>
-                      Tuning Pack
+                    <span className={`rounded px-1 text-[11px] font-medium ${source === 'monitor' ? 'bg-white/25' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'}`}>
+                      Tuning pack
                     </span>
                   </button>
                 </div>
@@ -880,9 +880,9 @@ export function ConnectPanel() {
                     <thead>
                       <tr className="text-left text-slate-500 dark:text-slate-400">
                         <th className="py-1 pr-2 font-medium">SQL ID</th>
-                        <th className="py-1 pr-2 font-medium">SQL Text</th>
+                        <th className="py-1 pr-2 font-medium">SQL text</th>
                         <th className="py-1 pr-2 font-medium whitespace-nowrap">Elapsed</th>
-                        <th className="py-1 pr-2 font-medium whitespace-nowrap">Last Active</th>
+                        <th className="py-1 pr-2 font-medium whitespace-nowrap">Last active</th>
                         <th className="py-1 pr-2 font-medium" />
                       </tr>
                     </thead>
@@ -997,7 +997,7 @@ export function ConnectPanel() {
               className="mt-0.5 accent-blue-600"
             />
             <span>
-              <b className="font-semibold">Attach DB metadata</b> — adds table/index/column statistics; powers the
+              <b className="font-medium">Attach DB metadata</b> — adds table/index/column statistics; powers the
               Metadata tab and advisor.
             </span>
           </label>
@@ -1019,7 +1019,7 @@ export function ConnectPanel() {
 
       {/* Optional: test connection (scratch DB for AI-proposed scripts) */}
       <details className="border-t border-slate-200 pt-2 dark:border-slate-800">
-        <summary className={`cursor-pointer select-none text-[11px] font-semibold text-slate-600 dark:text-slate-400 rounded ${FOCUS_RING}`}>
+        <summary className={`cursor-pointer select-none text-[11px] font-medium text-slate-600 dark:text-slate-400 rounded ${FOCUS_RING}`}>
           Optional · Test connection for AI scripts
         </summary>
         <div className="mt-2 flex flex-col gap-2">

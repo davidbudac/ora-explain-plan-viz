@@ -36,12 +36,12 @@ const PARSE_SHORTCUT_LABEL = IS_MAC ? '⌘⏎' : 'Ctrl+Enter';
 const MENU_ITEM_CLASS =
   `w-full px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-800 focus-visible:bg-slate-100 dark:focus-visible:bg-slate-800 ${FOCUS_RING_INSET}`;
 const MENU_HEADING_CLASS =
-  'px-3 pt-2 pb-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide';
+  'px-3 pt-2 pb-1 text-[11px] font-medium text-slate-500 dark:text-slate-400';
 // Read-only plan flags: dashed-outline mono tags, so they never read as the
 // solid-bordered, icon-led buttons (e.g. "Add metadata") on the same row.
-const FLAG_BASE = 'inline-flex items-center px-1.5 py-px border border-dashed rounded-sm font-mono text-[10px] uppercase tracking-wide cursor-default select-none';
+const FLAG_BASE = 'inline-flex items-center px-1.5 py-px border border-dashed rounded-sm font-mono text-[11px] cursor-default select-none';
 const CHIP_CLASS = `${FLAG_BASE} border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400`;
-const BADGE_BASE = 'text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded';
+const BADGE_BASE = 'font-mono text-[11px] leading-4 px-1.5 rounded border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400';
 
 /** Marks a top-bar button's text as collapsible (see `useTopBarMode`). */
 const topBarLabelProps = { [TOP_BAR_LABEL_ATTR]: '' };
@@ -63,12 +63,12 @@ export function ExampleBadges({ sample }: { sample: SamplePlan }) {
       {sample.metadata && (
         <span
           title="Includes a schema-metadata bundle — tables, indexes, columns & stats on the Metadata tab"
-          className={`${BADGE_BASE} text-violet-600 dark:text-violet-300 bg-violet-100 dark:bg-violet-900/40`}
+          className={BADGE_BASE}
         >
           metadata
         </span>
       )}
-      <span className={`${BADGE_BASE} text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900`}>
+      <span className={BADGE_BASE}>
         {SAMPLE_CATEGORY_BADGES[sample.category] ?? sample.category}
       </span>
     </span>
@@ -217,14 +217,14 @@ export function InputPanel() {
               carries the full "SQL ID: …" in every mode. */}
           <h2
             ref={titleRef}
-            className={`text-sm font-semibold text-slate-900 dark:text-slate-100 truncate ${titleTextHidden ? 'opacity-0' : ''}`}
+            className={`text-sm font-medium text-slate-900 dark:text-slate-100 truncate ${titleTextHidden ? 'opacity-0' : ''}`}
           >
             {hasMultiplePlans && (
               <span className="text-slate-500 dark:text-slate-400 mr-1.5">{plans[activePlanIndex].customLabel || plans[activePlanIndex].label}:</span>
             )}
             {parsedPlan?.sqlId
               ? <SqlIdTitle sqlId={parsedPlan.sqlId} />
-              : 'Oracle Execution Plan Input'}
+              : 'Oracle execution plan'}
           </h2>
         </button>
 
@@ -239,9 +239,9 @@ export function InputPanel() {
               type="button"
               onClick={() => setShowConnectPanel(!showConnectPanel)}
               aria-pressed={showConnectPanel}
-              aria-label="DB Connect"
+              aria-label="DB connect"
               title="Connect to a database through the local agent"
-              className={`h-8 px-2 text-xs border rounded-md transition-colors flex items-center gap-1.5 font-semibold ${FOCUS_RING} ${
+              className={`h-8 px-2 text-xs border rounded-md transition-colors flex items-center gap-1.5 font-medium ${FOCUS_RING} ${
                 showConnectPanel
                   ? 'border-slate-300 dark:border-slate-600 bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100'
                   : 'border-slate-200 dark:border-slate-700 bg-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -250,7 +250,7 @@ export function InputPanel() {
               <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={DB_ICON_PATH} />
               </svg>
-              <span {...topBarLabelProps} className={labelsCollapsed ? 'sr-only' : ''}>DB Connect</span>
+              <span {...topBarLabelProps} className={labelsCollapsed ? 'sr-only' : ''}>DB connect</span>
             </button>
           )}
           <div className="relative" ref={menuWrapRef}>
@@ -262,14 +262,14 @@ export function InputPanel() {
               aria-haspopup="menu"
               aria-expanded={showSampleMenu}
               aria-controls={showSampleMenu ? menuId : undefined}
-              aria-label="Load Example"
+              aria-label="Load example"
               title="Load a recent plan or an example"
-              className={`h-8 px-2 text-xs border border-slate-200 dark:border-slate-700 bg-transparent text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5 font-semibold ${FOCUS_RING}`}
+              className={`h-8 px-2 text-xs border border-slate-200 dark:border-slate-700 bg-transparent text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5 font-medium ${FOCUS_RING}`}
             >
               <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={EXAMPLE_ICON_PATH} />
               </svg>
-              <span {...topBarLabelProps} className={labelsCollapsed ? 'sr-only' : ''}>Load Example</span>
+              <span {...topBarLabelProps} className={labelsCollapsed ? 'sr-only' : ''}>Load example</span>
               {/* Part of the collapsible label: the icon-only trigger drops its chevron too. */}
               <span {...topBarLabelProps} className={labelsCollapsed ? 'sr-only' : ''}>
                 <svg className={`w-4 h-4 transition-transform ${showSampleMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -382,7 +382,7 @@ export function InputPanel() {
               {/* Flags (not actions) sit apart on the right. */}
               <ul aria-label="Plan properties" className="ml-auto flex items-center flex-wrap justify-end gap-1">
                 <li className={CHIP_CLASS}>{getSourceDisplayName(parsedPlan.source)}</li>
-                {parsedPlan.hasActualStats && <li className={CHIP_CLASS}>Actual Stats</li>}
+                {parsedPlan.hasActualStats && <li className={CHIP_CLASS}>Actual stats</li>}
                 {parsedPlan.bindVariables && parsedPlan.bindVariables.length > 0 && (
                   <li className={CHIP_CLASS}>
                     {parsedPlan.bindVariables.length} bind{parsedPlan.bindVariables.length !== 1 ? 's' : ''}
@@ -433,15 +433,15 @@ export function InputPanel() {
               onClick={handleParse}
               disabled={!draftInput.trim()}
               aria-keyshortcuts="Meta+Enter Control+Enter"
-              className={`h-8 px-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold text-xs ${FOCUS_RING}`}
+              className={`h-8 px-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-xs ${FOCUS_RING}`}
             >
-              Parse <kbd className="ml-1 text-[10px] opacity-70 font-normal">{PARSE_SHORTCUT_LABEL}</kbd>
+              Parse <kbd className="ml-1 text-[11px] opacity-70 font-normal">{PARSE_SHORTCUT_LABEL}</kbd>
             </button>
             {(parsedPlan || draftInput.trim()) && (
               <button
                 type="button"
                 onClick={handleClear}
-                className={`h-8 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-semibold text-xs ${FOCUS_RING}`}
+                className={`h-8 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-medium text-xs ${FOCUS_RING}`}
               >
                 Clear
               </button>
@@ -450,7 +450,7 @@ export function InputPanel() {
               <button
                 type="button"
                 onClick={() => removePlanSlot(activePlanIndex)}
-                className={`h-8 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-semibold text-xs ${FOCUS_RING}`}
+                className={`h-8 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-medium text-xs ${FOCUS_RING}`}
                 title="Discard this empty plan"
               >
                 Cancel
@@ -512,7 +512,7 @@ export function InputPanel() {
               type="button"
               onClick={dismissBundleNotice}
               aria-label="Dismiss"
-              className={`shrink-0 font-bold opacity-60 hover:opacity-100 leading-none rounded ${FOCUS_RING}`}
+              className={`shrink-0 font-medium opacity-60 hover:opacity-100 leading-none rounded ${FOCUS_RING}`}
             >
               ×
             </button>
@@ -620,7 +620,7 @@ export function BundleAttachChooser({
                 onClick={() => onResolve(idx)}
                 className={`text-left p-2 border border-slate-200 dark:border-slate-700 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 ${FOCUS_RING}`}
               >
-                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Attach to {label}</div>
+                <div className="text-sm font-medium text-slate-900 dark:text-slate-100">Attach to {label}</div>
                 {sqlId && (
                   <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">SQL_ID: {sqlId}</div>
                 )}

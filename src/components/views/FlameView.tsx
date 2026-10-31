@@ -535,7 +535,7 @@ export function FlameView() {
           <button
             type="button"
             onClick={() => setZoomNodeId(null)}
-            className={`px-2.5 h-7 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm text-xs font-semibold ${FOCUS_RING}`}
+            className={`px-2.5 h-7 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm text-xs font-medium ${FOCUS_RING}`}
             title="Reset zoom to full plan (Esc)"
           >
             Reset zoom
@@ -552,7 +552,7 @@ export function FlameView() {
             maxWidth: '280px',
           }}
         >
-          <div className="font-semibold mb-1">{tooltip.title}</div>
+          <div className="font-medium mb-1">{tooltip.title}</div>
           <div className="space-y-0.5">
             {tooltip.lines.map((line, index) => (
               <div key={`${line}-${index}`}>{line}</div>

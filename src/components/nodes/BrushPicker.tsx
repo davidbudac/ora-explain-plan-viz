@@ -43,7 +43,7 @@ export function BrushPicker({ brush, nodeId, hasHighlight, onBrushChange, onPain
 
   return (
     <div className="w-64">
-      <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+      <div className="mb-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">
         Highlight brush
       </div>
 
@@ -59,11 +59,11 @@ export function BrushPicker({ brush, nodeId, hasHighlight, onBrushChange, onPain
               aria-label={`${colorDef.label} brush`}
               title={colorDef.label}
               onClick={() => onBrushChange({ color: colorDef.name })}
-              className={`h-5 w-5 rounded-full transition-all ${SWATCH_FOCUS} ${
+              className={`h-5 w-5 rounded-full transition-[box-shadow,opacity] ${SWATCH_FOCUS} ${
                 active
                   ? `${colorDef.chipActive} ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900`
                   : colorDef.chip
-              } hover:scale-110`}
+              }`}
             />
           );
         })}
@@ -81,7 +81,7 @@ export function BrushPicker({ brush, nodeId, hasHighlight, onBrushChange, onPain
               onClick={() => onBrushChange({ style: styleDef.name })}
               className={`flex flex-col items-center gap-1 rounded-md border px-1 py-1.5 text-[11px] transition-colors ${FOCUS_RING} ${
                 active
-                  ? 'border-slate-900 bg-slate-100 font-semibold text-slate-900 dark:border-slate-100 dark:bg-slate-800 dark:text-slate-100'
+                  ? 'border-slate-900 bg-slate-100 font-medium text-slate-900 dark:border-slate-100 dark:bg-slate-800 dark:text-slate-100'
                   : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800'
               }`}
             >

@@ -108,7 +108,7 @@ const AnnotationGroupNode = memo(({ data }: { data: AnnotationGroupData }) => {
         <span className="text-slate-700 dark:text-slate-300">{data.label}</span>
       </div>
       {data.note && (
-        <div className="absolute -bottom-2.5 left-3 px-2 bg-white dark:bg-slate-900 text-[10px] text-slate-500 dark:text-slate-400 italic truncate max-w-[200px]">
+        <div className="absolute -bottom-2.5 left-3 px-2 bg-white dark:bg-slate-900 text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[200px]">
           {data.note}
         </div>
       )}

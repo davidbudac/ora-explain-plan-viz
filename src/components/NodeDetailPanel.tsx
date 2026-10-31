@@ -74,11 +74,11 @@ function WorstNodeRow({
     >
       <span className="flex items-center gap-1.5 truncate">
         <span className="font-mono text-[11px] px-1.5 py-0.5 rounded border border-slate-200/70 dark:border-slate-700/50 text-slate-500 dark:text-slate-400 shrink-0">#{node.id}</span>
-        <span className="truncate font-semibold">{node.operation}</span>
+        <span className="truncate font-medium">{node.operation}</span>
       </span>
       <span className="whitespace-nowrap shrink-0">
         <span
-          className={`font-semibold ${isLeader ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-300'}`}
+          className={`font-medium ${isLeader ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-300'}`}
         >
           {value}
         </span>
@@ -115,7 +115,7 @@ export function NodeDetailPanel({ panelWidth, onResizeStart, onResizeBy, minWidt
         <svg className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
         </svg>
-        <span className="[writing-mode:vertical-rl] uppercase text-[10px] font-bold tracking-[0.14em] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+        <span className="[writing-mode:vertical-rl] text-[11px] font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">
           Details
         </span>
       </button>
@@ -164,7 +164,7 @@ function InlineSwitch({
       aria-checked={checked}
       title={title}
       onClick={() => onChange(!checked)}
-      className={`flex items-center gap-1.5 rounded px-1 py-0.5 text-[10px] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 ${FOCUS_RING}`}
+      className={`flex items-center gap-1.5 rounded px-1 py-0.5 text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 ${FOCUS_RING}`}
     >
       <span>{label}</span>
       <span
@@ -190,14 +190,14 @@ function InsightSwitches() {
         title="Highlight the slowest operation and list the top offenders"
         checked={hotspotsEnabled}
         onChange={setHotspotsEnabled}
-        onClass="bg-red-500"
+        onClass="bg-blue-600 dark:bg-blue-500"
       />
       <InlineSwitch
         label="Suggestions"
         title="Show the tuning recommendation line on advisor findings"
         checked={showAdvisorSuggestions}
         onChange={setShowAdvisorSuggestions}
-        onClass="bg-sky-500"
+        onClass="bg-blue-600 dark:bg-blue-500"
       />
     </div>
   );
@@ -218,7 +218,7 @@ export function NoSelectionBody({ hideTitle = false }: { hideTitle?: boolean } =
   return (
     <>
       <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-        {!hideTitle && <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Overview</h3>}
+        {!hideTitle && <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100">Overview</h3>}
         <InsightSwitches />
         <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">{MULTI_SELECT_TIP}</p>
       </div>
@@ -236,7 +236,7 @@ export function NoSelectionBody({ hideTitle = false }: { hideTitle?: boolean } =
         <>
           {/* Worst by A-Time */}
           {worstNodes.byTime.length > 0 && (
-            <Accordion title="Slowest Ops" subtitle={worstNodes.timeBy === 'activity' ? 'by activity' : 'by self time'}>
+            <Accordion title="Slowest ops" subtitle={worstNodes.timeBy === 'activity' ? 'by activity' : 'by self time'}>
               <div className="space-y-1">
                 {(() => {
                   const byActivity = worstNodes.timeBy === 'activity';
@@ -268,7 +268,7 @@ export function NoSelectionBody({ hideTitle = false }: { hideTitle?: boolean } =
 
           {/* Worst by Cost */}
           {worstNodes.byCost.length > 0 && (
-            <Accordion title="Highest Cost" subtitle="own cost" defaultOpen={false}>
+            <Accordion title="Highest cost" subtitle="own cost" defaultOpen={false}>
               <div className="space-y-1">
                 {(() => {
                   const maxCost = worstNodes.byCost.reduce((max, n) => Math.max(max, n.selfCost ?? 0), 0);
@@ -296,7 +296,7 @@ export function NoSelectionBody({ hideTitle = false }: { hideTitle?: boolean } =
       {/* Bind Variables */}
       {parsedPlan?.bindVariables && parsedPlan.bindVariables.length > 0 && (
         <div className="px-3 py-2.5 border-b border-slate-200 dark:border-slate-800">
-          <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+          <h4 className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-2">
             Bind Variables ({parsedPlan.bindVariables.length})
           </h4>
           <div className="space-y-1.5">
@@ -304,13 +304,13 @@ export function NoSelectionBody({ hideTitle = false }: { hideTitle?: boolean } =
               <div key={bind.name + idx} className="flex items-start gap-2 text-xs">
                 <span className="font-mono text-blue-600 dark:text-blue-400 shrink-0">{bind.name}</span>
                 {bind.type && (
-                  <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded text-[10px] font-medium shrink-0">
+                  <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded text-[11px] font-medium shrink-0">
                     {bind.type}
                   </span>
                 )}
                 <span className="flex-1 min-w-0 flex items-center gap-1">
                   {bind.value === null ? (
-                    <span className="italic text-slate-400 dark:text-slate-500">NULL</span>
+                    <span className="text-slate-400 dark:text-slate-500">NULL</span>
                   ) : (
                     <>
                       <code className="font-mono text-slate-800 dark:text-slate-200 truncate block">{bind.value}</code>
@@ -327,7 +327,7 @@ export function NoSelectionBody({ hideTitle = false }: { hideTitle?: boolean } =
       {/* Annotation Groups */}
       {annotations.groups.length > 0 && (
         <div className="px-3 py-2.5">
-          <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Annotation Groups</h4>
+          <h4 className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-2">Annotation groups</h4>
           <div className="space-y-1">
             {annotations.groups.map((group) => {
               const colorDef = HIGHLIGHT_COLORS_MAP[group.color];
@@ -339,7 +339,7 @@ export function NoSelectionBody({ hideTitle = false }: { hideTitle?: boolean } =
                   <span className="flex items-center gap-1.5 truncate">
                     <span className={`w-3 h-3 rounded-full shrink-0 ${colorDef}`} />
                     <span className="truncate text-slate-700 dark:text-slate-300">{group.name}</span>
-                    <span className="text-[10px] text-slate-400">({group.nodeIds.length})</span>
+                    <span className="text-[11px] text-slate-400">({group.nodeIds.length})</span>
                   </span>
                   <button
                     type="button"
@@ -439,7 +439,7 @@ export function NodeDetailBody() {
       <>
         <div className="p-3 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-start justify-between">
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+            <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100">
               {selectedNodes.length} operations selected
             </h3>
             <button
@@ -461,7 +461,7 @@ export function NodeDetailBody() {
         </div>
 
         {/* Bulk annotation controls */}
-        <Accordion title="Bulk Annotate" defaultOpen={false}>
+        <Accordion title="Bulk annotate" defaultOpen={false}>
           <BulkHighlightPicker
             nodeIds={selectedNodeIds}
             onHighlightChange={setNodeHighlight}
@@ -471,7 +471,7 @@ export function NodeDetailBody() {
             onClick={() => setShowGroupDialog(true)}
             className={`mt-3 w-full px-3 py-2 text-[11px] font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-md hover:bg-slate-200/80 dark:hover:bg-slate-700/70 transition-colors ${FOCUS_RING}`}
           >
-            Create Group
+            Create group
           </button>
         </Accordion>
 
@@ -488,20 +488,20 @@ export function NodeDetailBody() {
 
         <Accordion title={indicator.title}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+            <span className="text-xs font-medium text-slate-900 dark:text-slate-100">
               <span className="text-slate-500 dark:text-slate-400 font-medium">{indicator.valueLabel}: </span>
               <span className="font-mono tabular-nums">{indicator.formattedValue}</span>
             </span>
-            <span className="text-[10px] text-slate-400 dark:text-slate-500">{indicator.percentText}% {indicator.referenceLabel}</span>
+            <span className="text-[11px] text-slate-400 dark:text-slate-500">{indicator.percentText}% {indicator.referenceLabel}</span>
           </div>
           <div className="h-1 rounded-full bg-slate-200 dark:bg-slate-700">
             <div
-              className={`h-full rounded-full ${indicator.color} transition-all duration-500 ease-out`}
+              className={`h-full rounded-full ${indicator.color}`}
               style={{ width: `${Math.min(100, indicator.ratio * 100)}%` }}
             />
           </div>
           {indicator.secondaryText && (
-            <div className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">{indicator.secondaryText}</div>
+            <div className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">{indicator.secondaryText}</div>
           )}
         </Accordion>
 
@@ -512,9 +512,9 @@ export function NodeDetailBody() {
               <StatItem label="Activity" value={aggregateSelection.sumActivityPercent !== undefined ? `${aggregateSelection.sumActivityPercent.toFixed(1)}%` : undefined} />
               <StatItem label="A-Rows (ops sum)" value={formatNumberShort(aggregateSelection.sumActualRows)} highlight="actual" />
               <StatItem label="Max A-Rows" value={formatNumberShort(aggregateSelection.maxActualRows)} />
-              <StatItem label="Max Starts" value={formatNumberShort(aggregateSelection.maxStarts)} />
+              <StatItem label="Max starts" value={formatNumberShort(aggregateSelection.maxStarts)} />
             </div>
-            <div className="mt-1.5 text-[10px] text-slate-400 dark:text-slate-500 leading-snug">
+            <div className="mt-1.5 text-[11px] text-slate-400 dark:text-slate-500 leading-snug">
               Time is each operation's own (self) time, so a selected parent and child are not counted twice.
               A-Rows adds up the rows every selected operation produced.
             </div>
@@ -527,7 +527,7 @@ export function NodeDetailBody() {
             <StatItem label="Bytes (ops sum)" value={formatBytes(aggregateSelection.sumBytes)} />
             <StatItem label="Own cost (self)" value={formatNumberShort(aggregateSelection.sumSelfCost)} />
             <StatItem label="Avg CPU %" value={aggregateSelection.avgCpuPercent !== undefined ? `${aggregateSelection.avgCpuPercent.toFixed(1)}%` : undefined} />
-            <StatItem label="Temp Space" value={aggregateSelection.sumTempSpace > 0 ? formatBytes(aggregateSelection.sumTempSpace) : undefined} />
+            <StatItem label="Temp space" value={aggregateSelection.sumTempSpace > 0 ? formatBytes(aggregateSelection.sumTempSpace) : undefined} />
           </div>
         </Accordion>
 
@@ -538,7 +538,7 @@ export function NodeDetailBody() {
           <Accordion title="Resources (Sum)" defaultOpen={false}>
             <div className="grid grid-cols-2 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden [&>*:last-child:nth-child(odd)]:col-span-2">
               <StatItem label="Memory" value={aggregateSelection.sumMemoryUsed > 0 ? formatBytes(aggregateSelection.sumMemoryUsed) : undefined} />
-              <StatItem label="Temp Used" value={aggregateSelection.sumTempUsed > 0 ? formatBytes(aggregateSelection.sumTempUsed) : undefined} />
+              <StatItem label="Temp used" value={aggregateSelection.sumTempUsed > 0 ? formatBytes(aggregateSelection.sumTempUsed) : undefined} />
               <StatItem label="Buffers (self)" value={aggregateSelection.sumSelfBuffers > 0 ? formatNumberShort(aggregateSelection.sumSelfBuffers) : undefined} />
               <StatItem label="Phys Reads (self)" value={aggregateSelection.sumSelfPhysicalReads > 0 ? formatNumberShort(aggregateSelection.sumSelfPhysicalReads) : undefined} />
             </div>
@@ -561,10 +561,10 @@ export function NodeDetailBody() {
       <div className="p-3 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-baseline gap-2 min-w-0">
-             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
+             <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100 whitespace-nowrap">
                Operation <span className="font-mono">#{node.id}</span>
              </h3>
-             <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 truncate">{category}</span>
+             <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400 truncate">{category}</span>
           </div>
           <button
             type="button"
@@ -579,7 +579,7 @@ export function NodeDetailBody() {
           </button>
         </div>
 
-        <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-tight">
+        <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100 leading-tight">
           <HighlightText text={node.operation} query={searchText} />
         </h4>
 
@@ -599,7 +599,7 @@ export function NodeDetailBody() {
         {(() => {
           const tip = getOperationTooltip(node.operation);
           return tip ? (
-            <div className="mt-2 text-[11px] italic text-slate-500 dark:text-slate-400">
+            <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
               {tip}
             </div>
           ) : null;
@@ -624,30 +624,30 @@ export function NodeDetailBody() {
       {/* Node indicator */}
       <Accordion title={indicator.title}>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+          <span className="text-xs font-medium text-slate-900 dark:text-slate-100">
               <span className="text-slate-500 dark:text-slate-400 font-medium">{indicator.valueLabel}: </span>
               <span className="font-mono tabular-nums">{indicator.formattedValue}</span>
             </span>
-          <span className="text-[10px] text-slate-400 dark:text-slate-500">{indicator.percentText}% {indicator.referenceLabel}</span>
+          <span className="text-[11px] text-slate-400 dark:text-slate-500">{indicator.percentText}% {indicator.referenceLabel}</span>
         </div>
         <div className="h-1 rounded-full bg-slate-200 dark:bg-slate-700">
           <div
-            className={`h-full rounded-full ${indicator.color} transition-all duration-500 ease-out`}
+            className={`h-full rounded-full ${indicator.color}`}
             style={{ width: `${Math.min(100, indicator.ratio * 100)}%` }}
           />
         </div>
         {indicator.secondaryText && (
-          <div className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">{indicator.secondaryText}</div>
+          <div className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">{indicator.secondaryText}</div>
         )}
       </Accordion>
 
       {/* Actual Statistics (SQL Monitor) */}
       {parsedPlan?.hasActualStats && (
-        <Accordion title="Execution Stats">
+        <Accordion title="Execution stats">
           <div className="grid grid-cols-2 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden [&>*:last-child:nth-child(odd)]:col-span-2">
             <StatItem label="A-Rows" value={formatNumberShort(node.actualRows)} highlight="actual" />
             {node.selfTime !== undefined && (
-              <StatItem label="Self Time" value={formatTimeDetailed(node.selfTime)} highlight="actual" />
+              <StatItem label="Self time" value={formatTimeDetailed(node.selfTime)} highlight="actual" />
             )}
             <StatItem label="A-Time (cumul.)" value={formatTimeDetailed(node.actualTime)} highlight="actual" />
             <StatItem label="Starts" value={formatNumberShort(node.starts)} />
@@ -659,7 +659,7 @@ export function NodeDetailBody() {
       )}
 
       {/* Estimated Statistics */}
-      <Accordion title="Plan Estimates" defaultOpen={!parsedPlan?.hasActualStats}>
+      <Accordion title="Plan estimates" defaultOpen={!parsedPlan?.hasActualStats}>
         <div className="grid grid-cols-2 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden [&>*:last-child:nth-child(odd)]:col-span-2">
           <StatItem label={parsedPlan?.hasActualStats ? "E-Rows" : "Rows"} value={formatNumberShort(node.rows)} />
           {parsedPlan?.hasActualStats && effectiveExecutions(node) !== undefined && (
@@ -673,7 +673,7 @@ export function NodeDetailBody() {
           <StatItem label="Cost" value={node.cost?.toString()} />
           <StatItem label="CPU %" value={node.cpuPercent ? `${node.cpuPercent}%` : undefined} />
           <StatItem label="Time" value={node.time} />
-          <StatItem label="Temp Space" value={node.tempSpace ? formatBytes(node.tempSpace) : undefined} />
+          <StatItem label="Temp space" value={node.tempSpace ? formatBytes(node.tempSpace) : undefined} />
           <StatItem label="Pstart" value={node.pstart} />
           <StatItem label="Pstop" value={node.pstop} />
         </div>
@@ -684,17 +684,17 @@ export function NodeDetailBody() {
           <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">Runtime pruning (determined at execution time, e.g. bloom filter/bind)</div>
         )}
         {pruning === 'none' && (
-          <div className="mt-2 text-[11px] font-semibold text-amber-700 dark:text-amber-300">No pruning — all partitions scanned</div>
+          <div className="mt-2 text-[11px] font-medium text-amber-700 dark:text-amber-300">No pruning — all partitions scanned</div>
         )}
       </Accordion>
 
       {/* Parallel Execution */}
       {(node.tq || node.inOut || node.pqDistrib) && (
-        <Accordion title="Parallel Execution" defaultOpen={false}>
+        <Accordion title="Parallel execution" defaultOpen={false}>
           <div className="grid grid-cols-2 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden [&>*:last-child:nth-child(odd)]:col-span-2">
             <StatItem label="TQ" value={node.tq} />
             <StatItem label="IN-OUT" value={node.inOut} />
-            <StatItem label="PQ Distrib" value={node.pqDistrib} />
+            <StatItem label="PQ distrib" value={node.pqDistrib} />
           </div>
           {nodeParallelSignals.length > 0 && (
             <div className="mt-2 space-y-2">
@@ -717,7 +717,7 @@ export function NodeDetailBody() {
           {node.accessPredicates && (
             <div className="mb-3">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
                   Access
                 </span>
                 <CopyButton text={node.accessPredicates} iconOnly ariaLabel="Copy access predicate" />
@@ -731,7 +731,7 @@ export function NodeDetailBody() {
           {node.filterPredicates && (
             <div className={node.storagePredicates ? 'mb-3' : undefined}>
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
                   Filter
                 </span>
                 <CopyButton text={node.filterPredicates} iconOnly ariaLabel="Copy filter predicate" />
@@ -745,7 +745,7 @@ export function NodeDetailBody() {
           {node.storagePredicates && (
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400">
+                <span className="text-[11px] font-medium text-sky-600 dark:text-sky-400">
                   Storage
                 </span>
                 <CopyButton text={node.storagePredicates} iconOnly ariaLabel="Copy storage predicate" />
@@ -793,7 +793,7 @@ export function NodeDetailBody() {
       {node.remoteSql && (
         <Accordion title="Remote SQL">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
               Sent over database link
             </span>
             <CopyButton text={node.remoteSql} iconOnly ariaLabel="Copy remote SQL" />
@@ -841,13 +841,13 @@ export function NodeDetailBody() {
                 ? `${node.workareaExecutions.optimal}/${node.workareaExecutions.onePass}/${node.workareaExecutions.multipass}`
                 : undefined}
             />
-            <StatItem label="Temp Used" value={formatBytes(node.tempUsed)} />
-            <StatItem label="IO Read" value={formatBytes(node.ioReadBytes || undefined)} />
-            <StatItem label="IO Write" value={formatBytes(node.ioWriteBytes || undefined)} />
-            <StatItem label="Read Reqs" value={formatNumberShort((node.ioReadRequests ?? node.physicalReads) || undefined)} />
-            <StatItem label="Write Reqs" value={formatNumberShort(node.ioWriteRequests || undefined)} />
+            <StatItem label="Temp used" value={formatBytes(node.tempUsed)} />
+            <StatItem label="IO read" value={formatBytes(node.ioReadBytes || undefined)} />
+            <StatItem label="IO write" value={formatBytes(node.ioWriteBytes || undefined)} />
+            <StatItem label="Read reqs" value={formatNumberShort((node.ioReadRequests ?? node.physicalReads) || undefined)} />
+            <StatItem label="Write reqs" value={formatNumberShort(node.ioWriteRequests || undefined)} />
             <StatItem label="Writes" value={formatNumberShort(node.physicalWrites || undefined)} />
-            <StatItem label="Buffer Gets" value={formatNumberShort(node.logicalReads || undefined)} />
+            <StatItem label="Buffer gets" value={formatNumberShort(node.logicalReads || undefined)} />
           </div>
         </Accordion>
       )}
@@ -889,7 +889,7 @@ function HintStatusBadge({ hint }: { hint: PlanHint }) {
   };
   const { label, className } = styles[hint.status];
   return (
-    <span className={`shrink-0 px-1.5 py-0.5 rounded border text-[10px] font-semibold whitespace-nowrap ${className}`}>
+    <span className={`shrink-0 px-1.5 py-0.5 rounded border text-[11px] font-medium whitespace-nowrap ${className}`}>
       {label}
     </span>
   );
@@ -907,8 +907,8 @@ function StatItem({ label, value, highlight, title }: { label: string; value?: s
 
   return (
     <div className="bg-white dark:bg-slate-900 px-2.5 py-2" title={title}>
-      <div className="text-[10px] text-slate-400 dark:text-slate-500 mb-1">{label}</div>
-      <div className={`text-xs font-mono font-semibold tabular-nums leading-none ${highlight ? valueStyles[highlight] : 'text-slate-900 dark:text-slate-100'}`}>{value}</div>
+      <div className="text-[11px] text-slate-400 dark:text-slate-500 mb-1">{label}</div>
+      <div className={`text-xs font-mono font-medium tabular-nums leading-none ${highlight ? valueStyles[highlight] : 'text-slate-900 dark:text-slate-100'}`}>{value}</div>
     </div>
   );
 }
@@ -918,8 +918,8 @@ function Accordion({ title, subtitle, children, defaultOpen = true }: { title: s
     <details className="group border-b border-slate-200 dark:border-slate-800" open={defaultOpen}>
       <summary className={`flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors list-none select-none ${FOCUS_RING_INSET}`}>
         <div className="flex items-center gap-2.5">
-          <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{title}</h4>
-          {subtitle && <span className="text-[10px] text-slate-400 dark:text-slate-500 lowercase tracking-normal font-medium">{subtitle}</span>}
+          <h4 className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{title}</h4>
+          {subtitle && <span className="text-[11px] text-slate-400 dark:text-slate-500 lowercase tracking-normal font-medium">{subtitle}</span>}
         </div>
         <svg className="w-4 h-4 text-slate-300 group-open:rotate-180 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
@@ -957,7 +957,7 @@ function computeNodeDetailIndicator(
   const totalElapsedTime = parsedPlan?.totalElapsedTime || 0;
 
   let ratio = 0;
-  let title = 'Cost Impact';
+  let title = 'Cost impact';
   let valueLabel = 'Cost';
   let formattedValue = `${node.cost || 0}`;
   let referenceLabel = 'of total';
@@ -969,35 +969,35 @@ function computeNodeDetailIndicator(
       if (node.selfCost !== undefined && totalCost > 0) {
         secondaryText = `Own: ${Math.min(100, (node.selfCost / totalCost) * 100).toFixed(1)}% of total`;
       }
-      title = 'Cost Impact';
+      title = 'Cost impact';
       valueLabel = 'Cost';
       formattedValue = `${node.cost || 0}`;
       referenceLabel = 'of total';
       break;
     case 'actualRows':
       ratio = maxActualRows > 0 ? (node.actualRows || 0) / maxActualRows : 0;
-      title = 'A-Rows Impact';
+      title = 'A-Rows impact';
       valueLabel = 'A-Rows';
       formattedValue = formatNumberShort(node.actualRows || 0) ?? '0';
       referenceLabel = 'of max';
       break;
     case 'actualTime':
       ratio = totalElapsedTime > 0 ? (node.actualTime || 0) / totalElapsedTime : 0;
-      title = 'A-Time Impact';
+      title = 'A-Time impact';
       valueLabel = 'A-Time';
       formattedValue = formatTimeCompact(node.actualTime || 0) ?? '0ms';
       referenceLabel = 'of total';
       break;
     case 'starts':
       ratio = maxStarts > 0 ? (node.starts || 0) / maxStarts : 0;
-      title = 'Starts Impact';
+      title = 'Starts impact';
       valueLabel = 'Starts';
       formattedValue = formatNumberShort(node.starts || 0) ?? '0';
       referenceLabel = 'of max';
       break;
     case 'activityPercent':
       ratio = (node.activityPercent || 0) / 100;
-      title = 'Activity Impact';
+      title = 'Activity impact';
       valueLabel = 'Activity';
       formattedValue = `${(node.activityPercent || 0).toFixed(1)}%`;
       referenceLabel = 'of total';
@@ -1057,7 +1057,7 @@ function MetadataSection({
           <button
             type="button"
             onClick={() => setShowGatherModal(true)}
-            className={`shrink-0 px-2 py-1 text-[11px] font-semibold rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-slate-700/70 transition-colors ${FOCUS_RING}`}
+            className={`shrink-0 px-2 py-1 text-[11px] font-medium rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-slate-700/70 transition-colors ${FOCUS_RING}`}
             title="Generate a SQL script that collects table, index and column statistics for this plan"
           >
             {planSqlId ? 'Gather script…' : 'Manual gather script…'}
@@ -1080,17 +1080,17 @@ function MetadataSection({
       <Accordion title="Metadata" defaultOpen={false}>
         {warningBanner}
         {coverage ? (
-          <div className="p-2 text-[10px] rounded-lg border bg-amber-500/5 dark:bg-amber-950/20 border-amber-500/20 text-amber-700 dark:text-amber-400 leading-snug">
-            <div className="font-bold uppercase tracking-tight mb-1">Stats not captured</div>
+          <div className="p-2 text-[11px] rounded-lg border bg-amber-500/5 dark:bg-amber-950/20 border-amber-500/20 text-amber-700 dark:text-amber-400 leading-snug">
+            <div className="font-medium mb-1">Stats not captured</div>
             <div className="break-all">
-              <span className="font-mono font-semibold">{coverage.object}</span>: {coverage.reason}
+              <span className="font-mono font-medium">{coverage.object}</span>: {coverage.reason}
             </div>
           </div>
         ) : (
-          <div className="p-2 text-[11px] rounded-lg border bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 leading-relaxed italic">
+          <div className="p-2 text-[11px] rounded-lg border bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 leading-relaxed">
             {objectName ? (
               <>
-                <code className="font-mono not-italic font-bold">{objectName}</code> is missing from the bundle.
+                <code className="font-mono font-medium">{objectName}</code> is missing from the bundle.
               </>
             ) : (
               'This operation has no object reference.'
@@ -1170,10 +1170,10 @@ function ColumnsBlock({
   return (
     <div className="mt-4">
       <div className="flex items-center justify-between mb-3">
-        <h5 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <h5 className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
           Columns
           {hasResolvedPredicateColumns && (
-            <span className="ml-1.5 font-mono text-[10px] text-blue-500 lowercase">
+            <span className="ml-1.5 font-mono text-[11px] text-blue-500 lowercase">
               ({resolvedPredicateColumns.length} refs{showAll && allButPredicate > 0 ? ` + ${allButPredicate} more` : ''})
             </span>
           )}
@@ -1182,9 +1182,9 @@ function ColumnsBlock({
           <button
             type="button"
             onClick={() => setShowAll((v) => !v)}
-            className={`text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 uppercase tracking-tighter transition-colors ${FOCUS_RING}`}
+            className={`text-[11px] font-medium px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`}
           >
-            {showAll ? 'Refs Only' : `All (${tableColumnNames.length})`}
+            {showAll ? 'Refs only' : `All (${tableColumnNames.length})`}
           </button>
         )}
       </div>
@@ -1219,26 +1219,26 @@ function ColumnRow({
 }) {
   const histogramLabel = formatHistogramLabel(stats.histogram.type, stats.histogram.buckets);
   return (
-    <div className="text-[10px] rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 p-2 shadow-sm">
+    <div className="text-[11px] rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 p-2 shadow-sm">
       <div className="flex items-center justify-between mb-1.5">
-        <code className="font-mono font-bold text-slate-800 dark:text-slate-200">{name}</code>
+        <code className="font-mono font-medium text-slate-800 dark:text-slate-200">{name}</code>
         <div className="flex items-center gap-1.5">
           {fromPredicate && (
-            <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 uppercase">
+            <span className="px-1.5 py-0.5 text-[11px] rounded font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400">
               ref
             </span>
           )}
-          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tighter">
+          <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
             {stats.data_type}
             {stats.nullable ? '' : ' • REQ'}
           </span>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-slate-600 dark:text-slate-300">
-        <span><span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-tighter font-sans font-bold">Distinct:</span> {formatNumberShort(stats.num_distinct ?? undefined) ?? '—'}</span>
-        <span><span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-tighter font-sans font-bold">Nulls:</span> {formatNumberShort(stats.num_nulls ?? undefined) ?? '—'}</span>
-        <span><span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-tighter font-sans font-bold">Density:</span> {stats.density != null ? stats.density.toPrecision(2) : '—'}</span>
-        <span className="truncate"><span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-tighter font-sans font-bold">Hist:</span> {histogramLabel}</span>
+        <span><span className="text-slate-500 dark:text-slate-400 text-[11px] font-sans font-medium">Distinct:</span> {formatNumberShort(stats.num_distinct ?? undefined) ?? '—'}</span>
+        <span><span className="text-slate-500 dark:text-slate-400 text-[11px] font-sans font-medium">Nulls:</span> {formatNumberShort(stats.num_nulls ?? undefined) ?? '—'}</span>
+        <span><span className="text-slate-500 dark:text-slate-400 text-[11px] font-sans font-medium">Density:</span> {stats.density != null ? stats.density.toPrecision(2) : '—'}</span>
+        <span className="truncate"><span className="text-slate-500 dark:text-slate-400 text-[11px] font-sans font-medium">Hist:</span> {histogramLabel}</span>
       </div>
     </div>
   );
@@ -1251,7 +1251,7 @@ function ObjectLink({ objectKey, className }: { objectKey: string; className: st
     <button
       type="button"
       onClick={() => openMetadataObject(objectKey)}
-      title="Open in Metadata view"
+      title="Open in metadata view"
       aria-label={`Open ${objectKey} in Metadata view`}
       className={`${className} hover:underline cursor-pointer text-left rounded ${FOCUS_RING}`}
     >
@@ -1265,22 +1265,22 @@ function ObjectBlock({ objectKey, stats }: { objectKey: string; stats: TableStat
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-3">
-        <ObjectLink objectKey={objectKey} className="text-[13px] font-mono font-bold text-blue-600 dark:text-blue-400 break-all" />
+        <ObjectLink objectKey={objectKey} className="text-[13px] font-mono font-medium text-blue-600 dark:text-blue-400 break-all" />
         {isStale && (
-          <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-500 text-white border border-amber-600 shadow-sm animate-pulse">
-            STALE
+          <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-amber-500 text-white border border-amber-600">
+            Stale
           </span>
         )}
       </div>
       <div className="grid grid-cols-2 gap-px bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden [&>*:last-child:nth-child(odd)]:col-span-2">
-        <StatItem label="Table Rows" value={formatNumberShort(stats.num_rows ?? undefined)} />
+        <StatItem label="Table rows" value={formatNumberShort(stats.num_rows ?? undefined)} />
         <StatItem label="Blocks" value={formatNumberShort(stats.blocks ?? undefined)} />
         <StatItem label="Analyzed" value={formatDateShort(stats.last_analyzed)} />
         <StatItem label="Partitioned" value={stats.partitioned ? 'YES' : 'NO'} />
       </div>
       {stats.partitioned && stats.partition_type && (
-        <div className="mt-2 text-[10px] rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 p-2">
-          <div className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-tighter mb-1">
+        <div className="mt-2 text-[11px] rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 p-2">
+          <div className="text-slate-500 dark:text-slate-400 font-medium mb-1">
             Partitioning
           </div>
           <div className="font-mono text-slate-700 dark:text-slate-300">
@@ -1310,14 +1310,14 @@ function IndexObjectBlock({ objectKey, index }: { objectKey: string; index: impo
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-3">
-        <ObjectLink objectKey={objectKey} className="text-[13px] font-mono font-bold text-blue-600 dark:text-blue-400 break-all" />
-        <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-500 text-white border border-indigo-600 shadow-sm uppercase">
+        <ObjectLink objectKey={objectKey} className="text-[13px] font-mono font-medium text-blue-600 dark:text-blue-400 break-all" />
+        <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-indigo-500 text-white border border-indigo-600 shadow-sm">
           INDEX
         </span>
       </div>
       <div className="mb-3 text-[11px] p-2 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-        <span className="text-[10px] text-slate-400 dark:text-slate-500 mr-2">Cols:</span>
-        <code className="font-mono text-slate-700 dark:text-slate-300 font-bold">
+        <span className="text-[11px] text-slate-400 dark:text-slate-500 mr-2">Cols:</span>
+        <code className="font-mono text-slate-700 dark:text-slate-300 font-medium">
           {index.columns.length > 0 ? index.columns.join(', ') : '—'}
         </code>
       </div>
@@ -1331,14 +1331,14 @@ function IndexObjectBlock({ objectKey, index }: { objectKey: string; index: impo
         {stats.partitioned && (
           <>
             <StatItem label="Locality" value={stats.locality ?? undefined} />
-            <StatItem label="Partition Type" value={stats.partition_type ?? undefined} />
+            <StatItem label="Partition type" value={stats.partition_type ?? undefined} />
           </>
         )}
       </div>
       {stats.partitioned && stats.partition_key && stats.partition_key.length > 0 && (
-        <div className="mt-2 text-[10px] rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 p-2">
-          <span className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-tighter mr-1.5">
-            Partition Key:
+        <div className="mt-2 text-[11px] rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 p-2">
+          <span className="text-slate-500 dark:text-slate-400 font-medium mr-1.5">
+            Partition key:
           </span>
           <code className="font-mono text-slate-700 dark:text-slate-300">
             ({stats.partition_key.join(', ')})
@@ -1373,9 +1373,9 @@ function IndexesBlock({
 
   return (
     <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-      <h5 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
+      <h5 className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-3">
         {heading}
-        <span className="ml-1.5 font-mono text-[10px] text-blue-500 lowercase font-normal">
+        <span className="ml-1.5 font-mono text-[11px] text-blue-500 lowercase font-normal">
           ({indexes.length})
         </span>
       </h5>
@@ -1393,43 +1393,43 @@ function IndexRow({ index, usedHere }: { index: ResolvedIndex; usedHere: boolean
   const isUnusable = stats.status !== 'VALID' && stats.status !== 'N/A';
   const isInvisible = stats.visibility === 'INVISIBLE';
   return (
-    <div className="text-[10px] rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 p-2 shadow-sm">
+    <div className="text-[11px] rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 p-2 shadow-sm">
       <div className="flex items-center justify-between mb-1.5 gap-2">
-        <ObjectLink objectKey={index.key} className="font-mono font-bold text-slate-800 dark:text-slate-200 truncate" />
+        <ObjectLink objectKey={index.key} className="font-mono font-medium text-slate-800 dark:text-slate-200 truncate" />
         <div className="flex items-center gap-1.5 shrink-0">
           {usedHere && (
-            <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 uppercase">
+            <span className="px-1.5 py-0.5 text-[11px] rounded font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
               active
             </span>
           )}
           {stats.partitioned && stats.locality && (
-            <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 uppercase">
+            <span className="px-1.5 py-0.5 text-[11px] rounded font-medium bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
               {stats.locality}
             </span>
           )}
           {isUnusable && (
-            <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-red-500/10 text-red-600 dark:text-red-400 uppercase">
+            <span className="px-1.5 py-0.5 text-[11px] rounded font-medium bg-red-500/10 text-red-600 dark:text-red-400">
               {stats.status}
             </span>
           )}
           {isInvisible && (
-            <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase">
+            <span className="px-1.5 py-0.5 text-[11px] rounded font-medium bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
               HIDDEN
             </span>
           )}
         </div>
       </div>
-      <div className="mb-1.5 text-[10px]">
-        <span className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-tighter mr-1.5">Cols:</span>
-        <code className="font-mono text-slate-700 dark:text-slate-300 font-semibold italic">
+      <div className="mb-1.5 text-[11px]">
+        <span className="text-slate-500 dark:text-slate-400 font-medium mr-1.5">Cols:</span>
+        <code className="font-mono text-slate-700 dark:text-slate-300 font-medium">
           {index.object.columns.length > 0 ? index.object.columns.join(', ') : '—'}
         </code>
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-slate-600 dark:text-slate-300">
-        <span><span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-tighter font-sans font-bold">Type:</span> {stats.index_type}</span>
-        <span><span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-tighter font-sans font-bold">Uniq:</span> {stats.uniqueness}</span>
-        <span><span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-tighter font-sans font-bold">CF:</span> {formatNumberShort(stats.clustering_factor ?? undefined) ?? '—'}</span>
-        <span><span className="text-slate-500 dark:text-slate-400 text-[10px] uppercase tracking-tighter font-sans font-bold">Level:</span> {stats.blevel ?? '0'}</span>
+        <span><span className="text-slate-500 dark:text-slate-400 text-[11px] font-sans font-medium">Type:</span> {stats.index_type}</span>
+        <span><span className="text-slate-500 dark:text-slate-400 text-[11px] font-sans font-medium">Uniq:</span> {stats.uniqueness}</span>
+        <span><span className="text-slate-500 dark:text-slate-400 text-[11px] font-sans font-medium">CF:</span> {formatNumberShort(stats.clustering_factor ?? undefined) ?? '—'}</span>
+        <span><span className="text-slate-500 dark:text-slate-400 text-[11px] font-sans font-medium">Level:</span> {stats.blevel ?? '0'}</span>
       </div>
     </div>
   );
