@@ -99,7 +99,7 @@ const SANKEY_METRIC_LABELS: Record<SankeyMetric, string> = {
 const VIEW_MODE_LABELS: Record<Exclude<ViewMode, 'ai' | 'ai-report'>, string> = {
   hierarchical: 'Tree',
   sankey: 'Sankey',
-  flame: 'Flame',
+  flame: 'Flame graph',
   tabular: 'Table',
   text: 'Plan text',
   sql: 'SQL',
@@ -179,11 +179,9 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     hotspotsEnabled,
     treeCompareEnabled,
     annotations,
-    legendVisible,
     densitySelection,
     palette,
     // Actions
-    setLegendVisible,
     setShortcutsOverlayOpen,
     startWalkthrough,
     applyDensityPreset,
@@ -296,18 +294,6 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
       execute: () => setTreeCompareEnabled(!treeCompareEnabled),
       isActive: () => treeCompareEnabled,
       isAvailable: () => multipleParsedPlans && viewMode === 'hierarchical',
-    });
-
-    // --- Legend ---
-    commands.push({
-      id: 'toggle-legend',
-      label: 'Toggle legend',
-      category: 'View',
-      kind: 'toggle',
-      keywords: ['legend', 'colors', 'key', 'badges', 'meaning'],
-      execute: () => setLegendVisible(!legendVisible),
-      isActive: () => legendVisible,
-      isAvailable: () => anyPlanParsed,
     });
 
     // --- Tree layout (direction + overview map) ---
@@ -859,7 +845,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     inputPanelCollapsed, filterPanelCollapsed, detailPanelCollapsed, focusMode,
     hotspotsEnabled, treeCompareEnabled, annotations, anyPlanParsed,
     hasActualStats, hasAnyInput, canExportPng, multipleParsedPlans,
-    legendVisible, setLegendVisible, setShortcutsOverlayOpen, startWalkthrough,
+    setShortcutsOverlayOpen, startWalkthrough,
     densitySelection, applyDensityPreset,
     setViewMode, setTheme, setColorScheme, setPalette, setFilters, setSankeyMetric,
     setNodeIndicatorMetric, setHighlightStyle, setVisualizationMaximized,

@@ -160,7 +160,6 @@ interface PlanState {
   // UI panel states (persisted)
   hotspotsEnabled: boolean;
   showAdvisorSuggestions: boolean;
-  legendVisible: boolean;
   inputPanelCollapsed: boolean;
   filterPanelCollapsed: boolean;
   detailPanelCollapsed: boolean;
@@ -200,7 +199,6 @@ type PlanAction =
   | { type: 'CLEAR_PLAN' }
   | { type: 'SET_HOTSPOTS_ENABLED'; payload: boolean }
   | { type: 'SET_ADVISOR_SUGGESTIONS'; payload: boolean }
-  | { type: 'SET_LEGEND_VISIBLE'; payload: boolean }
   | { type: 'SET_INPUT_PANEL_COLLAPSED'; payload: boolean }
   | { type: 'SET_FILTER_PANEL_COLLAPSED'; payload: boolean }
   | { type: 'SET_DETAIL_PANEL_COLLAPSED'; payload: boolean }
@@ -412,11 +410,11 @@ const getInitialState = (): PlanState => {
     activePlanIndex: 0,
     comparePlanIndices: getDefaultComparePlanIndices(initialPlans),
     compareMetrics: settings.compareMetrics ?? DEFAULT_COMPARE_METRICS,
-    viewMode: settings.viewMode,
+    viewMode: settings.viewMode === 'flame' ? 'experimental' : settings.viewMode,
     treeCompareEnabled: false,
     sankeyMetric: settings.sankeyMetric,
     flameMetric: settings.flameMetric ?? 'actualTime',
-    experimentalSubView: settings.experimentalSubView ?? 'scatter',
+    experimentalSubView: settings.viewMode === 'flame' ? 'flame' : settings.experimentalSubView ?? 'scatter',
     nodeIndicatorMetric: settings.nodeIndicatorMetric,
     colorScheme: settings.colorScheme ?? 'semantic',
     palette: settings.palette,
@@ -426,7 +424,6 @@ const getInitialState = (): PlanState => {
     highlightBrushColor: settings.highlightBrushColor ?? 'red',
     hotspotsEnabled: settings.hotspotsEnabled ?? true,
     showAdvisorSuggestions: settings.showAdvisorSuggestions ?? false,
-    legendVisible: settings.legendVisible,
     inputPanelCollapsed: initialPlans.some((slot) => slot.parsedPlan) ? settings.inputPanelCollapsed : false,
     filterPanelCollapsed: settings.filterPanelCollapsed,
     detailPanelCollapsed: false,
@@ -557,7 +554,11 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
     }
 
     case 'SET_VIEW_MODE':
-      return { ...state, viewMode: action.payload };
+      // The flame graph lives under Experimental; 'flame' stays accepted for
+      // old share links, sessions, settings and `?view=flame` deep links.
+      return action.payload === 'flame'
+        ? { ...state, viewMode: 'experimental', experimentalSubView: 'flame' }
+        : { ...state, viewMode: action.payload };
 
     case 'SET_TREE_COMPARE_ENABLED':
       return {
@@ -643,8 +644,6 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
     case 'SET_ADVISOR_SUGGESTIONS':
       return { ...state, showAdvisorSuggestions: action.payload };
 
-    case 'SET_LEGEND_VISIBLE':
-      return { ...state, legendVisible: action.payload };
 
     case 'SET_INPUT_PANEL_COLLAPSED':
       return { ...state, inputPanelCollapsed: action.payload };
@@ -923,7 +922,6 @@ interface PlanContextValue {
   palette: AppPalette;
   theme: Theme;
   filters: FilterState;
-  legendVisible: boolean;
   inputPanelCollapsed: boolean;
   filterPanelCollapsed: boolean;
   detailPanelCollapsed: boolean;
@@ -1011,7 +1009,6 @@ interface PlanContextValue {
   setHotspotsEnabled: (enabled: boolean) => void;
   showAdvisorSuggestions: boolean;
   setShowAdvisorSuggestions: (enabled: boolean) => void;
-  setLegendVisible: (visible: boolean) => void;
   // Density presets (derived from nodeDisplayOptions, never stored)
   densitySelection: DensitySelection;
   applyDensityPreset: (preset: DensityPreset) => void;
@@ -2071,7 +2068,6 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         highlightBrushColor: state.highlightBrushColor,
         hotspotsEnabled: state.hotspotsEnabled,
         showAdvisorSuggestions: state.showAdvisorSuggestions,
-        legendVisible: state.legendVisible,
         inputPanelCollapsed: state.inputPanelCollapsed,
         filterPanelCollapsed: state.filterPanelCollapsed,
         focusMode: state.focusMode,
@@ -2097,7 +2093,6 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     state.highlightBrushColor,
     state.hotspotsEnabled,
     state.showAdvisorSuggestions,
-    state.legendVisible,
     state.inputPanelCollapsed,
     state.filterPanelCollapsed,
     state.focusMode,
@@ -2305,10 +2300,6 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   const setShowAdvisorSuggestions = useCallback((enabled: boolean) => {
     dispatch({ type: 'SET_ADVISOR_SUGGESTIONS', payload: enabled });
-  }, []);
-
-  const setLegendVisible = useCallback((visible: boolean) => {
-    dispatch({ type: 'SET_LEGEND_VISIBLE', payload: visible });
   }, []);
 
   const setInputPanelCollapsed = useCallback((collapsed: boolean) => {
@@ -2714,7 +2705,6 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     palette: state.palette,
     theme: state.theme,
     filters: state.filters,
-    legendVisible: state.legendVisible,
     inputPanelCollapsed: state.inputPanelCollapsed,
     filterPanelCollapsed: state.filterPanelCollapsed,
     detailPanelCollapsed: state.detailPanelCollapsed,
@@ -2781,7 +2771,6 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setHotspotsEnabled,
     showAdvisorSuggestions: state.showAdvisorSuggestions,
     setShowAdvisorSuggestions,
-    setLegendVisible,
     densitySelection,
     applyDensityPreset,
     commandPaletteOpen,
@@ -2876,7 +2865,6 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     state.palette,
     state.theme,
     state.filters,
-    state.legendVisible,
     state.inputPanelCollapsed,
     state.filterPanelCollapsed,
     state.detailPanelCollapsed,
@@ -2939,7 +2927,6 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setHotspotsEnabled,
     state.showAdvisorSuggestions,
     setShowAdvisorSuggestions,
-    setLegendVisible,
     densitySelection,
     applyDensityPreset,
     commandPaletteOpen,

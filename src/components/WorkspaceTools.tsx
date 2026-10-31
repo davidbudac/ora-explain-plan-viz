@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import { DENSITY_PRESET_ORDER, DENSITY_PRESET_LABELS } from '../lib/density';
 import type { DensityPreset } from '../lib/density';
-import type { FlameMetric, NodeIndicatorMetric, SankeyMetric, ViewMode } from '../lib/types';
+import type { FlameMetric, NodeIndicatorMetric, SankeyMetric } from '../lib/types';
 import { FilterPanelBody } from './FilterPanel';
 import { NodeDetailBody, NoSelectionBody } from './NodeDetailPanel';
 import { CustomizeViewMenu } from './CustomizeViewMenu';
@@ -11,12 +11,6 @@ import { FOCUS_RING } from './ui';
 
 const CONTROL_BASE = `min-h-8 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 ${FOCUS_RING}`;
 const CONTROL = `${CONTROL_BASE} px-2.5`;
-/** Square, icon-only variant of CONTROL (the legend toggle). */
-const ICON_CONTROL = `${CONTROL_BASE} w-8 shrink-0 flex items-center justify-center`;
-const CONTROL_PRESSED = 'bg-slate-200 dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700';
-
-/** Views that render the floating colour/badge legend. */
-const LEGEND_VIEWS: ViewMode[] = ['hierarchical', 'tabular', 'sankey', 'flame'];
 
 interface SegmentOption<T extends string> {
   value: T;
@@ -83,28 +77,18 @@ function MetricSelect<T extends string>({
 }
 
 /**
- * The tree's layout strip, wired to the context. Expand/collapse/focus/redraw
- * go through `treeViewActionsRef`, and the hidden count / collapsibility /
- * minimap visibility come from `treeViewState` — both published by the
- * single-plan tree while it is mounted.
+ * The tree's layout strip, wired to the context. Focus/redraw go through
+ * `treeViewActionsRef`, published by the single-plan tree while it is mounted.
  */
 function TreeLayoutStrip() {
   const {
-    treeLayoutDirection, setTreeLayoutDirection, treeMinimap, setTreeMinimap,
-    treeViewActionsRef, treeViewState, selectedNodes,
+    treeLayoutDirection, setTreeLayoutDirection, treeViewActionsRef, selectedNodes,
   } = usePlan();
   return (
     <TreeLayoutControls
       className="shadow-none! bg-transparent! dark:bg-transparent! backdrop-blur-none! flex-nowrap! shrink-0"
       direction={treeLayoutDirection}
       onDirectionChange={setTreeLayoutDirection}
-      minimap={treeMinimap}
-      onMinimapChange={setTreeMinimap}
-      minimapShown={treeViewState?.minimapShown ?? false}
-      onExpandAll={() => treeViewActionsRef.current?.expandAll()}
-      onCollapseAll={() => treeViewActionsRef.current?.collapseAll()}
-      hiddenCount={treeViewState?.hiddenCount ?? 0}
-      canCollapse={treeViewState?.canCollapse ?? false}
       onFocusSelected={() => treeViewActionsRef.current?.focusSelected()}
       canFocusSelected={selectedNodes.length === 1}
       onRedraw={() => treeViewActionsRef.current?.resetLayout()}
@@ -124,7 +108,7 @@ function TreeLayoutStrip() {
 export function ViewControls({ includeTreeLayout = true, labelled = false }: { includeTreeLayout?: boolean; labelled?: boolean }) {
   const {
     viewMode, parsedPlan, treeCompareEnabled, densitySelection, applyDensityPreset,
-    nodeIndicatorMetric, setNodeIndicatorMetric, sankeyMetric, setSankeyMetric, flameMetric, setFlameMetric,
+    nodeIndicatorMetric, setNodeIndicatorMetric, sankeyMetric, setSankeyMetric, flameMetric, setFlameMetric, experimentalSubView,
   } = usePlan();
   const densityId = useId();
   if (!parsedPlan) return null;
@@ -188,7 +172,7 @@ export function ViewControls({ includeTreeLayout = true, labelled = false }: { i
     return <MetricSelect label="Flow" title="Flow metric — what the band widths represent" value={sankeyMetric} options={options} onChange={setSankeyMetric} labelled />;
   }
 
-  if (viewMode === 'flame') {
+  if (viewMode === 'experimental' && experimentalSubView === 'flame') {
     const options: SegmentOption<FlameMetric>[] = [
       { value: 'cost', label: 'Cost' },
       ...(hasActualStats
@@ -204,38 +188,6 @@ export function ViewControls({ includeTreeLayout = true, labelled = false }: { i
   }
 
   return null;
-}
-
-/**
- * Legend on/off, for the views that draw one. Icon-only by default (the
- * toolbar is tight); pass `iconOnly={false}` where a text chip has room.
- */
-export function LegendToggle({
-  className,
-  pressedClassName = CONTROL_PRESSED,
-  iconOnly = true,
-}: {
-  className?: string;
-  pressedClassName?: string;
-  iconOnly?: boolean;
-}) {
-  const { viewMode, legendVisible, setLegendVisible } = usePlan();
-  if (!LEGEND_VIEWS.includes(viewMode)) return null;
-  return (
-    <button
-      type="button"
-      aria-pressed={legendVisible}
-      aria-label="Toggle legend"
-      onClick={() => setLegendVisible(!legendVisible)}
-      title={legendVisible ? 'Hide the colour and badge legend' : 'Show the colour and badge legend'}
-      className={`${className ?? (iconOnly ? ICON_CONTROL : CONTROL)} ${legendVisible ? pressedClassName : ''} flex items-center gap-1.5`}
-    >
-      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h2m4 0h10M4 12h2m4 0h10M4 18h2m4 0h10" />
-      </svg>
-      {!iconOnly && <span>Legend</span>}
-    </button>
-  );
 }
 
 /** Canvas controls and non-modal sheets: the graph stays usable while inspecting. */
@@ -297,7 +249,6 @@ export function WorkspaceTools({ narrow }: { narrow: boolean }) {
           padding keeps focus rings from being clipped by the scroller. */}
       <div data-tour="view-controls" className="flex-1 min-w-0 -my-1 px-1 py-1 flex flex-nowrap items-center gap-2 overflow-x-auto scrollbar-none">
         <ViewControls />
-        <LegendToggle />
       </div>
       {/* Wide screens toggle the docked details panel from its edge tab; only the
           narrow layout (no docked panels) needs a button to open the sheet. */}

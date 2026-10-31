@@ -12,7 +12,6 @@ const tabs: { id: ViewMode; label: string }[] = [
   { id: 'compare', label: 'Compare' },
   { id: 'tabular', label: 'Tabular' },
   { id: 'sankey', label: 'Sankey' },
-  { id: 'flame', label: 'Flame' },
   { id: 'text', label: 'Plan text' },
   { id: 'sql', label: 'SQL' },
   { id: 'metadata', label: 'Metadata' },

@@ -26,7 +26,8 @@ describe('loadExample view hint', () => {
       await ctx.current().loadExample(sample({ view: 'flame' }));
     });
     expect(ctx.current().parsedPlan).not.toBeNull();
-    expect(ctx.current().viewMode).toBe('flame');
+    expect(ctx.current().viewMode).toBe('experimental');
+    expect(ctx.current().experimentalSubView).toBe('flame');
   });
 
   it('leaves the view alone when the example has no hint', async () => {

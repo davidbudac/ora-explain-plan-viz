@@ -12,7 +12,7 @@ const SETTINGS_VERSION = 1;
 
 /** Tree view orientation: top-down (root on top) or left-to-right (root on the left). */
 export type TreeLayoutDirection = 'TB' | 'LR';
-/** Tree minimap visibility: 'auto' shows it only for larger (visible) trees. */
+/** Tree minimap visibility: 'auto' shows it only for larger (visible) trees. Off by default; toggled from the command palette only. */
 export type TreeMinimapMode = 'auto' | 'on' | 'off';
 export const TREE_LAYOUT_DIRECTIONS: readonly TreeLayoutDirection[] = ['TB', 'LR'];
 export const TREE_MINIMAP_MODES: readonly TreeMinimapMode[] = ['auto', 'on', 'off'];
@@ -36,7 +36,6 @@ export interface UserSettings {
   palette: AppPalette;
 
   // UI panel states
-  legendVisible: boolean;
   inputPanelCollapsed: boolean;
   filterPanelCollapsed: boolean;
   /** Focus mode: docked side panels give way to floating instruments. */
@@ -111,7 +110,7 @@ export const defaultAiSections: Record<AiSectionId, boolean> = {
 
 const VALID_COLOR_SCHEMES: ColorScheme[] = ['contrast', 'semantic', 'estact', 'rail', 'ticker', 'stripe', 'tinted', 'terminal'];
 const VALID_PALETTES: AppPalette[] = APP_PALETTE_ORDER;
-const VALID_EXPERIMENTAL_SUB_VIEWS: ExperimentalSubView[] = ['scatter', 'timeline', 'waterfall', 'morph', 'waits'];
+const VALID_EXPERIMENTAL_SUB_VIEWS: ExperimentalSubView[] = ['flame', 'scatter', 'timeline', 'waterfall', 'morph', 'waits'];
 
 const defaultSettings: UserSettings = {
   version: SETTINGS_VERSION,
@@ -125,7 +124,6 @@ const defaultSettings: UserSettings = {
   hotspotsEnabled: true,
   showAdvisorSuggestions: false,
   showAnalysisOverview: true,
-  legendVisible: false,
   inputPanelCollapsed: false,
   filterPanelCollapsed: true,
   focusMode: false,
@@ -135,7 +133,7 @@ const defaultSettings: UserSettings = {
   highlightStyle: 'circle',
   highlightBrushColor: 'red',
   treeLayoutDirection: 'TB',
-  treeMinimap: 'auto',
+  treeMinimap: 'off',
   aiProvider: 'anthropic',
   aiAnthropicModel: DEFAULT_ANTHROPIC_MODEL,
   aiOpenAiBaseUrl: '',

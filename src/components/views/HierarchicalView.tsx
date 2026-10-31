@@ -216,7 +216,6 @@ function HierarchicalViewContent({
     hotspotsEnabled,
     highlightStyle,
     treeMinimap,
-    setTreeMinimap,
     setTreeLayoutDirection,
     treeViewActionsRef,
     setTreeViewState,
@@ -1452,13 +1451,6 @@ function HierarchicalViewContent({
             <TreeLayoutControls
               direction={layoutDirection}
               onDirectionChange={changeDirection}
-              minimap={treeMinimap}
-              onMinimapChange={setTreeMinimap}
-              minimapShown={showMinimap}
-              onExpandAll={expandAll}
-              onCollapseAll={collapseAll}
-              hiddenCount={hiddenCount}
-              canCollapse={canCollapse}
               onFocusSelected={focusSelected}
               canFocusSelected={selectedNodeId !== null}
               onRedraw={resetLayout}

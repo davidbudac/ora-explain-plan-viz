@@ -40,25 +40,25 @@ describe('workspace display preferences', () => {
 });
 
 describe('tree layout settings', () => {
-  it('defaults to a top-down layout with an automatic minimap', () => {
+  it('defaults to a top-down layout with the minimap off', () => {
     stubStorage(null);
     const settings = loadSettings();
     expect(settings.treeLayoutDirection).toBe('TB');
-    expect(settings.treeMinimap).toBe('auto');
+    expect(settings.treeMinimap).toBe('off');
   });
 
   it('restores saved values', () => {
-    stubStorage({ version: 1, treeLayoutDirection: 'LR', treeMinimap: 'off' });
+    stubStorage({ version: 1, treeLayoutDirection: 'LR', treeMinimap: 'on' });
     const settings = loadSettings();
     expect(settings.treeLayoutDirection).toBe('LR');
-    expect(settings.treeMinimap).toBe('off');
+    expect(settings.treeMinimap).toBe('on');
   });
 
   it('drops unknown values back to the defaults', () => {
     stubStorage({ version: 1, treeLayoutDirection: 'BT', treeMinimap: 'sometimes' });
     const settings = loadSettings();
     expect(settings.treeLayoutDirection).toBe('TB');
-    expect(settings.treeMinimap).toBe('auto');
+    expect(settings.treeMinimap).toBe('off');
   });
 });
 
