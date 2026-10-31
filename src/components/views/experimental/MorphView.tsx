@@ -232,7 +232,7 @@ export function MorphView() {
             type="button"
             onClick={() => setSide(false)}
             aria-pressed={!showActual}
-            className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${FOCUS_RING} ${
+            className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors ${FOCUS_RING} ${
               !showActual
                 ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
@@ -244,7 +244,7 @@ export function MorphView() {
             type="button"
             onClick={() => setSide(true)}
             aria-pressed={showActual}
-            className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${FOCUS_RING} ${
+            className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors ${FOCUS_RING} ${
               showActual
                 ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
@@ -256,12 +256,12 @@ export function MorphView() {
         <button
           type="button"
           onClick={replay}
-          className={`px-2.5 py-1 text-[11px] font-semibold rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 ${FOCUS_RING}`}
+          className={`px-2.5 py-1 text-[11px] font-medium rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 ${FOCUS_RING}`}
         >
           Replay
         </button>
         <span className="text-[11px] text-slate-400 dark:text-slate-500">
-          Widths: <span className="font-semibold text-slate-600 dark:text-slate-300">{showActual ? 'A-Rows (actual)' : 'E-Rows (estimated, all starts)'}</span>
+          Widths: <span className="font-medium text-slate-600 dark:text-slate-300">{showActual ? 'A-Rows (actual)' : 'E-Rows (estimated, all starts)'}</span>
           {' · color = misestimate severity'}
         </span>
       </div>
@@ -347,7 +347,7 @@ export function MorphView() {
             className="absolute z-10 pointer-events-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-lg px-3 py-2 text-xs text-slate-800 dark:text-slate-100"
             style={{ left: `${tooltip.x + 12}px`, top: `${tooltip.y + 12}px`, maxWidth: '260px' }}
           >
-            <div className="font-semibold mb-1">{tooltip.title}</div>
+            <div className="font-medium mb-1">{tooltip.title}</div>
             <div className="space-y-0.5">
               {tooltip.lines.map((line, index) => (
                 <div key={`${line}-${index}`}>{line}</div>

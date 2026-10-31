@@ -22,15 +22,15 @@ const MENU_PANEL =
   'absolute top-full mt-1 min-w-[15rem] max-h-[min(80vh,40rem)] overflow-y-auto p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50';
 
 const MENU_SECTION_HEADER =
-  'px-2.5 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400';
+  'px-2.5 pt-2 pb-1 text-[11px] font-medium text-slate-500 dark:text-slate-400';
 
 const MENU_SEPARATOR = 'border-t border-slate-200 dark:border-slate-700 my-1';
 
 const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
-  contrast: 'High Contrast',
+  contrast: 'High contrast',
   semantic: 'Semantic',
   estact: 'Est ⇄ Act',
-  rail: 'Icon Rail',
+  rail: 'Icon rail',
   ticker: 'Ticker',
   stripe: 'Stripe',
   tinted: 'Tinted',
@@ -461,7 +461,7 @@ export function HeaderActions() {
         onSelect={() => { close(); handleOpenPlanFile(); }}
       >
         <span className="flex-1">Open plan file…</span>
-        <kbd className="text-[10px] text-slate-400 dark:text-slate-500">{OPEN_FILE_SHORTCUT_LABEL}</kbd>
+        <kbd className="text-[11px] text-slate-400 dark:text-slate-500">{OPEN_FILE_SHORTCUT_LABEL}</kbd>
       </MenuItem>
       <MenuItem icon={<ItemIcon d={ICON_PATHS.upload} />} onSelect={() => { close(); handleLoad(); }}>
         <span>Load annotated plan (.json)</span>
@@ -514,7 +514,7 @@ export function HeaderActions() {
         disabled={parsedPlan === null}
         onSelect={() => { close(); setBaselineDialogOpen(true); }}
       >
-        <span>SQL Plan Baseline / Patch script…</span>
+        <span>SQL plan baseline / patch script…</span>
       </MenuItem>
     </>
   );
@@ -525,7 +525,7 @@ export function HeaderActions() {
       <MenuRadioRow label="Light" checked={theme === 'light'} onSelect={() => { setTheme('light'); close(); }} />
       <MenuRadioRow label="Dark" checked={theme === 'dark'} onSelect={() => { setTheme('dark'); close(); }} />
 
-      <MenuSectionHeader>Graph Colors</MenuSectionHeader>
+      <MenuSectionHeader>Graph colors</MenuSectionHeader>
       {Object.entries(COLOR_SCHEME_LABELS).map(([value, label]) => (
         <MenuRadioRow
           key={value}
@@ -535,7 +535,7 @@ export function HeaderActions() {
         />
       ))}
 
-      <MenuSectionHeader>App Palette</MenuSectionHeader>
+      <MenuSectionHeader>App palette</MenuSectionHeader>
       {APP_PALETTE_ORDER.map((value) => (
         <MenuRadioRow
           key={value}
@@ -563,7 +563,7 @@ export function HeaderActions() {
       </MenuItem>
       <MenuItem icon={<ItemIcon d={ICON_PATHS.keyboard} />} onSelect={() => { close(); setShortcutsOverlayOpen(true); }}>
         <span className="flex-1">Keyboard shortcuts</span>
-        <kbd className="text-[10px] text-slate-400 dark:text-slate-500">?</kbd>
+        <kbd className="text-[11px] text-slate-400 dark:text-slate-500">?</kbd>
       </MenuItem>
       <MenuLink href={GETTING_A_PLAN_URL} icon={<ItemIcon d={ICON_PATHS.book} />} onSelect={close}>
         Getting a plan
@@ -679,7 +679,7 @@ export function HeaderActions() {
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={ICON_PATHS.search} />
           </svg>
-          <kbd {...labelProps} className={`text-[10px] font-semibold ${labelsCollapsed ? 'sr-only' : ''}`}>{PALETTE_SHORTCUT}</kbd>
+          <kbd {...labelProps} className={`text-[11px] font-medium ${labelsCollapsed ? 'sr-only' : ''}`}>{PALETTE_SHORTCUT}</kbd>
         </button>
 
         <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" aria-hidden="true" />
@@ -757,7 +757,7 @@ export function HeaderActions() {
               />
               <MenuItem icon={<ItemIcon d={ICON_PATHS.search} />} onSelect={() => { closeCompact(); setCommandPaletteOpen(true); }}>
                 <span className="flex-1">Command palette</span>
-                <kbd className="text-[10px] text-slate-400 dark:text-slate-500">{PALETTE_SHORTCUT}</kbd>
+                <kbd className="text-[11px] text-slate-400 dark:text-slate-500">{PALETTE_SHORTCUT}</kbd>
               </MenuItem>
               <MenuSeparator />
               {(['file', 'appearance', 'help'] as const).map((view) => (
@@ -776,7 +776,7 @@ export function HeaderActions() {
             <>
               <MenuItem icon={<ItemIcon d={ICON_PATHS.back} />} onSelect={() => setCompactView('root')}>
                 <span className="sr-only">Back to all actions from </span>
-                <span className="font-semibold">{sectionTitle[compactView]}</span>
+                <span className="font-medium">{sectionTitle[compactView]}</span>
               </MenuItem>
               <MenuSeparator />
               {compactView === 'file' && fileItems(closeCompact)}

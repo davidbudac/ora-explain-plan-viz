@@ -56,7 +56,7 @@ export function ObjectListSidebar({ bundle, selectedKey, onSelect }: ObjectListS
           type="button"
           onClick={() => onSelect(null)}
           aria-current={selectedKey === null ? 'true' : undefined}
-          className={`w-full text-left px-3 py-1.5 text-xs font-semibold transition-colors ${FOCUS_RING_INSET} ${
+          className={`w-full text-left px-3 py-1.5 text-xs font-medium transition-colors ${FOCUS_RING_INSET} ${
             selectedKey === null
               ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -115,7 +115,7 @@ function indexBadges(stats: { uniqueness: string; visibility: string }): Badge[]
 function SidebarGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="mt-2">
-      <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+      <div className="px-3 py-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
         {title}
       </div>
       {children}
@@ -165,7 +165,7 @@ function ObjectRow({
         <span
           key={b.label}
           title={b.title}
-          className="shrink-0 px-1 py-px text-[10px] font-bold rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase"
+          className="shrink-0 px-1 py-px text-[11px] font-medium rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
         >
           {b.label}
         </span>

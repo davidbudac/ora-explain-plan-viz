@@ -13,7 +13,7 @@ const tabs: { id: ViewMode; label: string }[] = [
   { id: 'tabular', label: 'Tabular' },
   { id: 'sankey', label: 'Sankey' },
   { id: 'flame', label: 'Flame' },
-  { id: 'text', label: 'Plan Text' },
+  { id: 'text', label: 'Plan text' },
   { id: 'sql', label: 'SQL' },
   { id: 'metadata', label: 'Metadata' },
   { id: 'monitor', label: 'Monitor' },
@@ -389,7 +389,7 @@ export function ViewTabStrip() {
                 onClick={() => selectTab(tab.id)}
                 title={tab.label}
                 className={`
-                  shrink-0 flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md motion-safe:transition-all
+                  shrink-0 flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md motion-safe:transition-colors
                   ${index >= visibleCount ? 'hidden' : ''}
                   ${FOCUS_RING_INSET}
                   ${isActive
@@ -415,7 +415,7 @@ export function ViewTabStrip() {
               aria-label={activeIsHidden ? `More views (current: ${overflowTabs.find((tab) => tab.id === viewMode)?.label})` : 'More views'}
               title="More views"
               className={`
-                h-6 w-8 flex items-center justify-center rounded-md text-xs font-semibold motion-safe:transition-colors
+                h-6 w-8 flex items-center justify-center rounded-md text-xs font-medium motion-safe:transition-colors
                 ${FOCUS_RING_INSET}
                 ${activeIsHidden
                   ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-400/30'
@@ -451,7 +451,7 @@ export function ViewTabStrip() {
                         w-full px-3 py-2 flex items-center gap-2 text-left text-sm motion-safe:transition-colors
                         ${FOCUS_RING_INSET} focus-visible:bg-slate-100 dark:focus-visible:bg-slate-800
                         ${isActive
-                          ? 'font-semibold text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800'
+                          ? 'font-medium text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800'
                           : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}
                       `}
                     >

@@ -27,10 +27,10 @@ function CompareTabularPane({
     <div className={`flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border bg-white dark:bg-slate-950 ${isActive ? accentClassName : 'border-slate-200 dark:border-slate-800'}`}>
       <div className="flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 px-4 py-2.5">
         <div className="min-w-0">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+          <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
             {slot.customLabel || slot.label}
           </div>
-          <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
             {parsedPlan.planHashValue ? `PHV ${parsedPlan.planHashValue}` : 'No plan hash value'}
           </div>
         </div>

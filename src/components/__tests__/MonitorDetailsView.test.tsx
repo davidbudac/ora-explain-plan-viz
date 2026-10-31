@@ -32,7 +32,7 @@ describe('MonitorDetailsView plan extras', () => {
     load('27-sql_monitor-Partitioned Star Query.txt');
     const { container } = render(<MonitorDetailsView />);
     expect(sectionTitles(container)).toEqual(
-      expect.arrayContaining(['Parallel Servers', 'Plan Info', 'Outline Hints']),
+      expect.arrayContaining(['Parallel servers', 'Plan info', 'Outline hints']),
     );
     const text = container.textContent ?? '';
     expect(text).toContain('DOP 4');
@@ -48,7 +48,7 @@ describe('MonitorDetailsView plan extras', () => {
     load('21-sql_monitor-Star Schema Rollup.txt');
     const { container } = render(<MonitorDetailsView />);
     const titles = sectionTitles(container);
-    expect(titles).not.toContain('Parallel Servers');
-    expect(titles).toEqual(expect.arrayContaining(['Plan Info', 'Outline Hints']));
+    expect(titles).not.toContain('Parallel servers');
+    expect(titles).toEqual(expect.arrayContaining(['Plan info', 'Outline hints']));
   });
 });

@@ -30,7 +30,7 @@ interface AgentHandoffDialogProps {
 
 type Mode = 'analyze' | 'compare';
 
-const LABEL_CLASS = 'block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide';
+const LABEL_CLASS = 'block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1';
 const INPUT_CLASS =
   'w-full px-2.5 py-1.5 text-xs rounded-md bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/60';
 
@@ -141,7 +141,7 @@ export function AgentHandoffDialog({ onClose }: AgentHandoffDialogProps) {
     <Dialog
       open
       onClose={onClose}
-      title="Agent Handoff"
+      title="Agent handoff"
       size="lg"
       initialFocusRef={questionRef}
       dirty={question.trim() !== ''}
@@ -198,7 +198,7 @@ export function AgentHandoffDialog({ onClose }: AgentHandoffDialogProps) {
                   className="mt-0.5"
                 />
                 <span>
-                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">{section.label}</span>
+                  <span className="text-xs font-medium text-slate-800 dark:text-slate-200">{section.label}</span>
                   <span className="ml-1.5 text-[11px] tabular-nums text-slate-500 dark:text-slate-400">
                     ~{formatTokens(handoffTokenEstimate(section.body))} tokens
                   </span>
@@ -217,7 +217,7 @@ export function AgentHandoffDialog({ onClose }: AgentHandoffDialogProps) {
               className="mt-0.5"
             />
             <span>
-              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">Embed the analysis playbook</span>
+              <span className="text-xs font-medium text-slate-800 dark:text-slate-200">Embed the analysis playbook</span>
               <span className="ml-1.5 text-[11px] tabular-nums text-slate-500 dark:text-slate-400">~{formatTokens(playbookTokens)} tokens</span>
               <span className="block text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
                 The full <code>{AGENT_SKILL_NAME}</code> skill, for agents that don&apos;t have it installed
@@ -241,7 +241,7 @@ export function AgentHandoffDialog({ onClose }: AgentHandoffDialogProps) {
           <button
             type="button"
             onClick={() => setShowPreview(!showPreview)}
-            className={`mt-2 text-[10px] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 select-none ${FOCUS_RING}`}
+            className={`mt-2 text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 select-none ${FOCUS_RING}`}
             aria-expanded={showPreview}
           >
             {showPreview ? '▾ Hide preview' : '▸ Show preview'}
@@ -257,7 +257,7 @@ export function AgentHandoffDialog({ onClose }: AgentHandoffDialogProps) {
         </div>
 
         <section aria-labelledby={`${uid}-skill`} className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-2.5">
-          <h3 id={`${uid}-skill`} className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+          <h3 id={`${uid}-skill`} className="text-xs font-medium text-slate-800 dark:text-slate-200">
             Companion skill: <code>{AGENT_SKILL_NAME}</code>
           </h3>
           <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-400 leading-snug">

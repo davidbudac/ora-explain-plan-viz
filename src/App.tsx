@@ -36,11 +36,11 @@ function MetadataPopoutContent({ onReturn }: { onReturn: () => void }) {
   return (
     <>
       <div className="shrink-0 px-4 py-2 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
-        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Metadata Explorer</span>
+        <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Metadata explorer</span>
         <button
           type="button"
           onClick={onReturn}
-          className="h-7 px-2.5 text-[11px] font-semibold rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="h-7 px-2.5 text-[11px] font-medium rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         >
           Return to tab
         </button>
@@ -101,17 +101,17 @@ function ExampleChip({
     <button
       type="button"
       onClick={() => onLoad(sample)}
-      className={`flex flex-col gap-0.5 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors text-left ${FOCUS_RING}`}
+      className={`flex flex-col gap-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors text-left ${FOCUS_RING}`}
     >
-      <span className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
-          {sample.name}
-        </span>
-        <ExampleBadges sample={sample} />
+      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+        {sample.name}
       </span>
       {sample.description && (
-        <span className="text-xs leading-snug text-slate-500 dark:text-slate-400">{sample.description}</span>
+        <span className="text-xs leading-5 text-slate-500 dark:text-slate-400">{sample.description}</span>
       )}
+      <span className="mt-1">
+        <ExampleBadges sample={sample} />
+      </span>
     </button>
   );
 }
@@ -162,7 +162,7 @@ function EmptySlotState({
           d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
         />
       </svg>
-      <h2 className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-1">
+      <h2 className="text-base font-medium text-slate-700 dark:text-slate-300 mb-1">
         {slotLabel} is empty
       </h2>
       <p className="text-sm mb-6 text-center">
@@ -172,7 +172,7 @@ function EmptySlotState({
 
       {samples.length > 0 && (
         <div className="w-full max-w-2xl">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2 text-center">
+          <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 text-center">
             Try an example
           </div>
           <ExampleChipGrid samples={samples} onLoad={onLoad} />
@@ -249,7 +249,7 @@ function DropOverlay() {
         <svg className="mx-auto w-10 h-10 mb-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
         </svg>
-        <div className="text-base font-semibold text-slate-800 dark:text-slate-100">
+        <div className="text-base font-medium text-slate-800 dark:text-slate-100">
           Drop a plan, a metadata bundle or an annotated-plan JSON
         </div>
         <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -321,9 +321,9 @@ const PLAN_SNIPPETS: Array<{ title: string; hint: string; sql: string }> = [
 
 function HowToGetAPlan() {
   return (
-    <details className="group rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-left">
+    <details className="group rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-left">
       <summary
-        className={`cursor-pointer select-none list-none flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-200 rounded-lg ${FOCUS_RING}`}
+        className={`cursor-pointer select-none list-none flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 rounded-xl ${FOCUS_RING}`}
       >
         How to get a plan
         <svg className="w-4 h-4 text-slate-400 motion-safe:transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -334,7 +334,7 @@ function HowToGetAPlan() {
         {PLAN_SNIPPETS.map((snippet) => (
           <div key={snippet.title}>
             <div className="flex items-center justify-between gap-2">
-              <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">{snippet.title}</div>
+              <div className="text-xs font-medium text-slate-700 dark:text-slate-300">{snippet.title}</div>
               <CopyButton text={snippet.sql} label="Copy SQL" />
             </div>
             <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all font-mono text-xs px-2 py-1.5 rounded bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800">
@@ -609,7 +609,7 @@ function AppContent() {
         <AgentHandoffDialog onClose={() => setHandoffDialogOpen(false)} />
       )}
       {metadataPopoutOpen && metadataBundle && (
-        <PopoutWindow title="Metadata Explorer" onClose={() => setMetadataPopoutOpen(false)}>
+        <PopoutWindow title="Metadata explorer" onClose={() => setMetadataPopoutOpen(false)}>
           <MetadataPopoutContent onReturn={() => setMetadataPopoutOpen(false)} />
         </PopoutWindow>
       )}
@@ -673,143 +673,134 @@ function AppContent() {
 
       {!anyPlanParsed && (
         <div className="flex-1 overflow-y-auto">
-          <div className="min-h-full flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 p-8">
-            <svg
-              className="w-16 h-16 mb-4 text-slate-300 dark:text-slate-700"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1}
-                d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-2">
-              No Execution Plan Loaded
-            </h2>
-
-            <PrivacyBadge />
-
-            <div className="mb-4 flex flex-col items-center gap-1">
-              <button
-                type="button"
-                onClick={() => void beginWalkthrough()}
-                disabled={startingTour}
-                className={`${BTN_PRIMARY} px-4 py-2 text-sm`}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v18M5 4h11l-2 4 2 4H5" />
-                </svg>
-                {startingTour ? 'Loading sample plan…' : 'Take the walkthrough'}
-              </button>
-              <span className="text-xs text-slate-500 dark:text-slate-400">A quick guided tour on a sample plan</span>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 mb-3 text-sm text-center">
-              <div className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300">1</span>
-                <span>Paste a plan above, or drop a file anywhere on this page</span>
-              </div>
-              <span className="hidden sm:inline text-slate-300 dark:text-slate-700">&rarr;</span>
-              <div className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300">2</span>
-                <span>Explore the interactive plan tree</span>
-              </div>
-              <span className="hidden sm:inline text-slate-300 dark:text-slate-700">&rarr;</span>
-              <div className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300">3</span>
-                <span>Click nodes for details &amp; findings</span>
-              </div>
-            </div>
-
-            <p className="mb-6 max-w-2xl text-xs text-center text-slate-500 dark:text-slate-400">
-              Accepts{' '}
-              {SUPPORTED_FORMATS.map((format, index) => (
-                <span key={format.id}>
-                  {index > 0 && (index === SUPPORTED_FORMATS.length - 1 ? ' and ' : ', ')}
-                  <span title={format.hint} className="font-medium text-slate-600 dark:text-slate-300">{format.name}</span>
-                </span>
-              ))}
-              .
-            </p>
-
-            {recentPlans.length > 0 && (
-              <section className="w-full max-w-2xl mb-6" aria-labelledby="recent-plans-heading">
-                <h3
-                  id="recent-plans-heading"
-                  className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2 text-center"
-                >
-                  Recent
-                </h3>
-                <RecentPlansList entries={recentPlans} onOpen={openRecent} onRemove={removeRecentPlan} />
-              </section>
-            )}
-
-            {featuredExamples.length > 0 && (
-              <div className="w-full max-w-2xl mb-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2 text-center">
-                  Try an example
+          <div className="mx-auto w-full max-w-6xl px-6 py-12 lg:px-8 lg:py-16 text-slate-600 dark:text-slate-400">
+            <div className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
+              <div className="flex flex-col gap-8">
+                <div>
+                  <h2 className="text-2xl leading-tight font-medium text-slate-900 dark:text-slate-100">
+                    Paste an Oracle execution plan
+                  </h2>
+                  <p className="mt-3 max-w-md text-sm leading-6">
+                    See the operation tree, where the time and rows went, and where the optimizer guessed wrong
+                  </p>
                 </div>
-                <ExampleChipGrid samples={featuredExamples} onLoad={loadSample} />
-                <div className="text-xs text-slate-400 dark:text-slate-500 text-center mt-2">
-                  All examples are available under &quot;Load Example&quot; in the top bar.
-                </div>
-              </div>
-            )}
 
-            <div className="w-full max-w-2xl mb-4">
-              <HowToGetAPlan />
-            </div>
+                <PrivacyBadge />
 
-            <div className="w-full max-w-2xl mb-4">
-              <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 px-4 py-3 text-left">
-                <div className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                  Or generate a link straight from the database
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void beginWalkthrough()}
+                    disabled={startingTour}
+                    className={`${BTN_PRIMARY} h-9 px-4 text-sm`}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v18M5 4h11l-2 4 2 4H5" />
+                    </svg>
+                    {startingTour ? 'Loading sample plan…' : 'Take the walkthrough'}
+                  </button>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">A guided tour on a sample plan</span>
                 </div>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  Skip copy/paste: <code className="font-mono">plan_to_url.sql</code> fetches the
-                  plan for a <code className="font-mono">sql_id</code>, gzip-compresses and encodes it
-                  inside the database, and prints a ready-to-click link that opens the plan here.
+
+                <ol className="flex flex-col gap-3 text-sm">
+                  {[
+                    'Paste a plan above, or drop a file anywhere on this page',
+                    'Explore the interactive plan tree',
+                    'Click an operation for details and findings',
+                  ].map((step, index) => (
+                    <li key={step} className="flex items-baseline gap-3">
+                      <span className="w-5 shrink-0 font-mono text-xs text-slate-400 dark:text-slate-500 tabular-nums">
+                        {String(index + 1).padStart(2, '0')}
+                      </span>
+                      <span className="text-slate-700 dark:text-slate-300">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+
+                <p className="max-w-md text-xs leading-5 text-slate-500 dark:text-slate-400">
+                  Accepts{' '}
+                  {SUPPORTED_FORMATS.map((format, index) => (
+                    <span key={format.id}>
+                      {index > 0 && (index === SUPPORTED_FORMATS.length - 1 ? ' and ' : ', ')}
+                      <span title={format.hint} className="text-slate-700 dark:text-slate-300">{format.name}</span>
+                    </span>
+                  ))}
                 </p>
-                <div className="mt-2 flex items-center justify-between gap-3 flex-wrap">
-                  <code className="font-mono text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800">
-                    SQL&gt; @plan_to_url.sql an05rsj1up1k5
-                  </code>
-                  <div className="flex items-center gap-3 whitespace-nowrap">
-                    <a
-                      href="https://github.com/davidbudac/ora-explain-plan-viz/blob/main/scripts/plan_to_url.sql"
-                      target="_blank"
-                      rel="noreferrer"
-                      className={`text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline rounded ${FOCUS_RING}`}
+              </div>
+
+              <div className="flex flex-col gap-8">
+                {recentPlans.length > 0 && (
+                  <section aria-labelledby="recent-plans-heading">
+                    <h3
+                      id="recent-plans-heading"
+                      className="mb-3 text-sm font-medium text-slate-900 dark:text-slate-100"
                     >
-                      Get the script
-                    </a>
-                    <a
-                      href="https://github.com/davidbudac/ora-explain-plan-viz/blob/main/scripts/README.md#plan_to_urlsql"
-                      target="_blank"
-                      rel="noreferrer"
-                      className={`text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline rounded ${FOCUS_RING}`}
-                    >
-                      Read the docs &rarr;
-                    </a>
+                      Recent
+                    </h3>
+                    <RecentPlansList entries={recentPlans} onOpen={openRecent} onRemove={removeRecentPlan} />
+                  </section>
+                )}
+
+                {featuredExamples.length > 0 && (
+                  <section aria-labelledby="examples-heading">
+                    <div className="mb-3 flex items-baseline justify-between gap-4">
+                      <h3 id="examples-heading" className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        Try an example
+                      </h3>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        More under Load example in the top bar
+                      </span>
+                    </div>
+                    <ExampleChipGrid samples={featuredExamples} onLoad={loadSample} />
+                  </section>
+                )}
+
+                <HowToGetAPlan />
+
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    Or generate a link straight from the database
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    Skip copy and paste: <code className="font-mono">plan_to_url.sql</code> fetches the
+                    plan for a <code className="font-mono">sql_id</code>, gzip-compresses and encodes it
+                    inside the database, and prints a link that opens the plan here.
+                  </p>
+                  <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+                    <code className="font-mono text-xs px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800">
+                      SQL&gt; @plan_to_url.sql an05rsj1up1k5
+                    </code>
+                    <div className="flex items-center gap-4 whitespace-nowrap">
+                      <a
+                        href="https://github.com/davidbudac/ora-explain-plan-viz/blob/main/scripts/plan_to_url.sql"
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline rounded ${FOCUS_RING}`}
+                      >
+                        Get the script
+                      </a>
+                      <a
+                        href="https://github.com/davidbudac/ora-explain-plan-viz/blob/main/scripts/README.md#plan_to_urlsql"
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline rounded ${FOCUS_RING}`}
+                      >
+                        Read the docs
+                      </a>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="text-sm text-slate-400 dark:text-slate-500 text-center">
-              Repeated DBMS_XPLAN sections with different plan hash values are imported as separate plan tabs.
+            <div className="mt-12 border-t border-slate-200 dark:border-slate-800 pt-6 flex flex-col gap-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+              <p>Repeated DBMS_XPLAN sections with different plan hash values are imported as separate plan tabs.</p>
+              <p className="max-w-3xl">
+                Everything runs in your browser: plans are never uploaded. Your last session and recent plans are kept
+                only in this browser&apos;s local storage. The public build counts anonymous page views with GoatCounter
+                and sends no plan data.
+              </p>
             </div>
-
-            <p className="mt-4 max-w-2xl text-xs text-center text-slate-400 dark:text-slate-500">
-              Everything runs in your browser: plans are never uploaded. Your last session and recent plans are kept
-              only in this browser&apos;s local storage. The public build counts anonymous page views with GoatCounter
-              and sends no plan data.
-            </p>
           </div>
         </div>
       )}

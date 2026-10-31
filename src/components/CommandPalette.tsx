@@ -21,13 +21,13 @@ type CommandCategory =
   | 'File'
   | 'Examples'
   | 'View'
-  | 'Node Display'
-  | 'Runtime Display'
+  | 'Node display'
+  | 'Runtime display'
   | 'Warnings'
   | 'Metadata'
   | 'Behavior'
   | 'Theme'
-  | 'Export & Share'
+  | 'Export & share'
   | 'Panels'
   | 'Metrics'
   | 'Annotations';
@@ -40,13 +40,13 @@ const CATEGORY_ICON_PATHS: Record<CommandCategory, string> = {
   'File': 'M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z',
   'Examples': 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
   'View': 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z',
-  'Node Display': 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
-  'Runtime Display': 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+  'Node display': 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
+  'Runtime display': 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
   'Warnings': 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
   'Metadata': 'M4 7c0-1.1 3.6-2 8-2s8 .9 8 2-3.6 2-8 2-8-.9-8-2zm0 0v10c0 1.1 3.6 2 8 2s8-.9 8-2V7M4 12c0 1.1 3.6 2 8 2s8-.9 8-2',
   'Behavior': 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z',
   'Theme': 'M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01',
-  'Export & Share': 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12',
+  'Export & share': 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12',
   'Panels': 'M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2h-6a2 2 0 00-2 2',
   'Metrics': 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
   'Annotations': 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
@@ -101,7 +101,7 @@ const VIEW_MODE_LABELS: Record<Exclude<ViewMode, 'ai' | 'ai-report'>, string> = 
   sankey: 'Sankey',
   flame: 'Flame',
   tabular: 'Table',
-  text: 'Plan Text',
+  text: 'Plan text',
   sql: 'SQL',
   metadata: 'Metadata',
   compare: 'Compare',
@@ -110,10 +110,10 @@ const VIEW_MODE_LABELS: Record<Exclude<ViewMode, 'ai' | 'ai-report'>, string> = 
 };
 
 const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
-  contrast: 'High Contrast',
+  contrast: 'High contrast',
   semantic: 'Semantic',
   estact: 'Est ⇄ Act',
-  rail: 'Icon Rail',
+  rail: 'Icon rail',
   ticker: 'Ticker',
   stripe: 'Stripe',
   tinted: 'Tinted',
@@ -408,7 +408,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
       commands.push({
         id: `density-${preset}`,
         label: `Density preset: ${DENSITY_PRESET_LABELS[preset]}`,
-        category: 'Node Display',
+        category: 'Node display',
         kind: 'select',
         keywords: ['density', 'preset', 'minimal', 'compact', 'detailed', 'simplify', preset],
         execute: () => applyDensityPreset(preset),
@@ -434,7 +434,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
       commands.push({
         id: `display-${item.key}`,
         label: `Toggle ${item.label}`,
-        category: 'Node Display',
+        category: 'Node display',
         kind: 'toggle',
         keywords: ['display', 'show', 'hide', 'toggle', 'node', ...item.keywords],
         execute: () => toggleNodeDisplayOption(item.key),
@@ -454,7 +454,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
       commands.push({
         id: `display-${item.key}`,
         label: `Toggle ${item.label}`,
-        category: 'Runtime Display',
+        category: 'Runtime display',
         kind: 'toggle',
         keywords: ['display', 'show', 'hide', 'toggle', ...item.keywords],
         execute: () => toggleNodeDisplayOption(item.key),
@@ -543,7 +543,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     commands.push({
       id: 'enable-all-display',
       label: 'Enable all display options',
-      category: 'Node Display',
+      category: 'Node display',
       kind: 'action',
       keywords: ['enable', 'all', 'show', 'display', 'options'],
       execute: enableAllDisplayOptions,
@@ -553,7 +553,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     commands.push({
       id: 'disable-all-display',
       label: 'Disable all display options',
-      category: 'Node Display',
+      category: 'Node display',
       kind: 'action',
       keywords: ['disable', 'all', 'hide', 'display', 'options'],
       execute: disableAllDisplayOptions,
@@ -639,7 +639,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     commands.push({
       id: 'copy-plan-markdown',
       label: 'Copy plan as Markdown',
-      category: 'Export & Share',
+      category: 'Export & share',
       kind: 'action',
       keywords: ['copy', 'markdown', 'md', 'plan', 'ticket', 'jira', 'github', 'chat', 'paste', 'table', 'clipboard'],
       execute: () => { if (parsedPlan) void copyPlanAsMarkdown(parsedPlan, toast.show); },
@@ -649,7 +649,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     commands.push({
       id: 'export-agent-handoff',
       label: 'Export agent handoff…',
-      category: 'Export & Share',
+      category: 'Export & share',
       kind: 'action',
       keywords: ['agent', 'handoff', 'prompt', 'ai', 'llm', 'claude', 'codex', 'chatgpt', 'copilot', 'markdown', 'md', 'skill', 'analyze', 'tune'],
       execute: () => setHandoffDialogOpen(true),
@@ -659,7 +659,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     commands.push({
       id: 'share-url',
       label: 'Share plan via URL',
-      category: 'Export & Share',
+      category: 'Export & share',
       kind: 'action',
       keywords: ['share', 'url', 'link', 'copy', 'clipboard'],
       execute: () => { void share(); },
@@ -669,7 +669,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     commands.push({
       id: 'export-png',
       label: 'Export as PNG',
-      category: 'Export & Share',
+      category: 'Export & share',
       kind: 'action',
       keywords: ['export', 'png', 'image', 'screenshot', 'download'],
       execute: onExportPng,
@@ -679,7 +679,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     commands.push({
       id: 'export-client-report',
       label: 'Export client report…',
-      category: 'Export & Share',
+      category: 'Export & share',
       kind: 'action',
       keywords: ['report', 'client', 'document', 'documentation', 'export', 'pdf', 'html', 'deliverable', 'consultant'],
       execute: () => setReportDialogOpen(true),
@@ -688,8 +688,8 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
 
     commands.push({
       id: 'create-baseline-script',
-      label: 'Create SQL Plan Baseline script…',
-      category: 'Export & Share',
+      label: 'Create SQL plan baseline script…',
+      category: 'Export & share',
       kind: 'action',
       keywords: ['baseline', 'sql plan baseline', 'spm', 'dbms_spm', 'script', 'fix plan'],
       execute: () => setBaselineDialogOpen(true),
@@ -699,7 +699,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     commands.push({
       id: 'create-sql-patch-script',
       label: 'Create SQL Patch script…',
-      category: 'Export & Share',
+      category: 'Export & share',
       kind: 'action',
       keywords: ['sql patch', 'patch', 'dbms_sqldiag', 'hint', 'outline', 'fix plan', 'script'],
       execute: () => setBaselineDialogOpen(true, 'patch'),
@@ -709,7 +709,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     commands.push({
       id: 'save-annotations',
       label: 'Save annotated plan',
-      category: 'Export & Share',
+      category: 'Export & share',
       kind: 'action',
       keywords: ['save', 'annotations', 'export', 'json', 'download'],
       execute: exportAnnotatedPlan,
@@ -895,13 +895,13 @@ function useShareToasts() {
 const CATEGORY_ORDER: CommandCategory[] = [
   'File',
   'View',
-  'Node Display',
-  'Runtime Display',
+  'Node display',
+  'Runtime display',
   'Warnings',
   'Metadata',
   'Behavior',
   'Theme',
-  'Export & Share',
+  'Export & share',
   'Panels',
   'Metrics',
   'Annotations',
@@ -1112,7 +1112,7 @@ export function CommandPalette() {
             spellCheck={false}
             className="flex-1 bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none"
           />
-          <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded">
+          <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[11px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded">
             ESC
           </kbd>
         </div>
@@ -1182,7 +1182,7 @@ export function CommandPalette() {
                       </svg>
                     )}
                     {cmd.shortcut && (
-                      <kbd className="px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded">
+                      <kbd className="px-1.5 py-0.5 text-[11px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded">
                         {cmd.shortcut}
                       </kbd>
                     )}
@@ -1195,7 +1195,7 @@ export function CommandPalette() {
 
               return (
                 <div key={group.category} role="group" aria-label={group.category}>
-                  <div role="presentation" className="px-4 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 dark:text-slate-400 uppercase">
+                  <div role="presentation" className="px-4 pt-2 pb-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
                     {group.category}
                   </div>
                   {categoryItems}
@@ -1208,16 +1208,16 @@ export function CommandPalette() {
         {/* Footer */}
         <div className="flex items-center gap-3 px-4 py-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 dark:text-slate-500">
           <span className="flex items-center gap-1">
-            <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px]">&uarr;</kbd>
-            <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px]">&darr;</kbd>
+            <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[11px]">&uarr;</kbd>
+            <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[11px]">&darr;</kbd>
             navigate
           </span>
           <span className="flex items-center gap-1">
-            <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px]">&crarr;</kbd>
+            <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[11px]">&crarr;</kbd>
             select
           </span>
           <span className="flex items-center gap-1">
-            <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px]">esc</kbd>
+            <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[11px]">esc</kbd>
             close
           </span>
         </div>

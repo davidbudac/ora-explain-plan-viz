@@ -39,7 +39,7 @@ export function PlanWarningsNotice({ warnings, onDismiss }: PlanWarningsNoticePr
             onClick={() => setExpanded((value) => !value)}
             aria-expanded={expanded}
             aria-controls={listId}
-            className={`font-semibold rounded ${FOCUS_RING}`}
+            className={`font-medium rounded ${FOCUS_RING}`}
           >
             {heading} — {expanded ? 'hide details' : 'show details'}
           </button>
@@ -61,7 +61,7 @@ export function PlanWarningsNotice({ warnings, onDismiss }: PlanWarningsNoticePr
         type="button"
         onClick={onDismiss}
         aria-label="Dismiss"
-        className={`shrink-0 font-bold opacity-60 hover:opacity-100 leading-none rounded ${FOCUS_RING}`}
+        className={`shrink-0 font-medium opacity-60 hover:opacity-100 leading-none rounded ${FOCUS_RING}`}
       >
         ×
       </button>

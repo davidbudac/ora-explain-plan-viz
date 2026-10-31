@@ -312,7 +312,7 @@ export function WorkspaceTools({ narrow }: { narrow: boolean }) {
     {activePanel && <section ref={sheet} role="dialog" aria-modal="false" aria-label={activePanel === 'filters' ? 'Filters' : detailsTitle}
       className="absolute z-40 right-2 top-12 bottom-2 w-[340px] max-w-[calc(100%-1rem)] flex flex-col rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl max-sm:top-auto max-sm:left-2 max-sm:w-auto max-sm:max-h-[50%]">
       <div className="flex shrink-0 items-center justify-between border-b border-slate-200 dark:border-slate-800 p-2">
-        <h2 className="text-sm font-semibold">{activePanel === 'filters' ? 'Filters' : detailsTitle}</h2>
+        <h2 className="text-sm font-medium">{activePanel === 'filters' ? 'Filters' : detailsTitle}</h2>
         <button type="button" className={CONTROL} onClick={closePanel} aria-label="Close workspace panel">Close</button>
       </div>
       <div className="min-h-0 overflow-y-auto overscroll-contain">

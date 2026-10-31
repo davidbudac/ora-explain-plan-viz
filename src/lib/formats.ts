@@ -108,7 +108,7 @@ export const PARSE_FAILED_MESSAGE = `Could not parse this as an execution plan. 
 
 /** Placeholder for the plan input textarea. */
 export const INPUT_PLACEHOLDER = [
-  'Paste an Oracle execution plan here, drop a file anywhere on the page, or pick one from Load Example.',
+  'Paste an Oracle execution plan here, drop a file anywhere on the page, or pick one from Load example',
   '',
   'Supported formats:',
   ...SUPPORTED_FORMATS.map((f) => `  • ${f.name}`),
