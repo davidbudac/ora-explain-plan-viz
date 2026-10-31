@@ -20,7 +20,7 @@ export function MetadataView() {
         <svg className="w-12 h-12 text-slate-300 dark:text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7c0-1.1 3.6-2 8-2s8 .9 8 2-3.6 2-8 2-8-.9-8-2zm0 0v10c0 1.1 3.6 2 8 2s8-.9 8-2V7M4 12c0 1.1 3.6 2 8 2s8-.9 8-2" />
         </svg>
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">No metadata attached to this plan</h3>
+        <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300">No metadata attached to this plan</h3>
         <p className="max-w-md text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
           Run the gather script to collect schema details — tables, indexes, constraints, column stats and
           histograms — so you can study this plan with more context.
@@ -28,12 +28,12 @@ export function MetadataView() {
         <button
           type="button"
           onClick={() => setShowGatherModal(true)}
-          className={`mt-1 px-3 py-1.5 text-xs font-bold rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors uppercase tracking-wider ${FOCUS_RING}`}
+          className={`mt-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors ${FOCUS_RING}`}
         >
           {parsedPlan?.sqlId ? 'Generate gather script' : 'Manual gather script'}
         </button>
         <div className="mt-2 max-w-md text-left text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-          <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <h4 className="mb-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
             Already have the output?
           </h4>
           <ol className="list-decimal space-y-0.5 pl-4">
@@ -41,7 +41,7 @@ export function MetadataView() {
               Run the script in SQL*Plus; it writes <span className="font-mono">bundle.json</span> (or prints the JSON).
             </li>
             <li>
-              Paste that output into the input drawer and press <span className="font-semibold">Parse</span>, or drop
+              Paste that output into the input drawer and press <span className="font-medium">Parse</span>, or drop
               the <span className="font-mono">.json</span> file onto the input box.
             </li>
           </ol>
@@ -68,7 +68,7 @@ export function MetadataView() {
         <button
           type="button"
           onClick={() => setMetadataPopoutOpen(false)}
-          className={`px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors uppercase tracking-wider ${FOCUS_RING}`}
+          className={`px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${FOCUS_RING}`}
         >
           Bring back
         </button>
@@ -84,7 +84,7 @@ export function MetadataView() {
     <div className="h-full flex flex-col bg-white dark:bg-slate-900">
       <div className="shrink-0 px-4 py-2 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 min-w-0 overflow-hidden">
-          <span className="font-mono font-semibold text-slate-800 dark:text-slate-200 truncate">
+          <span className="font-mono font-medium text-slate-800 dark:text-slate-200 truncate">
             {metadataBundle.source.db_name} · {metadataBundle.source.oracle_version} · {metadataBundle.source.container_name}
           </span>
           <span className="shrink-0">{tableCount} tables, {indexCount} indexes</span>
@@ -99,7 +99,7 @@ export function MetadataView() {
         <button
           type="button"
           onClick={() => setMetadataPopoutOpen(true)}
-          className={`shrink-0 h-7 px-2.5 text-[11px] font-semibold rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors inline-flex items-center gap-1.5 ${FOCUS_RING}`}
+          className={`shrink-0 h-7 px-2.5 text-[11px] font-medium rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors inline-flex items-center gap-1.5 ${FOCUS_RING}`}
           title="Pop out into a separate window"
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

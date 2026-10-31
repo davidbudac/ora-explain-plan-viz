@@ -108,7 +108,7 @@ export function FormattedPredicate({ text, searchQuery }: FormattedPredicateProp
       {clauses.map((clause, i) => (
         <span key={i} className={i > 0 ? 'block mt-1' : 'block'}>
           {clause.keyword && (
-            <span className="text-blue-500 dark:text-blue-400 font-semibold select-none mr-1">
+            <span className="text-blue-500 dark:text-blue-400 font-medium select-none mr-1">
               {clause.keyword}
             </span>
           )}

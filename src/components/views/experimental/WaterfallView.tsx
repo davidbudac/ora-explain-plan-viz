@@ -119,14 +119,14 @@ export function WaterfallView() {
         <div className="rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3 py-2">
           <div className="text-sm text-slate-700 dark:text-slate-200">
             {!flow.hasActuals && (
-              <span className="font-semibold text-slate-500 dark:text-slate-400">Estimated: </span>
+              <span className="font-medium text-slate-500 dark:text-slate-400">Estimated: </span>
             )}
             Read{' '}
-            <span className="font-semibold tabular-nums">
+            <span className="font-medium tabular-nums">
               {formatNumberShort(flow.leafRowsRead, { empty: '0' })}
             </span>{' '}
             rows at the leaves →{' '}
-            <span className="font-semibold tabular-nums">
+            <span className="font-medium tabular-nums">
               {formatNumberShort(flow.rootRowsReturned, { empty: '0' })}
             </span>{' '}
             returned
@@ -216,7 +216,7 @@ export function WaterfallView() {
 
               {chip && (
                 <span
-                  className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                  className={`shrink-0 text-[11px] font-medium px-1.5 py-0.5 rounded ${
                     chip.tone === 'amber'
                       ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400'
                       : 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400'
@@ -229,7 +229,7 @@ export function WaterfallView() {
               <span className="block w-[90px] shrink-0 text-right text-[11px] tabular-nums text-slate-600 dark:text-slate-300">
                 {formatNumberShort(entry.output, { empty: '0' })}
                 {showEst && (
-                  <span className="ml-1 text-[10px] uppercase text-slate-500 dark:text-slate-400">
+                  <span className="ml-1 text-[11px] text-slate-500 dark:text-slate-400">
                     est
                   </span>
                 )}
@@ -244,7 +244,7 @@ export function WaterfallView() {
           className="absolute z-20 pointer-events-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-lg px-3 py-2 text-xs text-slate-800 dark:text-slate-100"
           style={{ left: `${tooltip.x + 12}px`, top: `${tooltip.y + 12}px`, maxWidth: '280px' }}
         >
-          <div className="font-semibold mb-1">{tooltip.title}</div>
+          <div className="font-medium mb-1">{tooltip.title}</div>
           <div className="space-y-0.5">
             {tooltip.lines.map((line, index) => (
               <div key={`${line}-${index}`}>{line}</div>

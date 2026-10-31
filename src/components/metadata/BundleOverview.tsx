@@ -29,21 +29,21 @@ export function BundleOverview({ bundle }: { bundle: MetadataBundle }) {
     <div className="p-4 space-y-3 max-w-3xl">
       <Card title="Source & Capture">
         <KV label="Database" value={bundle.source.db_name} />
-        <KV label="Oracle Version" value={bundle.source.oracle_version} />
+        <KV label="Oracle version" value={bundle.source.oracle_version} />
         <KV label="Container" value={bundle.source.container_name} />
         <KV label="Captured" value={formatDateShort(bundle.captured_at) ?? bundle.captured_at} />
         <KV label="SQL_ID" value={bundle.plan_ref.sql_id} />
-        <KV label="Plan Hash" value={bundle.plan_ref.plan_hash_value} />
+        <KV label="Plan hash" value={bundle.plan_ref.plan_hash_value} />
         <KV label="Objects" value={`${tableCount} tables, ${indexCount} indexes`} />
-        <KV label="Bundle Version" value={bundle.version} />
+        <KV label="Bundle version" value={bundle.version} />
       </Card>
 
       {bundle.system_params && (
-        <Card title="System Parameters">
-          <KV label="DB Block Size" value={`${bundle.system_params.db_block_size} bytes`} />
-          <KV label="Optimizer Features Enable" value={bundle.system_params.optimizer_features_enable} />
-          <KV label="Optimizer Index Cost Adj" value={bundle.system_params.optimizer_index_cost_adj} />
-          <KV label="Optimizer Index Caching" value={bundle.system_params.optimizer_index_caching} />
+        <Card title="System parameters">
+          <KV label="DB block size" value={`${bundle.system_params.db_block_size} bytes`} />
+          <KV label="Optimizer features enable" value={bundle.system_params.optimizer_features_enable} />
+          <KV label="Optimizer index cost adj" value={bundle.system_params.optimizer_index_cost_adj} />
+          <KV label="Optimizer index caching" value={bundle.system_params.optimizer_index_caching} />
         </Card>
       )}
 
@@ -58,14 +58,14 @@ export function BundleOverview({ bundle }: { bundle: MetadataBundle }) {
       )}
 
       {hasSqlManagement && (
-        <Card title="SQL Management">
+        <Card title="SQL management">
           <div className="space-y-3">
             {sql!.baselines && sql!.baselines.length > 0 && (
               <SqlManagementGroup title="Baselines">
                 {sql!.baselines.map((b) => (
                   <div key={b.plan_name} className="text-[11px] rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-1.5">
                     <div className="flex items-center justify-between gap-2">
-                      <code className="font-mono font-semibold truncate">{b.plan_name}</code>
+                      <code className="font-mono font-medium truncate">{b.plan_name}</code>
                       <div className="flex gap-1 shrink-0">
                         {b.enabled && <Tag>Enabled</Tag>}
                         {b.accepted && <Tag>Accepted</Tag>}
@@ -134,7 +134,7 @@ export function BundleOverview({ bundle }: { bundle: MetadataBundle }) {
           <ul className="space-y-1">
             {bundle.coverage_warnings.map((w, i) => (
               <li key={i} className="text-[11px] text-amber-700 dark:text-amber-400">
-                <span className="font-mono font-semibold">{w.object}</span>: {w.reason}
+                <span className="font-mono font-medium">{w.object}</span>: {w.reason}
               </li>
             ))}
           </ul>
@@ -147,7 +147,7 @@ export function BundleOverview({ bundle }: { bundle: MetadataBundle }) {
 function SqlManagementGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
-      <div className="text-[10px] font-bold uppercase tracking-tighter text-slate-500 dark:text-slate-400 mb-1">{title}</div>
+      <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">{title}</div>
       <div className="space-y-1">{children}</div>
     </div>
   );

@@ -207,10 +207,10 @@ export function WalkthroughView({ steps, index, onNext, onBack, onClose }: Walkt
         className="absolute rounded-xl border border-slate-200 bg-white p-4 text-slate-700 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 motion-safe:transition-[top,left] motion-safe:duration-200 motion-safe:ease-out"
         style={{ top: position.top, left: position.left, width: `min(${CARD_WIDTH}px, calc(100vw - 16px))` }}
       >
-        <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="mb-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
           Step {index + 1} of {steps.length}
         </div>
-        <h2 id={titleId} className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+        <h2 id={titleId} className="text-sm font-medium text-slate-900 dark:text-slate-100">
           {step.title}
         </h2>
         <p id={bodyId} className="mt-1.5 text-[13px] leading-snug text-slate-600 dark:text-slate-300">

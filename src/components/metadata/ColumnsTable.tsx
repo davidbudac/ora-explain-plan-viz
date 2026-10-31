@@ -68,15 +68,15 @@ export function ColumnsTable({ columns, highlightColumns }: ColumnsTableProps) {
                 highlightColumns?.has(name) ? 'bg-blue-50 dark:bg-blue-950/30' : ''
               }`}
             >
-              <td className="px-2 py-1 font-mono font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+              <td className="px-2 py-1 font-mono font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
                 {name}
                 {col.virtual && (
-                  <span className="ml-1 px-1 py-px text-[10px] font-bold rounded bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 uppercase">
+                  <span className="ml-1 px-1 py-px text-[11px] font-medium rounded bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300">
                     Virtual
                   </span>
                 )}
                 {col.hidden && (
-                  <span className="ml-1 px-1 py-px text-[10px] font-bold rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase">
+                  <span className="ml-1 px-1 py-px text-[11px] font-medium rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                     Hidden
                   </span>
                 )}
@@ -137,12 +137,12 @@ function Th({
   return (
     <th
       aria-sort={isActive ? (asc ? 'ascending' : 'descending') : 'none'}
-      className={`p-0 font-semibold text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 whitespace-nowrap ${align === 'right' ? 'text-right' : 'text-left'}`}
+      className={`p-0 font-medium text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap ${align === 'right' ? 'text-right' : 'text-left'}`}
     >
       <button
         type="button"
         onClick={() => onSort(sortKey)}
-        className={`w-full px-2 py-1.5 font-semibold uppercase tracking-wider select-none cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 ${FOCUS_RING_INSET} ${align === 'right' ? 'text-right' : 'text-left'}`}
+        className={`w-full px-2 py-1.5 font-medium select-none cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 ${FOCUS_RING_INSET} ${align === 'right' ? 'text-right' : 'text-left'}`}
       >
         {label}
         <span aria-hidden="true">{isActive ? (asc ? ' ▲' : ' ▼') : ''}</span>

@@ -89,10 +89,10 @@ function FindingLabel({ finding, objectName, compact }: { finding: Finding; obje
   return (
     <span className="flex-1 min-w-0 flex items-baseline gap-1">
       {showHead && (
-        <span className="truncate font-semibold text-slate-700 dark:text-slate-200">{head}</span>
+        <span className="truncate font-medium text-slate-700 dark:text-slate-200">{head}</span>
       )}
       {tail && (
-        <span className="shrink-0 font-semibold text-slate-700 dark:text-slate-200">{tail}</span>
+        <span className="shrink-0 font-medium text-slate-700 dark:text-slate-200">{tail}</span>
       )}
       {objectName && (
         <span className="truncate text-slate-500 dark:text-slate-400">{objectName}</span>
@@ -142,7 +142,7 @@ function FindingRow({
           title={finding.title}
         >
           {canNavigate && (
-            <span className="w-4 h-4 rounded bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 text-[10px] font-bold flex items-center justify-center shrink-0">
+            <span className="w-4 h-4 rounded bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 text-[11px] font-medium flex items-center justify-center shrink-0">
               {nodeId}
             </span>
           )}
@@ -153,7 +153,7 @@ function FindingRow({
         <div className="px-2 pb-2 pl-9 space-y-1">
           <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug">{finding.explanation}</p>
           {showAdvisorSuggestions && (
-            <p className={`text-[11px] italic leading-snug ${styles.text}`}>{finding.suggestion}</p>
+            <p className={`text-[11px] leading-snug ${styles.text}`}>{finding.suggestion}</p>
           )}
         </div>
       )}
@@ -190,10 +190,10 @@ function FindingGroupRow({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
         </svg>
         <SeverityDot severity={group.severity} />
-        <span className="flex-1 min-w-0 truncate text-left font-mono font-semibold text-slate-700 dark:text-slate-200">
+        <span className="flex-1 min-w-0 truncate text-left font-mono font-medium text-slate-700 dark:text-slate-200">
           {group.label}
         </span>
-        <span className="shrink-0 px-1.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-semibold tabular-nums">
+        <span className="shrink-0 px-1.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-medium tabular-nums">
           {group.findings.length}
         </span>
       </button>
@@ -246,7 +246,7 @@ export function FindingsList() {
   return (
     <div>
       {countsLabel && (
-        <div className="mb-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+        <div className="mb-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
           {countsLabel}
         </div>
       )}
@@ -287,10 +287,10 @@ export function NodeFindings({ nodeId }: { nodeId: number }) {
             key={`${finding.ruleId}-${index}`}
             className={`p-3 border-b border-slate-200 dark:border-slate-800 ${styles.banner}`}
           >
-            <div className={`text-xs font-semibold tracking-wide ${styles.text}`}>{finding.title}</div>
+            <div className={`text-xs font-medium ${styles.text}`}>{finding.title}</div>
             <div className="mt-1 text-xs text-slate-600 dark:text-slate-400 leading-snug">{finding.explanation}</div>
             {showAdvisorSuggestions && (
-              <div className={`mt-1 text-xs italic leading-snug ${styles.text}`}>{finding.suggestion}</div>
+              <div className={`mt-1 text-xs leading-snug ${styles.text}`}>{finding.suggestion}</div>
             )}
           </div>
         );

@@ -17,12 +17,12 @@ export function DdlBlock({ ddl }: { ddl: string }) {
             <svg className="w-3.5 h-3.5 text-slate-300 group-open:rotate-180 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
             </svg>
-            <h5 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <h5 className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
               DDL
             </h5>
           </div>
         </summary>
-        <pre className="text-[10px] leading-relaxed font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md p-2.5 text-slate-800 dark:text-slate-200 whitespace-pre overflow-auto max-h-72">
+        <pre className="text-[11px] leading-relaxed font-mono bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md p-2.5 text-slate-800 dark:text-slate-200 whitespace-pre overflow-auto max-h-72">
           {ddl.trim()}
         </pre>
       </details>
@@ -57,17 +57,17 @@ export function formatDateShort(iso: string | null): string | undefined {
 export function Card({ title, children }: { title: string; children: import('react').ReactNode }) {
   return (
     <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
-      <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">{title}</h4>
+      <h4 className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-2">{title}</h4>
       {children}
     </div>
   );
 }
 
-/** Small bold uppercase pill used for constraint/directive kind labels. */
+/** Small bold pill used for constraint/directive kind labels. */
 export function Tag({ children, color }: { children: import('react').ReactNode; color?: 'amber' }) {
   return (
     <span
-      className={`px-1.5 py-0.5 text-[10px] font-bold rounded uppercase ${
+      className={`px-1.5 py-0.5 text-[11px] font-medium rounded ${
         color === 'amber'
           ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
           : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300'
@@ -83,8 +83,8 @@ export function StatItem({ label, value }: { label: string; value?: string }) {
   if (!value) return null;
   return (
     <div className="bg-white dark:bg-slate-900 px-2.5 py-2">
-      <div className="text-[10px] text-slate-400 dark:text-slate-500 mb-1">{label}</div>
-      <div className="text-xs font-mono font-semibold tabular-nums text-slate-900 dark:text-slate-100">{value}</div>
+      <div className="text-[11px] text-slate-400 dark:text-slate-500 mb-1">{label}</div>
+      <div className="text-xs font-mono font-medium tabular-nums text-slate-900 dark:text-slate-100">{value}</div>
     </div>
   );
 }

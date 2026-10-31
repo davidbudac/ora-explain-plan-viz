@@ -23,7 +23,7 @@ export function ErrorFallback({
       role="alert"
       className="w-full max-w-xl rounded-xl border border-red-200 bg-white p-5 text-[13px] text-slate-800 shadow-lg dark:border-red-900/60 dark:bg-slate-900 dark:text-slate-100"
     >
-      <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">Something went wrong</h2>
+      <h2 className="text-base font-medium text-slate-900 dark:text-slate-50">Something went wrong</h2>
       <p className="mt-1 text-slate-600 dark:text-slate-400">
         The app hit an unexpected error. Try again to re-render; reloading the page discards in-memory work such as unsaved annotations.
       </p>

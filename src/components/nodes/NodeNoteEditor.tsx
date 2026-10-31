@@ -101,7 +101,7 @@ export function NodeNoteEditor({ nodeId, operation, initialText, onSave, onDelet
 
   return (
     <div className="w-72">
-      <div className="mb-2 truncate text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+      <div className="mb-2 truncate text-[11px] font-medium text-slate-500 dark:text-slate-400">
         Note · #{nodeId} {operation}
       </div>
       <textarea
@@ -124,7 +124,7 @@ export function NodeNoteEditor({ nodeId, operation, initialText, onSave, onDelet
             Delete
           </button>
         )}
-        <span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500">{SAVE_HINT}</span>
+        <span className="ml-auto text-[11px] text-slate-400 dark:text-slate-500">{SAVE_HINT}</span>
         <button type="button" onClick={cancel} className={`${BTN_SECONDARY} ${COMPACT_BTN}`}>
           Cancel
         </button>

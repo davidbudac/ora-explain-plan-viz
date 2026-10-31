@@ -29,7 +29,7 @@ export function PanelEdgeTab({ side, label, onClick }: PanelEdgeTabProps) {
         bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600
         text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-100
         hover:bg-slate-50 dark:hover:bg-slate-700
-        motion-safe:transition-all motion-safe:duration-150
+        motion-safe:transition-[color,background-color,opacity] motion-safe:duration-150
         ${isLeft ? 'left-0 border-l-0 rounded-r-lg' : 'right-0 border-r-0 rounded-l-lg'}
         ${FOCUS_RING}`}
     >
@@ -47,7 +47,7 @@ export function PanelEdgeTab({ side, label, onClick }: PanelEdgeTabProps) {
           d={isLeft ? 'M15 19l-7-7 7-7' : 'M9 5l7 7-7 7'}
         />
       </svg>
-      <span className="max-w-0 opacity-0 group-hover:max-w-[90px] group-hover:opacity-100 group-focus-visible:max-w-[90px] group-focus-visible:opacity-100 motion-safe:transition-all motion-safe:duration-150 whitespace-nowrap text-[11px] font-semibold">
+      <span className="max-w-0 opacity-0 group-hover:max-w-[90px] group-hover:opacity-100 group-focus-visible:max-w-[90px] group-focus-visible:opacity-100 motion-safe:transition-[color,background-color,opacity] motion-safe:duration-150 whitespace-nowrap text-[11px] font-medium">
         {label}
       </span>
     </button>

@@ -97,23 +97,23 @@ function SummaryCard({ label, plan, cost, time, nodeCount, phv }: {
   return (
     <div className={`flex-1 rounded-lg border p-3 ${styles.panel}`}>
       <div className="flex items-center gap-2 mb-2">
-        <span className={`text-xs font-bold ${styles.label}`}>{label}</span>
-        {phv && <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">PHV: {phv}</span>}
+        <span className={`text-xs font-medium ${styles.label}`}>{label}</span>
+        {phv && <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">PHV: {phv}</span>}
       </div>
       <div className="grid grid-cols-3 gap-2 text-xs">
         <div>
           <div className="text-slate-500 dark:text-slate-400">Cost</div>
-          <div className="font-semibold text-slate-800 dark:text-slate-200">{formatNumberShort(cost)}</div>
+          <div className="font-medium text-slate-800 dark:text-slate-200">{formatNumberShort(cost)}</div>
         </div>
         {time !== undefined && (
           <div>
             <div className="text-slate-500 dark:text-slate-400">A-Time</div>
-            <div className="font-semibold text-slate-800 dark:text-slate-200">{formatTimeShort(time)}</div>
+            <div className="font-medium text-slate-800 dark:text-slate-200">{formatTimeShort(time)}</div>
           </div>
         )}
         <div>
           <div className="text-slate-500 dark:text-slate-400">Nodes</div>
-          <div className="font-semibold text-slate-800 dark:text-slate-200">{nodeCount}</div>
+          <div className="font-medium text-slate-800 dark:text-slate-200">{nodeCount}</div>
         </div>
       </div>
     </div>
@@ -136,10 +136,10 @@ function DeltaPill({ delta, deltaPercent, label, lowerIsBetter = true }: {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold whitespace-nowrap ${styles}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium whitespace-nowrap ${styles}`}
       title={`${label}: ${delta > 0 ? '+' : ''}${deltaPercent.toFixed(1)}% in Plan B`}
     >
-      <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{label}</span>
+      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{label}</span>
       <svg
         className={`w-3 h-3 shrink-0 ${delta > 0 ? '' : 'rotate-180'}`}
         fill="none"
@@ -169,7 +169,7 @@ function SummaryDeltas({ costDelta, costDeltaPercent, timeDelta, timeDeltaPercen
     return (
       <div className="flex items-center px-2 shrink-0">
         <span
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap"
           title="Cost and time are effectively identical between the two plans"
         >
           <span aria-hidden="true">≈</span> no change
@@ -221,17 +221,17 @@ function ExpandedRowDetail({ row, labelA, labelB, onViewInTree }: {
     const labelStyle = plan === 'A' ? 'text-blue-600 dark:text-blue-400' : 'text-violet-600 dark:text-violet-400';
     return (
       <div className={`flex-1 rounded-lg border p-2.5 ${styles}`}>
-        <div className={`text-[10px] font-bold uppercase tracking-wider mb-1.5 ${labelStyle}`}>{label}</div>
+        <div className={`text-[11px] font-medium mb-1.5 ${labelStyle}`}>{label}</div>
         {node ? (
           <div className="space-y-0.5 text-xs text-slate-700 dark:text-slate-300">
-            <div><span className="text-slate-400 dark:text-slate-500">#{node.id}</span> <span className="font-semibold">{node.operation}</span></div>
+            <div><span className="text-slate-400 dark:text-slate-500">#{node.id}</span> <span className="font-medium">{node.operation}</span></div>
             {node.objectName && <div className="font-mono text-[11px]">{node.objectName}</div>}
-            <div className="text-[10px] text-slate-500 dark:text-slate-400">
+            <div className="text-[11px] text-slate-500 dark:text-slate-400">
               depth {node.depth}{node.queryBlock ? ` · ${node.queryBlock}` : ''}
             </div>
           </div>
         ) : (
-          <div className="text-xs italic text-slate-400 dark:text-slate-500">Not present in this plan</div>
+          <div className="text-xs text-slate-400 dark:text-slate-500">Not present in this plan</div>
         )}
       </div>
     );
@@ -282,21 +282,21 @@ function ExpandedRowDetail({ row, labelA, labelB, onViewInTree }: {
             return (
               <div key={kind} className="col-span-2">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                     {PREDICATE_LABELS[kind]}
                   </span>
                   {changed && (
-                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 uppercase">
+                    <span className="px-1.5 py-0.5 text-[11px] font-medium rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                       changed
                     </span>
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <code className="block text-[11px] bg-slate-100 dark:bg-slate-900 p-2 rounded border border-slate-200 dark:border-slate-700 whitespace-pre-wrap break-words text-slate-700 dark:text-slate-300 min-h-[2rem]">
-                    {nodeA?.[kind] ?? <span className="italic text-slate-400">—</span>}
+                    {nodeA?.[kind] ?? <span className="text-slate-400">—</span>}
                   </code>
                   <code className="block text-[11px] bg-slate-100 dark:bg-slate-900 p-2 rounded border border-slate-200 dark:border-slate-700 whitespace-pre-wrap break-words text-slate-700 dark:text-slate-300 min-h-[2rem]">
-                    {nodeB?.[kind] ?? <span className="italic text-slate-400">—</span>}
+                    {nodeB?.[kind] ?? <span className="text-slate-400">—</span>}
                   </code>
                 </div>
               </div>
@@ -310,7 +310,7 @@ function ExpandedRowDetail({ row, labelA, labelB, onViewInTree }: {
           type="button"
           disabled={!nodeA}
           onClick={(e) => { e.stopPropagation(); onViewInTree('A'); }}
-          className={`px-2.5 py-1 text-[11px] font-semibold rounded border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS_RING}`}
+          className={`px-2.5 py-1 text-[11px] font-medium rounded border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS_RING}`}
         >
           View A in tree
         </button>
@@ -318,7 +318,7 @@ function ExpandedRowDetail({ row, labelA, labelB, onViewInTree }: {
           type="button"
           disabled={!nodeB}
           onClick={(e) => { e.stopPropagation(); onViewInTree('B'); }}
-          className={`px-2.5 py-1 text-[11px] font-semibold rounded border border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/40 hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS_RING}`}
+          className={`px-2.5 py-1 text-[11px] font-medium rounded border border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/40 hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS_RING}`}
         >
           View B in tree
         </button>
@@ -491,11 +491,11 @@ export function CompareView() {
           <span className="leading-snug">
             Both plans share SQL_ID <code className="font-mono">{slotA?.parsedPlan?.sqlId}</code>.
             A metadata bundle is loaded for plan{' '}
-            <span className="font-semibold">
+            <span className="font-medium">
               {sharedBundleCandidate.sourceIndex === leftIndex ? 'A' : 'B'}
             </span>
             {' '}only — apply it to plan{' '}
-            <span className="font-semibold">
+            <span className="font-medium">
               {sharedBundleCandidate.targetIndex === leftIndex ? 'A' : 'B'}
             </span>{' '}too?
           </span>
@@ -536,7 +536,7 @@ export function CompareView() {
           aria-checked={showChangedOnly}
           onClick={() => setShowChangedOnly((v) => !v)}
           title="Compares only the currently selected metrics"
-          className={`ml-auto px-2.5 py-1 rounded-full border text-[11px] font-semibold transition-colors ${FOCUS_RING} ${
+          className={`ml-auto px-2.5 py-1 rounded-full border text-[11px] font-medium transition-colors ${FOCUS_RING} ${
             showChangedOnly
               ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
               : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -555,11 +555,11 @@ export function CompareView() {
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
-                <th className="px-2 py-2 text-left font-semibold text-slate-600 dark:text-slate-400 w-6" />
-                <th className="px-2 py-2 text-left font-semibold text-slate-600 dark:text-slate-400 w-10">ID(A)</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-600 dark:text-slate-400 w-10">ID(B)</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-600 dark:text-slate-400">Operation</th>
-                <th className="px-2 py-2 text-left font-semibold text-slate-600 dark:text-slate-400">Object</th>
+                <th className="px-2 py-2 text-left font-medium text-slate-600 dark:text-slate-400 w-6" />
+                <th className="px-2 py-2 text-left font-medium text-slate-600 dark:text-slate-400 w-10">ID(A)</th>
+                <th className="px-2 py-2 text-left font-medium text-slate-600 dark:text-slate-400 w-10">ID(B)</th>
+                <th className="px-2 py-2 text-left font-medium text-slate-600 dark:text-slate-400">Operation</th>
+                <th className="px-2 py-2 text-left font-medium text-slate-600 dark:text-slate-400">Object</th>
                 {compareMetrics.map(metric => {
                   const active = effectiveSort?.metric === metric;
                   const ariaSort = active ? (effectiveSort!.direction === 'desc' ? 'descending' : 'ascending') : 'none';
@@ -574,7 +574,7 @@ export function CompareView() {
                         type="button"
                         onClick={() => cycleSort(metric)}
                         title={`Sort by ${getMetricLabel(metric)} delta (largest change first)`}
-                        className={`w-full px-2 py-2 text-center font-semibold transition-colors hover:bg-slate-200/60 dark:hover:bg-slate-700/60 ${FOCUS_RING_INSET} ${
+                        className={`w-full px-2 py-2 text-center font-medium transition-colors hover:bg-slate-200/60 dark:hover:bg-slate-700/60 ${FOCUS_RING_INSET} ${
                           active ? 'text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400'
                         }`}
                       >
@@ -589,9 +589,9 @@ export function CompareView() {
                 <th colSpan={5} />
                 {compareMetrics.map(metric => (
                   <React.Fragment key={`subheader-${metric}`}>
-                    <th className="px-2 py-1 text-center text-[10px] font-medium text-blue-600 dark:text-blue-400 border-l border-slate-200 dark:border-slate-700">A</th>
-                    <th className="px-2 py-1 text-center text-[10px] font-medium text-violet-600 dark:text-violet-400">B</th>
-                    <th className="px-2 py-1 text-center text-[10px] font-medium text-slate-500 dark:text-slate-400">Delta</th>
+                    <th className="px-2 py-1 text-center text-[11px] font-medium text-blue-600 dark:text-blue-400 border-l border-slate-200 dark:border-slate-700">A</th>
+                    <th className="px-2 py-1 text-center text-[11px] font-medium text-violet-600 dark:text-violet-400">B</th>
+                    <th className="px-2 py-1 text-center text-[11px] font-medium text-slate-500 dark:text-slate-400">Delta</th>
                   </React.Fragment>
                 ))}
               </tr>

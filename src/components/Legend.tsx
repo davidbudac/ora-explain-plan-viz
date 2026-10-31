@@ -38,7 +38,7 @@ export function Legend() {
           className="pointer-events-auto w-56 max-h-[60vh] overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 backdrop-blur shadow-xl p-3 text-[11px]"
         >
           <div className="flex items-center justify-between mb-2">
-            <h4 className="font-bold text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest">Legend</h4>
+            <h4 className="font-medium text-[11px] text-slate-500 dark:text-slate-400">Legend</h4>
             <button
               type="button"
               onClick={() => setLegendVisible(false)}
@@ -54,7 +54,7 @@ export function Legend() {
 
           {categories.length > 0 && (
             <div className="mb-3">
-              <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
+              <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">
                 Operation categories
               </div>
               <div className="space-y-1">
@@ -72,35 +72,35 @@ export function Legend() {
           )}
 
           <div className="mb-3">
-            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">
               Badges
             </div>
             <div className="space-y-1.5 text-slate-700 dark:text-slate-300">
               <div className="flex items-start gap-2">
                 <span className="mt-0.5 w-3 h-3 rounded-full shrink-0 ring-2 ring-red-500 bg-transparent" />
-                <span><span className="font-semibold">Hotspot</span> — slowest operation in the plan</span>
+                <span><span className="font-medium">Hotspot</span> — slowest operation in the plan</span>
               </div>
               <div className="flex items-start gap-2">
-                <span className="mt-0.5 px-1 rounded shrink-0 text-[10px] font-bold bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300">SPILL</span>
-                <span><span className="font-semibold">Spill</span> — operation wrote to temp space</span>
+                <span className="mt-0.5 px-1 rounded shrink-0 text-[11px] font-medium bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300">SPILL</span>
+                <span><span className="font-medium">Spill</span> — operation wrote to temp space</span>
               </div>
               <div className="flex items-start gap-2">
-                <span className="mt-0.5 px-1 rounded shrink-0 text-[10px] font-bold bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">3x</span>
-                <span><span className="font-semibold">Cardinality mismatch</span> — A-Rows vs estimated total rows (E-Rows × starts) differ ≥3× (amber) / ≥10× (red)</span>
+                <span className="mt-0.5 px-1 rounded shrink-0 text-[11px] font-medium bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">3x</span>
+                <span><span className="font-medium">Cardinality mismatch</span> — A-Rows vs estimated total rows (E-Rows × starts) differ ≥3× (amber) / ≥10× (red)</span>
               </div>
               <div className="flex items-start gap-2">
-                <span className="mt-0.5 px-1 rounded shrink-0 text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">STALE</span>
-                <span><span className="font-semibold">Stats badges</span> — stale or missing optimizer statistics (needs a metadata bundle)</span>
+                <span className="mt-0.5 px-1 rounded shrink-0 text-[11px] font-medium bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">STALE</span>
+                <span><span className="font-medium">Stats badges</span> — stale or missing optimizer statistics (needs a metadata bundle)</span>
               </div>
               {hasInactive && (
                 <div className="flex items-start gap-2" data-testid="legend-inactive">
                   <span
                     title={INACTIVE_NODE_TOOLTIP}
-                    className="mt-0.5 px-1 rounded shrink-0 text-[10px] font-bold uppercase border border-dashed border-slate-400 dark:border-slate-500 text-slate-500 dark:text-slate-400"
+                    className="mt-0.5 px-1 rounded shrink-0 text-[11px] font-medium border border-dashed border-slate-400 dark:border-slate-500 text-slate-500 dark:text-slate-400"
                   >
                     inactive
                   </span>
-                  <span><span className="font-semibold">Dimmed, dashed</span> — adaptive-plan operation the optimizer did not use</span>
+                  <span><span className="font-medium">Dimmed, dashed</span> — adaptive-plan operation the optimizer did not use</span>
                 </div>
               )}
             </div>

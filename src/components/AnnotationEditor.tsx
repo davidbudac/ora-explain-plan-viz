@@ -90,7 +90,7 @@ export function AnnotationEditor({
 
   return (
     <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-      <h4 className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+      <h4 className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-2">
         Annotation
       </h4>
 
@@ -114,9 +114,9 @@ export function AnnotationEditor({
               onClick={() => handleColorClick(colorDef.name)}
               aria-pressed={isActive}
               aria-label={`${colorDef.label} highlight`}
-              className={`w-5 h-5 rounded-full transition-all ${SWATCH_FOCUS} ${
+              className={`w-5 h-5 rounded-full transition-[box-shadow,opacity] ${SWATCH_FOCUS} ${
                 isActive ? `${colorDef.chipActive} ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900` : colorDef.chip
-              } hover:scale-110`}
+              }`}
               title={`${colorDef.label}${isActive ? ' (click to remove)' : ''}`}
             />
           );
@@ -140,9 +140,9 @@ export function AnnotationEditor({
                 type="button"
                 aria-pressed={highlightStyle === styleDef.name}
                 onClick={() => onHighlightStyleChange(styleDef.name)}
-                className={`px-1.5 py-0.5 text-[11px] rounded border border-slate-200 dark:border-slate-700 transition-all ${FOCUS_RING} ${
+                className={`px-1.5 py-0.5 text-[11px] rounded border border-slate-200 dark:border-slate-700 transition-colors ${FOCUS_RING} ${
                   highlightStyle === styleDef.name
-                    ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold'
+                    ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-medium'
                     : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
                 }`}
                 title={styleDef.description}
@@ -201,7 +201,7 @@ export function BulkHighlightPicker({
           type="button"
           onClick={() => handleColorClick(colorDef.name)}
           aria-label={`Highlight all selected nodes ${colorDef.label}`}
-          className={`w-5 h-5 rounded-full transition-all ${SWATCH_FOCUS} ${colorDef.chip} hover:scale-110`}
+          className={`w-5 h-5 rounded-full transition-[box-shadow,opacity] ${SWATCH_FOCUS} ${colorDef.chip}`}
           title={colorDef.label}
         />
       ))}
