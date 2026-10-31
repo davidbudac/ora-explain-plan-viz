@@ -7,7 +7,6 @@ import type { Node, NodeTypes } from '@xyflow/react';
 import { PlanNodeMemo } from '../nodes/PlanNode';
 import type { PlanNodeData } from '../nodes/PlanNode';
 import { TabularView } from '../views/TabularView';
-import { Legend } from '../Legend';
 import { InputPanel } from '../InputPanel';
 import { PlanTabs } from '../PlanTabs';
 import { cleanup, render } from '../ui/__tests__/testUtils';
@@ -135,30 +134,6 @@ describe('tabular view, inactive adaptive operation', () => {
       expect(row.className).not.toContain('opacity-60');
       expect(row.querySelector('[data-testid="inactive-tag"]')).toBeNull();
     }
-  });
-});
-
-describe('legend, inactive row', () => {
-  it('explains the inactive style only when the plan has inactive operations', async () => {
-    const adaptive = renderWithPlan(<Legend />);
-    await adaptive.load();
-    act(() => adaptive.ctx().setLegendVisible(true));
-    expect(document.querySelector('[data-testid="legend-inactive"]')?.textContent).toContain('inactive');
-    cleanup();
-
-    const plain = renderWithPlan(<Legend />, `Plan hash value: 1234567890
-
---------------------------------------------------------------------------------
-| Id  | Operation                    | Name       | Rows  | Bytes | Cost (%CPU)|
---------------------------------------------------------------------------------
-|   0 | SELECT STATEMENT             |            |     1 |    10 |     5   (0)|
-|   1 |  TABLE ACCESS FULL           | ORDERS     |     1 |    10 |     5   (0)|
---------------------------------------------------------------------------------
-`);
-    await plain.load();
-    act(() => plain.ctx().setLegendVisible(true));
-    expect(document.querySelector('section[aria-label="Legend"]')).not.toBeNull();
-    expect(document.querySelector('[data-testid="legend-inactive"]')).toBeNull();
   });
 });
 

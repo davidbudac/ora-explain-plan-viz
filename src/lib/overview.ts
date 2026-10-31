@@ -15,7 +15,7 @@ export const OVERVIEW_WHY_MAX = 140;
 export const SHOW_OVERVIEW_EVENT = 'oraplanviz:show-analysis-overview';
 
 /** Views the card floats over (single-plan workspace only; not compare / SQL / metadata / AI tabs). */
-export const OVERVIEW_VIEW_MODES: ReadonlySet<ViewMode> = new Set<ViewMode>(['hierarchical', 'tabular', 'sankey', 'flame']);
+export const OVERVIEW_VIEW_MODES: ReadonlySet<ViewMode> = new Set<ViewMode>(['hierarchical', 'tabular', 'sankey']);
 
 export type OverviewItemKind = 'finding' | 'hotspot' | 'mismatch';
 

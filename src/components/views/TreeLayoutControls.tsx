@@ -1,31 +1,21 @@
 import type { ReactNode } from 'react';
-import type { TreeLayoutDirection, TreeMinimapMode } from '../../lib/settings';
+import type { TreeLayoutDirection } from '../../lib/settings';
 import { FOCUS_RING } from '../ui/focusRing';
 
 /**
- * Compact control strip for the plan tree: layout direction, overview map,
- * expand / collapse all, focus selected and redraw.
+ * Compact control strip for the plan tree: layout direction, focus selected
+ * and redraw. (The overview map and expand / collapse all live in the command
+ * palette.)
  *
  * Purely presentational — every action comes in through props. The workspace
  * toolbar (and focus mode's View chip) mounts it for the single-plan tree,
- * wired to the context values `treeLayoutDirection` / `treeMinimap`,
- * `treeViewActionsRef` and `treeViewState`; the tree-compare panes mount it as
+ * wired to the context values `treeLayoutDirection`, `treeViewActionsRef`; the tree-compare panes mount it as
  * a per-pane canvas overlay (HierarchicalView, top-left).
  */
 
 export interface TreeLayoutControlsProps {
   direction: TreeLayoutDirection;
   onDirectionChange: (direction: TreeLayoutDirection) => void;
-  minimap: TreeMinimapMode;
-  onMinimapChange: (mode: TreeMinimapMode) => void;
-  /** Whether the map is currently on screen (resolves 'auto' for the tooltip). */
-  minimapShown?: boolean;
-  onExpandAll: () => void;
-  onCollapseAll: () => void;
-  /** Number of operations currently hidden in collapsed subtrees. */
-  hiddenCount?: number;
-  /** False when the plan has no subtree that could be collapsed. */
-  canCollapse?: boolean;
   onFocusSelected?: () => void;
   canFocusSelected?: boolean;
   /** Reset node positions to the computed layout and fit the tree. */
@@ -33,8 +23,6 @@ export interface TreeLayoutControlsProps {
   className?: string;
 }
 
-const NEXT_MINIMAP_MODE: Record<TreeMinimapMode, TreeMinimapMode> = { auto: 'on', on: 'off', off: 'auto' };
-const MINIMAP_MODE_LABEL: Record<TreeMinimapMode, string> = { auto: 'Auto', on: 'On', off: 'Off' };
 
 const BUTTON =
   `inline-flex items-center justify-center gap-0.5 h-7 min-w-6 px-1 rounded-md text-[11px] font-medium ` +
@@ -66,27 +54,11 @@ function Icon({ children }: { children: ReactNode }) {
 export function TreeLayoutControls({
   direction,
   onDirectionChange,
-  minimap,
-  onMinimapChange,
-  minimapShown,
-  onExpandAll,
-  onCollapseAll,
-  hiddenCount = 0,
-  canCollapse = true,
   onFocusSelected,
   canFocusSelected = false,
   onRedraw,
   className = '',
 }: TreeLayoutControlsProps) {
-  const nextMinimap = NEXT_MINIMAP_MODE[minimap];
-  const minimapTitle =
-    `Overview map: ${MINIMAP_MODE_LABEL[minimap]}` +
-    (minimap === 'auto' ? ` (${minimapShown ? 'shown' : 'hidden'} — appears for plans with more than 12 visible operations)` : '') +
-    `. Switch to ${MINIMAP_MODE_LABEL[nextMinimap]}`;
-  const expandTitle = hiddenCount > 0
-    ? `Expand all (${hiddenCount} operation${hiddenCount === 1 ? '' : 's'} hidden)`
-    : 'Expand all';
-
   return (
     <div
       role="toolbar"
@@ -127,50 +99,6 @@ export function TreeLayoutControls({
           </Icon>
         </button>
       </div>
-
-      <Divider />
-
-      <button
-        type="button"
-        className={`${BUTTON} ${minimap === 'on' ? PRESSED : ''}`}
-        aria-label={`Overview map: ${MINIMAP_MODE_LABEL[minimap]}`}
-        title={minimapTitle}
-        onClick={() => onMinimapChange(nextMinimap)}
-      >
-        <Icon>
-          <rect x="3" y="4" width="18" height="16" rx="2" />
-          <rect x="12" y="11" width="6" height="6" rx="1" />
-        </Icon>
-        <span aria-hidden className="tabular-nums">{MINIMAP_MODE_LABEL[minimap]}</span>
-      </button>
-
-      <Divider />
-
-      <button
-        type="button"
-        className={BUTTON}
-        aria-label={expandTitle}
-        title={expandTitle}
-        disabled={hiddenCount === 0}
-        onClick={onExpandAll}
-      >
-        <Icon>
-          <path d="M7 4l5 5 5-5M7 20l5-5 5 5" />
-        </Icon>
-        {hiddenCount > 0 && <span aria-hidden className="tabular-nums">{hiddenCount}</span>}
-      </button>
-      <button
-        type="button"
-        className={BUTTON}
-        aria-label="Collapse all"
-        title="Collapse all subtrees"
-        disabled={!canCollapse}
-        onClick={onCollapseAll}
-      >
-        <Icon>
-          <path d="M7 9l5-5 5 5M7 15l5 5 5-5" />
-        </Icon>
-      </button>
 
       {(onFocusSelected || onRedraw) && <Divider />}
 

@@ -3,7 +3,6 @@ import { usePlan } from '../hooks/usePlanContext';
 import { useNarrowWorkspace } from '../hooks/useNarrowWorkspace';
 import { HierarchicalView } from './views/HierarchicalView';
 import { SankeyView } from './views/SankeyView';
-import { FlameView } from './views/FlameView';
 import { TabularView } from './views/TabularView';
 import { TabularCompareView } from './views/TabularCompareView';
 import { CompareView } from './views/CompareView';
@@ -11,7 +10,6 @@ import { SqlTextView } from './views/SqlTextView';
 import { MonitorDetailsView } from './views/MonitorDetailsView';
 import { TreeCompareView } from './views/TreeCompareView';
 import { PlanTextView } from './views/PlanTextView';
-import { Legend } from './Legend';
 import { NoMatchesBanner } from './NoMatchesBanner';
 import { AnalysisOverview } from './AnalysisOverview';
 import { MetadataView } from './metadata/MetadataView';
@@ -23,7 +21,7 @@ import { OVERVIEW_VIEW_MODES } from '../lib/overview';
 import type { ViewMode } from '../lib/types';
 
 /** Views that dim / hide non-matching operations and so need the "nothing matches" banner. */
-const FILTERED_VIEWS: ReadonlySet<ViewMode> = new Set<ViewMode>(['hierarchical', 'tabular', 'sankey', 'flame', 'experimental']);
+const FILTERED_VIEWS: ReadonlySet<ViewMode> = new Set<ViewMode>(['hierarchical', 'tabular', 'sankey', 'experimental']);
 
 /**
  * Banner offset from the top of the view area (px), clearing each view's own
@@ -98,7 +96,6 @@ export function VisualizationTabs() {
         {viewMode === 'hierarchical' && (treeCompareEnabled ? <TreeCompareView /> : <HierarchicalView />)}
         {viewMode === 'compare' && <CompareView />}
         {viewMode === 'sankey' && <SankeyView />}
-        {viewMode === 'flame' && <FlameView />}
         {viewMode === 'tabular' && (treeCompareEnabled ? <TabularCompareView /> : <TabularView />)}
         {viewMode === 'text' && <PlanTextView />}
         {viewMode === 'sql' && <SqlTextView />}
@@ -107,7 +104,6 @@ export function VisualizationTabs() {
         {viewMode === 'experimental' && <ExperimentalView />}
         {viewMode === 'ai' && <AiReportView />}
         {viewMode === 'ai-report' && <AiReportPrototypeView />}
-        {(viewMode === 'hierarchical' || viewMode === 'sankey' || viewMode === 'flame' || viewMode === 'tabular') && <Legend />}
         {FILTERED_VIEWS.has(viewMode) && <NoMatchesBanner visible={noMatches} top={top} />}
         <AnalysisOverview active={OVERVIEW_VIEW_MODES.has(viewMode) && !sideBySide} top={top} />
       </div>

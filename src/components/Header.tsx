@@ -376,8 +376,6 @@ export function HeaderActions() {
     setBaselineDialogOpen,
     focusMode,
     setFocusMode,
-    legendVisible,
-    setLegendVisible,
   } = usePlan();
   const toast = useToast();
   const { labelsCollapsed } = useTopBarMode();
@@ -544,15 +542,6 @@ export function HeaderActions() {
           onSelect={() => { setPalette(value as AppPalette); close(); }}
         />
       ))}
-
-      <MenuSeparator />
-      <MenuCheckboxRow
-        label="Legend"
-        checked={legendVisible}
-        disabled={parsedPlan === null}
-        title="Colour and badge key for the Tree, Tabular, Sankey and Flame views"
-        onSelect={() => { setLegendVisible(!legendVisible); close(); }}
-      />
     </>
   );
 

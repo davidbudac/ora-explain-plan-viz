@@ -1,5 +1,6 @@
 import type { ExperimentalSubView } from '../../../lib/types';
 import { usePlan } from '../../../hooks/usePlanContext';
+import { FlameView } from '../FlameView';
 import { ScatterView } from './ScatterView';
 import { TimelineView } from './TimelineView';
 import { WaterfallView } from './WaterfallView';
@@ -8,6 +9,11 @@ import { WaitsView } from './WaitsView';
 import { FOCUS_RING } from '../../ui';
 
 const SUB_VIEWS: { id: ExperimentalSubView; label: string; description: string }[] = [
+  {
+    id: 'flame',
+    label: 'Flame',
+    description: 'Flame graph — bars sized by each operation\'s own share of the metric; click a bar to zoom into its subtree',
+  },
   {
     id: 'scatter',
     label: 'Scatter',
@@ -60,6 +66,7 @@ function SubViewButton({
 
 function renderSubView(view: ExperimentalSubView) {
   switch (view) {
+    case 'flame': return <FlameView />;
     case 'scatter': return <ScatterView />;
     case 'timeline': return <TimelineView />;
     case 'waterfall': return <WaterfallView />;

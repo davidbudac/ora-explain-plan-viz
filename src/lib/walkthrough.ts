@@ -61,7 +61,7 @@ export const WALKTHROUGH_STEPS: WalkthroughStep[] = [
     target: 'view-controls',
     placement: 'bottom',
     body:
-      'Switch node density (Minimal / Compact / Detailed), pick the metric on the node badge, flip the tree between top-down and left-to-right, and toggle the minimap and legend.',
+      'Switch node density (Minimal / Compact / Detailed), pick the metric on the node badge, flip the tree between top-down and left-to-right, focus the selected operation or redraw the layout.',
   },
   {
     id: 'view-tabs',
