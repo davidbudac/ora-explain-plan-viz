@@ -1,0 +1,69 @@
+SQL_ID 5rt99cxvjpbrz
+--------------------
+DELETE FROM order_events WHERE order_id IN (SELECT id FROM orders WHERE 
+created_at < :1 )
+ 
+Plan hash value: 2468804666
+ 
+---------------------------------------------------------------------------------------------------------------
+| Id  | Operation                             | Name                  | Rows  | Bytes | Cost (%CPU)| Time     |
+---------------------------------------------------------------------------------------------------------------
+|   0 | DELETE STATEMENT                      |                       |       |       |   428 (100)|          |
+|   1 |  DELETE                               | ORDER_EVENTS          |       |       |            |          |
+|*  2 |   HASH JOIN                           |                       | 10830 |   274K|   428   (1)| 00:00:01 |
+|   3 |    TABLE ACCESS BY INDEX ROWID BATCHED| ORDERS                |  3630 | 58080 |    98   (0)| 00:00:01 |
+|*  4 |     INDEX RANGE SCAN                  | ORDERS_CREATED_IX     |  3630 |       |    12   (0)| 00:00:01 |
+|   5 |    INDEX FAST FULL SCAN               | ORDER_EVENTS_ORDER_IX |   304K|  2971K|   329   (1)| 00:00:01 |
+---------------------------------------------------------------------------------------------------------------
+ 
+Query Block Name / Object Alias (identified by operation id):
+-------------------------------------------------------------
+ 
+   1 - SEL$3BA1AD7C
+   3 - SEL$3BA1AD7C / ORDERS@SEL$1
+   4 - SEL$3BA1AD7C / ORDERS@SEL$1
+   5 - SEL$3BA1AD7C / ORDER_EVENTS@DEL$1
+ 
+Outline Data
+-------------
+ 
+  /*+
+      BEGIN_OUTLINE_DATA
+      IGNORE_OPTIM_EMBEDDED_HINTS
+      OPTIMIZER_FEATURES_ENABLE('19.1.0')
+      DB_VERSION('19.1.0')
+      ALL_ROWS
+      OUTLINE_LEAF(@"SEL$3BA1AD7C")
+      UNNEST(@"SEL$1")
+      OUTLINE(@"DEL$1")
+      OUTLINE(@"SEL$1")
+      INDEX_RS_ASC(@"SEL$3BA1AD7C" "ORDERS"@"SEL$1" ("ORDERS"."CREATED_AT"))
+      BATCH_TABLE_ACCESS_BY_ROWID(@"SEL$3BA1AD7C" "ORDERS"@"SEL$1")
+      INDEX_FFS(@"SEL$3BA1AD7C" "ORDER_EVENTS"@"DEL$1" ("ORDER_EVENTS"."ORDER_ID"))
+      LEADING(@"SEL$3BA1AD7C" "ORDERS"@"SEL$1" "ORDER_EVENTS"@"DEL$1")
+      USE_HASH(@"SEL$3BA1AD7C" "ORDER_EVENTS"@"DEL$1")
+      END_OUTLINE_DATA
+  */
+ 
+Peeked Binds (identified by position):
+--------------------------------------
+ 
+   1 - :1 (TIMESTAMP): [Not Printable]
+ 
+Predicate Information (identified by operation id):
+---------------------------------------------------
+ 
+   2 - access("ORDER_ID"="ID")
+   4 - access("CREATED_AT"<:1)
+ 
+Query Block Registry:
+---------------------
+ 
+  <q o="2"><n><![CDATA[DEL$1]]></n><f><h><t><![CDATA[ORDER_EVENTS]]></t><s><![CDATA[DEL$1]]></s></h></f><
+        /q>
+  <q o="2"><n><![CDATA[SEL$1]]></n><f><h><t><![CDATA[ORDERS]]></t><s><![CDATA[SEL$1]]></s></h></f></q>
+  <q o="19" f="y" h="y"><n><![CDATA[SEL$3BA1AD7C]]></n><p><![CDATA[DEL$1]]></p><i><o><t>SQ</t><v><![CDATA
+        [SEL$1]]></v></o></i><f><h><t><![CDATA[ORDER_EVENTS]]></t><s><![CDATA[DEL$1]]></s></h><h><t><![CDATA[OR
+        DERS]]></t><s><![CDATA[SEL$1]]></s></h></f></q>
+ 
+ 

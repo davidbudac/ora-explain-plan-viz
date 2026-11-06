@@ -661,7 +661,13 @@ SPOOL OFF</code></pre>
       <p><code>scripts/plan_to_url.sql</code> builds the same link inside Oracle, so no plan text ever passes through a clipboard:</p>
 <pre><code>SQL&gt; @plan_to_url.sql an05rsj1up1k5             -- cursor cache, child 0
 SQL&gt; @plan_to_url.sql an05rsj1up1k5 1           -- specific child cursor
-SQL&gt; @plan_to_url.sql an05rsj1up1k5 "" MONITOR  -- SQL Monitor TEXT report (Tuning Pack)</code></pre>
+SQL&gt; @plan_to_url.sql an05rsj1up1k5 "" MONITOR  -- SQL Monitor TEXT report (Tuning Pack)
+SQL&gt; @plan_to_url.sql an05rsj1up1k5 "" AWR      -- from AWR once the cursor aged out (Diagnostics Pack)</code></pre>
+      <p>
+        The <code>AWR</code> source gives optimizer estimates only (AWR keeps no A-Rows or A-Time). When AWR holds several
+        plans for the statement, the script uses the one seen most recently and lists the others; pass a plan hash value as
+        the fourth argument to pick one.
+      </p>
       <p>
         The script is read-only, 19c+, and works in session-private temporary LOBs. It defaults to the public deployment;
         change <code>DEFINE base_url</code> at the top for a self-hosted one. Full argument and privilege reference in
@@ -1064,7 +1070,7 @@ oraplanviz-agent --allow-origin http://localhost:8081</code></pre>
       <p>Switch to Minimal density, collapse the side panels, or use the Tabular view. Filters reduce what's drawn in every view.</p>
 
       <h4>Do I need the Tuning Pack?</h4>
-      <p>Only for SQL Monitor output and the <code>MONITOR</code> source of <code>plan_to_url.sql</code>. DBMS_XPLAN, JSON or CSV from <code>V$SQL_PLAN_STATISTICS_ALL</code> and xbi.sql need no extra license.</p>
+      <p>Only for SQL Monitor output and the <code>MONITOR</code> source of <code>plan_to_url.sql</code>. Its <code>AWR</code> source needs the Diagnostics Pack. DBMS_XPLAN, JSON or CSV from <code>V$SQL_PLAN_STATISTICS_ALL</code> and xbi.sql need no extra license.</p>
     </section>
 
     <!-- ---------- Contributing ---------- -->
