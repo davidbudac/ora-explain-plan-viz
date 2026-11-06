@@ -247,7 +247,7 @@ src/
 └── examples/__tests__/       # Example loader / descriptions / sidecar-metadata tests
 ```
 
-`.github/workflows/ci.yml` runs lint, typecheck and `npm test` on every PR and on pushes to `main`. Parser fixtures in `src/lib/parser/__tests__/fixtures/` are **real Oracle 19c captures** (`allstats-*`, `advanced-allstats-19c`, `sql-monitor-active-19c.html`, `vsqlplan-stats-allstats-19c.csv`, SQL Monitor XML), not hand-written — keep them that way and say so when adding one; `src/lib/__tests__/largePlan.test.ts` uses a seeded 2,000-operation generated plan.
+`.github/workflows/ci.yml` runs lint, typecheck and `npm test` on every PR and on pushes to `main`. Parser fixtures in `src/lib/parser/__tests__/fixtures/` are **real Oracle 19c captures** (`allstats-*`, `advanced-allstats-19c`, `awr-advanced-19c` (DISPLAY_WORKLOAD_REPOSITORY), `sql-monitor-active-19c.html`, `vsqlplan-stats-allstats-19c.csv`, SQL Monitor XML), not hand-written — keep them that way and say so when adding one; `src/lib/__tests__/largePlan.test.ts` uses a seeded 2,000-operation generated plan.
 
 Tests are excluded from the production build via `tsconfig.app.json` exclude patterns. Test files use the `*.test.ts(x)` convention and live in `__tests__/` directories alongside the code they test.
 

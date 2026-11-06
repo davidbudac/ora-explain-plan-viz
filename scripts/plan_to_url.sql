@@ -16,23 +16,36 @@
 --   SQL> @plan_to_url.sql <sql_id> <child_number>
 --   SQL> @plan_to_url.sql <sql_id> "" MONITOR
 --   SQL> @plan_to_url.sql <sql_id> "" MONITOR <sql_exec_id>
+--   SQL> @plan_to_url.sql <sql_id> "" AWR
+--   SQL> @plan_to_url.sql <sql_id> "" AWR <plan_hash_value>
 --
 --   Arguments:
 --     1. sql_id        Required. The V$SQL.SQL_ID of the statement.
 --     2. child_number   Optional, default 0. Only used when source=CURSOR;
---                        ignored for MONITOR. Pass "" to skip it explicitly.
+--                        ignored for MONITOR and AWR. Pass "" to skip it.
 --     3. source         Optional, default CURSOR. CURSOR reads the plan from
 --                        the shared-cursor cache via DBMS_XPLAN.DISPLAY_CURSOR
 --                        (no extra license). MONITOR reads a SQL Monitor TEXT
 --                        report via DBMS_SQLTUNE.REPORT_SQL_MONITOR (requires
---                        the Oracle Tuning Pack license).
---     4. sql_exec_id    Optional, MONITOR only. Picks one specific monitored
---                        execution (V$SQL_MONITOR.SQL_EXEC_ID). When omitted,
+--                        the Oracle Tuning Pack license). AWR reads a plan the
+--                        Workload Repository captured, via
+--                        DBMS_XPLAN.DISPLAY_WORKLOAD_REPOSITORY 'ADVANCED'
+--                        (requires the Oracle Diagnostics Pack license) - use
+--                        it when the cursor has aged out of the shared pool.
+--                        AWR keeps optimizer estimates only: no A-Rows,
+--                        A-Time or Starts.
+--     4. sql_exec_id /  Optional. MONITOR: picks one specific monitored
+--        plan_hash_value execution (V$SQL_MONITOR.SQL_EXEC_ID). When omitted,
 --                        Oracle reports the LAST monitored execution of the
 --                        sql_id - possibly one that is still running. If more
 --                        than one execution is still in GV$SQL_MONITOR, the
 --                        script lists them (newest first) so you can re-run
 --                        with the sql_exec_id you actually want.
+--                        AWR: picks one plan_hash_value. When omitted, the
+--                        script uses the plan AWR saw most recently and, if
+--                        AWR holds more than one plan for the sql_id, lists
+--                        them all (with executions and average elapsed time)
+--                        so you can re-run with the one you want.
 --
 -- Privileges needed:
 --   CURSOR (default): read access to V$SQL_PLAN / V$SQL_PLAN_STATISTICS_ALL,
@@ -44,12 +57,18 @@
 --     available executions additionally needs SELECT on GV$SQL_MONITOR
 --     (e.g. via SELECT_CATALOG_ROLE); if that is missing the listing is
 --     silently skipped and the report itself still works.
+--   AWR: SELECT on DBA_HIST_SQL_PLAN, DBA_HIST_SQLSTAT and DBA_HIST_SNAPSHOT
+--     (e.g. via SELECT_CATALOG_ROLE), and an active Oracle Diagnostics Pack
+--     license (AWR is a licensed feature). In a PDB the script reads both
+--     the CDB-level AWR and the PDB's own AWR snapshots; from CDB$ROOT it
+--     sees only the CDB-level AWR.
 --
 -- Self-hosting the visualizer? Point base_url below at your own deployment
 -- instead of the public GitHub Pages instance.
 --
 -- Read-only guarantee: this script only reads via DBMS_XPLAN.DISPLAY_CURSOR
--- / DBMS_SQLTUNE.REPORT_SQL_MONITOR, allocates temporary (session-private)
+-- / DBMS_SQLTUNE.REPORT_SQL_MONITOR / DBMS_XPLAN.DISPLAY_WORKLOAD_REPOSITORY
+-- and SELECTs on GV$SQL_MONITOR / DBA_HIST_* views, allocates temporary (session-private)
 -- LOBs it frees itself, and writes to the screen via DBMS_OUTPUT. It makes
 -- no DML, DDL, or SPOOL writes.
 --------------------------------------------------------------------------------
@@ -94,6 +113,8 @@ DECLARE
   g_source    VARCHAR2(16);
   g_exec_id   NUMBER;               -- MONITOR only: specific SQL_EXEC_ID
   g_exec_note VARCHAR2(64);         -- what the summary line reports for it
+  g_phv       NUMBER;               -- AWR only: plan_hash_value to report
+  g_phv_note  VARCHAR2(64);         -- what the summary line reports for it
   g_base_url  VARCHAR2(4000) := '&base_url';
 
   -- Friendly-abort plumbing: raised whenever we want to stop and print a
@@ -240,7 +261,7 @@ BEGIN
   ----------------------------------------------------------------------
   g_sql_id := TRIM('&arg1');
   IF g_sql_id IS NULL THEN
-    l_abort_msg := 'Missing required sql_id argument. Usage: @plan_to_url.sql <sql_id> [<child_no>] [CURSOR|MONITOR] [<sql_exec_id>]';
+    l_abort_msg := 'Missing required sql_id argument. Usage: @plan_to_url.sql <sql_id> [<child_no>] [CURSOR|MONITOR|AWR] [<sql_exec_id>|<plan_hash_value>]';
     RAISE e_friendly_abort;
   END IF;
 
@@ -253,23 +274,36 @@ BEGIN
   END;
 
   g_source := UPPER(NVL(TRIM('&arg3'), 'CURSOR'));
-  IF g_source NOT IN ('CURSOR', 'MONITOR') THEN
-    l_abort_msg := 'Unknown source "' || g_source || '" - expected CURSOR (default) or MONITOR.';
+  IF g_source NOT IN ('CURSOR', 'MONITOR', 'AWR') THEN
+    l_abort_msg := 'Unknown source "' || g_source || '" - expected CURSOR (default), MONITOR or AWR.';
     RAISE e_friendly_abort;
   END IF;
 
+  -- Argument 4 is source-specific: sql_exec_id for MONITOR,
+  -- plan_hash_value for AWR, not allowed for CURSOR.
+  DECLARE
+    l_arg4 NUMBER;
   BEGIN
-    g_exec_id := TO_NUMBER(TRIM('&arg4'));
-  EXCEPTION
-    WHEN OTHERS THEN
-      l_abort_msg := 'Invalid sql_exec_id "&arg4" - expected an integer (or leave it blank).';
+    BEGIN
+      l_arg4 := TO_NUMBER(TRIM('&arg4'));
+    EXCEPTION
+      WHEN OTHERS THEN
+        l_abort_msg := 'Invalid fourth argument "&arg4" - expected an integer '
+          || '(a sql_exec_id for MONITOR, a plan_hash_value for AWR), or leave it blank.';
+        RAISE e_friendly_abort;
+    END;
+    IF l_arg4 IS NOT NULL AND g_source = 'CURSOR' THEN
+      l_abort_msg := 'The fourth argument only applies to the MONITOR (sql_exec_id) and AWR '
+        || '(plan_hash_value) sources. Usage: @plan_to_url.sql <sql_id> "" MONITOR <sql_exec_id>'
+        || ' or @plan_to_url.sql <sql_id> "" AWR <plan_hash_value>';
       RAISE e_friendly_abort;
+    END IF;
+    IF g_source = 'MONITOR' THEN
+      g_exec_id := l_arg4;
+    ELSIF g_source = 'AWR' THEN
+      g_phv := l_arg4;
+    END IF;
   END;
-  IF g_exec_id IS NOT NULL AND g_source <> 'MONITOR' THEN
-    l_abort_msg := 'sql_exec_id only makes sense with the MONITOR source. '
-      || 'Usage: @plan_to_url.sql <sql_id> "" MONITOR <sql_exec_id>';
-    RAISE e_friendly_abort;
-  END IF;
 
   ----------------------------------------------------------------------
   -- 1. Fetch the plan text
@@ -288,14 +322,16 @@ BEGIN
         IF l_row_num <= 5 AND rec.plan_table_output LIKE '%cannot be found%' THEN
           l_abort_msg := 'No plan found in the cursor cache for sql_id=' || g_sql_id
             || ', child=' || g_child || '. The cursor has likely aged out of the shared pool - '
-            || 're-run the statement so it is reparsed, then try again. If the statement was '
-            || 'SQL-Monitored, pass MONITOR as the third argument instead.';
+            || 're-run the statement so it is reparsed, then try again. If an AWR snapshot '
+            || 'captured it, pass AWR as the third argument (Diagnostics Pack): '
+            || '@plan_to_url.sql ' || g_sql_id || ' "" AWR. If the statement was SQL-Monitored, '
+            || 'pass MONITOR instead.';
           RAISE e_friendly_abort;
         END IF;
         DBMS_LOB.APPEND(l_plan_clob, rec.plan_table_output || CHR(10));
       END LOOP;
     END;
-  ELSE
+  ELSIF g_source = 'MONITOR' THEN
     -- MONITOR source. Dynamic SQL on purpose: a static reference to
     -- DBMS_SQLTUNE would make this whole anonymous block fail to compile
     -- for a user without EXECUTE on it, before any exception handler could
@@ -441,6 +477,168 @@ BEGIN
       EXCEPTION WHEN OTHERS THEN NULL;
       END;
     END;
+  ELSE
+    -- AWR source. Dynamic SQL throughout, like MONITOR: static references
+    -- to DBA_HIST_* or DBMS_XPLAN.DISPLAY_WORKLOAD_REPOSITORY would make the
+    -- whole block fail to compile for a user without access to them.
+    --
+    -- Where AWR keeps a plan matters. DBA_HIST_SQL_PLAN shows CDB-level AWR
+    -- rows (dbid = the CDB's DBID) and, inside a PDB, also the PDB's own AWR
+    -- snapshots (dbid = the PDB's CON_DBID). DISPLAY_WORKLOAD_REPOSITORY
+    -- needs the row's dbid / con_dbid plus awr_location => 'AWR_PDB' for the
+    -- latter; its defaults find neither a PDB statement from CDB$ROOT nor a
+    -- PDB-AWR plan from inside the PDB (verified on 19.27).
+    DECLARE
+      l_cur         SYS_REFCURSOR;
+      l_my_dbid     NUMBER := TO_NUMBER(SYS_CONTEXT('USERENV', 'DBID'));
+      l_my_con_dbid NUMBER := TO_NUMBER(SYS_CONTEXT('USERENV', 'CON_DBID'));
+      l_phv         NUMBER;
+      l_dbid        NUMBER;
+      l_con_dbid    NUMBER;
+      l_last_seen   DATE;
+      l_execs       NUMBER;
+      l_avg_s       NUMBER;
+      l_use_dbid    NUMBER;
+      l_use_con     NUMBER;
+      l_location    VARCHAR2(16);
+      l_rows        PLS_INTEGER := 0;
+      l_first_row   VARCHAR2(400);
+      l_row         VARCHAR2(400);
+      l_line        VARCHAR2(4000);
+    BEGIN
+      -- One row per plan_hash_value, most recently seen first. When the same
+      -- plan sits in both the CDB-level and the PDB's own AWR, keep the copy
+      -- seen last (CDB-level on a tie). Plans with no DBA_HIST_SQLSTAT row
+      -- (rare: stats purged before the plan) sort last.
+      BEGIN
+        OPEN l_cur FOR
+          'WITH p AS ('
+          || '  SELECT dbid, con_dbid, plan_hash_value phv, MIN(timestamp) parsed'
+          || '  FROM dba_hist_sql_plan'
+          || '  WHERE sql_id = :sid AND plan_hash_value <> 0'
+          || '    AND (:phv1 IS NULL OR plan_hash_value = :phv2)'
+          || '  GROUP BY dbid, con_dbid, plan_hash_value), '
+          || 's AS ('
+          || '  SELECT st.dbid, st.con_dbid, st.plan_hash_value phv,'
+          || '         SUM(st.executions_delta) execs, SUM(st.elapsed_time_delta) ela,'
+          || '         MAX(sn.end_interval_time) last_seen'
+          || '  FROM dba_hist_sqlstat st'
+          || '  JOIN dba_hist_snapshot sn'
+          || '    ON sn.dbid = st.dbid AND sn.snap_id = st.snap_id'
+          || '   AND sn.instance_number = st.instance_number'
+          || '  WHERE st.sql_id = :sid2'
+          || '  GROUP BY st.dbid, st.con_dbid, st.plan_hash_value) '
+          || 'SELECT phv, dbid, con_dbid, CAST(last_seen AS DATE), execs,'
+          || '       ROUND(ela / 1e6 / NULLIF(execs, 0), 3) '
+          || 'FROM ('
+          || '  SELECT p.phv, p.dbid, p.con_dbid, p.parsed, s.execs, s.ela, s.last_seen,'
+          || '         ROW_NUMBER() OVER (PARTITION BY p.phv ORDER BY s.last_seen DESC NULLS LAST,'
+          || '           CASE WHEN p.dbid = :mydbid THEN 0 ELSE 1 END) rn'
+          || '  FROM p LEFT JOIN s'
+          || '    ON s.dbid = p.dbid AND s.con_dbid = p.con_dbid AND s.phv = p.phv) '
+          || 'WHERE rn = 1 '
+          || 'ORDER BY last_seen DESC NULLS LAST, parsed DESC, phv'
+          USING g_sql_id, g_phv, g_phv, g_sql_id, l_my_dbid;
+      EXCEPTION
+        WHEN OTHERS THEN
+          l_abort_msg := 'Could not read AWR - this usually means you lack SELECT on '
+            || 'DBA_HIST_SQL_PLAN / DBA_HIST_SQLSTAT / DBA_HIST_SNAPSHOT (e.g. via '
+            || 'SELECT_CATALOG_ROLE). Database said: ' || SUBSTR(SQLERRM, 1, 300);
+          RAISE e_friendly_abort;
+      END;
+
+      LOOP
+        FETCH l_cur INTO l_phv, l_dbid, l_con_dbid, l_last_seen, l_execs, l_avg_s;
+        EXIT WHEN l_cur%NOTFOUND;
+        l_rows := l_rows + 1;
+        l_row := RPAD(TO_CHAR(l_phv), 17)
+          || RPAD(NVL(TO_CHAR(l_last_seen, 'YYYY-MM-DD HH24:MI'), '?'), 18)
+          || RPAD(NVL(TO_CHAR(l_execs), '?'), 12)
+          || RPAD(NVL(TO_CHAR(l_avg_s, 'FM999999990.000'), '?'), 15)
+          || CASE WHEN l_dbid <> l_my_dbid THEN 'PDB' ELSE 'CDB' END;
+        IF l_rows = 1 THEN
+          -- The most recently seen plan is the one this run reports on.
+          -- Hold its line back until we know whether a listing is needed.
+          g_phv      := l_phv;
+          l_use_dbid := l_dbid;
+          l_use_con  := l_con_dbid;
+          l_first_row := l_row;
+        ELSE
+          IF l_rows = 2 THEN
+            DBMS_OUTPUT.PUT_LINE(' ');
+            DBMS_OUTPUT.PUT_LINE('AWR holds more than one plan for sql_id=' || g_sql_id
+              || ' (most recently seen first, * = the one this run uses):');
+            DBMS_OUTPUT.PUT_LINE('  ' || RPAD('plan_hash_value', 17) || RPAD('last seen', 18)
+              || RPAD('executions', 12) || RPAD('avg elapsed_s', 15) || 'awr');
+            DBMS_OUTPUT.PUT_LINE('* ' || l_first_row);
+          END IF;
+          DBMS_OUTPUT.PUT_LINE('  ' || l_row);
+        END IF;
+      END LOOP;
+      CLOSE l_cur;
+
+      IF l_rows = 0 THEN
+        IF g_phv IS NOT NULL THEN
+          l_abort_msg := 'AWR has no plan with plan_hash_value=' || g_phv || ' for sql_id='
+            || g_sql_id || '. Re-run without the plan_hash_value to list the plans AWR holds.';
+        ELSE
+          l_abort_msg := 'AWR has no plan for sql_id=' || g_sql_id || '. AWR snapshots keep '
+            || 'only the top SQL of each interval (DBMS_WORKLOAD_REPOSITORY.ADD_COLORED_SQL '
+            || 'forces capture), and old plans are purged with the AWR retention.'
+            || CASE WHEN SYS_CONTEXT('USERENV', 'CON_NAME') = 'CDB$ROOT'
+                 THEN ' From CDB$ROOT only the CDB-level AWR is visible: if the statement ran '
+                   || 'in a PDB that takes its own AWR snapshots, run this from that PDB.' END;
+        END IF;
+        RAISE e_friendly_abort;
+      END IF;
+
+      IF l_rows > 1 THEN
+        DBMS_OUTPUT.PUT_LINE('To share a different plan, re-run with its plan_hash_value:');
+        DBMS_OUTPUT.PUT_LINE('  @plan_to_url.sql ' || g_sql_id || ' "" AWR <plan_hash_value>');
+        DBMS_OUTPUT.PUT_LINE(' ');
+        g_phv_note := TO_CHAR(g_phv) || ' (latest)';
+      ELSE
+        g_phv_note := TO_CHAR(g_phv);
+      END IF;
+
+      -- A PDB's own AWR has dbid = its CON_DBID, which differs from the CDB's
+      -- DBID; everything else (CDB-level AWR, non-CDB) is AWR_ROOT.
+      l_location := CASE
+                      WHEN l_use_dbid <> l_my_dbid AND l_use_dbid = l_my_con_dbid THEN 'AWR_PDB'
+                      ELSE 'AWR_ROOT'
+                    END;
+
+      BEGIN
+        OPEN l_cur FOR
+          'SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY_WORKLOAD_REPOSITORY('
+          || 'sql_id => :sid, plan_hash_value => :phv, format => ''ADVANCED'', '
+          || 'dbid => :dbid, con_dbid => :con_dbid, awr_location => :loc))'
+          USING g_sql_id, g_phv, l_use_dbid, l_use_con, l_location;
+        LOOP
+          FETCH l_cur INTO l_line;
+          EXIT WHEN l_cur%NOTFOUND;
+          DBMS_LOB.APPEND(l_plan_clob, l_line || CHR(10));
+        END LOOP;
+        CLOSE l_cur;
+      EXCEPTION
+        WHEN OTHERS THEN
+          BEGIN
+            IF l_cur%ISOPEN THEN CLOSE l_cur; END IF;
+          EXCEPTION WHEN OTHERS THEN NULL;
+          END;
+          l_abort_msg := 'Could not read the plan from AWR with DBMS_XPLAN.DISPLAY_WORKLOAD_REPOSITORY '
+            || '(Oracle 12.2+; needs the Diagnostics Pack enabled - CONTROL_MANAGEMENT_PACK_ACCESS). '
+            || 'Database said: ' || SUBSTR(SQLERRM, 1, 300);
+          RAISE e_friendly_abort;
+      END;
+
+      IF DBMS_LOB.GETLENGTH(l_plan_clob) = 0 THEN
+        l_abort_msg := 'DBMS_XPLAN.DISPLAY_WORKLOAD_REPOSITORY returned nothing for sql_id='
+          || g_sql_id || ', plan_hash_value=' || g_phv || ' (' || l_location || ', dbid '
+          || l_use_dbid || ', con_dbid ' || l_use_con || ').';
+        RAISE e_friendly_abort;
+      END IF;
+    END;
   END IF;
 
   IF DBMS_LOB.GETLENGTH(l_plan_clob) = 0 THEN
@@ -513,6 +711,7 @@ BEGIN
   DBMS_OUTPUT.PUT_LINE('sql_id: ' || g_sql_id
     || CASE
          WHEN g_source = 'MONITOR' THEN '   sql_exec_id: ' || NVL(g_exec_note, '(latest)')
+         WHEN g_source = 'AWR' THEN '   plan_hash_value: ' || g_phv_note
          ELSE '   child: ' || g_child
        END
     || '   source: ' || g_source);
@@ -534,6 +733,9 @@ BEGIN
 
   IF g_source = 'MONITOR' THEN
     DBMS_OUTPUT.PUT_LINE('Reminder: SQL Monitor requires an active Oracle Diagnostics and Tuning Pack license.');
+  ELSIF g_source = 'AWR' THEN
+    DBMS_OUTPUT.PUT_LINE('Note: AWR keeps optimizer estimates only - the plan has no A-Rows, A-Time or Starts.');
+    DBMS_OUTPUT.PUT_LINE('Reminder: AWR requires an active Oracle Diagnostics Pack license.');
   END IF;
 
   cleanup_lobs;
