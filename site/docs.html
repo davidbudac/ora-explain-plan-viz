@@ -708,6 +708,7 @@ SQL&gt; @gather_plan_metadata.sql LIST "HR.EMPLOYEES,HR.DEPARTMENTS"</code></pre
         <li>Nodes with metadata get an inline <strong>badge</strong>; extra badges flag stale stats, missing stats, and "cardinality mismatch on a column with no histogram".</li>
         <li>The node detail panel shows table/index/column stats next to the predicates, with column formatting in predicate text.</li>
         <li>The <strong>Metadata</strong> tab opens the explorer (sidebar of objects, detail pages for tables, indexes and columns, bundle overview with coverage warnings). It can be popped out into a separate window to sit next to the plan.</li>
+        <li>Click an object name in the node detail panel to open that table or index in the Metadata explorer.</li>
         <li>Advisor rules that need schema knowledge (unused index, stats issues) become active.</li>
       </ul>
       <p>A sample bundle ships with the <em>Cardinality Trap (NL)</em> and <em>Partition Range Iterator</em> examples so you can see the effect without a database.</p>
