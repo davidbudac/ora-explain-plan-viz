@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from './ui';
@@ -31,7 +31,9 @@ export function PopoutWindow({ title, width = 1100, height = 800, onClose, child
   const [win, setWin] = useState<Window | null>(null);
   const closedRef = useRef(false);
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useLayoutEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     closedRef.current = false;
@@ -58,6 +60,8 @@ export function PopoutWindow({ title, width = 1100, height = 800, onClose, child
       return;
     }
     opened.document.title = title;
+    // The window is an external resource opened by this effect; storing it is the point.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWin(opened);
 
     const requestClose = () => {

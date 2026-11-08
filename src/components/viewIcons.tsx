@@ -36,4 +36,3 @@ export function ViewIcon({ mode, className }: { mode: ViewMode; className?: stri
   return <OutlineIcon path={VIEW_ICON_PATHS[mode]} className={className} />;
 }
 
-export { VIEW_ICON_PATHS };
