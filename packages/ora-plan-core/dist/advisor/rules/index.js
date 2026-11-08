@@ -15,6 +15,7 @@ import { planNotesRule } from "./planNotes.js";
 import { functionOnIndexedColumnRule } from "./functionOnIndexedColumn.js";
 import { hashJoinBuildSideRule } from "./hashJoinBuildSide.js";
 import { pxSkewRule } from "./pxSkew.js";
+import { hintsRule } from "./hints.js";
 export const ALL_RULES = [
     implicitConversionRule,
     nestedLoopVolumeRule,
@@ -33,5 +34,6 @@ export const ALL_RULES = [
     functionOnIndexedColumnRule,
     hashJoinBuildSideRule,
     pxSkewRule,
+    hintsRule,
 ];
-export { implicitConversionRule, nestedLoopVolumeRule, mergeJoinCartesianRule, selectiveFullScanRule, unusedIndexRule, cardinalityMismatchRule, spillToDiskRule, statsIssuesRule, partitionPruningRule, parallelSignalsRule, perRowReexecutionRule, indexRowsDiscardedRule, bufferEfficiencyRule, planNotesRule, functionOnIndexedColumnRule, hashJoinBuildSideRule, pxSkewRule, };
+export { implicitConversionRule, nestedLoopVolumeRule, mergeJoinCartesianRule, selectiveFullScanRule, unusedIndexRule, cardinalityMismatchRule, spillToDiskRule, statsIssuesRule, partitionPruningRule, parallelSignalsRule, perRowReexecutionRule, indexRowsDiscardedRule, bufferEfficiencyRule, planNotesRule, functionOnIndexedColumnRule, hashJoinBuildSideRule, pxSkewRule, hintsRule, };

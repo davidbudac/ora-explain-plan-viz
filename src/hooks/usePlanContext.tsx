@@ -1098,6 +1098,9 @@ interface PlanContextValue {
   setTreeLayoutDirection: (direction: TreeLayoutDirection) => void;
   treeMinimap: TreeMinimapMode;
   setTreeMinimap: (mode: TreeMinimapMode) => void;
+  /** Hints lens (persisted): pins on hinted operations, the rest dimmed. */
+  hintLens: boolean;
+  setHintLens: (on: boolean) => void;
   /** Expand/collapse all, fit, focus selected, redraw — null while no tree is mounted. */
   treeViewActionsRef: React.MutableRefObject<TreeViewActions | null>;
   /** Hidden count / collapsibility / minimap visibility the mounted tree publishes; null while none is. */
@@ -1210,6 +1213,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     () => loadSettings().treeLayoutDirection,
   );
   const [treeMinimap, setTreeMinimapState] = useState<TreeMinimapMode>(() => loadSettings().treeMinimap);
+  const [hintLens, setHintLensState] = useState<boolean>(() => loadSettings().hintLens);
   const treeViewActionsRef = useRef<TreeViewActions | null>(null);
   // State (not a ref) so the toolbar re-renders when the tree's counts change.
   const [treeViewState, setTreeViewStateRaw] = useState<TreeViewState | null>(null);
@@ -1232,6 +1236,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const setTreeMinimap = useCallback((mode: TreeMinimapMode) => {
     setTreeMinimapState(mode);
     saveSettings({ treeMinimap: mode });
+  }, []);
+  const setHintLens = useCallback((on: boolean) => {
+    setHintLensState(on);
+    saveSettings({ hintLens: on });
   }, []);
 
   const createPlanSlotFromInput = useCallback((input: string, index: number): PlanSlot => {
@@ -2845,6 +2853,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setTreeLayoutDirection,
     treeMinimap,
     setTreeMinimap,
+    hintLens,
+    setHintLens,
     treeViewActionsRef,
     treeViewState,
     setTreeViewState,
@@ -2988,6 +2998,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setTreeLayoutDirection,
     treeMinimap,
     setTreeMinimap,
+    hintLens,
+    setHintLens,
     treeViewActionsRef,
     treeViewState,
     setTreeViewState,
