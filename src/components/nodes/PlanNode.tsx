@@ -14,7 +14,7 @@ import type { MetadataBadge } from '../../lib/metadata/badges';
 import type { ParallelSignal, PartitionPruning } from '../../lib/planSignals';
 import type { FindingSeverity } from '../../lib/advisor';
 import { INACTIVE_NODE_TOOLTIP } from '../../lib/nodeAriaLabel';
-import { formatHintMark, hintBadgeLabel, worstHintStatus } from '../../lib/hints';
+import { formatHintMark, hintChipsForNode } from '../../lib/hints';
 import type { HintMark, HintMarkStatus } from '../../lib/hints';
 
 export interface PlanNodeData extends Record<string, unknown> {
@@ -424,10 +424,9 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             metadataBadges={metadataBadges}
             partitionPruning={partitionPruning}
             parallelSignals={parallelSignals}
-            hintMarks={hintMarks}
-            showHints={showHintBadge && !isRail}
           />
         )}
+        {showHintBadge && !isCompact && hintMarks && <HintChips marks={hintMarks} nodeId={node.id} className="mb-1.5" />}
 
         {/* Operation name */}
         <div className="relative">
@@ -466,12 +465,11 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         )}
 
         {/* Minimal density: one quiet mono metric line + a single amber warning dot */}
-        {isCompact && (compactParts.length > 0 || compactWarnings.length > 0 || showHintBadge) && (
+        {isCompact && (compactParts.length > 0 || compactWarnings.length > 0) && (
           <div
             className="flex items-center gap-1.5 font-mono text-[11px] font-medium leading-tight text-slate-500 dark:text-slate-400"
             style={{ fontVariantNumeric: 'tabular-nums' }}
           >
-            {showHintBadge && hintMarks && <HintPin marks={hintMarks} nodeId={node.id} compact />}
             <span className="truncate">
               {compactParts.map((part, i) => (
                 <Fragment key={part.text}>
@@ -495,6 +493,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             )}
           </div>
         )}
+
+        {isCompact && showHintBadge && hintMarks && <HintChips marks={hintMarks} nodeId={node.id} className="mt-1.5" />}
 
         {/* Query block badge (rail scheme moves it to the footer rail) */}
         {!isRail && !isCompact && options.showQueryBlockBadge && (
@@ -674,14 +674,12 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
         {/* Icon badge rail (rail scheme): fixed footer slot for badges + query block.
             Cardinality mismatch is shown inline in the comparison grid instead. */}
         {isRail && !isCompact &&
-          (showHintBadge ||
-            showHot ||
+          (showHot ||
             (hasSpill && options.showSpillBadge) ||
             (options.showPredicateIndicators && (node.accessPredicates || node.filterPredicates)) ||
             (options.showPartitionInfo && formatPartitionRange(node.pstart, node.pstop)) ||
             (options.showQueryBlockBadge && node.queryBlock)) && (
             <div className="flex items-center gap-1 mt-2 pt-1.5 border-t border-slate-200 dark:border-slate-700">
-              {showHintBadge && hintMarks && <HintPin marks={hintMarks} nodeId={node.id} compact />}
               {showHot && (
                 <span
                   className="w-5 h-5 rounded bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 flex items-center justify-center shrink-0"
@@ -790,10 +788,9 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             metadataBadges={metadataBadges}
             partitionPruning={partitionPruning}
             parallelSignals={parallelSignals}
-            hintMarks={hintMarks}
-            showHints={showHintBadge}
             className="mb-2"
           />
+          {showHintBadge && hintMarks && <HintChips marks={hintMarks} nodeId={node.id} className="mb-2" />}
           <EstActStatsGrid
             node={node}
             rows={hoverStatRows}
@@ -1021,34 +1018,37 @@ function EstActStatsGrid({ node, rows, hasActualStats, cardLabel, cardSeverity, 
   );
 }
 
-const HINT_PIN_CLASSES: Record<HintMarkStatus, string> = {
-  used: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300',
-  unused: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300',
-  error: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',
-  other: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300',
-  outline: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400',
+const HINT_CHIP_CLASSES: Record<HintMarkStatus, string> = {
+  used: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+  unused: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+  error: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+  other: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  outline: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
 };
 
 /**
- * Hints-lens pin: the statement's hints Oracle reported on this operation and the outline
- * decisions that act on it. Colour follows the worst status (error > unused > used > outline);
- * the full list is the tooltip. `compact` is the icon-only form (rail footer, minimal density).
+ * Hints-lens chips: the statement's hints Oracle reported on this operation, each as written
+ * with a status glyph (✓ used, ✗ not used, ! syntax error), then the outline decisions the
+ * statement did not hint (grey, the optimizer's own) and the node's LEADING position (`#n`).
+ * The tooltip carries Oracle's reason. `hintChipsForNode` (lib/hints) decides the content.
  */
-function HintPin({ marks, nodeId, compact = false }: { marks: HintMark[]; nodeId: number; compact?: boolean }) {
-  const status = worstHintStatus(marks) ?? 'outline';
-  const title = marks.map((m) => formatHintMark(m, nodeId)).join('\n');
-  const label = hintBadgeLabel(marks, nodeId);
+function HintChips({ marks, nodeId, className = '' }: { marks: HintMark[]; nodeId: number; className?: string }) {
+  const chips = hintChipsForNode(marks, nodeId);
+  if (chips.length === 0) return null;
   return (
-    <span
-      data-testid="hint-pin"
-      data-status={status}
-      className={`${compact ? 'h-5 px-1' : 'px-1.5 py-0.5'} text-[11px] rounded font-medium flex items-center gap-0.5 tabular-nums shrink-0 ${HINT_PIN_CLASSES[status]}`}
-      title={title}
-      aria-label={`${marks.length} hint${marks.length === 1 ? '' : 's'}: ${title}`}
-    >
-      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" /></svg>
-      {label}
-    </span>
+    <div className={`flex flex-wrap gap-1 ${className}`} data-testid="hint-chips">
+      {chips.map((chip, i) => (
+        <span
+          key={`${chip.label}-${i}`}
+          data-status={chip.status}
+          data-hinted={chip.hinted ? 'true' : undefined}
+          title={chip.title}
+          className={`inline-flex items-center max-w-full h-[18px] px-1.5 rounded font-mono text-[10.5px] leading-none whitespace-nowrap overflow-hidden text-ellipsis ${HINT_CHIP_CLASSES[chip.status]} ${chip.status === 'outline' && chip.hinted ? 'ring-1 ring-inset ring-emerald-300 dark:ring-emerald-700' : ''}`}
+        >
+          {chip.label}
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -1072,8 +1072,6 @@ interface NodeBadgeRowProps {
   metadataBadges?: MetadataBadge[];
   partitionPruning?: PartitionPruning;
   parallelSignals?: ParallelSignal[];
-  hintMarks?: HintMark[];
-  showHints?: boolean;
   className?: string;
 }
 
@@ -1091,14 +1089,10 @@ function NodeBadgeRow({
   metadataBadges,
   partitionPruning,
   parallelSignals,
-  hintMarks,
-  showHints,
   className = 'mb-1.5',
 }: NodeBadgeRowProps) {
   const hasAdvisor = showAdvisor && !!advisorSeverity;
-  const hasHints = !!showHints && !!hintMarks && hintMarks.length > 0;
   const hasAny =
-    hasHints ||
     showHot ||
     showSpill ||
     (showCardBadge && !!cardLabel) ||
@@ -1110,7 +1104,6 @@ function NodeBadgeRow({
 
   return (
     <div className={`flex flex-wrap gap-1 ${className}`}>
-      {hasHints && hintMarks && <HintPin marks={hintMarks} nodeId={node.id} />}
       {hasAdvisor && (
         <span
           className={`px-1.5 py-0.5 text-[11px] rounded font-medium flex items-center gap-1 tabular-nums ${ADVISOR_BADGE_CLASSES[advisorSeverity!]}`}

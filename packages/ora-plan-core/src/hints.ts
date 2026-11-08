@@ -591,3 +591,70 @@ export function hintBadgeLabel(marks: HintMark[], nodeId: number): string {
   if (order !== undefined) parts.push(`#${order}`);
   return parts.join(' · ');
 }
+
+// ---------------------------------------------------------------------------
+// Chips: what the tree draws on a node while the hints lens is on
+// ---------------------------------------------------------------------------
+
+export interface HintChip {
+  /** Short text: the hint as written (`✓ full(o)`), or an outline decision's name (`USE_NL`, `#1`). */
+  label: string;
+  status: HintMarkStatus;
+  /** Full line for the tooltip (see `formatHintMark`). */
+  title: string;
+  /** Outline chips only: the statement's own hint settled this decision. */
+  hinted?: boolean;
+}
+
+const STATUS_GLYPH: Record<HintMarkStatus, string> = { used: '✓', unused: '✗', error: '!', other: '?', outline: '' };
+
+/** The hint as written, whitespace folded, cut to `max` characters. */
+export function shortHintText(text: string, max = 26): string {
+  const folded = text.replace(/\s+/g, ' ').trim();
+  return folded.length > max ? `${folded.slice(0, max - 1)}…` : folded;
+}
+
+/**
+ * Chips for one operation: the statement's hints Oracle reported here (with status glyph),
+ * then the outline decisions the statement did *not* hint (so the optimizer's own choices stay
+ * visible), and a `#n` chip for the node's position in a LEADING order.
+ */
+export function hintChipsForNode(marks: HintMark[], nodeId: number): HintChip[] {
+  const chips: HintChip[] = [];
+  for (const m of marks) {
+    if (m.source !== 'report') continue;
+    chips.push({ label: `${STATUS_GLYPH[m.status]} ${shortHintText(m.text)}`, status: m.status, title: formatHintMark(m, nodeId) });
+  }
+  // A hinted decision is already said by the user's own chip when that chip sits on this node
+  // (index(u) on the table access); on a node that only inherits it (the index scan under it)
+  // the decision is still shown, ringed green.
+  const saidHere = new Set(marks.filter((m) => m.source === 'report' && m.status === 'used').map((m) => decisionName(parseHint(m.text))));
+  for (const m of marks) {
+    if (m.source !== 'outline') continue;
+    const order = m.order?.get(nodeId);
+    if (order !== undefined) {
+      chips.push({ label: `#${order}`, status: 'outline', title: formatHintMark(m, nodeId), hinted: m.hinted });
+      continue;
+    }
+    if (m.hinted && saidHere.has(decisionName(parseHint(m.text)))) continue;
+    chips.push({ label: m.name, status: 'outline', title: formatHintMark(m, nodeId), hinted: m.hinted });
+  }
+  return chips;
+}
+
+/** Rows the chips wrap onto inside `widthPx` (mono ~6.3 px per character + padding), for node heights. */
+export function estimateHintChipRows(chips: HintChip[], widthPx: number): number {
+  if (chips.length === 0) return 0;
+  let rows = 1;
+  let x = 0;
+  for (const chip of chips) {
+    const w = Math.min(widthPx, chip.label.length * 6.3 + 14);
+    if (x > 0 && x + 4 + w > widthPx) {
+      rows++;
+      x = w;
+    } else {
+      x += (x > 0 ? 4 : 0) + w;
+    }
+  }
+  return rows;
+}
