@@ -15,21 +15,42 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # A PR checks out its merge commit; depth 2 brings in the base parent to diff against.
+          fetch-depth: 2
+
+      # `check` is a required status, so docs-only PRs must still report it: skip the
+      # work instead of skipping the workflow. Root *.md only - skills/**/*.md is bundled
+      # into the app. Pushes to main always run in full.
+      - name: Docs-only change?
+        id: scope
+        if: github.event_name == 'pull_request'
+        run: |
+          code=$(git diff --name-only HEAD^1 HEAD | grep -vE '^([^/]+\.md|docs/.*|site/.*|LICENSE)$' || true)
+          if [ -z "$code" ]; then
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+            echo "Docs-only change: skipping install, lint, typecheck and tests."
+          fi
 
       - name: Setup Node.js
+        if: steps.scope.outputs.docs_only != 'true'
         uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
 
       - name: Install dependencies
+        if: steps.scope.outputs.docs_only != 'true'
         run: npm ci
 
       - name: Lint
+        if: steps.scope.outputs.docs_only != 'true'
         run: npm run lint
 
       - name: Type check
+        if: steps.scope.outputs.docs_only != 'true'
         run: npm run typecheck
 
       - name: Test
+        if: steps.scope.outputs.docs_only != 'true'
         run: npm run test
