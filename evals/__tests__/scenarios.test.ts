@@ -7,8 +7,8 @@ import { listScenarioNames, loadScenario, queryStatement, SCENARIOS_DIR } from '
 describe('scenario corpus', () => {
   const names = listScenarioNames();
 
-  // The corpus itself is private (oraplanviz-pro); the public repo may have
-  // zero scenarios checked out. Whatever is present must be well-formed.
+  // Scenarios are not committed; a checkout may have none.
+  // Whatever is present must be well-formed.
   it('lists only NN-name directories', () => {
     for (const name of names) expect(name).toMatch(/^\d{2}-[a-z0-9-]+$/);
   });

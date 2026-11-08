@@ -1,7 +1,7 @@
 import type { FindingSeverity } from '../advisor/types';
 
 /** Where the analysis request is sent. */
-export type AiProviderId = 'hosted' | 'anthropic' | 'openai-compat' | 'agent';
+export type AiProviderId = 'anthropic' | 'openai-compat' | 'agent';
 
 /**
  * Togglable context sections shown in the pre-send review dialog.

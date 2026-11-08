@@ -27,7 +27,7 @@ dist-ssr
 .claude/worktrees/
 .claude/settings.local.json
 
-# Eval scenario corpus is private (oraplanviz-pro); only the README is tracked here.
+# Eval scenarios are local to each checkout; only the README is tracked here.
 evals/scenarios/*/
 
 # Playwright MCP scratch output

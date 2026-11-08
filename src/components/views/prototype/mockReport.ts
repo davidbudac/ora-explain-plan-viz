@@ -1,10 +1,10 @@
-// PROTOTYPE — throwaway UI prototype for wayfinder ticket 08 (non-expert analysis report design). Not production code.
+// PROTOTYPE — throwaway UI prototype for the non-expert analysis report design. Not production code.
 
 /**
  * Hardcoded mock content for the "AI Report" prototype.
  *
  * The types below double as a first draft of the future report contract: the
- * shape a hosted analysis endpoint would return for a single plan.
+ * shape an analysis endpoint would return for a single plan.
  */
 
 export type ReportSeverity = 'critical' | 'warning' | 'info';

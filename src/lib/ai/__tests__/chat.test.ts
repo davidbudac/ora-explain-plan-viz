@@ -166,29 +166,4 @@ describe('streamChat — fetch providers', () => {
     expect(body.prompt).toContain('Assistant:\nHere is the report.');
     expect(body.prompt).toContain('User:\nWhy is line 3 slow?');
   });
-
-  it('hosted flattens prior turns into the prompt on /v1/analyze', async () => {
-    fetchMock.mockResolvedValueOnce(
-      sseResponse([
-        'event: done',
-        'data: {"stopReason":"end_turn"}',
-        '',
-      ]),
-    );
-
-    await collect(
-      streamChat(
-        { provider: 'hosted', model: '', accountToken: 'acct' },
-        OPTS,
-        new AbortController().signal,
-      ),
-    );
-
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe('https://api.oraplanviz.com/v1/analyze');
-    const body = JSON.parse(init.body as string);
-    expect(body.prompt).toContain('Assistant:\nHere is the report.');
-    expect(body.prompt).toContain('User:\nWhy is line 3 slow?');
-    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer acct');
-  });
 });
