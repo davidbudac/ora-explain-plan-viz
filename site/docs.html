@@ -668,6 +668,8 @@ SPOOL OFF</code></pre>
 SQL&gt; @plan_to_url.sql an05rsj1up1k5 1           -- specific child cursor
 SQL&gt; @plan_to_url.sql an05rsj1up1k5 "" MONITOR  -- SQL Monitor TEXT report (Tuning Pack)
 SQL&gt; @plan_to_url.sql an05rsj1up1k5 "" AWR      -- from AWR once the cursor aged out (Diagnostics Pack)</code></pre>
+      <p>Add <code>QUIET</code> after the other arguments to print the URL alone and exit SQL*Plus, so it can go straight to the clipboard from the shell:</p>
+<pre><code>$ sqlplus -s user@db @plan_to_url.sql an05rsj1up1k5 QUIET | pbcopy</code></pre>
       <p>
         The <code>AWR</code> source gives optimizer estimates only (AWR keeps no A-Rows or A-Time). When AWR holds several
         plans for the statement, the script uses the one seen most recently and lists the others; pass a plan hash value as
