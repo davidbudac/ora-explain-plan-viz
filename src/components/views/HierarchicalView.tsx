@@ -507,6 +507,8 @@ function HierarchicalViewContent({
     return { ...filters.nodeDisplayOptions, showCardinalityBadge: false };
   }, [filters.nodeDisplayOptions, hotspotsEnabled]);
 
+  // onToggleCollapse reads toggleCollapseRef only when a node's toggle is clicked, never during render.
+  // eslint-disable-next-line react-hooks/refs
   const layoutData = useMemo(() => {
     if (!parsedPlan?.rootNode) {
       return { nodes: [] as Node[], edges: [] as Edge[], boxes: EMPTY_BOXES };

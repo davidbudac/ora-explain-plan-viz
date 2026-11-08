@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { usePlan } from '../hooks/usePlanContext';
 import {
@@ -93,13 +93,11 @@ const errorTextClass = 'text-xs text-red-600 dark:text-red-400 break-words [over
 const warnTextClass = 'text-xs text-amber-700 dark:text-amber-400 break-words [overflow-wrap:anywhere]';
 const okTextClass = 'text-xs text-emerald-700 dark:text-emerald-400';
 
-function onEnter(handler: () => void) {
-  return (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handler();
-    }
-  };
+function onEnter(e: KeyboardEvent<HTMLInputElement>, handler: () => void) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    handler();
+  }
 }
 
 // --- Small presentational pieces ---
@@ -343,7 +341,9 @@ export function ConnectPanel() {
   // --- Health probe (manual button, mount, and 3 s polling until found) ---
 
   const baseUrlRef = useRef(normalizedUrl);
-  baseUrlRef.current = normalizedUrl;
+  useLayoutEffect(() => {
+    baseUrlRef.current = normalizedUrl;
+  });
   const probeInFlight = useRef(false);
 
   const probe = useCallback(async (silent: boolean) => {
@@ -369,6 +369,8 @@ export function ConnectPanel() {
   }, []);
 
   useEffect(() => {
+    // Probing the connector on mount is a fetch; its loading flag is set before the first await.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void probe(false);
   }, [probe]);
 
@@ -502,7 +504,9 @@ export function ConnectPanel() {
 
   // Always call the latest closure from the auto-refresh effect.
   const refreshRef = useRef(handleRefreshRecent);
-  refreshRef.current = handleRefreshRecent;
+  useLayoutEffect(() => {
+    refreshRef.current = handleRefreshRecent;
+  });
 
   const planStepOpen = steps.plan === 'current';
   useEffect(() => {
@@ -685,7 +689,7 @@ export function ConnectPanel() {
                   type="text"
                   value={baseUrl}
                   onChange={(e) => setBaseUrl(e.target.value)}
-                  onKeyDown={onEnter(() => void probe(false))}
+                  onKeyDown={(e) => onEnter(e, () => void probe(false))}
                   placeholder={DEFAULT_AGENT_BASE_URL}
                   className={`${inputClass} w-56 max-w-full font-mono`}
                 />
@@ -719,7 +723,7 @@ export function ConnectPanel() {
                     type={showToken ? 'text' : 'password'}
                     value={token}
                     onChange={(e) => setToken(e.target.value)}
-                    onKeyDown={onEnter(() => { if (token.trim() && agentReachable) void runVerify(normalizedUrl, token); })}
+                    onKeyDown={(e) => onEnter(e, () => { if (token.trim() && agentReachable) void runVerify(normalizedUrl, token); })}
                     placeholder="bearer token"
                     autoComplete="off"
                     spellCheck={false}
@@ -800,7 +804,7 @@ export function ConnectPanel() {
                     type="password"
                     value={dbPassword}
                     onChange={(e) => setDbPassword(e.target.value)}
-                    onKeyDown={onEnter(() => { if (connectReady) void handleConnect(); })}
+                    onKeyDown={(e) => onEnter(e, () => { if (connectReady) void handleConnect(); })}
                     autoComplete="off"
                     className={`${inputClass} w-32`}
                   />
@@ -926,7 +930,7 @@ export function ConnectPanel() {
                     type="text"
                     value={manualSqlId}
                     onChange={(e) => setManualSqlId(e.target.value)}
-                    onKeyDown={onEnter(() => void handleManualLoad())}
+                    onKeyDown={(e) => onEnter(e, () => void handleManualLoad())}
                     className={`${inputClass} w-32 font-mono`}
                   />
                 </div>
@@ -956,7 +960,7 @@ export function ConnectPanel() {
                       type="text"
                       value={manualChildNumber}
                       onChange={(e) => setManualChildNumber(e.target.value)}
-                      onKeyDown={onEnter(() => void handleManualLoad())}
+                      onKeyDown={(e) => onEnter(e, () => void handleManualLoad())}
                       placeholder="optional"
                       className={`${inputClass} w-20`}
                     />

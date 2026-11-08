@@ -78,7 +78,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
   // Cancel() marks the current run so its AbortError resolves to 'cancelled'.
   const cancelledRef = useRef(false);
   // Slot indices the current report (or in-flight run) was generated from.
-  const sourceSlotIdsRef = useRef<number[]>([]);
+  const [sourceSlotIds, setSourceSlotIds] = useState<number[]>([]);
 
   const stopFlushTimer = useCallback(() => {
     if (flushTimerRef.current !== null) {
@@ -121,7 +121,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
     setError(null);
     setStatus('idle');
     bufferRef.current = '';
-    sourceSlotIdsRef.current = [];
+    setSourceSlotIds([]);
     runConfigRef.current = null;
     userMessageRef.current = '';
     clearChat();
@@ -142,7 +142,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
       const controller = new AbortController();
       abortRef.current = controller;
       cancelledRef.current = false;
-      sourceSlotIdsRef.current = slotIds;
+      setSourceSlotIds(slotIds);
       runConfigRef.current = runConfig;
       userMessageRef.current = builtContext.userMessage;
       clearChat();
@@ -323,7 +323,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
   // A report belongs to the plan(s) it was generated from: when the source
   // slot re-parses (new plan loaded / cleared), drop the report — same
   // lifecycle idea as metadata bundles in usePlanContext.
-  const primarySlotIndex = (report?.slotIds ?? sourceSlotIdsRef.current)[0] ?? null;
+  const primarySlotIndex = (report?.slotIds ?? sourceSlotIds)[0] ?? null;
   const sourceParsedPlan = primarySlotIndex !== null ? plans[primarySlotIndex]?.parsedPlan ?? null : null;
   const prevSourcePlanRef = useRef(sourceParsedPlan);
   useEffect(() => {
@@ -334,6 +334,8 @@ export function AiProvider({ children }: { children: ReactNode }) {
           cancelledRef.current = true;
           abortRef.current.abort();
         }
+        // Reacting to a plan change elsewhere in the app: the abort above has to run in an effect.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         clearReport();
       }
     }

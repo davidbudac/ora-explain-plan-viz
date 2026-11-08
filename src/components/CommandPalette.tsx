@@ -971,6 +971,7 @@ export function CommandPalette() {
 
   // Clamp selected index
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- keeps the stored index in range when results shrink
     setSelectedIndex(i => Math.min(i, Math.max(0, flatItems.length - 1)));
   }, [flatItems.length]);
 
@@ -1007,6 +1008,8 @@ export function CommandPalette() {
   useEffect(() => {
     if (!open) return;
     returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    // Opening is driven from outside (context flag); reset alongside the focus capture above.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setQuery('');
     setSelectedIndex(0);
     // The portal has committed by now, so focus straight away (keystrokes typed
