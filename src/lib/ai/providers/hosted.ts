@@ -2,9 +2,8 @@
  * AI streaming via the hosted oraplanviz cloud backend (SaaS).
  *
  * The backend holds the model credentials server-side; the browser
- * authenticates with a per-account token. Wire contract (see
- * docs/plans/ai-plan-analysis.md, Phase 1.5 — service lives in the
- * separate `oraplanviz-cloud` repo):
+ * authenticates with a per-account token. Wire contract (the service lives
+ * in the separate `oraplanviz-cloud` repo):
  *
  *   POST {baseUrl}/v1/analyze   Authorization: Bearer <account token>
  *   Body: { system, prompt, model|null, maxTokens|null, kind: 'analyze' }

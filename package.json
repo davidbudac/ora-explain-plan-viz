@@ -14,6 +14,7 @@
     "lint": "eslint .",
     "typecheck": "tsc -b",
     "build:core": "node packages/ora-plan-core/scripts/build.mjs",
+    "pretest": "npm run build:core",
     "test": "vitest run --environment jsdom",
     "eval:repro": "tsx evals/run.ts",
     "eval:analyze": "tsx evals/analyze.ts",
