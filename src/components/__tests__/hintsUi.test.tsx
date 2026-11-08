@@ -82,6 +82,25 @@ describe('hints in the SQL tab', () => {
     expect(toolbar.getAttribute('aria-pressed')).toBe('true');
     expect(document.body.textContent).toContain('Hints lens on');
   });
+
+  it('the SQL tab button is a plain toggle that stays on the SQL tab; "Open tree" switches views', async () => {
+    const ctx = await mount(<SqlTextView />);
+    act(() => ctx().setViewMode('sql'));
+    const lens = () => Array.from(document.querySelectorAll('button[aria-pressed]')).find((b) => b.textContent?.startsWith('Hints lens'))!;
+    expect(lens().getAttribute('aria-pressed')).toBe('false');
+    act(() => click(lens()));
+    expect(ctx().hintLens).toBe(true);
+    expect(ctx().viewMode).toBe('sql');
+    expect(lens().textContent).toBe('Hints lens on');
+    act(() => click(lens()));
+    expect(ctx().hintLens).toBe(false);
+    expect(ctx().viewMode).toBe('sql');
+    act(() => click(lens()));
+    const open = Array.from(document.querySelectorAll('button')).find((b) => b.textContent === 'Open tree')!;
+    act(() => click(open));
+    expect(ctx().viewMode).toBe('hierarchical');
+    expect(ctx().hintLens).toBe(true);
+  });
 });
 
 describe('hints in the details panel', () => {

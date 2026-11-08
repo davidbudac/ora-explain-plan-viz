@@ -296,18 +296,29 @@ export function SqlTextView() {
         <div className="flex items-center justify-end gap-2 px-4 pt-3 pb-1">
           {isDbAgentEnabled() && comments.length > 0 && <ExplainWithoutHints sqlText={sqlText} />}
           {analysis && (
-            <button
-              type="button"
-              className={`min-h-8 px-2.5 rounded-md border text-xs ${FOCUS_RING} ${hintLens ? 'border-slate-400 bg-slate-200/90 text-slate-900 dark:border-slate-500 dark:bg-slate-600/80 dark:text-white' : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-              aria-pressed={hintLens}
-              title="Hints lens — pin every operation a hint acts on in the tree and dim the rest"
-              onClick={() => {
-                setHintLens(!hintLens);
-                if (!hintLens) setViewMode('hierarchical');
-              }}
-            >
-              {hintLens ? 'Hints lens on' : 'Show hints in tree'}
-            </button>
+            <>
+              {/* A plain toggle: it never leaves this tab. The lens shows in the tree, so a
+                  second button opens the tree while the lens is on. */}
+              <button
+                type="button"
+                className={`min-h-8 px-2.5 rounded-md border text-xs ${FOCUS_RING} ${hintLens ? 'border-slate-400 bg-slate-200/90 text-slate-900 dark:border-slate-500 dark:bg-slate-600/80 dark:text-white' : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                aria-pressed={hintLens}
+                title="Hints lens — in the tree, pin every operation a hint acts on and dim the rest"
+                onClick={() => setHintLens(!hintLens)}
+              >
+                Hints lens{hintLens ? ' on' : ''}
+              </button>
+              {hintLens && (
+                <button
+                  type="button"
+                  className={`min-h-8 px-2.5 rounded-md border border-slate-300 dark:border-slate-600 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 ${FOCUS_RING}`}
+                  title="Open the Tree tab with the hints lens"
+                  onClick={() => setViewMode('hierarchical')}
+                >
+                  Open tree
+                </button>
+              )}
+            </>
           )}
           <CopyButton
             text={sqlText}
