@@ -1,12 +1,12 @@
 # Oracle Execution Plan Visualizer
 
-**[Open the app](https://davidbudac.github.io/ora-explain-plan-viz/)** — paste a DBMS_XPLAN (incl. `ALLSTATS` runtime stats and `ADVANCED` sections), SQL Monitor (text, XML or ACTIVE HTML report), V$SQL_PLAN as JSON or CSV, or xbi.sql plan and get an interactive, annotated picture of it. Runs 100% in your browser: no backend, no account, nothing is uploaded — and it installs as an offline-capable app.
+> **One HTML file. No backend.** The whole app — parsers, views, advisor, everything — is a single self-contained HTML file. It all runs in your browser: no server, no install, no account, nothing uploaded. Download `oraplanviz-vX.Y.Z.html` from the [latest release](https://github.com/davidbudac/ora-explain-plan-viz/releases) and open it from disk (works offline, even on an air-gapped box), or use the [hosted copy](https://davidbudac.github.io/ora-explain-plan-viz/).
+
+**[Open the app](https://davidbudac.github.io/ora-explain-plan-viz/)** — paste a DBMS_XPLAN (incl. `ALLSTATS` runtime stats and `ADVANCED` sections), SQL Monitor (text, XML or ACTIVE HTML report), V$SQL_PLAN as JSON or CSV, or xbi.sql plan and get an interactive, annotated picture of it. The hosted copy also installs as an offline-capable app.
 
 [![Tree view with hotspots](site/assets/hero.png)](https://davidbudac.github.io/ora-explain-plan-viz/?example=21)
 
 Try it with the **Load Example** menu, read the **[documentation](https://davidbudac.github.io/ora-explain-plan-viz/welcome/docs.html)** (getting started, self-hosting with Docker, every feature), or see [how to get a plan out of Oracle](docs/input-formats.md).
-
-Prefer a file? Each [release](https://github.com/davidbudac/ora-explain-plan-viz/releases) attaches the whole app as one self-contained `oraplanviz-vX.Y.Z.html` — open it from disk, no server needed.
 
 ## What it does
 
