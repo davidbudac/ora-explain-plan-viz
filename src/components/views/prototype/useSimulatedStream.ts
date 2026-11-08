@@ -1,4 +1,4 @@
-// PROTOTYPE — throwaway UI prototype for wayfinder ticket 08 (non-expert analysis report design). Not production code.
+// PROTOTYPE — throwaway UI prototype for the non-expert analysis report design. Not production code.
 
 import { useCallback, useEffect, useState } from 'react';
 
@@ -49,7 +49,7 @@ function joinUnits(units: string[]): string {
 }
 
 /**
- * Fake a token stream from a hosted analysis endpoint:
+ * Fake a token stream from an analysis endpoint:
  * a short "thinking" beat, then word-by-word prose, then structured content.
  */
 export function useSimulatedStream(paragraphs: string[]): SimulatedStream {

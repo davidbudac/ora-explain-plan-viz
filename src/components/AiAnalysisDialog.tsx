@@ -8,7 +8,6 @@ import { assembleContext, buildAnalyzeSections, buildCompareSections, buildTestC
 import { MODEL_PRESETS } from '../lib/ai/prompts';
 import { getAiSecret, setAiSecret } from '../lib/ai/secrets';
 import type { AiRunConfig } from '../lib/ai/provider';
-import { DEFAULT_HOSTED_BASE_URL, isHostedAiEnabled } from '../lib/ai/provider';
 import type { AiProviderId, AiSectionId } from '../lib/ai/types';
 import { AI_COMING_SOON_LABEL } from '../lib/ai/availability';
 import { BTN_SECONDARY, Dialog, DialogBody, DialogFooter, FOCUS_RING } from './ui';
@@ -49,13 +48,7 @@ function hostOf(url: string): string {
   }
 }
 
-const PROVIDER_OPTIONS: { value: AiProviderId; label: string; description: string; gate?: 'hosted' | 'agent' }[] = [
-  {
-    value: 'hosted',
-    label: 'oraplanviz cloud (hosted)',
-    description: 'The hosted service holds the model credentials; you authenticate with an account token.',
-    gate: 'hosted',
-  },
+const PROVIDER_OPTIONS: { value: AiProviderId; label: string; description: string; gate?: 'agent' }[] = [
   {
     value: 'anthropic',
     label: 'Anthropic (bring your own API key)',
@@ -68,7 +61,7 @@ const PROVIDER_OPTIONS: { value: AiProviderId; label: string; description: strin
   },
   {
     value: 'agent',
-    label: 'Local DB connector (oraplanviz-agent)',
+    label: 'Local DB connector (oraplanviz-db-connector)',
     description: 'The companion agent on this machine holds the credentials and proxies the request.',
     gate: 'agent',
   },
@@ -83,9 +76,8 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
   const [settings] = useState(loadSettings);
 
   const agentAvailable = isDbAgentEnabled();
-  const hostedAvailable = isHostedAiEnabled();
   const providerAvailable = (id: AiProviderId) =>
-    id === 'agent' ? agentAvailable : id === 'hosted' ? hostedAvailable : true;
+    id === 'agent' ? agentAvailable : PROVIDER_OPTIONS.some((o) => o.value === id);
   const [provider, setProvider] = useState<AiProviderId>(() =>
     providerAvailable(settings.aiProvider) ? settings.aiProvider : 'anthropic',
   );
@@ -100,11 +92,9 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
   const [initialSecrets] = useState(() => ({
     anthropic: getAiSecret('anthropic') ?? '',
     openai: getAiSecret('openai') ?? '',
-    hosted: getAiSecret('hosted') ?? '',
   }));
   const [anthropicKey, setAnthropicKey] = useState(initialSecrets.anthropic);
   const [openAiKey, setOpenAiKey] = useState(initialSecrets.openai);
-  const [hostedToken, setHostedToken] = useState(initialSecrets.hosted);
   const [rememberKey, setRememberKey] = useState(false);
 
   const [openAiBaseUrl, setOpenAiBaseUrl] = useState(settings.aiOpenAiBaseUrl);
@@ -122,7 +112,6 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
   const dirty =
     anthropicKey !== initialSecrets.anthropic ||
     openAiKey !== initialSecrets.openai ||
-    hostedToken !== initialSecrets.hosted ||
     (!initialIsPreset ? customModel !== initialModel : customModel !== '') ||
     openAiBaseUrl !== settings.aiOpenAiBaseUrl ||
     openAiModel !== settings.aiOpenAiModel;
@@ -166,34 +155,28 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
     return assembleContext(sectioned.core, sections);
   }, [sectioned, included]);
 
-  const model = provider === 'hosted'
-    ? ''
-    : provider === 'openai-compat'
-      ? openAiModel.trim()
-      : modelChoice === CUSTOM_MODEL
-        ? customModel.trim()
-        : modelChoice;
+  const model = provider === 'openai-compat'
+    ? openAiModel.trim()
+    : modelChoice === CUSTOM_MODEL
+      ? customModel.trim()
+      : modelChoice;
 
-  const targetHost = provider === 'hosted'
-    ? hostOf(DEFAULT_HOSTED_BASE_URL)
-    : provider === 'anthropic'
-      ? 'api.anthropic.com'
-      : provider === 'openai-compat'
-        ? openAiBaseUrl.trim()
-          ? hostOf(openAiBaseUrl.trim())
-          : 'the endpoint you enter above'
-        : `the local agent at ${hostOf(agentBaseUrl)}`;
+  const targetHost = provider === 'anthropic'
+    ? 'api.anthropic.com'
+    : provider === 'openai-compat'
+      ? openAiBaseUrl.trim()
+        ? hostOf(openAiBaseUrl.trim())
+        : 'the endpoint you enter above'
+      : `the local agent at ${hostOf(agentBaseUrl)}`;
 
   const configValid =
     builtContext !== null &&
     status !== 'streaming' &&
-    (provider === 'hosted'
-      ? hostedToken.trim() !== ''
-      : provider === 'anthropic'
-        ? anthropicKey.trim() !== '' && model !== ''
-        : provider === 'openai-compat'
-          ? openAiBaseUrl.trim() !== '' && model !== ''
-          : agentToken.trim() !== '');
+    (provider === 'anthropic'
+      ? anthropicKey.trim() !== '' && model !== ''
+      : provider === 'openai-compat'
+        ? openAiBaseUrl.trim() !== '' && model !== ''
+        : agentToken.trim() !== '');
 
   const run = async () => {
     if (!builtContext || !configValid) return;
@@ -218,21 +201,16 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
     if (provider === 'openai-compat' && openAiKey.trim() !== '') {
       setAiSecret('openai', openAiKey.trim(), rememberKey);
     }
-    if (provider === 'hosted' && hostedToken.trim() !== '') {
-      setAiSecret('hosted', hostedToken.trim(), rememberKey);
-    }
 
-    const runConfig: AiRunConfig = provider === 'hosted'
-      ? { provider, model, accountToken: hostedToken.trim(), hostedBaseUrl: DEFAULT_HOSTED_BASE_URL }
-      : provider === 'anthropic'
-        ? { provider, apiKey: anthropicKey.trim(), model }
-        : provider === 'openai-compat'
-          ? { provider, apiKey: openAiKey.trim(), baseUrl: openAiBaseUrl.trim(), model }
-          : {
-              provider,
-              model,
-              agent: { baseUrl: normalizeBaseUrl(agentBaseUrl), token: agentToken.trim() },
-            };
+    const runConfig: AiRunConfig = provider === 'anthropic'
+      ? { provider, apiKey: anthropicKey.trim(), model }
+      : provider === 'openai-compat'
+        ? { provider, apiKey: openAiKey.trim(), baseUrl: openAiBaseUrl.trim(), model }
+        : {
+            provider,
+            model,
+            agent: { baseUrl: normalizeBaseUrl(agentBaseUrl), token: agentToken.trim() },
+          };
 
     const slotIds = mode === 'compare' ? [compareLeft, compareRight] : [activePlanIndex];
     void runAnalysis(runConfig, builtContext, mode, slotIds);
@@ -305,33 +283,6 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
         </div>
 
         {/* Provider-specific configuration */}
-        {provider === 'hosted' && (
-          <div>
-            <label htmlFor={field('hosted-token')} className={labelClass}>Account token</label>
-            <input
-              id={field('hosted-token')}
-              type="password"
-              value={hostedToken}
-              onChange={(e) => setHostedToken(e.target.value)}
-              placeholder="Your oraplanviz cloud account token"
-              spellCheck={false}
-              autoComplete="off"
-              className={inputClass}
-            />
-            <label className="mt-1.5 flex items-center gap-1.5 cursor-pointer text-[11px] text-neutral-600 dark:text-neutral-400">
-              <input
-                type="checkbox"
-                checked={rememberKey}
-                onChange={(e) => setRememberKey(e.target.checked)}
-              />
-              Remember on this device
-            </label>
-            <p className="mt-1.5 text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
-              The model is pinned server-side — no model selection is needed.
-            </p>
-          </div>
-        )}
-
         {provider === 'anthropic' && (
           <div className="grid grid-cols-2 gap-3">
             <div>

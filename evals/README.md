@@ -86,9 +86,8 @@ evals/
 
 ## Adding a scenario
 
-**The scenario corpus is private** — it is committed only in the
-`oraplanviz-pro` fork (`evals/scenarios/*/` is gitignored in the public repo).
-Create `evals/scenarios/NN-name/` with the three files. Rules:
+Scenarios are not committed (`evals/scenarios/*/` is gitignored); bring your
+own. Create `evals/scenarios/NN-name/` with the three files. Rules:
 
 - every object name starts with `EVAL_`;
 - no SQL*Plus `EXEC` — use `BEGIN ... END;` + `/` blocks (the splitter skips

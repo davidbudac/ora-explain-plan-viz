@@ -18,7 +18,6 @@ import {
 } from '../../lib/agent/client';
 
 const PROVIDER_LABELS: Record<AiProviderId, string> = {
-  hosted: 'oraplanviz cloud',
   anthropic: 'Anthropic',
   'openai-compat': 'OpenAI-compatible',
   agent: 'Local agent',
