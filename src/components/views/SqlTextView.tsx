@@ -269,7 +269,9 @@ export function SqlTextView() {
   const analysis = useMemo(() => (parsedPlan && planHasHints(parsedPlan) ? analyzeHints(parsedPlan) : null), [parsedPlan]);
   const comments = useMemo(() => (sqlText ? extractSqlHints(sqlText) : []), [sqlText]);
   const index = useMemo(() => statusIndex(analysis), [analysis]);
-  const highlightedHtml = useMemo(() => (sqlText && comments.length === 0 ? highlightSql(sqlText) : ''), [sqlText, comments.length]);
+  // Hints are marked up only while the lens is on; otherwise the SQL is plain highlighting.
+  const showHints = !!analysis && hintLens && comments.length > 0;
+  const highlightedHtml = useMemo(() => (sqlText && !showHints ? highlightSql(sqlText) : ''), [sqlText, showHints]);
 
   const pick = (nodeIds: number[]) => {
     if (nodeIds.length === 0) return;
@@ -297,27 +299,17 @@ export function SqlTextView() {
           {isDbAgentEnabled() && comments.length > 0 && <ExplainWithoutHints sqlText={sqlText} />}
           {analysis && (
             <>
-              {/* A plain toggle: it never leaves this tab. The lens shows in the tree, so a
-                  second button opens the tree while the lens is on. */}
+              {/* A plain toggle: it never leaves this tab. On, it colours the hints in the SQL
+                  below by their Hint Report status (and pins their operations in the tree). */}
               <button
                 type="button"
                 className={`min-h-8 px-2.5 rounded-md border text-xs ${FOCUS_RING} ${hintLens ? 'border-slate-400 bg-slate-200/90 text-slate-900 dark:border-slate-500 dark:bg-slate-600/80 dark:text-white' : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                 aria-pressed={hintLens}
-                title="Hints lens — in the tree, pin every operation a hint acts on and dim the rest"
+                title="Hints lens — colour each hint below by its Hint Report status; in the tree, pin every operation a hint acts on and dim the rest"
                 onClick={() => setHintLens(!hintLens)}
               >
                 Hints lens{hintLens ? ' on' : ''}
               </button>
-              {hintLens && (
-                <button
-                  type="button"
-                  className={`min-h-8 px-2.5 rounded-md border border-slate-300 dark:border-slate-600 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 ${FOCUS_RING}`}
-                  title="Open the Tree tab with the hints lens"
-                  onClick={() => setViewMode('hierarchical')}
-                >
-                  Open tree
-                </button>
-              )}
             </>
           )}
           <CopyButton
@@ -332,7 +324,7 @@ export function SqlTextView() {
       <div className="flex-1 overflow-auto px-4 pb-4">
         {sqlText ? (
           <pre className="text-sm font-mono leading-relaxed whitespace-pre-wrap break-words">
-            {comments.length > 0 ? (
+            {showHints ? (
               <HintedSql sqlText={sqlText} comments={comments} index={index} analysis={analysis} onPick={pick} />
             ) : (
               <code className="hljs language-sql" dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
@@ -342,7 +334,7 @@ export function SqlTextView() {
           <p className="pt-3 text-sm text-slate-500 dark:text-slate-400">No SQL text available for this plan.</p>
         )}
 
-        {hasReport && counts && (
+        {showHints && hasReport && counts && (
           <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400" data-testid="hint-legend">
             <span className="font-medium text-slate-600 dark:text-slate-300">Hints:</span>
             <span><span className={`inline-block w-2 h-2 rounded-sm mr-1 align-middle bg-emerald-400`} aria-hidden />{counts.used} used</span>

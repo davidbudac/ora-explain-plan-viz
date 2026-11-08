@@ -28,7 +28,8 @@ async function mount(ui: React.ReactNode) {
 
 describe('hints in the SQL tab', () => {
   it('marks each hint in the SQL text with its Hint Report status', async () => {
-    await mount(<SqlTextView />);
+    const ctx = await mount(<SqlTextView />);
+    act(() => ctx().setHintLens(true));
     const byText = Object.fromEntries(
       Array.from(document.querySelectorAll('[data-testid="sql-hint"]')).map((el) => [el.textContent?.replace(/\s+/g, ' '), el.getAttribute('data-status')]),
     );
@@ -51,6 +52,7 @@ describe('hints in the SQL tab', () => {
   it('clicking a hint selects the operation Oracle reported it on and opens the tree', async () => {
     const ctx = await mount(<SqlTextView />);
     act(() => ctx().setViewMode('sql'));
+    act(() => ctx().setHintLens(true));
     const full = Array.from(document.querySelectorAll('button[data-testid="sql-hint"]')).find((b) => b.textContent === 'full(o)')!;
     expect(full.getAttribute('title')).toContain('used on operation 5');
     act(() => click(full));
@@ -83,23 +85,25 @@ describe('hints in the SQL tab', () => {
     expect(document.body.textContent).toContain('Hints lens on');
   });
 
-  it('the SQL tab button is a plain toggle that stays on the SQL tab; "Open tree" switches views', async () => {
+  it('the SQL tab button toggles the hint highlighting in the SQL text and stays on the SQL tab', async () => {
     const ctx = await mount(<SqlTextView />);
     act(() => ctx().setViewMode('sql'));
     const lens = () => Array.from(document.querySelectorAll('button[aria-pressed]')).find((b) => b.textContent?.startsWith('Hints lens'))!;
+    const marked = () => document.querySelectorAll('[data-testid="sql-hint"]').length;
     expect(lens().getAttribute('aria-pressed')).toBe('false');
+    expect(marked()).toBe(0);
+    expect(document.querySelector('[data-testid="hint-legend"]')).toBeNull();
     act(() => click(lens()));
     expect(ctx().hintLens).toBe(true);
     expect(ctx().viewMode).toBe('sql');
     expect(lens().textContent).toBe('Hints lens on');
+    expect(marked()).toBe(7);
+    expect(document.querySelector('[data-testid="hint-legend"]')).not.toBeNull();
+    expect(Array.from(document.querySelectorAll('button')).some((b) => b.textContent === 'Open tree')).toBe(false);
     act(() => click(lens()));
     expect(ctx().hintLens).toBe(false);
     expect(ctx().viewMode).toBe('sql');
-    act(() => click(lens()));
-    const open = Array.from(document.querySelectorAll('button')).find((b) => b.textContent === 'Open tree')!;
-    act(() => click(open));
-    expect(ctx().viewMode).toBe('hierarchical');
-    expect(ctx().hintLens).toBe(true);
+    expect(marked()).toBe(0);
   });
 });
 
