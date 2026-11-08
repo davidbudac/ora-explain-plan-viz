@@ -2,6 +2,14 @@
 
 Notable changes per release. Each [GitHub release](https://github.com/davidbudac/ora-explain-plan-viz/releases) also attaches the whole app as one self-contained `oraplanviz-vX.Y.Z.html`.
 
+## 1.4.0 — 2026-11-08
+
+- **Client report is a facts-only handover** ([#121](https://github.com/davidbudac/ora-explain-plan-viz/pull/121)): no client / prepared-by fields (and they are no longer remembered), no executive summary or stat cards, advisor findings without recommendation text; optimizer-note tags moved into Execution Details.
+- Dependencies: React 19.3, @xyflow/react 12.12, Tailwind 4.3, marked 18.1, highlight.js 11.12, Anthropic SDK 0.137 and more ([#119](https://github.com/davidbudac/ora-explain-plan-viz/pull/119), [#120](https://github.com/davidbudac/ora-explain-plan-viz/pull/120)); GitHub Actions to current majors ([#113](https://github.com/davidbudac/ora-explain-plan-viz/pull/113)).
+- Lint clean under eslint-plugin-react-hooks 7.1 (refs no longer written during render) ([#119](https://github.com/davidbudac/ora-explain-plan-viz/pull/119)).
+- Dev-only security fix: `minimatch` ≥ 11.0.1 under typescript-eslint ([#122](https://github.com/davidbudac/ora-explain-plan-viz/pull/122)). Dependabot no longer proposes major-version upgrades.
+- README leads with the single self-contained HTML file ([#123](https://github.com/davidbudac/ora-explain-plan-viz/pull/123)).
+
 ## 1.3.1 — 2026-11-08
 
 - MIT `LICENSE` file; `CONTRIBUTING.md`, `SECURITY.md`, issue and PR templates, Dependabot.
