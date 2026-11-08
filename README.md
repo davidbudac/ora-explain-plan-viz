@@ -100,4 +100,4 @@ The plan types, parsers (DBMS_XPLAN, SQL Monitor, V$SQL_PLAN JSON / CSV, xbi), a
 
 ## License
 
-MIT
+[MIT](LICENSE)
