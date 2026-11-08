@@ -203,7 +203,7 @@ npm test
 
 `site/` is a static showcase: `index.html` (landing page) and `docs.html` (documentation), with media in `site/assets/`. Every push to `main` runs `.github/workflows/deploy.yml`, which publishes the app to https://davidbudac.github.io/ora-explain-plan-viz/ and copies `site/` to `/welcome/` (https://davidbudac.github.io/ora-explain-plan-viz/welcome/, docs at `/welcome/docs.html`). The site text is hand-written, so when a user-facing feature ships or changes, update `site/docs.html` (and the landing cards if relevant) in the same change.
 
-README diagrams live in `docs/diagrams/`: `build_diagrams.py` writes a light and a dark HTML per diagram (ways in, plan_to_url.sql sequence, DB connector), exported to 2x PNGs that the README shows through `<picture>`. Regenerate both skins when a diagram's facts change; the docstring has the commands.
+README diagrams live in `docs/diagrams/`: `build_diagrams.py` writes a light and a dark HTML per diagram (ways in, plan_to_url.sql steps, DB connector), exported to 2x PNGs that the README shows through `<picture>`. Regenerate both skins when a diagram's facts change; the docstring has the commands.
 
 Showcase media is regenerated with `scripts/capture-showcase.mjs`. It needs the dev server, a headless Chrome started with `--remote-debugging-port=9222 --hide-scrollbars`, and ffmpeg:
 
