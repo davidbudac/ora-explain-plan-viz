@@ -2,7 +2,7 @@
 
 Notable changes per release. Each [GitHub release](https://github.com/davidbudac/ora-explain-plan-viz/releases) also attaches the whole app as one self-contained `oraplanviz-vX.Y.Z.html`.
 
-## Unreleased
+## 1.3.1 — 2026-11-08
 
 - MIT `LICENSE` file; `CONTRIBUTING.md`, `SECURITY.md`, issue and PR templates, Dependabot.
 - Security: `dompurify` 3.4.17 (DOM XSS advisories) and `zod` 4.6.7.
