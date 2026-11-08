@@ -27,6 +27,24 @@ SQL> @plan_to_url.sql an05rsj1up1k5 "" AWR
 SQL> @plan_to_url.sql an05rsj1up1k5 "" AWR 2468804666
 ```
 
+**URL only, straight to the clipboard:** add `QUIET` after the other
+arguments and run the script from the shell. It prints the URL and nothing
+else, then exits SQL*Plus, so the output can go into a pipe:
+
+```bash
+sqlplus -s user@db @plan_to_url.sql an05rsj1up1k5 QUIET | pbcopy
+sqlplus -s user@db @plan_to_url.sql an05rsj1up1k5 "" AWR QUIET | pbcopy
+
+# Linux: | xclip -selection clipboard  (or | wl-copy)
+```
+
+Exit code is 0 on success and 1 on failure. On failure the one line
+printed, which is what ends up on the clipboard, is the error message. The
+script exits inside an interactive SQL*Plus session too, so leave `QUIET` off
+there. A URL over 32,767 characters still comes out as several 1,000-character
+lines. Chrome's address bar drops the line breaks when you paste, and for
+other browsers you can pipe through `tr -d '\n'` first.
+
 **Arguments:**
 
 | # | Name | Required | Default | Notes |
@@ -35,6 +53,7 @@ SQL> @plan_to_url.sql an05rsj1up1k5 "" AWR 2468804666
 | 2 | `child_number` | No | `0` | Only used with `CURSOR` source; ignored for `MONITOR` and `AWR`. Pass `""` to skip it. |
 | 3 | `source` | No | `CURSOR` | `CURSOR` reads `DBMS_XPLAN.DISPLAY_CURSOR('ALLSTATS LAST')`. `MONITOR` reads a `DBMS_SQLTUNE.REPORT_SQL_MONITOR` TEXT report. `AWR` reads `DBMS_XPLAN.DISPLAY_WORKLOAD_REPOSITORY('ADVANCED')`: plan, predicates, outline and peeked binds as AWR captured them, but optimizer estimates only (no A-Rows / A-Time / Starts). |
 | 4 | `sql_exec_id` / `plan_hash_value` | No | latest | `MONITOR`: picks one specific monitored execution (`V$SQL_MONITOR.SQL_EXEC_ID`). When omitted, Oracle reports the *last* monitored execution; if several are still in `GV$SQL_MONITOR`, the script lists them (newest first) so you can re-run with the one you want. `AWR`: picks one `plan_hash_value`. When omitted, the script uses the plan AWR saw most recently and, if AWR holds several, lists them (last seen, executions, average elapsed time) so you can re-run with the one you want. |
+| last | `QUIET` | No | - | Print the URL only (no progress line, summary, notes or listings) and exit SQL*Plus. For piping into `pbcopy`. See above. |
 
 **Privileges:**
 
