@@ -6,8 +6,6 @@ import {
   buildClientReport,
   clientReportFilename,
   DEFAULT_REPORT_SECTIONS,
-  loadReportIdentity,
-  saveReportIdentity,
   type ClientReportSections,
 } from '../lib/clientReport';
 import { downloadTextFile, printHtml } from '../lib/fileExport';
@@ -28,32 +26,20 @@ const INPUT_CLASS =
 
 export function ClientReportModal({ onClose }: ClientReportModalProps) {
   const { parsedPlan, rawInput, annotations, advisorReport, hottestNodeId } = usePlan();
-  const savedIdentity = useMemo(() => loadReportIdentity(), []);
   const [title, setTitle] = useState('');
-  const [clientName, setClientName] = useState(savedIdentity.clientName);
-  const [preparedBy, setPreparedBy] = useState(savedIdentity.preparedBy);
-  const [summaryText, setSummaryText] = useState('');
   const [sections, setSections] = useState<ClientReportSections>({ ...DEFAULT_REPORT_SECTIONS });
   const [showPreview, setShowPreview] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
 
   const toast = useToast();
   const titleId = useId();
-  const clientId = useId();
-  const preparedById = useId();
-  const summaryId = useId();
 
-  // Typed report text: Escape and backdrop clicks ask before discarding it
-  const dirty =
-    title !== '' ||
-    summaryText !== '' ||
-    clientName !== savedIdentity.clientName ||
-    preparedBy !== savedIdentity.preparedBy;
+  // A typed title: Escape and backdrop clicks ask before discarding it
+  const dirty = title !== '';
 
   const sectionToggles = useMemo<SectionToggleDef[]>(() => {
     if (!parsedPlan) return [];
     const defs: SectionToggleDef[] = [
-      { key: 'summary', label: 'Executive summary', description: 'Your summary text plus headline statistics' },
       { key: 'planTable', label: 'Execution plan table', description: 'Full plan with estimates, actuals, and note markers' },
     ];
     if (parsedPlan.sqlText) {
@@ -63,7 +49,7 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
       defs.push({ key: 'annotations', label: 'Consultant notes', description: 'Your node notes, highlights, and groups' });
     }
     if (advisorReport && advisorReport.findings.length > 0) {
-      defs.push({ key: 'findings', label: 'Automated findings', description: 'Plan advisor findings with recommendations' });
+      defs.push({ key: 'findings', label: 'Automated findings', description: 'Plan advisor findings' });
     }
     if (parsedPlan.hasActualStats) {
       defs.push(
@@ -75,7 +61,7 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
       defs.push({ key: 'predicates', label: 'Predicates', description: 'Access and filter predicates per operation' });
     }
     if (parsedPlan.monitorMetadata || (parsedPlan.bindVariables?.length ?? 0) > 0) {
-      defs.push({ key: 'environment', label: 'Execution details', description: 'Environment, time breakdown, bind variables' });
+      defs.push({ key: 'environment', label: 'Execution details', description: 'Environment, optimizer notes, time breakdown, bind variables' });
     }
     defs.push({ key: 'rawPlan', label: 'Raw plan appendix', description: 'The original plan text as pasted' });
     return defs;
@@ -95,21 +81,13 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
       },
       {
         title: title.trim() || 'Query Performance Documentation',
-        clientName,
-        preparedBy,
-        summaryText,
         sections,
       }
     );
-  }, [parsedPlan, rawInput, annotations, advisorReport, hottestNodeId, title, clientName, preparedBy, summaryText, sections]);
-
-  const persistIdentity = () => {
-    saveReportIdentity({ clientName: clientName.trim(), preparedBy: preparedBy.trim() });
-  };
+  }, [parsedPlan, rawInput, annotations, advisorReport, hottestNodeId, title, sections]);
 
   const download = () => {
     if (!parsedPlan || !html) return;
-    persistIdentity();
     if (downloadTextFile(html, clientReportFilename(parsedPlan), 'text/html;charset=utf-8')) {
       toast.show({ tone: 'success', message: 'Report downloaded' });
     }
@@ -117,7 +95,6 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
 
   const openPrintView = () => {
     if (!html) return;
-    persistIdentity();
     // Shows its own error toast when the popup is blocked
     printHtml(html);
   };
@@ -135,65 +112,24 @@ export function ClientReportModal({ onClose }: ClientReportModalProps) {
     >
       <DialogBody className="space-y-4 pb-4">
         <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-snug">
-          Packages this plan, your annotations, and the app&apos;s analysis into a single
-          self-contained HTML document to hand to a client — download it, or open the print view
-          to save it as a PDF. Everything is generated in the browser; nothing is uploaded.
+          Packages this plan, your notes and highlights, and the app&apos;s analysis into a single
+          self-contained HTML document: an informal, facts-only handover. Download it, or open the
+          print view to save it as a PDF. Everything is generated in the browser; nothing is uploaded.
         </p>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2">
-            <label htmlFor={titleId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
-              Report title
-            </label>
-            <input
-              id={titleId}
-              ref={titleRef}
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Query performance documentation"
-              className={INPUT_CLASS}
-            />
-          </div>
-          <div>
-            <label htmlFor={clientId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
-              Client
-            </label>
-            <input
-              id={clientId}
-              type="text"
-              value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
-              placeholder="e.g. Acme Corp"
-              className={INPUT_CLASS}
-            />
-          </div>
-          <div>
-            <label htmlFor={preparedById} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
-              Prepared by
-            </label>
-            <input
-              id={preparedById}
-              type="text"
-              value={preparedBy}
-              onChange={(e) => setPreparedBy(e.target.value)}
-              placeholder="Your name"
-              className={INPUT_CLASS}
-            />
-          </div>
-          <div className="col-span-2">
-            <label htmlFor={summaryId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
-              Executive summary
-            </label>
-            <textarea
-              id={summaryId}
-              value={summaryText}
-              onChange={(e) => setSummaryText(e.target.value)}
-              rows={4}
-              placeholder={'What did you investigate, what did you find, and what do you recommend?\nBlank lines start new paragraphs.'}
-              className={`${INPUT_CLASS} resize-y`}
-            />
-          </div>
+        <div>
+          <label htmlFor={titleId} className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
+            Report title
+          </label>
+          <input
+            id={titleId}
+            ref={titleRef}
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Query performance documentation"
+            className={INPUT_CLASS}
+          />
         </div>
 
         <div>

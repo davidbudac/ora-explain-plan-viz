@@ -777,19 +777,19 @@ SQL&gt; @gather_plan_metadata.sql LIST "HR.EMPLOYEES,HR.DEPARTMENTS"</code></pre
       <p class="eyebrow">Going deeper</p>
       <h2>Client report<a class="anchor" href="#client-report">#</a></h2>
       <p>
-        For consultants handing results to a client. <em>Export client report</em> packages the plan, your annotations, and all
-        derived analysis into one self-contained HTML file. Fill in title, client and prepared-by (the last two are remembered),
-        write an executive summary, toggle sections, and check the live preview.
+        An informal, facts-only handover of what you found. <em>Export client report</em> packages the plan, your notes and
+        highlights, and the app&rsquo;s analysis into one self-contained HTML file. Give it a title, toggle sections, and check the
+        live preview. The report states what the plan shows; it doesn&rsquo;t add advice of its own.
       </p>
       <p>Sections available:</p>
       <ul>
-        <li>Header metadata, headline stat cards and optimizer-note tags</li>
+        <li>Header metadata: title, date, SQL ID, plan hash and plan source</li>
         <li>SQL statement</li>
         <li>Full plan table with hotspot marker, highlight chips, inline notes and an estimate-quality column</li>
         <li>Consultant notes, groups and highlights</li>
-        <li>Advisor findings with recommendations</li>
+        <li>Advisor findings (facts only, no recommendation text)</li>
         <li>Top self-time hotspots and worst cardinality mismatches</li>
-        <li>Predicates, execution environment and bind variables</li>
+        <li>Predicates, execution environment, optimizer-note tags and bind variables</li>
         <li>Raw plan appendix</li>
       </ul>
       <p>Download as <code>.html</code> or open the print view and save as PDF. Fully offline.</p>
