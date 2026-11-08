@@ -12,6 +12,9 @@ import type { NodeMatch, MatchType, CompareMetric, ComparisonRow, MetricDelta } 
 import { CompareMetricSelector } from '../CompareMetricSelector';
 import { FOCUS_RING, FOCUS_RING_INSET, useToast } from '../ui';
 import { formatNumberShort, formatTimeShort } from '../../lib/format';
+import { diffOutlines, HINT_FAMILY_LABELS } from '../../lib/hints';
+import type { OutlineDiffEntry } from '../../lib/hints';
+import type { ParsedPlan } from '../../lib/types';
 
 function formatMetricValue(value: number | undefined, metric: string): string {
   if (value === undefined) return '-';
@@ -329,6 +332,88 @@ function ExpandedRowDetail({ row, labelA, labelB, onViewInTree }: {
 
 type SortState = { metric: CompareMetric; direction: 'desc' | 'asc' } | null;
 
+/**
+ * What changed between the two plans, said as optimizer decisions: the outline (the plan written
+ * as hints) of A and B are diffed by decision — access path per alias, join method per alias,
+ * join order per query block, transformations per query block. Hidden when neither plan has an
+ * outline (DBMS_XPLAN ADVANCED / +OUTLINE or SQL Monitor XML).
+ */
+function OutlineDiffSection({ planA, planB, labelA, labelB }: { planA: ParsedPlan; planB: ParsedPlan; labelA: string; labelB: string }) {
+  const [open, setOpen] = useState(true);
+  const diff = useMemo(() => diffOutlines(planA.outlineHints, planB.outlineHints), [planA.outlineHints, planB.outlineHints]);
+  const hasA = (planA.outlineHints?.length ?? 0) > 0;
+  const hasB = (planB.outlineHints?.length ?? 0) > 0;
+  if (!hasA && !hasB) return null;
+  const changes = diff.changed.length + diff.onlyA.length + diff.onlyB.length;
+
+  const Row = ({ entry, kind }: { entry: OutlineDiffEntry; kind: 'changed' | 'onlyA' | 'onlyB' }) => (
+    <tr className="border-t border-slate-100 dark:border-slate-800 align-top" data-testid={`outline-diff-${kind}`}>
+      <td className="py-1 pr-3 text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">{HINT_FAMILY_LABELS[entry.family]}</td>
+      <td className="py-1 pr-3 font-mono text-[11px] text-slate-800 dark:text-slate-200 break-all">
+        {entry.a ?? <span className="text-slate-400 dark:text-slate-500">—</span>}
+      </td>
+      <td className="py-1 font-mono text-[11px] text-slate-800 dark:text-slate-200 break-all">
+        {entry.b ?? <span className="text-slate-400 dark:text-slate-500">—</span>}
+      </td>
+    </tr>
+  );
+
+  return (
+    <section className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900" aria-label="Plan decisions (outline diff)">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className={`w-full flex items-center justify-between gap-3 px-3 py-2 text-left ${FOCUS_RING_INSET}`}
+      >
+        <span className="text-xs font-medium text-slate-700 dark:text-slate-200">
+          Plan decisions{' '}
+          <span className="font-normal text-slate-500 dark:text-slate-400">
+            {hasA && hasB
+              ? changes === 0
+                ? `— identical outlines (${diff.same.length} decisions)`
+                : `— ${changes} of ${diff.same.length + changes} differ`
+              : `— only ${hasA ? labelA : labelB} carries an outline`}
+          </span>
+        </span>
+        <svg className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="px-3 pb-3">
+          {hasA && hasB ? (
+            changes === 0 ? (
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Both plans were built from the same access paths, join methods, join order and transformations. Any runtime difference comes from data, binds or the environment, not from a different plan.
+              </p>
+            ) : (
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                    <th className="py-1 pr-3 font-medium">Decision</th>
+                    <th className="py-1 pr-3 font-medium">{labelA}</th>
+                    <th className="py-1 font-medium">{labelB}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {diff.changed.map((e) => <Row key={e.key} entry={e} kind="changed" />)}
+                  {diff.onlyA.map((e) => <Row key={e.key} entry={e} kind="onlyA" />)}
+                  {diff.onlyB.map((e) => <Row key={e.key} entry={e} kind="onlyB" />)}
+                </tbody>
+              </table>
+            )
+          ) : (
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Capture the other plan with <code className="font-mono">DBMS_XPLAN … 'ADVANCED'</code> (or <code className="font-mono">+OUTLINE</code>) to see which optimizer decisions changed between them.
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function CompareView() {
   const { plans, compareMetrics, comparePlanIndices, setActivePlan, selectNodeForPlan, setTreeCompareEnabled, setViewMode, applyMetadataToAllSlots } = usePlan();
   const toast = useToast();
@@ -484,6 +569,8 @@ export function CompareView() {
           phv={planB.planHashValue}
         />
       </div>
+
+      <OutlineDiffSection planA={planA} planB={planB} labelA={labelA} labelB={labelB} />
 
       {/* Apply-metadata-to-both affordance */}
       {sharedBundleCandidate && (

@@ -16,6 +16,7 @@ import { planNotesRule } from './planNotes.ts';
 import { functionOnIndexedColumnRule } from './functionOnIndexedColumn.ts';
 import { hashJoinBuildSideRule } from './hashJoinBuildSide.ts';
 import { pxSkewRule } from './pxSkew.ts';
+import { hintsRule } from './hints.ts';
 
 export const ALL_RULES: AdvisorRule[] = [
   implicitConversionRule,
@@ -35,6 +36,7 @@ export const ALL_RULES: AdvisorRule[] = [
   functionOnIndexedColumnRule,
   hashJoinBuildSideRule,
   pxSkewRule,
+  hintsRule,
 ];
 
 export {
@@ -55,4 +57,5 @@ export {
   functionOnIndexedColumnRule,
   hashJoinBuildSideRule,
   pxSkewRule,
+  hintsRule,
 };

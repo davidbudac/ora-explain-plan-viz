@@ -24,6 +24,9 @@ const TRACKED = new Set([
   'note-sql-patch',
   'note-stored-outline',
   'note-cardinality-feedback',
+  'hint-syntax-error',
+  'hint-unused',
+  'hints-overridden',
 ]);
 
 function trackedFindings(name: string): string[] {

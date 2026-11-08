@@ -35,7 +35,7 @@ SELECT /*+ GATHER_PLAN_STATISTICS */ ... ;
 SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR(NULL, NULL, 'ADVANCED ALLSTATS LAST'));
 ```
 
-For a cursor still in the shared pool that ran with statistics: `DBMS_XPLAN.DISPLAY_CURSOR('<SQL_ID>', <CHILD>, 'ADVANCED ALLSTATS LAST')`. `ADVANCED` adds the outline, peeked binds, column projection and (19c+) the hint report.
+For a cursor still in the shared pool that ran with statistics: `DBMS_XPLAN.DISPLAY_CURSOR('<SQL_ID>', <CHILD>, 'ADVANCED ALLSTATS LAST')`. `ADVANCED` adds the outline, peeked binds, column projection and (19c+) the hint report — including the hints that *were* used (no status letter); `TYPICAL` lists only unused (`U`) and syntax-error (`E`) hints, so add `+HINT_REPORT` to see used ones with a smaller format. Verified on 19c (19.27).
 
 ## SQL Monitor report
 

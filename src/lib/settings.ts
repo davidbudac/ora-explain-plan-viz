@@ -68,6 +68,8 @@ export interface UserSettings {
   // Tree view layout
   treeLayoutDirection: TreeLayoutDirection;
   treeMinimap: TreeMinimapMode;
+  /** Hints lens: pin every hinted operation (Hint Report + outline decisions) and dim the rest. */
+  hintLens: boolean;
 
   // AI analysis (non-secret preferences; keys live in sessionStorage — see lib/ai/secrets.ts)
   aiProvider: AiProviderId;
@@ -134,6 +136,7 @@ const defaultSettings: UserSettings = {
   highlightBrushColor: 'red',
   treeLayoutDirection: 'TB',
   treeMinimap: 'off',
+  hintLens: false,
   aiProvider: 'anthropic',
   aiAnthropicModel: DEFAULT_ANTHROPIC_MODEL,
   aiOpenAiBaseUrl: '',
@@ -201,6 +204,9 @@ export function loadSettings(theme?: Theme): UserSettings {
     }
     if (parsed.treeMinimap && !TREE_MINIMAP_MODES.includes(parsed.treeMinimap)) {
       delete parsed.treeMinimap;
+    }
+    if (parsed.hintLens !== undefined && typeof parsed.hintLens !== 'boolean') {
+      delete parsed.hintLens;
     }
     if (parsed.agentHandoffSections !== undefined && !isBooleanRecord(parsed.agentHandoffSections)) {
       delete parsed.agentHandoffSections;
