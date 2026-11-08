@@ -1,0 +1,51 @@
+name: Bug report
+description: A plan doesn't parse, numbers look wrong, or something in the UI is broken.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. **Remove anything sensitive** from plan text before pasting it here; placeholders for table names, literals and binds are fine as long as the plan shape stays the same. Security problems go to [SECURITY.md](https://github.com/davidbudac/ora-explain-plan-viz/blob/main/SECURITY.md), not here.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: format
+    attributes:
+      label: Input format
+      options:
+        - DBMS_XPLAN (DISPLAY / DISPLAY_CURSOR / AWR)
+        - SQL Monitor text
+        - SQL Monitor XML
+        - SQL Monitor ACTIVE (HTML)
+        - V$SQL_PLAN JSON
+        - V$SQL_PLAN CSV
+        - xbi.sql
+        - Not plan-related
+    validations:
+      required: true
+  - type: input
+    id: oracle
+    attributes:
+      label: Oracle version
+      placeholder: e.g. 19.27, 23ai
+  - type: input
+    id: call
+    attributes:
+      label: How the plan was produced
+      placeholder: e.g. DBMS_XPLAN.DISPLAY_CURSOR(NULL, NULL, 'ADVANCED ALLSTATS LAST')
+  - type: textarea
+    id: plan
+    attributes:
+      label: Plan text (sanitized)
+      description: The full output, including the header and the Predicate Information section if present. Attach a file if it's long.
+      render: text
+  - type: input
+    id: app
+    attributes:
+      label: Where you ran the app
+      placeholder: hosted site / single-file release vX.Y.Z / self-hosted (commit) — and browser
