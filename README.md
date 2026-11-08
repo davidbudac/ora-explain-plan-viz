@@ -1,8 +1,10 @@
 # Oracle Execution Plan Visualizer
 
-Paste an Oracle execution plan and get an interactive tree you can search, filter, annotate and compare. It reads DBMS_XPLAN output (including `ALLSTATS` and `ADVANCED`), SQL Monitor reports (text, XML or the ACTIVE HTML page), V$SQL_PLAN as JSON or CSV, and Tanel Poder's xbi.sql output.
+### [**→ Open the app**](https://davidbudac.github.io/ora-explain-plan-viz/)
 
 It runs in your browser, with no server. Use the [hosted copy](https://davidbudac.github.io/ora-explain-plan-viz/) (installable, works offline once visited) or download `oraplanviz-vX.Y.Z.html` from the [latest release](https://github.com/davidbudac/ora-explain-plan-viz/releases): one file, opened from disk, no internet needed.
+
+Paste an Oracle execution plan and get an interactive tree you can search, filter, annotate and compare. It reads DBMS_XPLAN output (including `ALLSTATS` and `ADVANCED`), SQL Monitor reports (text, XML or the ACTIVE HTML page), V$SQL_PLAN as JSON or CSV, and Tanel Poder's xbi.sql output.
 
 [![Tree view with hotspots](site/assets/hero.png)](https://davidbudac.github.io/ora-explain-plan-viz/?example=21)
 
@@ -16,6 +18,11 @@ It runs in your browser, with no server. Use the [hosted copy](https://davidbuda
 </picture>
 
 ### One click from SQL*Plus: `plan_to_url.sql`
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/plan-to-url-dark.png">
+  <img alt="Run @plan_to_url.sql with a sql_id, it prints a link with the compressed plan, click the link and the plan is drawn in your browser." src="docs/diagrams/plan-to-url.png" width="960">
+</picture>
 
 [`scripts/plan_to_url.sql`](scripts/plan_to_url.sql) compresses the plan for a `sql_id` inside the database and prints a link that opens the app with the plan loaded. On 19c:
 
@@ -39,11 +46,6 @@ URL length: 4498 chars
 ```
 
 `QUIET` prints the URL alone: `sqlplus -s user@db @plan_to_url.sql <sql_id> QUIET | pbcopy`. The script is read-only; other sessions' cursors need read access to `V$SQL_PLAN` (e.g. `SELECT_CATALOG_ROLE`). Self-hosting? Change `base_url` at the top.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/plan-to-url-dark.png">
-  <img alt="Sequence: you run plan_to_url.sql, the database gzips and base64url-encodes the plan and prints the URL, you click it, the browser fetches only the static app from the web host, then inflates the #gz= fragment and draws the plan locally." src="docs/diagrams/plan-to-url.png" width="960">
-</picture>
 
 The plan rides in the URL fragment (`#gz=…`), which browsers never send to the server, so the web host never sees it. The link does carry the SQL text: share it as you would the plan.
 

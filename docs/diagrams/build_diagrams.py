@@ -257,52 +257,22 @@ def ways_in(svg):
 
 
 # ---------------------------------------------------------------------------
-# Diagram 2: what plan_to_url.sql does
+# Diagram 2: plan_to_url.sql at a glance (run, link, plan)
 # ---------------------------------------------------------------------------
 def plan_to_url(svg):
-    W, H = 960, 552
-    xs = [120, 360, 600, 840]
-    top, bottom = 96, 464
-    for x in xs:
-        svg.lifeline(x, top, bottom)
-    # activation bars
-    svg.activation(360, 132, 236)
-    svg.activation(600, 276, 452)
-    svg.activation(840, 324, 380)
-    s = svg.s
-    # messages (arrows)
-    svg.line(120, 136, 356, 136, 'muted')                       # M1 run script
-    svg.add(f'<path d="M 364,168 H 396 Q 404,168 404,176 V 192 Q 404,200 396,200 H 364" fill="none" '
-            f'stroke="{s["muted"]}" stroke-width="1.2" marker-end="url(#arrow)"/>')  # M2 self
-    svg.line(356, 232, 120, 232, 'muted', dashed=True)          # M3 URL back
-    svg.line(120, 280, 596, 280, 'muted')                       # M4 click
-    svg.line(604, 328, 836, 328, 'link')                        # M5 GET page
-    svg.line(836, 376, 604, 376, 'link', dashed=True)           # M6 static app
-    svg.add(f'<path d="M 604,408 H 636 Q 644,408 644,416 V 432 Q 644,440 636,440 H 604" fill="none" '
-            f'stroke="{s["accent"]}" stroke-width="1.4" marker-end="url(#arrow-accent)"/>')  # M7 self
-    # labels
-    svg.label(238, 136, '@PLAN_TO_URL.SQL')
-    svg.label(None, 184, 'GZIP + BASE64URL', x_left=412, side='beside')
-    svg.label(238, 232, 'PRINTS THE URL')
-    svg.label(238, 280, 'CLICK IT')
-    svg.label(720, 328, 'GET, NO #GZ=', 'link')
-    svg.label(720, 376, 'STATIC APP', 'link')
-    svg.label(None, 424, 'INFLATE + DRAW', 'accent', x_left=652, side='beside')
-    # actors
-    actors = [
-        ('You', 'SQL*Plus or SQLcl'),
-        ('Oracle Database', 'runs DISPLAY_CURSOR'),
-        ('Your browser', 'Plan Visualizer'),
-        ('Web host', 'never sees the plan'),
-    ]
-    for x, (name, sub) in zip(xs, actors):
-        svg.node(x - 80, 40, 160, 56, 'actor', name, [sub], name_y=64)
-    svg.legend(488, W, [
-        ('arrow-muted', 'Call'),
-        ('arrow-muted-dashed', 'Return'),
-        ('arrow-link', 'HTTP'),
-        ('arrow-accent', 'Plan renders, locally'),
-    ])
+    W, H = 960, 168
+    # arrows first
+    svg.line(320, 84, 384, 84, 'muted')
+    svg.line(624, 84, 688, 84, 'accent')
+    svg.label(352, 84, 'PRINTS')
+    svg.label(656, 84, 'CLICK', 'accent')
+    # nodes
+    svg.node(40, 40, 280, 88, 'backend', 'Run one script',
+             ['@plan_to_url.sql <sql_id>'], tag='SQL*PLUS')
+    svg.node(384, 40, 240, 88, 'focal', 'Get a link',
+             ['https://…/#gz=H4sIAAAAAAACA81d…'], tag='URL')
+    svg.node(688, 40, 232, 88, 'backend', 'See the plan',
+             ['drawn in your browser'], tag='APP')
     return W, H
 
 
@@ -340,11 +310,10 @@ DIAGRAMS = {
                     desc='Architecture diagram showing an Oracle database feeding the Plan Visualizer through '
                          'plan_to_url.sql (a link), plan_to_json.sql (plan plus metadata), copied DBMS_XPLAN or '
                          'SQL Monitor output, and the optional local DB connector.'),
-    'plan-to-url': dict(fn=plan_to_url, eyebrow='Sequence',
-                        title='What plan_to_url.sql does',
-                        desc='Sequence diagram showing plan_to_url.sql compressing the plan inside the database '
-                             'into a #gz= link, and the browser inflating it locally while the web host only '
-                             'serves the static app.'),
+    'plan-to-url': dict(fn=plan_to_url, eyebrow='Process',
+                        title='plan_to_url.sql in three steps',
+                        desc='Process diagram: run plan_to_url.sql with a sql_id, it prints a link carrying the '
+                             'compressed plan, and clicking the link draws the plan in your browser.'),
     'db-connector': dict(fn=db_connector, eyebrow='Architecture',
                          title='The optional DB connector',
                          desc='Architecture diagram showing the Plan Visualizer talking to the local '
