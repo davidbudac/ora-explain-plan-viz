@@ -1,7 +1,6 @@
 # Evaluation & backtesting harness
 
-Backtests for the AI test-case builder and analysis features (plan doc:
-`docs/plans/ai-plan-analysis.md`, Phase 2.5) against a **real, existing Oracle
+Backtests for the AI test-case builder and analysis features against a **real, existing Oracle
 database** — no Docker involved. Plain Node + TypeScript via `tsx`, DB access
 via the `oracledb` package in thin mode (no Instant Client needed). Nothing in
 this directory ships in the Vite build.
@@ -87,9 +86,8 @@ evals/
 
 ## Adding a scenario
 
-**The scenario corpus is private** — it is committed only in the
-`oraplanviz-pro` fork (`evals/scenarios/*/` is gitignored in the public repo).
-Create `evals/scenarios/NN-name/` with the three files. Rules:
+Scenarios are not committed (`evals/scenarios/*/` is gitignored); bring your
+own. Create `evals/scenarios/NN-name/` with the three files. Rules:
 
 - every object name starts with `EVAL_`;
 - no SQL*Plus `EXEC` — use `BEGIN ... END;` + `/` blocks (the splitter skips

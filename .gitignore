@@ -27,7 +27,7 @@ dist-ssr
 .claude/worktrees/
 .claude/settings.local.json
 
-# Eval scenario corpus is private (oraplanviz-pro); only the README is tracked here.
+# Eval scenarios are local to each checkout; only the README is tracked here.
 evals/scenarios/*/
 
 # Playwright MCP scratch output
@@ -35,9 +35,6 @@ evals/scenarios/*/
 
 # Xcode build output and prototypes
 prototypes/
-
-# The shared core package ships its built output (consumed by vendored copies).
-!/packages/ora-plan-core/dist
 
 # Promo reel render output
 scripts/promo-reel/out/

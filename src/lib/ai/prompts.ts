@@ -3,7 +3,7 @@ import type { AiReportKind } from './types';
 /**
  * Bumped whenever the system prompt or context layout changes in a way that
  * could shift report quality. Joins offline eval results with production
- * feedback (see docs/plans/ai-plan-analysis.md, Phase 2.5).
+ * feedback.
  */
 export const PROMPT_VERSION = 2;
 

@@ -296,7 +296,6 @@ docker run --rm -p 8080:80 ora-explain-plan-viz
         <tbody>
           <tr><td><code>APP_BASE_PATH</code></td><td><code>/</code></td><td>Serve the app under a sub-path, e.g. <code>/planviz/</code>. Leading/trailing slashes are normalized.</td></tr>
           <tr><td><code>VITE_ENABLE_DB_AGENT</code></td><td>unset</td><td>Set to <code>1</code> to compile in the "Connect to database" panel for the <a href="#db-connector">local database connector</a>.</td></tr>
-          <tr><td><code>VITE_ENABLE_HOSTED</code></td><td>unset</td><td>Shows the hosted (oraplanviz cloud) AI provider option. Off in the public build; only relevant if you run that backend.</td></tr>
         </tbody>
       </table></div>
 <pre><code>docker build \
@@ -959,7 +958,7 @@ oraplanviz-agent --allow-origin http://localhost:8081</code></pre>
       <div class="note"><span class="lbl">Coming soon</span><p>The AI entry points are present in the app but currently disabled and labelled "Coming soon" while the feature is finalized. The description below is what the feature does when enabled.</p></div>
       <p>
         An optional LLM-assisted review of the loaded plan, or of a Plan A vs Plan B comparison. You pick a provider
-        (Anthropic, any OpenAI-compatible endpoint, the local connector's agent, or a hosted account), enter a key, and click
+        (Anthropic, any OpenAI-compatible endpoint, or the local connector's agent), enter a key, and click
         Run. The report streams into an AI tab as markdown, with findings linked back to plan nodes, and a follow-up chat lets
         you ask questions about it.
       </p>

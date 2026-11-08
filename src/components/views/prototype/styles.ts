@@ -1,4 +1,4 @@
-// PROTOTYPE — throwaway UI prototype for wayfinder ticket 08 (non-expert analysis report design). Not production code.
+// PROTOTYPE — throwaway UI prototype for the non-expert analysis report design. Not production code.
 
 /** Severity styling shared by the three variants (kept out of the .tsx files so fast refresh stays happy). */
 

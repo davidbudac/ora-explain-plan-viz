@@ -1,4 +1,4 @@
-// PROTOTYPE — throwaway UI prototype for wayfinder ticket 08 (non-expert analysis report design). Not production code.
+// PROTOTYPE — throwaway UI prototype for the non-expert analysis report design. Not production code.
 
 /**
  * Variant C — "The Guided Path".

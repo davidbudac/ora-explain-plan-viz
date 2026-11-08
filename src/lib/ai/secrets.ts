@@ -11,12 +11,11 @@
  * as a same-session fallback.
  */
 
-export type AiSecretKey = 'anthropic' | 'openai' | 'hosted';
+export type AiSecretKey = 'anthropic' | 'openai';
 
 const STORAGE_KEYS: Record<AiSecretKey, string> = {
   anthropic: 'oraplanviz.aiAnthropicKey',
   openai: 'oraplanviz.aiOpenAiKey',
-  hosted: 'oraplanviz.aiHostedToken',
 };
 
 /** Same-session fallback when web storage is unavailable. */
