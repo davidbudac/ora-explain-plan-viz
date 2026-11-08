@@ -13,6 +13,8 @@ import {
   diffOutlines,
   worstHintStatus,
   planHasHints,
+  hintChipsForNode,
+  estimateHintChipRows,
 } from '../hints';
 
 // Real Oracle 19c capture (dbmint, ADVANCED ALLSTATS LAST): used, unused and erroneous hints in one report.
@@ -162,5 +164,30 @@ describe('diffOutlines', () => {
 
   it('is empty for two plans without an outline', () => {
     expect(diffOutlines(undefined, undefined)).toEqual({ changed: [], onlyA: [], onlyB: [], same: [] });
+  });
+});
+
+describe('hintChipsForNode (what the lens draws)', () => {
+  const plan = parsePlan(FIXTURE);
+  const { byNode } = analyzeHints(plan);
+  const labels = (id: number) => hintChipsForNode(byNode.get(id) ?? [], id).map((c) => `${c.status}${c.hinted ? '*' : ''}:${c.label}`);
+
+  it('shows the statement\'s hints as written, then the optimizer\'s own decisions and the join-order position', () => {
+    expect(labels(1)).toEqual(['error:! no_such_hint', 'error:! planviz_hr', 'used:✓ leading(u o)']);
+    expect(labels(3)).toEqual(['unused:✗ use_nl(o u)', 'used:✓ index(u)', 'outline*:#1']);
+    expect(labels(5)).toEqual(['used:✓ full(o)', 'used:✓ use_nl(o u)', 'outline*:#2']);
+    // the join: the user's use_nl chip says it, so the outline USE_NL is not repeated
+    expect(labels(2)).toEqual(['used:✓ use_nl(o u)']);
+  });
+
+  it('still names a hinted decision on a node that only inherits it', () => {
+    expect(labels(4)).toEqual(['outline*:INDEX_RS_ASC']);
+  });
+
+  it('estimates chip rows for the node height', () => {
+    const chips = hintChipsForNode(byNode.get(3) ?? [], 3);
+    expect(estimateHintChipRows(chips, 232)).toBe(1);
+    expect(estimateHintChipRows(chips, 120)).toBe(2);
+    expect(estimateHintChipRows([], 232)).toBe(0);
   });
 });

@@ -22,6 +22,8 @@ import { matchDensityPreset } from '../../lib/density';
 import { PlanNodeMemo } from '../nodes/PlanNode';
 import type { PlanNodeData } from '../nodes/PlanNode';
 import { prefersReducedMotion, usePrefersReducedMotion } from '../nodes/usePrefersReducedMotion';
+import type { ReactNode } from 'react';
+import { FOCUS_RING } from '../ui';
 import { TreeLayoutControls } from './TreeLayoutControls';
 import { SelectionBreadcrumb } from '../SelectionBreadcrumb';
 import type { Crumb } from '../../lib/breadcrumb';
@@ -39,7 +41,8 @@ import { extractPredicateColumns } from '../../lib/metadata/predicateColumns';
 import { assessPartitionPruning, computeParallelSignals } from '../../lib/planSignals';
 import type { ParallelSignal } from '../../lib/planSignals';
 import { runAdvisor } from '../../lib/advisor';
-import { analyzeHints, planHasHints } from '../../lib/hints';
+import { analyzeHints, estimateHintChipRows, hintChipsForNode, planHasHints } from '../../lib/hints';
+import type { HintCoverage } from '../../lib/hints';
 import {
   EMPTY_COLLAPSED,
   collapseAllIds,
@@ -147,6 +150,50 @@ const CENTER_DURATION_MS = 300;
 const MINIMAP_AUTO_THRESHOLD = 12;
 
 /** Rows flowing out of a child into its parent — drives edge thickness + label. */
+/**
+ * Key for the hints lens, pinned to the canvas while it is on: what the chip colours mean, how
+ * much of the plan the statement's hints settled, and a way out.
+ */
+function LegendKey({ className, children }: { className: string; children: ReactNode }) {
+  return <span className={`inline-flex items-center h-[18px] px-1.5 rounded font-mono text-[10.5px] ${className}`}>{children}</span>;
+}
+
+function HintLensLegend({ coverage, counts, onOff }: {
+  coverage: HintCoverage;
+  counts: { used: number; unused: number; error: number; other: number };
+  onOff: () => void;
+}) {
+  return (
+    <div
+      role="note"
+      aria-label="Hints lens key"
+      data-testid="hint-lens-legend"
+      className="flex flex-wrap items-center gap-x-2 gap-y-1 max-w-[440px] px-2.5 py-1.5 rounded-lg border border-slate-200/80 dark:border-slate-700/70 bg-white/90 dark:bg-slate-900/85 backdrop-blur-sm shadow-sm text-[11px] text-slate-600 dark:text-slate-300"
+    >
+      <span className="font-medium text-slate-800 dark:text-slate-100">Hints lens</span>
+      <LegendKey className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">✓ used{counts.used > 0 ? ` ${counts.used}` : ''}</LegendKey>
+      {counts.unused > 0 && <LegendKey className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">✗ not used {counts.unused}</LegendKey>}
+      {counts.error > 0 && <LegendKey className="bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">! syntax error {counts.error}</LegendKey>}
+      {coverage.decisions > 0 && (
+        <>
+          <LegendKey className="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">optimizer's decision</LegendKey>
+          <span className="tabular-nums">
+            {coverage.hinted} of {coverage.decisions} plan decisions hinted
+          </span>
+        </>
+      )}
+      <span className="text-slate-400 dark:text-slate-500">· other operations dimmed</span>
+      <button
+        type="button"
+        onClick={onOff}
+        className={`ml-auto h-6 px-2 rounded-md text-[11px] font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 ${FOCUS_RING}`}
+      >
+        Off
+      </button>
+    </div>
+  );
+}
+
 function rowFlowOf(child: PlanNode, hasActualStats: boolean): number {
   if (hasActualStats && child.actualRows !== undefined) return child.actualRows;
   return child.rows || 1;
@@ -218,6 +265,7 @@ function HierarchicalViewContent({
     highlightStyle,
     treeMinimap,
     hintLens,
+    setHintLens,
     setTreeLayoutDirection,
     treeViewActionsRef,
     setTreeViewState,
@@ -493,9 +541,9 @@ function HierarchicalViewContent({
       const advisorTitles = nodeFindings?.map((f) => f.title);
       const hasAdvisorBadge = effectiveDisplayOptions.showAdvisorBadge && !!advisorSeverity;
       const hintMarks = hintAnalysis?.byNode.get(node.id);
-      const hasHintBadge = hintLens && !!hintMarks && hintMarks.length > 0;
+      const hintRows = hintLens && hintMarks ? estimateHintChipRows(hintChipsForNode(hintMarks, node.id), effectiveNodeWidth - 28) : 0;
       // Calculate dynamic height for this node
-      const height = calculateNodeHeight(node, effectiveDisplayOptions, hasActualStats, hasAnnotation, usesGrid, isRail, isTicker, hasAdvisorBadge || hasHintBadge);
+      const height = calculateNodeHeight(node, effectiveDisplayOptions, hasActualStats, hasAnnotation, usesGrid, isRail, isTicker, hasAdvisorBadge, hintRows);
       nodeDimensions.set(node.id.toString(), { width: effectiveNodeWidth, height });
       const match = bundle ? findObjectInBundle(bundle, node.objectName) : null;
       const cardSeverity = hasActualStats
@@ -1457,6 +1505,11 @@ function HierarchicalViewContent({
         {registerExport && breadcrumbPath.length > 0 && (
           <Panel position="top-left" style={{ maxWidth: 'calc(100% - 7rem)' }}>
             <SelectionBreadcrumb path={breadcrumbPath} onSelect={selectBreadcrumbNode} onReturn={focusSelected} />
+          </Panel>
+        )}
+        {hintLens && hintAnalysis && (
+          <Panel position="top-right">
+            <HintLensLegend coverage={hintAnalysis.coverage} counts={hintAnalysis.counts} onOff={() => setHintLens(false)} />
           </Panel>
         )}
         {!registerExport && (

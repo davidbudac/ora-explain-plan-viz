@@ -134,3 +134,22 @@ export declare function diffOutlines(a: string[] | undefined, b: string[] | unde
 export declare function formatHintMark(mark: HintMark, nodeId?: number): string;
 /** Short label for the pin badge: hinted count, plus the LEADING position when the node has one. */
 export declare function hintBadgeLabel(marks: HintMark[], nodeId: number): string;
+export interface HintChip {
+    /** Short text: the hint as written (`✓ full(o)`), or an outline decision's name (`USE_NL`, `#1`). */
+    label: string;
+    status: HintMarkStatus;
+    /** Full line for the tooltip (see `formatHintMark`). */
+    title: string;
+    /** Outline chips only: the statement's own hint settled this decision. */
+    hinted?: boolean;
+}
+/** The hint as written, whitespace folded, cut to `max` characters. */
+export declare function shortHintText(text: string, max?: number): string;
+/**
+ * Chips for one operation: the statement's hints Oracle reported here (with status glyph),
+ * then the outline decisions the statement did *not* hint (so the optimizer's own choices stay
+ * visible), and a `#n` chip for the node's position in a LEADING order.
+ */
+export declare function hintChipsForNode(marks: HintMark[], nodeId: number): HintChip[];
+/** Rows the chips wrap onto inside `widthPx` (mono ~6.3 px per character + padding), for node heights. */
+export declare function estimateHintChipRows(chips: HintChip[], widthPx: number): number;
