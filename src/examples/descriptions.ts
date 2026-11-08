@@ -70,6 +70,11 @@ export const EXAMPLE_DESCRIPTIONS: Record<string, ExampleDescription> = {
     description: 'Partition pruning via PARTITION RANGE ITERATOR, with a metadata bundle incl. constraints.',
     featured: true,
   },
+  // Real 19c capture (DISPLAY_CURSOR 'ADVANCED ALLSTATS LAST'): a hint comment with used, unused and misspelt hints.
+  '29-dbms_xplan-Hinted Query (Hint Report)': {
+    description: 'A hinted join with a 19c Hint Report: see which hints were used, which Oracle ignored and why, and how much of the plan the hints pinned.',
+    view: 'sql',
+  },
 };
 
 export function getExampleDescription(stem: string): ExampleDescription | undefined {

@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
+import { planHasHints } from '../lib/hints';
 import { createPortal } from 'react-dom';
 import { OutlineIcon, ViewIcon } from './viewIcons';
 import { usePlan } from '../hooks/usePlanContext';
@@ -212,6 +213,8 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     setTreeLayoutDirection,
     treeMinimap,
     setTreeMinimap,
+    hintLens,
+    setHintLens,
     loadExample,
     loadFiles,
     selectedNodes,
@@ -321,6 +324,16 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
         isAvailable: () => anyPlanParsed,
       });
     }
+    commands.push({
+      id: 'hint-lens',
+      label: 'Hints lens',
+      category: 'View',
+      kind: 'toggle',
+      keywords: ['hint', 'hints', 'outline', 'lens', 'pin', 'used', 'unused', 'optimizer', 'decision'],
+      execute: () => setHintLens(!hintLens),
+      isActive: () => hintLens,
+      isAvailable: () => planHasHints(parsedPlan),
+    });
 
     // Tree actions (only while the single-plan tree is on screen)
     const treeActionItems: { id: string; label: string; keywords: string[]; run: () => void; needsSelection?: boolean }[] = [
@@ -853,7 +866,7 @@ function useCommands(onExportPng: () => void, treeActions: TreeCommandActions): 
     setDetailPanelCollapsed, setFocusMode, setHotspotsEnabled, setTreeCompareEnabled,
     exportAnnotatedPlan, requestClearAnnotations, share, onExportPng, setBaselineDialogOpen, setReportDialogOpen, setHandoffDialogOpen, setConnectPanelOpen,
     toggleNodeDisplayOption, enableAllDisplayOptions, disableAllDisplayOptions,
-    treeLayoutDirection, setTreeLayoutDirection, treeMinimap, setTreeMinimap, loadExample,
+    treeLayoutDirection, setTreeLayoutDirection, treeMinimap, setTreeMinimap, hintLens, setHintLens, loadExample,
     treeActions, hasSelection, flameMetric, setFlameMetric,
     singleSelectedNodeId, paintNodeWithBrush, activePlanIndex, loadFiles, toast,
   ]);

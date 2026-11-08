@@ -22,12 +22,15 @@ export function calculateNodeHeight(
   isRail?: boolean,
   isTicker?: boolean,
   hasAdvisorBadge?: boolean,
+  /** Rows of hint chips the hints lens draws on the card (0 when off). */
+  hintRows = 0,
 ): number {
   // Minimal density: operation name + optional object row + one metric line
   if (displayOptions.compactStats) {
     let compactHeight = NODE_BASE_HEIGHT;
     if (displayOptions.showObjectName && node.objectName) compactHeight += 20;
     compactHeight += 18; // single mono metric line (+ warning dot)
+    if (hintRows > 0) compactHeight += hintRows * 22;
     if (hasAnnotation) compactHeight += 20;
     return compactHeight;
   }
@@ -38,7 +41,8 @@ export function calculateNodeHeight(
     return 84 + (node.operation.length > 28 ? 18 : 0)
       + (node.objectName ? 24 : 0)
       + (hasAdvisorBadge || (hasActualStats && node.actualTime !== undefined) || (node.tempUsed ?? 0) > 0 ? 24 : 0)
-      + (isRail ? 28 : 0) + (hasAnnotation ? 24 : 0);
+      + (isRail ? 28 : 0) + (hasAnnotation ? 24 : 0)
+      + hintRows * 22;
   }
 
   let height = NODE_BASE_HEIGHT;
@@ -52,6 +56,7 @@ export function calculateNodeHeight(
   if (!isRail && (hasSpill || hasCardBadge || hasAdvisorBadge || (hasActualStats && node.actualTime !== undefined))) {
     height += 24;
   }
+  if (hintRows > 0) height += hintRows * 22 + 2;
 
   // Object name row (ticker scheme renders it inline in the operation name — no extra row)
   if (!isTicker && displayOptions.showObjectName && node.objectName) {

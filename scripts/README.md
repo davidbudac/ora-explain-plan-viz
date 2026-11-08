@@ -27,6 +27,24 @@ SQL> @plan_to_url.sql an05rsj1up1k5 "" AWR
 SQL> @plan_to_url.sql an05rsj1up1k5 "" AWR 2468804666
 ```
 
+**URL only, straight to the clipboard:** add `QUIET` after the other
+arguments and run the script from the shell. It prints the URL and nothing
+else, then exits SQL*Plus, so the output can go into a pipe:
+
+```bash
+sqlplus -s user@db @plan_to_url.sql an05rsj1up1k5 QUIET | pbcopy
+sqlplus -s user@db @plan_to_url.sql an05rsj1up1k5 "" AWR QUIET | pbcopy
+
+# Linux: | xclip -selection clipboard  (or | wl-copy)
+```
+
+Exit code is 0 on success and 1 on failure. On failure the one line
+printed, which is what ends up on the clipboard, is the error message. The
+script exits inside an interactive SQL*Plus session too, so leave `QUIET` off
+there. A URL over 32,767 characters still comes out as several 1,000-character
+lines. Chrome's address bar drops the line breaks when you paste, and for
+other browsers you can pipe through `tr -d '\n'` first.
+
 **Arguments:**
 
 | # | Name | Required | Default | Notes |
@@ -35,6 +53,7 @@ SQL> @plan_to_url.sql an05rsj1up1k5 "" AWR 2468804666
 | 2 | `child_number` | No | `0` | Only used with `CURSOR` source; ignored for `MONITOR` and `AWR`. Pass `""` to skip it. |
 | 3 | `source` | No | `CURSOR` | `CURSOR` reads `DBMS_XPLAN.DISPLAY_CURSOR('ALLSTATS LAST')`. `MONITOR` reads a `DBMS_SQLTUNE.REPORT_SQL_MONITOR` TEXT report. `AWR` reads `DBMS_XPLAN.DISPLAY_WORKLOAD_REPOSITORY('ADVANCED')`: plan, predicates, outline and peeked binds as AWR captured them, but optimizer estimates only (no A-Rows / A-Time / Starts). |
 | 4 | `sql_exec_id` / `plan_hash_value` | No | latest | `MONITOR`: picks one specific monitored execution (`V$SQL_MONITOR.SQL_EXEC_ID`). When omitted, Oracle reports the *last* monitored execution; if several are still in `GV$SQL_MONITOR`, the script lists them (newest first) so you can re-run with the one you want. `AWR`: picks one `plan_hash_value`. When omitted, the script uses the plan AWR saw most recently and, if AWR holds several, lists them (last seen, executions, average elapsed time) so you can re-run with the one you want. |
+| last | `QUIET` | No | - | Print the URL only (no progress line, summary, notes or listings) and exit SQL*Plus. For piping into `pbcopy`. See above. |
 
 **Privileges:**
 
@@ -90,6 +109,63 @@ near the top of the script to point at your own deployment instead.
 - The plan's SQL text ends up encoded in the URL. The hash fragment
   (`#gz=...`) is never sent to a server by the browser, but the URL is still
   shareable data - treat it the same way you'd treat the plan text itself.
+
+## plan_to_json.sql
+
+Given a `sql_id`, fetches the execution plan **and the schema metadata of
+the objects it touches**, and prints both as one JSON document between
+`==== ORAPLANVIZ PLAN JSON BEGIN ====` / `END` marker lines. Paste it into
+the visualizer's input box (or save it as a `.json` file and drop it on the
+app) and the plan loads with its metadata bundle already attached - no
+separate `gather_plan_metadata.sql` run.
+
+```sql
+-- Cursor cache, child 0, with metadata (the default)
+SQL> @plan_to_json.sql an05rsj1up1k5
+
+-- Same sources and arguments as plan_to_url.sql
+SQL> @plan_to_json.sql an05rsj1up1k5 1
+SQL> @plan_to_json.sql an05rsj1up1k5 "" MONITOR [<sql_exec_id>]
+SQL> @plan_to_json.sql an05rsj1up1k5 "" AWR [<plan_hash_value>]
+
+-- Plan only: NOMETA in place of any optional argument
+SQL> @plan_to_json.sql an05rsj1up1k5 NOMETA
+SQL> @plan_to_json.sql an05rsj1up1k5 "" AWR NOMETA
+```
+
+**Arguments:** `sql_id`, `child_number`, `source` and `sql_exec_id` /
+`plan_hash_value` work exactly as in [plan_to_url.sql](#plan_to_urlsql),
+plus the optional `NOMETA` keyword. To skip the metadata by default, set
+`DEFINE include_metadata = 'N'` near the top of the script.
+
+**Differences from plan_to_url.sql:**
+
+- The `CURSOR` source reads `DISPLAY_CURSOR('ADVANCED ALLSTATS LAST')`, so
+  outline data, peeked binds, column projection and query-block aliases come
+  along (there is no URL length to stay under).
+- The metadata gather is the same bundle `gather_plan_metadata.sql <sql_id>
+  <plan_hash_value>` writes, with the plan hash value read from the fetched
+  plan. Its privileges are the gather script's: `DBA_*` views where granted,
+  `ALL_*` otherwise, unreadable objects listed in `coverage_warnings`. From
+  `CDB$ROOT` the bundle holds only a warning - connect to the PDB.
+- If the gather fails outright, the JSON carries `"metadataBundle":null`
+  and the error is printed after the END marker; the plan still loads.
+
+**Output format:** the visualizer's annotated-plan JSON (version 2, the
+format *Save annotated plan* writes), with no annotations. DBMS_OUTPUT
+prints lines and a JSON string cannot hold a raw line break, so the plan
+text is printed one plan line per terminal line; the visualizer joins them
+back (every real newline is escaped as `\n`). Copying the whole terminal
+output works too - status lines and markers are ignored. Other JSON tools
+need the raw line breaks removed first.
+
+**Self-contained:** the metadata code is a verbatim copy of
+`gather_plan_metadata.sql`'s PL/SQL block, so `plan_to_json.sql` runs on its
+own. After editing the gather script, run `node scripts/sync-plan-to-json.mjs`
+(`npm test` fails while the copies differ).
+
+The script is read-only, like the other two: it writes to the screen via
+`DBMS_OUTPUT` only (no spool file, no DML, no DDL).
 
 ## gather_plan_metadata.sql
 
