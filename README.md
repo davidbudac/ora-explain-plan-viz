@@ -1,8 +1,10 @@
 # Oracle Execution Plan Visualizer
 
-Paste an Oracle execution plan and get an interactive tree you can search, filter, annotate and compare. It reads DBMS_XPLAN output (including `ALLSTATS` and `ADVANCED`), SQL Monitor reports (text, XML or the ACTIVE HTML page), V$SQL_PLAN as JSON or CSV, and Tanel Poder's xbi.sql output.
+### [**→ Open the app**](https://davidbudac.github.io/ora-explain-plan-viz/)
 
 It runs in your browser, with no server. Use the [hosted copy](https://davidbudac.github.io/ora-explain-plan-viz/) (installable, works offline once visited) or download `oraplanviz-vX.Y.Z.html` from the [latest release](https://github.com/davidbudac/ora-explain-plan-viz/releases): one file, opened from disk, no internet needed.
+
+Paste an Oracle execution plan and get an interactive tree you can search, filter, annotate and compare. It reads DBMS_XPLAN output (including `ALLSTATS` and `ADVANCED`), SQL Monitor reports (text, XML or the ACTIVE HTML page), V$SQL_PLAN as JSON or CSV, and Tanel Poder's xbi.sql output.
 
 [![Tree view with hotspots](site/assets/hero.png)](https://davidbudac.github.io/ora-explain-plan-viz/?example=21)
 
