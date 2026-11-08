@@ -674,6 +674,21 @@ SQL&gt; @plan_to_url.sql an05rsj1up1k5 "" AWR      -- from AWR once the cursor a
         <a href="https://github.com/davidbudac/ora-explain-plan-viz/blob/main/scripts/README.md">scripts/README.md</a>.
       </p>
 
+      <h3>Plan and metadata in one JSON</h3>
+      <p>
+        <code>scripts/plan_to_json.sql</code> takes the same arguments but prints one JSON document instead of a link: the plan
+        plus the <a href="#metadata">metadata bundle</a> for every object it touches, so there is no separate gather run.
+        Paste the output into the input box (markers and status lines are ignored) or save it as <code>.json</code> and drop it
+        on the app; the plan loads with the bundle attached.
+      </p>
+<pre><code>SQL&gt; @plan_to_json.sql an05rsj1up1k5             -- cursor cache, plan + metadata
+SQL&gt; @plan_to_json.sql an05rsj1up1k5 "" AWR      -- any plan_to_url.sql source works
+SQL&gt; @plan_to_json.sql an05rsj1up1k5 NOMETA      -- plan only</code></pre>
+      <p>
+        The cursor-cache source reads <code>ADVANCED ALLSTATS LAST</code>, so outline data and peeked binds come along. The
+        JSON is the same format as <em>Save annotated plan</em>, so <em>Import annotated plan</em> opens it too.
+      </p>
+
       <h3>Export as PNG</h3>
       <p>Renders the current tree view to a PNG image (command palette or top-bar menu). Useful for slides and tickets.</p>
 
@@ -697,6 +712,7 @@ SQL&gt; @plan_to_url.sql an05rsj1up1k5 "" AWR      -- from AWR once the cursor a
       <p>Click a table or index name in the node details panel to jump straight to that object in the <em>Metadata</em> tab.</p>
 
       <h3>1. Gather the bundle</h3>
+      <p>Fetching the plan from the database anyway? <code>@plan_to_json.sql &lt;sql_id&gt;</code> prints the plan and its bundle as one JSON, so steps 1 and 2 happen in one paste (see <a href="#sharing">Sharing &amp; export</a>).</p>
       <p>Use the generated script. Either click <em>Gather script</em> in the app (it pre-fills the SQL ID) or take <code>scripts/gather_plan_metadata.sql</code> from the repo and run it in SQL*Plus or SQLcl (Oracle 12.2+):</p>
 <pre><code>SQL&gt; @gather_plan_metadata.sql &lt;sql_id&gt; [&lt;plan_hash_value&gt;] [&lt;spool_file&gt;]
 SQL&gt; @gather_plan_metadata.sql LIST "HR.EMPLOYEES,HR.DEPARTMENTS"</code></pre>

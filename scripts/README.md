@@ -91,6 +91,63 @@ near the top of the script to point at your own deployment instead.
   (`#gz=...`) is never sent to a server by the browser, but the URL is still
   shareable data - treat it the same way you'd treat the plan text itself.
 
+## plan_to_json.sql
+
+Given a `sql_id`, fetches the execution plan **and the schema metadata of
+the objects it touches**, and prints both as one JSON document between
+`==== ORAPLANVIZ PLAN JSON BEGIN ====` / `END` marker lines. Paste it into
+the visualizer's input box (or save it as a `.json` file and drop it on the
+app) and the plan loads with its metadata bundle already attached - no
+separate `gather_plan_metadata.sql` run.
+
+```sql
+-- Cursor cache, child 0, with metadata (the default)
+SQL> @plan_to_json.sql an05rsj1up1k5
+
+-- Same sources and arguments as plan_to_url.sql
+SQL> @plan_to_json.sql an05rsj1up1k5 1
+SQL> @plan_to_json.sql an05rsj1up1k5 "" MONITOR [<sql_exec_id>]
+SQL> @plan_to_json.sql an05rsj1up1k5 "" AWR [<plan_hash_value>]
+
+-- Plan only: NOMETA in place of any optional argument
+SQL> @plan_to_json.sql an05rsj1up1k5 NOMETA
+SQL> @plan_to_json.sql an05rsj1up1k5 "" AWR NOMETA
+```
+
+**Arguments:** `sql_id`, `child_number`, `source` and `sql_exec_id` /
+`plan_hash_value` work exactly as in [plan_to_url.sql](#plan_to_urlsql),
+plus the optional `NOMETA` keyword. To skip the metadata by default, set
+`DEFINE include_metadata = 'N'` near the top of the script.
+
+**Differences from plan_to_url.sql:**
+
+- The `CURSOR` source reads `DISPLAY_CURSOR('ADVANCED ALLSTATS LAST')`, so
+  outline data, peeked binds, column projection and query-block aliases come
+  along (there is no URL length to stay under).
+- The metadata gather is the same bundle `gather_plan_metadata.sql <sql_id>
+  <plan_hash_value>` writes, with the plan hash value read from the fetched
+  plan. Its privileges are the gather script's: `DBA_*` views where granted,
+  `ALL_*` otherwise, unreadable objects listed in `coverage_warnings`. From
+  `CDB$ROOT` the bundle holds only a warning - connect to the PDB.
+- If the gather fails outright, the JSON carries `"metadataBundle":null`
+  and the error is printed after the END marker; the plan still loads.
+
+**Output format:** the visualizer's annotated-plan JSON (version 2, the
+format *Save annotated plan* writes), with no annotations. DBMS_OUTPUT
+prints lines and a JSON string cannot hold a raw line break, so the plan
+text is printed one plan line per terminal line; the visualizer joins them
+back (every real newline is escaped as `\n`). Copying the whole terminal
+output works too - status lines and markers are ignored. Other JSON tools
+need the raw line breaks removed first.
+
+**Self-contained:** the metadata code is a verbatim copy of
+`gather_plan_metadata.sql`'s PL/SQL block, so `plan_to_json.sql` runs on its
+own. After editing the gather script, run `node scripts/sync-plan-to-json.mjs`
+(`npm test` fails while the copies differ).
+
+The script is read-only, like the other two: it writes to the screen via
+`DBMS_OUTPUT` only (no spool file, no DML, no DDL).
+
 ## gather_plan_metadata.sql
 
 Generates a `format: "ora-plan-metadata"` JSON bundle for use with the Oracle
