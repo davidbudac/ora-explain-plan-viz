@@ -125,7 +125,7 @@ src/
 │   ├── BaselineScriptModal.tsx # SQL Plan Baseline (DBMS_SPM) / SQL Patch (DBMS_SQLDIAG) script dialog, Script type switch
 │   ├── PrivacyBadge.tsx     # Start-screen "your plans never leave this browser" badge
 │   ├── AiAnalysisDialog.tsx # AI analysis setup dialog (provider, model, key, run analyze/compare)
-│   ├── ClientReportModal.tsx # Client report export dialog (title/client/author, sections, preview)
+│   ├── ClientReportModal.tsx # Client report export dialog (title, sections, preview)
 │   ├── AgentHandoffDialog.tsx # Agent handoff export dialog (question, section toggles with token estimates, playbook embed, copy / .md, skill download)
 │   ├── MetadataChip.tsx     # Inline schema-metadata badge/chip
 │   ├── FormattedPredicate.tsx # Predicate rendering with column formatting
@@ -305,7 +305,7 @@ Tests are excluded from the production build via `tsconfig.app.json` exclude pat
 - **Companion Skill**: `skills/oracle-plan-analysis/` (model-invoked; workflow + `references/patterns.md` + `references/data-requests.md`). The dialog downloads it as a .zip (`oracle-plan-analysis/SKILL.md`, unzips into `~/.claude/skills/` or uploads to claude.ai) or embeds it as a playbook. The handoff's "Reading the numbers" and inventory fetch SQL are a compact copy of the skill's: change both together. The SQL in `data-requests.md` was run on Oracle 19c (dbmint) — re-run it after editing (gotcha: `SET SERVEROUTPUT OFF` must come before the statement, or `DISPLAY_CURSOR(NULL, NULL)` shows SQL*Plus's own `DBMS_OUTPUT` call)
 
 ### Client Report
-- **Client Report Export**: Packages the loaded plan, the consultant's annotations, and all derived analysis into a single self-contained HTML document for handing to a client — header metadata (title, client, prepared by, date, SQL ID, plan hash), free-text executive summary with headline stat cards and optimizer-note tags, SQL statement, full plan table (with hotspot marker, highlight chips, inline notes, estimate-quality column), consultant notes/groups/highlights, advisor findings with recommendations, top self-time hotspots, worst cardinality mismatches, predicates, execution environment + bind variables, and a raw-plan appendix. Section toggles, live preview iframe, download as `.html` or open a print view for save-as-PDF. Client/author names persist to localStorage. Opened from the top-bar document icon or the command palette (`clientReport.ts` + `ClientReportModal.tsx`); fully offline, nothing is uploaded
+- **Client Report Export**: Packages the loaded plan, the consultant's annotations, and all derived analysis into a single self-contained HTML document as an informal, facts-only handover — header metadata (title, date, SQL ID, plan hash, plan source), SQL statement, full plan table (with hotspot marker, highlight chips, inline notes, estimate-quality column), consultant notes/groups/highlights, advisor findings (facts only, no recommendation text), top self-time hotspots, worst cardinality mismatches, predicates, execution environment + optimizer-note tags + bind variables, and a raw-plan appendix. No client/author fields and no executive summary. Section toggles, live preview iframe, download as `.html` or open a print view for save-as-PDF. Opened from the top-bar document icon or the command palette (`clientReport.ts` + `ClientReportModal.tsx`); fully offline, nothing is uploaded
 
 ### Annotations
 - **Node Annotations**: Add text notes to individual nodes with timestamps
