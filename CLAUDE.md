@@ -165,7 +165,7 @@ src/
 skills/oracle-plan-analysis/ # Companion agent skill: SKILL.md + references/patterns.md, data-requests.md (bundled into the app; `npx skills add davidbudac/ora-explain-plan-viz`)
 
 public/                  # Static assets: `manifest.webmanifest` (relative start_url/scope), `sw.js` (service worker, `__BUILD_ID__` stamped by vite.config.ts), product icons
-.github/workflows/       # `ci.yml` (lint + typecheck + tests on PRs and main), `deploy.yml` (build + deploy on push to main), `release.yml` (`v*` tag → GitHub release with `oraplanviz-<tag>.html` from `build:single`)
+.github/workflows/       # `ci.yml` (lint + typecheck + tests on PRs and main; docs-only PRs skip the steps but still report `check`), `deploy.yml` (build + deploy on push to main, skipped when only root `*.md`, `docs/` or `LICENSE` changed), `release.yml` (`v*` tag → GitHub release with `oraplanviz-<tag>.html` from `build:single`)
 
 evals/                   # AI eval harness (Node + tsx + oracledb thin; NOT part of the Vite build)
 ├── run.ts               # Repro-fidelity backtest (plan shape match in a scratch schema)
@@ -201,7 +201,7 @@ npm test
 
 ## Showcase Site
 
-`site/` is a static showcase: `index.html` (landing page) and `docs.html` (documentation), with media in `site/assets/`. Every push to `main` runs `.github/workflows/deploy.yml`, which publishes the app to https://davidbudac.github.io/ora-explain-plan-viz/ and copies `site/` to `/welcome/` (https://davidbudac.github.io/ora-explain-plan-viz/welcome/, docs at `/welcome/docs.html`). The site text is hand-written, so when a user-facing feature ships or changes, update `site/docs.html` (and the landing cards if relevant) in the same change.
+`site/` is a static showcase: `index.html` (landing page) and `docs.html` (documentation), with media in `site/assets/`. Every push to `main` that touches more than root `*.md`, `docs/` or `LICENSE` runs `.github/workflows/deploy.yml`, which publishes the app to https://davidbudac.github.io/ora-explain-plan-viz/ and copies `site/` to `/welcome/` (https://davidbudac.github.io/ora-explain-plan-viz/welcome/, docs at `/welcome/docs.html`). The site text is hand-written, so when a user-facing feature ships or changes, update `site/docs.html` (and the landing cards if relevant) in the same change.
 
 README diagrams live in `docs/diagrams/`: `build_diagrams.py` writes a light and a dark HTML per diagram (ways in, plan_to_url.sql steps, DB connector), exported to 2x PNGs that the README shows through `<picture>`. Regenerate both skins when a diagram's facts change; the docstring has the commands.
 
@@ -250,7 +250,7 @@ src/
 └── examples/__tests__/       # Example loader / descriptions / sidecar-metadata tests
 ```
 
-`.github/workflows/ci.yml` runs lint, typecheck and `npm test` on every PR and on pushes to `main`. Parser fixtures in `src/lib/parser/__tests__/fixtures/` are **real Oracle 19c captures** (`allstats-*`, `advanced-allstats-19c`, `awr-advanced-19c` (DISPLAY_WORKLOAD_REPOSITORY), `sql-monitor-active-19c.html`, `vsqlplan-stats-allstats-19c.csv`, SQL Monitor XML), not hand-written — keep them that way and say so when adding one; `src/lib/__tests__/largePlan.test.ts` uses a seeded 2,000-operation generated plan.
+`.github/workflows/ci.yml` runs lint, typecheck and `npm test` on every PR and on pushes to `main`. A PR that only changes root `*.md`, `docs/`, `site/` or `LICENSE` skips those steps, so the required `check` status still reports (green in seconds); `skills/**/*.md` is bundled into the app and always runs the full suite. Parser fixtures in `src/lib/parser/__tests__/fixtures/` are **real Oracle 19c captures** (`allstats-*`, `advanced-allstats-19c`, `awr-advanced-19c` (DISPLAY_WORKLOAD_REPOSITORY), `sql-monitor-active-19c.html`, `vsqlplan-stats-allstats-19c.csv`, SQL Monitor XML), not hand-written — keep them that way and say so when adding one; `src/lib/__tests__/largePlan.test.ts` uses a seeded 2,000-operation generated plan.
 
 Tests are excluded from the production build via `tsconfig.app.json` exclude patterns. Test files use the `*.test.ts(x)` convention and live in `__tests__/` directories alongside the code they test.
 
