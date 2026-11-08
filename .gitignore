@@ -24,8 +24,7 @@ dist-ssr
 *.sw?
 
 # Claude Code local state
-.claude/worktrees/
-.claude/settings.local.json
+.claude/
 
 # Eval scenarios are local to each checkout; only the README is tracked here.
 evals/scenarios/*/
@@ -36,6 +35,4 @@ evals/scenarios/*/
 # Xcode build output and prototypes
 prototypes/
 
-# Promo reel render output
-scripts/promo-reel/out/
 dist-single

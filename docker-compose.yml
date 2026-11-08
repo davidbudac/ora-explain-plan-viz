@@ -1,6 +1,6 @@
 # Self-hosted deployment of the Oracle Execution Plan Visualizer.
 #
-#   docker compose up --build            # visualizer, http://localhost:8080
+#   docker compose up --build            # visualizer, http://localhost:8080 (PORT=… / APP_BASE_PATH=… to change)
 #   docker compose --profile agent up    # also builds an agent-enabled UI on :8081
 #
 # The optional oraplanviz-agent companion (https://github.com/davidbudac/oraplanviz-db-connector)
@@ -10,9 +10,12 @@
 
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        APP_BASE_PATH: ${APP_BASE_PATH:-/}
     ports:
-      - "8080:80"
+      - "${PORT:-8080}:80"
     restart: unless-stopped
 
   app-with-agent:
