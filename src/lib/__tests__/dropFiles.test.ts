@@ -179,3 +179,64 @@ describe('SQL Monitor ACTIVE (HTML) drops', () => {
     expect(errors[0]).toMatch(/broken\.html.*could not be decoded/);
   });
 });
+
+// Real Oracle 19c terminal output of scripts/plan_to_json.sql (status lines,
+// markers, plan text split one line per terminal line, embedded bundle).
+const PLAN_TO_JSON_CURSOR = readFileSync(join(__dirname, 'fixtures/plan-to-json-cursor-19c.txt'), 'utf-8');
+const PLAN_TO_JSON_MONITOR = readFileSync(join(__dirname, 'fixtures/plan-to-json-monitor-19c.txt'), 'utf-8');
+
+describe('plan_to_json.sql output', () => {
+  it('recovers the export from raw terminal output', () => {
+    const data = parseAnnotatedExport(PLAN_TO_JSON_CURSOR);
+    expect(data).not.toBeNull();
+    expect(data!.version).toBe(2);
+    expect(data!.planSource).toBe('dbms_xplan');
+    expect(data!.sqlId).toBe('a1nvpc4f1kamw');
+    expect(data!.planHashValue).toBe('2030497504');
+    expect(data!.rawPlanText.startsWith('SQL_ID  a1nvpc4f1kamw, child number 0\n')).toBe(true);
+    // Trailing blanks inside plan lines survive the line joining.
+    expect(data!.rawPlanText).toContain('sum(t.value) \nfrom capdemo');
+    const bundle = data!.metadataBundle as { format: string; objects: Record<string, unknown> };
+    expect(bundle.format).toBe('ora-plan-metadata');
+    expect(Object.keys(bundle.objects).sort()).toEqual([
+      'CAPDEMO.CAP_FIXTURE_SNAPSHOT',
+      'CAPDEMO.CAP_FIXTURE_TIME_MODEL',
+    ]);
+  });
+
+  it('recovers a SQL Monitor export and just the marked block', () => {
+    const block = PLAN_TO_JSON_MONITOR.slice(
+      PLAN_TO_JSON_MONITOR.indexOf('{"version"'),
+      PLAN_TO_JSON_MONITOR.indexOf('==== ORAPLANVIZ PLAN JSON END'),
+    );
+    for (const text of [PLAN_TO_JSON_MONITOR, block]) {
+      const data = parseAnnotatedExport(text);
+      expect(data?.planSource).toBe('sql_monitor_text');
+      expect(data?.rawPlanText.startsWith('SQL Monitoring Report\n')).toBe(true);
+    }
+  });
+
+  it('keeps a space escaped at a long-line cut and ignores CRLF terminals', () => {
+    const text = [
+      'status line',
+      '{"version":2,',
+      '"exportedAt":"2026-11-08T07:59:27Z",',
+      '"planSource":"dbms_xplan",',
+      '"annotations":{"nodeAnnotations":{},"nodeHighlights":{},"groups":[]},',
+      `"rawPlanText":"${'x'.repeat(10)}\\u0020`,
+      '  y\\n',
+      'last"',
+      '}',
+    ].join('\r\n');
+    expect(parseAnnotatedExport(text)?.rawPlanText).toBe(`${'x'.repeat(10)}   y\nlast`);
+  });
+
+  it('classifies a dropped plan_to_json output file as annotated, not as a bundle', () => {
+    expect(classifyFileText('plan.json', PLAN_TO_JSON_CURSOR).kind).toBe('annotated');
+    expect(classifyFileText('plan.txt', PLAN_TO_JSON_CURSOR).kind).toBe('annotated');
+  });
+
+  it('rejects a cut-off copy', () => {
+    expect(parseAnnotatedExport(PLAN_TO_JSON_CURSOR.slice(0, PLAN_TO_JSON_CURSOR.length / 2))).toBeNull();
+  });
+});

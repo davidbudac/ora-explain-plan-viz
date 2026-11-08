@@ -14,7 +14,7 @@ import { getPlanFromUrl, getGzipPlanParamFromHash, clearPlanFromUrl, buildShareL
 import type { SharePlanEntry, UrlPlanData } from '../lib/url';
 import { describeParseFailure } from '../lib/formats';
 import { looksLikeMetadataBundle } from '../lib/metadata/bundle';
-import { planDrop, readDroppedFiles } from '../lib/dropFiles';
+import { parseAnnotatedExport, planDrop, readDroppedFiles } from '../lib/dropFiles';
 import { isActiveReport, decodeActiveReport, ACTIVE_REPORT_DECODE_ERROR } from '../lib/parser/activeReport';
 import {
   SESSION_KEY,
@@ -30,7 +30,7 @@ import {
 import type { RecentPlan, SavedSession } from '../lib/session';
 import { useConfirm, useToast } from '../components/ui';
 import type { AnnotationState, AnnotationGroup, HighlightBrush, HighlightColor, HighlightStyle, AnnotatedPlanExport } from '../lib/annotations';
-import { createEmptyAnnotationState, hasAnnotations, serializeAnnotations, deserializeAnnotations, validateExport, downloadAnnotatedPlan, generateGroupId, highlightMatchesBrush } from '../lib/annotations';
+import { createEmptyAnnotationState, hasAnnotations, serializeAnnotations, deserializeAnnotations, downloadAnnotatedPlan, generateGroupId, highlightMatchesBrush } from '../lib/annotations';
 import type { MetadataBundle } from '../lib/metadata/bundle';
 import { parseBundle, emptyBundleWarning } from '../lib/metadata/bundle';
 import { copyToClipboard } from '../lib/clipboard';
@@ -1098,6 +1098,9 @@ interface PlanContextValue {
   setTreeLayoutDirection: (direction: TreeLayoutDirection) => void;
   treeMinimap: TreeMinimapMode;
   setTreeMinimap: (mode: TreeMinimapMode) => void;
+  /** Hints lens (persisted): pins on hinted operations, the rest dimmed. */
+  hintLens: boolean;
+  setHintLens: (on: boolean) => void;
   /** Expand/collapse all, fit, focus selected, redraw — null while no tree is mounted. */
   treeViewActionsRef: React.MutableRefObject<TreeViewActions | null>;
   /** Hidden count / collapsibility / minimap visibility the mounted tree publishes; null while none is. */
@@ -1210,6 +1213,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     () => loadSettings().treeLayoutDirection,
   );
   const [treeMinimap, setTreeMinimapState] = useState<TreeMinimapMode>(() => loadSettings().treeMinimap);
+  const [hintLens, setHintLensState] = useState<boolean>(() => loadSettings().hintLens);
   const treeViewActionsRef = useRef<TreeViewActions | null>(null);
   // State (not a ref) so the toolbar re-renders when the tree's counts change.
   const [treeViewState, setTreeViewStateRaw] = useState<TreeViewState | null>(null);
@@ -1232,6 +1236,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const setTreeMinimap = useCallback((mode: TreeMinimapMode) => {
     setTreeMinimapState(mode);
     saveSettings({ treeMinimap: mode });
+  }, []);
+  const setHintLens = useCallback((on: boolean) => {
+    setHintLensState(on);
+    saveSettings({ hintLens: on });
   }, []);
 
   const createPlanSlotFromInput = useCallback((input: string, index: number): PlanSlot => {
@@ -2104,6 +2112,77 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_INPUT', payload: input });
   }, []);
 
+  /**
+   * Load an already-validated annotated-plan export into the active slot (no
+   * confirmation — callers ask first). `extraBundleText` is a bundle dropped
+   * alongside an export that does not embed one.
+   */
+  const importAnnotatedData = useCallback(
+    (data: AnnotatedPlanExport, options?: { label?: string; extraBundleText?: string }): boolean => {
+      let parsed: ParsedPlan;
+      try {
+        parsed = parseExplainPlan(data.rawPlanText);
+      } catch (err) {
+        reportError(`Import error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        return false;
+      }
+      if (!parsed.rootNode) {
+        reportError(`Could not parse the plan inside the annotated file. ${describeParseFailure(data.rawPlanText)}`);
+        return false;
+      }
+      dispatch({ type: 'SET_PARSED_PLAN', payload: { plan: parsed, text: data.rawPlanText } });
+      dispatch({ type: 'SET_INPUT_PANEL_COLLAPSED', payload: true });
+      // Load annotations after plan is set (SET_PARSED_PLAN clears them first)
+      try {
+        dispatch({ type: 'LOAD_ANNOTATIONS', payload: deserializeAnnotations(data.annotations) });
+      } catch {
+        showBundleNotice({ tone: 'warn', text: 'Imported the plan, but its annotations could not be read.' });
+      }
+
+      const index = state.activePlanIndex;
+      let bundleText: string | undefined;
+      // plan_to_json.sql writes null when its metadata gather failed.
+      if (data.version === 2 && data.metadataBundle != null) {
+        // v2+: embedded metadata bundle
+        try {
+          const bundle = parseBundle(JSON.stringify(data.metadataBundle));
+          dispatch({ type: 'ATTACH_METADATA_BUNDLE', payload: { index, bundle, warning: null } });
+          bundleText = JSON.stringify(data.metadataBundle);
+        } catch (err) {
+          reportError(
+            `Imported plan, but embedded metadata bundle is invalid: ${err instanceof Error ? err.message : 'Unknown error'}`,
+          );
+        }
+      } else if (options?.extraBundleText) {
+        try {
+          const bundle = parseBundle(options.extraBundleText);
+          const decision = pairBundleWithSlots(bundle, [{ ...createEmptySlot(0), parsedPlan: parsed }]);
+          if (decision.kind === 'auto-attach') {
+            const warning = combineWarnings(decision.warning, emptyBundleWarning(bundle));
+            dispatch({ type: 'ATTACH_METADATA_BUNDLE', payload: { index, bundle, warning } });
+            bundleText = options.extraBundleText;
+          } else if (decision.kind === 'needs-choice') {
+            setPendingBundleChoice({ bundle, reason: decision.reason, candidateIndices: [index], resetDraft: false });
+          }
+        } catch (err) {
+          showBundleNotice({ tone: 'warn', text: err instanceof Error ? err.message : 'Could not parse metadata bundle.' });
+        }
+      }
+
+      recordRecent({
+        sqlId: parsed.sqlId,
+        planHash: parsed.planHashValue,
+        source: parsed.source,
+        text: data.rawPlanText,
+        label: options?.label,
+        metadataText: bundleText,
+      });
+      clearPlanFromUrl({ includeDeepLinks: true });
+      return true;
+    },
+    [state.activePlanIndex, reportError, showBundleNotice, recordRecent, setPendingBundleChoice],
+  );
+
   const parsePlan = useCallback(async (text?: string) => {
     const { plans, activePlanIndex } = stateRef.current;
     const slot = plans[activePlanIndex];
@@ -2121,6 +2200,15 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         return;
       }
     }
+    // plan_to_json.sql output or a pasted "Save annotated plan" file: plan
+    // text plus an optional metadata bundle (and annotations) in one JSON.
+    // Checked before the bundle sniffing, which its embedded bundle matches.
+    const annotated = parseAnnotatedExport(draft);
+    if (annotated) {
+      const ok = await confirmDiscardAnnotations([stateRef.current.activePlanIndex], 'Loading the pasted plan');
+      if (ok) importAnnotatedData(annotated);
+      return;
+    }
     // A pasted gather-script output is not a plan — route it to the bundle
     // pipeline; on success the drawer goes back to showing the plan text.
     if (looksLikeMetadataBundle(draft)) {
@@ -2137,7 +2225,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     if (decodedActive && outcome?.ok) {
       toastApi.show({ tone: 'info', title: 'Decoded SQL Monitor ACTIVE report', message: 'The embedded XML report was extracted and loaded.' });
     }
-  }, [attachBundleText, guardedImport, reportError, toastApi]);
+  }, [attachBundleText, guardedImport, reportError, toastApi, confirmDiscardAnnotations, importAnnotatedData]);
 
   const loadAndParsePlan = useCallback(
     async (input: string, metadataText?: string, options?: LoadPlanOptions): Promise<boolean> => {
@@ -2461,86 +2549,17 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     downloadAnnotatedPlan(exportData);
   }, [parsedPlan, rawInput, stablePlans, state.activePlanIndex]);
 
-  /**
-   * Load an already-validated annotated-plan export into the active slot (no
-   * confirmation — callers ask first). `extraBundleText` is a bundle dropped
-   * alongside an export that does not embed one.
-   */
-  const importAnnotatedData = useCallback(
-    (data: AnnotatedPlanExport, options?: { label?: string; extraBundleText?: string }): boolean => {
-      let parsed: ParsedPlan;
-      try {
-        parsed = parseExplainPlan(data.rawPlanText);
-      } catch (err) {
-        reportError(`Import error: ${err instanceof Error ? err.message : 'Unknown error'}`);
-        return false;
-      }
-      if (!parsed.rootNode) {
-        reportError(`Could not parse the plan inside the annotated file. ${describeParseFailure(data.rawPlanText)}`);
-        return false;
-      }
-      dispatch({ type: 'SET_PARSED_PLAN', payload: { plan: parsed, text: data.rawPlanText } });
-      dispatch({ type: 'SET_INPUT_PANEL_COLLAPSED', payload: true });
-      // Load annotations after plan is set (SET_PARSED_PLAN clears them first)
-      try {
-        dispatch({ type: 'LOAD_ANNOTATIONS', payload: deserializeAnnotations(data.annotations) });
-      } catch {
-        showBundleNotice({ tone: 'warn', text: 'Imported the plan, but its annotations could not be read.' });
-      }
-
-      const index = state.activePlanIndex;
-      let bundleText: string | undefined;
-      if (data.version === 2 && data.metadataBundle !== undefined) {
-        // v2+: embedded metadata bundle
-        try {
-          const bundle = parseBundle(JSON.stringify(data.metadataBundle));
-          dispatch({ type: 'ATTACH_METADATA_BUNDLE', payload: { index, bundle, warning: null } });
-          bundleText = JSON.stringify(data.metadataBundle);
-        } catch (err) {
-          reportError(
-            `Imported plan, but embedded metadata bundle is invalid: ${err instanceof Error ? err.message : 'Unknown error'}`,
-          );
-        }
-      } else if (options?.extraBundleText) {
-        try {
-          const bundle = parseBundle(options.extraBundleText);
-          const decision = pairBundleWithSlots(bundle, [{ ...createEmptySlot(0), parsedPlan: parsed }]);
-          if (decision.kind === 'auto-attach') {
-            const warning = combineWarnings(decision.warning, emptyBundleWarning(bundle));
-            dispatch({ type: 'ATTACH_METADATA_BUNDLE', payload: { index, bundle, warning } });
-            bundleText = options.extraBundleText;
-          } else if (decision.kind === 'needs-choice') {
-            setPendingBundleChoice({ bundle, reason: decision.reason, candidateIndices: [index], resetDraft: false });
-          }
-        } catch (err) {
-          showBundleNotice({ tone: 'warn', text: err instanceof Error ? err.message : 'Could not parse metadata bundle.' });
-        }
-      }
-
-      recordRecent({
-        sqlId: parsed.sqlId,
-        planHash: parsed.planHashValue,
-        source: parsed.source,
-        text: data.rawPlanText,
-        label: options?.label,
-        metadataText: bundleText,
-      });
-      clearPlanFromUrl({ includeDeepLinks: true });
-      return true;
-    },
-    [state.activePlanIndex, reportError, showBundleNotice, recordRecent, setPendingBundleChoice],
-  );
-
   const importAnnotatedPlan = useCallback(async (file: File) => {
-    let data: unknown;
+    let text: string;
     try {
-      data = JSON.parse(await file.text());
+      text = await file.text();
     } catch (err) {
       reportError(`Import error: ${err instanceof Error ? err.message : 'Unknown error'}`);
       return;
     }
-    if (!validateExport(data)) {
-      reportError('Not a valid annotated-plan file. Expected the JSON exported via "Save annotated plan".');
+    const data = parseAnnotatedExport(text);
+    if (!data) {
+      reportError('Not a valid annotated-plan file. Expected the JSON from "Save annotated plan" or plan_to_json.sql.');
       return;
     }
     const ok = await confirmDiscardAnnotations([stateRef.current.activePlanIndex], `Importing "${file.name}"`);
@@ -2578,7 +2597,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       case 'import-annotated': {
         const ok = await confirmDiscardAnnotations([stateRef.current.activePlanIndex], `Importing "${drop.name}"`);
         if (!ok) return;
-        const embedsBundle = drop.data.version === 2 && drop.data.metadataBundle !== undefined;
+        const embedsBundle = drop.data.version === 2 && drop.data.metadataBundle != null;
         if (!importAnnotatedData(drop.data, { label: drop.name, extraBundleText: embedsBundle ? undefined : drop.bundleText })) {
           return;
         }
@@ -2845,6 +2864,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setTreeLayoutDirection,
     treeMinimap,
     setTreeMinimap,
+    hintLens,
+    setHintLens,
     treeViewActionsRef,
     treeViewState,
     setTreeViewState,
@@ -2988,6 +3009,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     setTreeLayoutDirection,
     treeMinimap,
     setTreeMinimap,
+    hintLens,
+    setHintLens,
     treeViewActionsRef,
     treeViewState,
     setTreeViewState,

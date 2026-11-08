@@ -57,19 +57,64 @@ export function readFileAsText(file: Blob & { name?: string }): Promise<string> 
 }
 
 /**
- * True when `text` is the app's own "Save annotated plan" JSON export.
- * Returns the parsed export, or null.
+ * The annotated-plan JSON inside terminal output, parsed, or undefined.
+ * plan_to_json.sql prints it through DBMS_OUTPUT one plan line per terminal
+ * line, so raw line breaks sit inside the "rawPlanText" string, and status
+ * lines or marker lines may surround it. Every real newline in a value is
+ * escaped (`\n`) and no line ends in a blank inside a string (a cut after a
+ * space is written as `\u0020`), so dropping each raw line break together with
+ * the spaces/tabs before it is lossless. The object is then cut at the brace
+ * that closes it.
+ */
+function recoverAnnotatedJson(text: string): unknown {
+  if (!text.includes('"rawPlanText"')) return undefined;
+  const joined = text.replace(/^\uFEFF/, '').replace(/[ \t]*(?:\r\n|\r|\n)/g, '');
+  const start = joined.search(/\{\s*"/);
+  if (start === -1) return undefined;
+  let inString = false;
+  let escaped = false;
+  let depth = 0;
+  for (let i = start; i < joined.length; i++) {
+    const c = joined[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (c === '\\') escaped = true;
+      else if (c === '"') inString = false;
+    } else if (c === '"') {
+      inString = true;
+    } else if (c === '{' || c === '[') {
+      depth++;
+    } else if (c === '}' || c === ']') {
+      depth--;
+      if (depth === 0) {
+        try {
+          return JSON.parse(joined.slice(start, i + 1));
+        } catch {
+          return undefined;
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * True when `text` is an annotated-plan JSON: the app's own "Save annotated
+ * plan" export, or plan_to_json.sql output (the same format, copied from a
+ * terminal or spool file). Returns the parsed export, or null.
  */
 export function parseAnnotatedExport(text: string): AnnotatedPlanExport | null {
   const trimmed = text.trim();
-  if (!trimmed.startsWith('{')) return null;
   let data: unknown;
-  try {
-    data = JSON.parse(trimmed);
-  } catch {
-    return null;
+  if (trimmed.startsWith('{')) {
+    try {
+      data = JSON.parse(trimmed);
+    } catch {
+      data = undefined;
+    }
   }
-  return validateExport(data) ? data : null;
+  if (data === undefined) data = recoverAnnotatedJson(text);
+  return data !== undefined && validateExport(data) ? data : null;
 }
 
 /** Classify a single dropped file by content (extension only breaks ties). */

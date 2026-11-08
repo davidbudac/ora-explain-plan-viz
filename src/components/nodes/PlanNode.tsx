@@ -14,6 +14,8 @@ import type { MetadataBadge } from '../../lib/metadata/badges';
 import type { ParallelSignal, PartitionPruning } from '../../lib/planSignals';
 import type { FindingSeverity } from '../../lib/advisor';
 import { INACTIVE_NODE_TOOLTIP } from '../../lib/nodeAriaLabel';
+import { formatHintMark, hintChipsForNode } from '../../lib/hints';
+import type { HintMark, HintMarkStatus } from '../../lib/hints';
 
 export interface PlanNodeData extends Record<string, unknown> {
   label: string;
@@ -44,6 +46,10 @@ export interface PlanNodeData extends Record<string, unknown> {
   advisorSeverity?: FindingSeverity;
   advisorCount?: number;
   advisorTitles?: string[];
+  /** Hint Report entries + outline decisions on this operation (see lib/hints). */
+  hintMarks?: HintMark[];
+  /** Hints lens on: pin hinted operations, dim the rest. */
+  hintLens?: boolean;
   /** Tree orientation: handles and the subtree toggle move with it. */
   layoutDirection?: 'TB' | 'LR';
   /** This node's subtree is collapsed (descendants hidden from the canvas). */
@@ -103,6 +109,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
     advisorSeverity,
     advisorCount,
     advisorTitles,
+    hintMarks,
+    hintLens = false,
     layoutDirection = 'TB',
     isCollapsed = false,
     hiddenCount = 0,
@@ -200,6 +208,12 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
   if (isInactive) {
     opacity = Math.min(opacity, INACTIVE_NODE_OPACITY);
   }
+  // Hints lens: operations no hint touches recede.
+  const hasHintMarks = !!hintMarks && hintMarks.length > 0;
+  const showHintBadge = hintLens && hasHintMarks;
+  if (hintLens && !hasHintMarks) {
+    opacity = Math.min(opacity, 0.3);
+  }
   if (isSelected) {
     opacity = 1;
   }
@@ -243,6 +257,9 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
       compactWarnings.push('No partition pruning — all partitions are scanned');
     }
     for (const signal of parallelSignals ?? []) compactWarnings.push(signal.reason);
+    for (const mark of hintMarks ?? []) {
+      if (mark.status === 'unused' || mark.status === 'error') compactWarnings.push(formatHintMark(mark, node.id));
+    }
   }
 
   // Rows for the comparison grid: metric | estimated | actual (| deviation)
@@ -409,6 +426,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             parallelSignals={parallelSignals}
           />
         )}
+        {showHintBadge && !isCompact && hintMarks && <HintChips marks={hintMarks} nodeId={node.id} className="mb-1.5" />}
 
         {/* Operation name */}
         <div className="relative">
@@ -475,6 +493,8 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             )}
           </div>
         )}
+
+        {isCompact && showHintBadge && hintMarks && <HintChips marks={hintMarks} nodeId={node.id} className="mt-1.5" />}
 
         {/* Query block badge (rail scheme moves it to the footer rail) */}
         {!isRail && !isCompact && options.showQueryBlockBadge && (
@@ -770,6 +790,7 @@ function PlanNodeComponent({ data }: PlanNodeProps) {
             parallelSignals={parallelSignals}
             className="mb-2"
           />
+          {showHintBadge && hintMarks && <HintChips marks={hintMarks} nodeId={node.id} className="mb-2" />}
           <EstActStatsGrid
             node={node}
             rows={hoverStatRows}
@@ -993,6 +1014,40 @@ function EstActStatsGrid({ node, rows, hasActualStats, cardLabel, cardSeverity, 
           );
         })}
       </div>
+    </div>
+  );
+}
+
+const HINT_CHIP_CLASSES: Record<HintMarkStatus, string> = {
+  used: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+  unused: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+  error: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+  other: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  outline: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+};
+
+/**
+ * Hints-lens chips: the statement's hints Oracle reported on this operation, each as written
+ * with a status glyph (✓ used, ✗ not used, ! syntax error), then the outline decisions the
+ * statement did not hint (grey, the optimizer's own) and the node's LEADING position (`#n`).
+ * The tooltip carries Oracle's reason. `hintChipsForNode` (lib/hints) decides the content.
+ */
+function HintChips({ marks, nodeId, className = '' }: { marks: HintMark[]; nodeId: number; className?: string }) {
+  const chips = hintChipsForNode(marks, nodeId);
+  if (chips.length === 0) return null;
+  return (
+    <div className={`flex flex-wrap gap-1 ${className}`} data-testid="hint-chips">
+      {chips.map((chip, i) => (
+        <span
+          key={`${chip.label}-${i}`}
+          data-status={chip.status}
+          data-hinted={chip.hinted ? 'true' : undefined}
+          title={chip.title}
+          className={`inline-flex items-center max-w-full h-[18px] px-1.5 rounded font-mono text-[10.5px] leading-none whitespace-nowrap overflow-hidden text-ellipsis ${HINT_CHIP_CLASSES[chip.status]} ${chip.status === 'outline' && chip.hinted ? 'ring-1 ring-inset ring-emerald-300 dark:ring-emerald-700' : ''}`}
+        >
+          {chip.label}
+        </span>
+      ))}
     </div>
   );
 }

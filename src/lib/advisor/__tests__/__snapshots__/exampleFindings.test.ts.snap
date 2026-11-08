@@ -7,6 +7,11 @@ exports[`advisor findings on the bundled examples > matches the per-example find
   ],
   "Complex Plan": [],
   "Exadata Cell Offload (K. Osborne)": [],
+  "Hinted Query (Hint Report)": [
+    "critical:cardinality-mismatch@5",
+    "warning:hint-syntax-error@1",
+    "warning:hint-unused@3",
+  ],
   "JSON Plan (TPC-DS Hash Joins)": [
     "critical:cardinality-mismatch@5",
     "critical:cardinality-mismatch@11",

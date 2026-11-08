@@ -1,0 +1,81 @@
+SQL_ID	d58fq0z23b2a9, child number 0
+-------------------------------------
+select /*+ gather_plan_statistics planviz_hr full(o) index(u) use_nl(o
+u) leading(u o) no_such_hint(x) */ count(*) from sys.obj$ o, sys.user$
+u where o.owner# = u.user# and u.name = 'SYS'
+
+Plan hash value: 933127036
+
+-----------------------------------------------------------------------------------------------------------------------------------
+| Id  | Operation		      | Name	| Starts | E-Rows |E-Bytes| Cost (%CPU)| E-Time   | A-Rows |   A-Time	| Buffers |
+-----------------------------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT	      | 	|      1 |	  |	  |   364 (100)|	  |	 1 |00:00:00.02 |    1345 |
+|   1 |  SORT AGGREGATE 	      | 	|      1 |	1 |    20 |	       |	  |	 1 |00:00:00.02 |    1345 |
+|   2 |   NESTED LOOPS		      | 	|      1 |    456 |  9120 |   364   (1)| 00:00:01 |  53116 |00:00:00.01 |    1345 |
+|   3 |    TABLE ACCESS BY INDEX ROWID| USER$	|      1 |	1 |    17 |	1   (0)| 00:00:01 |	 1 |00:00:00.01 |	2 |
+|*  4 |     INDEX UNIQUE SCAN	      | I_USER1 |      1 |	1 |	  |	0   (0)|	  |	 1 |00:00:00.01 |	1 |
+|*  5 |    TABLE ACCESS FULL	      | OBJ$	|      1 |    456 |  1368 |   363   (1)| 00:00:01 |  53116 |00:00:00.01 |    1343 |
+-----------------------------------------------------------------------------------------------------------------------------------
+
+Query Block Name / Object Alias (identified by operation id):
+-------------------------------------------------------------
+
+   1 - SEL$1
+   3 - SEL$1 / U@SEL$1
+   4 - SEL$1 / U@SEL$1
+   5 - SEL$1 / O@SEL$1
+
+Outline Data
+-------------
+
+  /*+
+      BEGIN_OUTLINE_DATA
+      IGNORE_OPTIM_EMBEDDED_HINTS
+      OPTIMIZER_FEATURES_ENABLE('19.1.0')
+      DB_VERSION('19.1.0')
+      ALL_ROWS
+      OUTLINE_LEAF(@"SEL$1")
+      INDEX_RS_ASC(@"SEL$1" "U"@"SEL$1" ("USER$"."NAME"))
+      FULL(@"SEL$1" "O"@"SEL$1")
+      LEADING(@"SEL$1" "U"@"SEL$1" "O"@"SEL$1")
+      USE_NL(@"SEL$1" "O"@"SEL$1")
+      END_OUTLINE_DATA
+  */
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   4 - access("U"."NAME"='SYS')
+   5 - filter("O"."OWNER#"="U"."USER#")
+
+Column Projection Information (identified by operation id):
+-----------------------------------------------------------
+
+   1 - (#keys=0) COUNT(*)[22]
+   3 - "U"."USER#"[NUMBER,22]
+   4 - "U".ROWID[ROWID,10]
+
+Hint Report (identified by operation id / Query Block Name / Object Alias):
+Total hints for statement: 7 (U - Unused (1), E - Syntax error (2))
+---------------------------------------------------------------------------
+
+   1 -	SEL$1
+	 E -  no_such_hint
+	 E -  planviz_hr
+	   -  leading(u o)
+
+   3 -	SEL$1 / U@SEL$1
+	 U -  use_nl(o u)
+	   -  index(u)
+
+   5 -	SEL$1 / O@SEL$1
+	   -  full(o)
+	   -  use_nl(o u)
+
+Query Block Registry:
+---------------------
+
+  <q o="2" f="y"><n><![CDATA[SEL$1]]></n><f><h><t><![CDATA[O]]></t><s><![CDATA[SEL$1]]></s></h><h><t><![CDATA[U]]></t><s><![C
+	DATA[SEL$1]]></s></h></f></q>
+
+

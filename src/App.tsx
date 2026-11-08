@@ -764,7 +764,9 @@ function AppContent() {
                   <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
                     Skip copy and paste: <code className="font-mono">plan_to_url.sql</code> fetches the
                     plan for a <code className="font-mono">sql_id</code>, gzip-compresses and encodes it
-                    inside the database, and prints a link that opens the plan here.
+                    inside the database, and prints a link that opens the plan here. Want the schema
+                    metadata too? <code className="font-mono">plan_to_json.sql</code> prints the plan and its
+                    metadata bundle as one JSON to paste in.
                   </p>
                   <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
                     <code className="font-mono text-xs px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800">
