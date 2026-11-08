@@ -8,6 +8,7 @@
 import { detectFormat } from './parser/index';
 import type { DetectedFormat } from './parser/index';
 import { isActiveReport } from './parser/activeReport';
+import { parseAnnotatedExport } from './dropFiles';
 import { TRUNCATED_REPORT_MESSAGE, WRAPPED_TABLE_MESSAGE, looksTruncatedXml, looksWrappedTable } from './parser/warnings';
 
 export type SupportedFormatId =
@@ -18,6 +19,7 @@ export type SupportedFormatId =
   | 'json'
   | 'csv'
   | 'xbi'
+  | 'plan_json'
   | 'metadata_bundle';
 
 export interface SupportedFormat {
@@ -74,6 +76,12 @@ export const SUPPORTED_FORMATS: readonly SupportedFormat[] = [
     isPlan: true,
   },
   {
+    id: 'plan_json',
+    name: 'plan_to_json.sql output',
+    hint: 'plan plus its metadata bundle in one JSON (also "Save annotated plan" files)',
+    isPlan: true,
+  },
+  {
     id: 'metadata_bundle',
     name: 'Metadata bundle',
     hint: 'gather_plan_metadata.sql output — attaches schema stats to a loaded plan',
@@ -90,6 +98,7 @@ const SHORT_NAMES: Record<SupportedFormatId, string> = {
   json: 'V$SQL_PLAN JSON',
   csv: 'V$SQL_PLAN CSV',
   xbi: 'xbi.sql output',
+  plan_json: 'plan_to_json.sql output',
   metadata_bundle: 'metadata bundles',
 };
 
@@ -161,5 +170,6 @@ function safeDetect(input: string): DetectedFormat {
 export function looksLikePlan(input: string): boolean {
   if (!input.trim()) return false;
   if (isActiveReport(input)) return true;
+  if (parseAnnotatedExport(input)) return true;
   return safeDetect(input) !== 'unknown';
 }

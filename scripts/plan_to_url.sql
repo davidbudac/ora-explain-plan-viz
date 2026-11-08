@@ -319,7 +319,11 @@ BEGIN
         FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR(g_sql_id, g_child, 'ALLSTATS LAST'))
       ) LOOP
         l_row_num := l_row_num + 1;
-        IF l_row_num <= 5 AND rec.plan_table_output LIKE '%cannot be found%' THEN
+        -- Two ways DISPLAY_CURSOR says there is no plan: "... cannot be found"
+        -- near the top, or "NOTE: cannot fetch plan for SQL_ID ..." after the
+        -- SQL text (any length; also printed for PL/SQL blocks, which have none).
+        IF (l_row_num <= 5 AND rec.plan_table_output LIKE '%cannot be found%')
+           OR rec.plan_table_output LIKE 'NOTE: cannot fetch plan for SQL_ID%' THEN
           l_abort_msg := 'No plan found in the cursor cache for sql_id=' || g_sql_id
             || ', child=' || g_child || '. The cursor has likely aged out of the shared pool - '
             || 're-run the statement so it is reparsed, then try again. If an AWR snapshot '

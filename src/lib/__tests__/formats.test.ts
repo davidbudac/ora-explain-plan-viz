@@ -47,6 +47,8 @@ describe('looksLikePlan', () => {
     expect(looksLikePlan(readExample('12-json-JSON Plan (TPC-DS Hash Joins).txt'))).toBe(true);
     expect(looksLikePlan(readExample('13-xbi-XBI TPC-DS Query.txt'))).toBe(true);
     expect(looksLikePlan(readExample('22-sql_monitor-Cardinality Trap (NL).txt'))).toBe(true);
+    // plan_to_json.sql terminal output (auto-parses on paste like a plan)
+    expect(looksLikePlan(readFileSync(join(__dirname, 'fixtures/plan-to-json-cursor-19c.txt'), 'utf-8'))).toBe(true);
   });
 
   it('rejects prose, empty text and metadata bundles', () => {

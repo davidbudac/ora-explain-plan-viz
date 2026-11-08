@@ -1,0 +1,375 @@
+
+Session altered.
+
+
+
+
+Building the plan JSON for sql_id a1nvpc4f1kamw ...
+sql_id: a1nvpc4f1kamw   child: 0   source: CURSOR   plan lines: 77
+metadata: gathering for plan_hash_value 2030497504
+
+==== ORAPLANVIZ PLAN JSON BEGIN ====
+{"version":2,
+"exportedAt":"2026-11-08T07:59:27Z",
+"planSource":"dbms_xplan",
+"sqlId":"a1nvpc4f1kamw",
+"planHashValue":"2030497504",
+"metadata":{"description":"plan_to_json.sql, source CURSOR, child 0"},
+"annotations":{"nodeAnnotations":{},"nodeHighlights":{},"groups":[]},
+"rawPlanText":"SQL_ID  a1nvpc4f1kamw, child number 0\n
+-------------------------------------\n
+select /*+ gather_plan_statistics pj_test_1 */ s.snap_id, sum(t.value) \n
+from capdemo.cap_fixture_time_model t join capdemo.cap_fixture_snapshot \n
+s   on s.dbid = t.dbid and s.snap_id = t.snap_id and s.instance_number \n
+= t.instance_number where t.stat_name = 'DB time' group by s.snap_id\n
+ \n
+Plan hash value: 2030497504\n
+ \n
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n
+| Id  | Operation           | Name                   | Starts | E-Rows |E-Bytes| Cost (%CPU)| E-Time   | A-Rows |   A-Time   | Buffers | Reads  |  OMem |  1Mem | Used-Mem |\n
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n
+|   0 | SELECT STATEMENT    |                        |      1 |        |       |    79 (100)|          |   3619 |00:00:00.02 |     233 |    229 |       |       |          |\n
+|   1 |  HASH GROUP BY      |                        |      1 |   3619 |   176K|    79   (3)| 00:00:01 |   3619 |00:00:00.02 |     233 |    229 |  1173K|  1173K| 1551K (0)|\n
+|*  2 |   HASH JOIN         |                        |      1 |   7238 |   353K|    77   (0)| 00:00:01 |   7238 |00:00:00.01 |     233 |    229 |  1572K|  1572K| 1714K (0)|\n
+|   3 |    TABLE ACCESS FULL| CAP_FIXTURE_SNAPSHOT   |      1 |   3619 | 54285 |     9   (0)| 00:00:01 |   3619 |00:00:00.01 |      30 |     29 |       |       |          |\n
+|*  4 |    TABLE ACCESS FULL| CAP_FIXTURE_TIME_MODEL |      1 |   7238 |   247K|    68   (0)| 00:00:01 |   7238 |00:00:00.01 |     203 |    200 |       |       |          |\n
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n
+ \n
+Query Block Name / Object Alias (identified by operation id):\n
+-------------------------------------------------------------\n
+ \n
+   1 - SEL$58A6D7F6\n
+   3 - SEL$58A6D7F6 / S@SEL$1\n
+   4 - SEL$58A6D7F6 / T@SEL$1\n
+ \n
+Outline Data\n
+-------------\n
+ \n
+  /*+\n
+      BEGIN_OUTLINE_DATA\n
+      IGNORE_OPTIM_EMBEDDED_HINTS\n
+      OPTIMIZER_FEATURES_ENABLE('19.1.0')\n
+      DB_VERSION('19.1.0')\n
+      ALL_ROWS\n
+      OUTLINE_LEAF(@\"SEL$58A6D7F6\")\n
+      MERGE(@\"SEL$1\" >\"SEL$2\")\n
+      OUTLINE(@\"SEL$2\")\n
+      OUTLINE(@\"SEL$1\")\n
+      FULL(@\"SEL$58A6D7F6\" \"S\"@\"SEL$1\")\n
+      FULL(@\"SEL$58A6D7F6\" \"T\"@\"SEL$1\")\n
+      LEADING(@\"SEL$58A6D7F6\" \"S\"@\"SEL$1\" \"T\"@\"SEL$1\")\n
+      USE_HASH(@\"SEL$58A6D7F6\" \"T\"@\"SEL$1\")\n
+      USE_HASH_AGGREGATION(@\"SEL$58A6D7F6\")\n
+      END_OUTLINE_DATA\n
+  */\n
+ \n
+Predicate Information (identified by operation id):\n
+---------------------------------------------------\n
+ \n
+   2 - access(\"S\".\"DBID\"=\"T\".\"DBID\" AND \"S\".\"SNAP_ID\"=\"T\".\"SNAP_ID\" AND \"S\".\"INSTANCE_NUMBER\"=\"T\".\"INSTANCE_NUMBER\")\n
+   4 - filter(\"T\".\"STAT_NAME\"='DB time')\n
+ \n
+Column Projection Information (identified by operation id):\n
+-----------------------------------------------------------\n
+ \n
+   1 - (rowset=256) \"S\".\"SNAP_ID\"[NUMBER,22], SUM(\"T\".\"VALUE\")[22]\n
+   2 - (#keys=3; rowset=256) \"S\".\"SNAP_ID\"[NUMBER,22], \"T\".\"VALUE\"[NUMBER,22]\n
+   3 - (rowset=256) \"S\".\"DBID\"[NUMBER,22], \"S\".\"INSTANCE_NUMBER\"[NUMBER,22], \"S\".\"SNAP_ID\"[NUMBER,22]\n
+   4 - (rowset=256) \"T\".\"DBID\"[NUMBER,22], \"T\".\"INSTANCE_NUMBER\"[NUMBER,22], \"T\".\"SNAP_ID\"[NUMBER,22], \"T\".\"VALUE\"[NUMBER,22]\n
+ \n
+Hint Report (identified by operation id / Query Block Name / Object Alias):\n
+Total hints for statement: 1 (E - Syntax error (1))\n
+---------------------------------------------------------------------------\n
+ \n
+   0 -  SEL$2\n
+         E -  pj_test_1\n
+ \n
+Query Block Registry:\n
+---------------------\n
+ \n
+  <q o=\"2\"><n><![CDATA[SEL$1]]></n><f><h><t><![CDATA[S]]></t><s><![CDATA[SEL$1]]></s></h><h><t><![CDATA[T]]></t><s><![CDATA[SEL$1]]></s></h></f></q>\n
+  <q o=\"18\" f=\"y\" h=\"y\"><n><![CDATA[SEL$58A6D7F6]]></n><p><![CDATA[SEL$2]]></p><i><o><t>VW</t><v><![CDATA[SEL$1]]></v></o></i><f><h><t><![CDATA[S]]></t><s><![CDATA[SE\n
+        L$1]]></s></h><h><t><![CDATA[T]]></t><s><![CDATA[SEL$1]]></s></h></f></q>\n
+  <q o=\"2\"><n><![CDATA[SEL$2]]></n><f><h><t><![CDATA[from$_subquery$_003]]></t><s><![CDATA[SEL$2]]></s></h></f></q>\n
+ \n
+ \n"
+,"metadataBundle":
+{"format":"ora-plan-metadata",
+"version":3,
+"captured_at":"2026-11-08T07:59:27.859Z",
+"source":{"db_name":"CDB1",
+"oracle_version":"19.27.0.0.0",
+"container_name":"PDB1"},
+"plan_ref":{"sql_id":"a1nvpc4f1kamw",
+"plan_hash_value":2030497504},
+"objects":{"CAPDEMO.CAP_FIXTURE_SNAPSHOT":{"type":"TABLE",
+"stats":{"num_rows":3619,
+"blocks":28,
+"avg_row_len":55,
+"last_analyzed":"2026-10-17T13:00:21Z",
+"stale_stats":"NO",
+"partitioned":false},
+"physical":{"compression":"DISABLED",
+"compress_for":null,
+"degree":"1",
+"temporary":false,
+"cluster_name":null,
+"iot_type":null,
+"cache":false},
+"segment":{"bytes":262144,
+"extents":4},
+"columns":{"DBID":{"data_type":"NUMBER",
+"nullable":true,
+"num_distinct":1,
+"num_nulls":0,
+"low_value":"3141592653",
+"high_value":"3141592653",
+"density":0.000138159712627798,
+"histogram":{"type":"FREQUENCY",
+"buckets":1,
+"endpoints":[{"value":"3141592653",
+"endpoint_number":3619}]}},
+"CON_DBID":{"data_type":"NUMBER",
+"nullable":true,
+"num_distinct":1,
+"num_nulls":0,
+"low_value":"3141592653",
+"high_value":"3141592653",
+"density":1,
+"histogram":{"type":"NONE",
+"buckets":1}},
+"INSTANCE_NUMBER":{"data_type":"NUMBER",
+"nullable":true,
+"num_distinct":1,
+"num_nulls":0,
+"low_value":"1",
+"high_value":"1",
+"density":0.000138159712627798,
+"histogram":{"type":"FREQUENCY",
+"buckets":1,
+"endpoints":[{"value":"1",
+"endpoint_number":3619}]}},
+"SNAP_ID":{"data_type":"NUMBER",
+"nullable":true,
+"num_distinct":3619,
+"num_nulls":0,
+"low_value":"50000",
+"high_value":"53623",
+"density":0.000276319425255595,
+"histogram":{"type":"NONE",
+"buckets":1}},
+"BEGIN_INTERVAL_TIME":{"data_type":"TIMESTAMP(6)",
+"nullable":true,
+"num_distinct":3619,
+"num_nulls":0,
+"low_value":"2026-05-19T23:00:00",
+"high_value":"2026-10-17T22:00:00",
+"density":0.000276319425255595,
+"histogram":{"type":"NONE",
+"buckets":1}},
+"END_INTERVAL_TIME":{"data_type":"TIMESTAMP(6)",
+"nullable":true,
+"num_distinct":3619,
+"num_nulls":0,
+"low_value":"2026-05-20T00:00:00",
+"high_value":"2026-10-17T23:00:00",
+"density":0.000276319425255595,
+"histogram":{"type":"NONE",
+"buckets":1}},
+"STARTUP_TIME":{"data_type":"TIMESTAMP(6)",
+"nullable":true,
+"num_distinct":2,
+"num_nulls":0,
+"low_value":"2026-04-10T00:00:00",
+"high_value":"2026-07-14T04:00:00",
+"density":0.5,
+"histogram":{"type":"NONE",
+"buckets":1}}},
+"constraints":{"primary_key":null,
+"unique":[],
+"foreign_keys":[],
+"checks":[]},
+"extended_stats":[],
+"indexes":[],
+"ddl":"\n  CREATE TABLE \"CAPDEMO\".\"CAP_FIXTURE_SNAPSHOT\" \n   (\t\"DBID\" NUMBER, \n\t\"CON_DBID\" NUMBER, \n\t\"INSTANCE_NUMBER\" NUMBER, \n\t\"SNAP_ID\" NUMBER, \n\t\"BEGIN_INTERVAL_TIME\" TIMESTAMP (6), \n\t\"END_INTERVAL_TIME\" TIMESTAMP (6), \n\t\"STARTUP_TIME\" TIMESTAMP (6)\n   ) ;"},
+"CAPDEMO.CAP_FIXTURE_TIME_MODEL":{"type":"TABLE",
+"stats":{"num_rows":21714,
+"blocks":244,
+"avg_row_len":41,
+"last_analyzed":"2026-10-18T01:04:50Z",
+"stale_stats":"NO",
+"partitioned":false},
+"physical":{"compression":"DISABLED",
+"compress_for":null,
+"degree":"1",
+"temporary":false,
+"cluster_name":null,
+"iot_type":null,
+"cache":false},
+"segment":{"bytes":2097152,
+"extents":17},
+"columns":{"DBID":{"data_type":"NUMBER",
+"nullable":true,
+"num_distinct":1,
+"num_nulls":0,
+"low_value":"3141592653",
+"high_value":"3141592653",
+"density":0.0000230266187712996,
+"histogram":{"type":"FREQUENCY",
+"buckets":1,
+"endpoints":[{"value":"3141592653",
+"endpoint_number":21714}]}},
+"CON_DBID":{"data_type":"NUMBER",
+"nullable":true,
+"num_distinct":2,
+"num_nulls":0,
+"low_value":"3141592653",
+"high_value":"3141592654",
+"density":0.0000230266187712996,
+"histogram":{"type":"FREQUENCY",
+"buckets":2,
+"endpoints":[{"value":"3141592653",
+"endpoint_number":10857},
+{"value":"3141592654",
+"endpoint_number":21714}]}},
+"INSTANCE_NUMBER":{"data_type":"NUMBER",
+"nullable":true,
+"num_distinct":1,
+"num_nulls":0,
+"low_value":"1",
+"high_value":"1",
+"density":0.0000230266187712996,
+"histogram":{"type":"FREQUENCY",
+"buckets":1,
+"endpoints":[{"value":"1",
+"endpoint_number":21714}]}},
+"SNAP_ID":{"data_type":"NUMBER",
+"nullable":true,
+"num_distinct":3619,
+"num_nulls":0,
+"low_value":"50000",
+"high_value":"53623",
+"density":0.000276319425255595,
+"histogram":{"type":"NONE",
+"buckets":1}},
+"STAT_NAME":{"data_type":"VARCHAR2",
+"nullable":true,
+"num_distinct":3,
+"num_nulls":0,
+"low_value":"DB CPU",
+"high_value":"background cpu time",
+"density":0.0000230266187712996,
+"histogram":{"type":"FREQUENCY",
+"buckets":3,
+"endpoints":[{"value":"DB CPU",
+"endpoint_number":7238},
+{"value":"DB time",
+"endpoint_number":14476},
+{"value":"background cpu time",
+"endpoint_number":21714}]}},
+"VALUE":{"data_type":"NUMBER",
+"nullable":true,
+"num_distinct":18476,
+"num_nulls":0,
+"low_value":"90000000",
+"high_value":"45314317740522",
+"density":0.0000541242693223641,
+"histogram":{"type":"NONE",
+"buckets":1}}},
+"constraints":{"primary_key":null,
+"unique":[],
+"foreign_keys":[],
+"checks":[]},
+"extended_stats":[],
+"indexes":[],
+"ddl":"\n  CREATE TABLE \"CAPDEMO\".\"CAP_FIXTURE_TIME_MODEL\" \n   (\t\"DBID\" NUMBER, \n\t\"CON_DBID\" NUMBER, \n\t\"INSTANCE_NUMBER\" NUMBER, \n\t\"SNAP_ID\" NUMBER, \n\t\"STAT_NAME\" VARCHAR2(64), \n\t\"VALUE\" NUMBER\n   ) ;"}},
+"coverage_warnings":[],
+"system_params":{"db_block_size":8192,
+"optimizer_features_enable":"19.1.0",
+"optimizer_index_cost_adj":100,
+"optimizer_index_caching":0},
+"optimizer_env":[],
+"sql_management":{"baselines":[],
+"profiles":[],
+"patches":[],
+"directives":[{"directive_id":"3400667397907325302",
+"type":"DYNAMIC_SAMPLING",
+"state":"USABLE",
+"reason":"GROUP BY CARDINALITY MISESTIMATE",
+"last_used":null,
+"objects":[{"owner":"CAPDEMO",
+"object_name":"CAP_FIXTURE_SNAPSHOT",
+"subobject_name":"DBID",
+"object_type":"COLUMN"},
+{"owner":"CAPDEMO",
+"object_name":"CAP_FIXTURE_SNAPSHOT",
+"subobject_name":"SNAP_ID",
+"object_type":"COLUMN"},
+{"owner":"CAPDEMO",
+"object_name":"CAP_FIXTURE_SNAPSHOT",
+"subobject_name":null,
+"object_type":"TABLE"}]},
+{"directive_id":"9210394856200115193",
+"type":"DYNAMIC_SAMPLING",
+"state":"USABLE",
+"reason":"JOIN CARDINALITY MISESTIMATE",
+"last_used":null,
+"objects":[{"owner":"CAPDEMO",
+"object_name":"CAP_FIXTURE_SNAPSHOT",
+"subobject_name":null,
+"object_type":"TABLE"},
+{"owner":"CAPDEMO",
+"object_name":"CAP_FIXTURE_TBSPC_USAGE",
+"subobject_name":null,
+"object_type":"TABLE"}]},
+{"directive_id":"13757864546141049929",
+"type":"DYNAMIC_SAMPLING",
+"state":"USABLE",
+"reason":"GROUP BY CARDINALITY MISESTIMATE",
+"last_used":null,
+"objects":[{"owner":"CAPDEMO",
+"object_name":"CAP_FIXTURE_RESOURCE_LIMIT",
+"subobject_name":"DBID",
+"object_type":"COLUMN"},
+{"owner":"CAPDEMO",
+"object_name":"CAP_FIXTURE_RESOURCE_LIMIT",
+"subobject_name":"CON_DBID",
+"object_type":"COLUMN"},
+{"owner":"CAPDEMO",
+"object_name":"CAP_FIXTURE_RESOURCE_LIMIT",
+"subobject_name":"INSTANCE_NUMBER",
+"object_type":"COLUMN"},
+{"owner":"CAPDEMO",
+"object_name":"CAP_FIXTURE_RESOURCE_LIMIT",
+"subobject_name":"RESOURCE_NAME",
+"object_type":"COLUMN"},
+{"owner":"CAPDEMO",
+"object_name":"CAP_FIXTURE_SNAPSHOT",
+"subobject_name":"END_INTERVAL_TIME",
+"object_type":"COLUMN"},
+{"owner":"CAPDEMO",
+"object_name":"CAP_FIXTURE_RESOURCE_LIMIT",
+"subobject_name":null,
+"object_type":"TABLE"},
+{"owner":"CAPDEMO",
+"object_name":"CAP_FIXTURE_SNAPSHOT",
+"subobject_name":null,
+"object_type":"TABLE"}]},
+{"directive_id":"2834765792713310884",
+"type":"DYNAMIC_SAMPLING",
+"state":"USABLE",
+"reason":"JOIN CARDINALITY MISESTIMATE",
+"last_used":null,
+"objects":[{"owner":"CAPDEMO",
+"object_name":"CAP_FIXTURE_RESOURCE_LIMIT",
+"subobject_name":null,
+"object_type":"TABLE"},
+{"owner":"CAPDEMO",
+"object_name":"CAP_FIXTURE_SNAPSHOT",
+"subobject_name":null,
+"object_type":"TABLE"}]}]}}
+}
+==== ORAPLANVIZ PLAN JSON END ====
+
+Copy everything between the two markers (or the whole output) and paste it
+into the visualizer's input box, or save it as a .json file and drop it on the app.
