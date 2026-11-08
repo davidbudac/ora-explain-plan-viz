@@ -3,6 +3,8 @@ import { usePlan } from '../hooks/usePlanContext';
 import { getOperationCategory, getMetricColor, getOperationTooltip } from '../lib/types';
 import { effectiveExecutions, formatBytes, formatEstimatedRows, formatNumberShort, formatTimeCompact, formatTimeDetailed } from '../lib/format';
 import type { PlanNode as PlanNodeType, NodeIndicatorMetric, PlanHint } from '../lib/types';
+import { analyzeHints, planHasHints, HINT_FAMILY_LABELS } from '../lib/hints';
+import type { HintMark } from '../lib/hints';
 import { HighlightText } from './HighlightText';
 import { FormattedPredicate } from './FormattedPredicate';
 import { AnnotationEditor, BulkHighlightPicker } from './AnnotationEditor';
@@ -397,6 +399,8 @@ export function NodeDetailBody() {
     metadataBundle, metadataBundleWarning,
   } = usePlan();
   const searchText = filters.searchText;
+  // Outline decisions placed on operations (lib/hints); null when the plan carries no hints.
+  const hintAnalysis = useMemo(() => (parsedPlan && planHasHints(parsedPlan) ? analyzeHints(parsedPlan) : null), [parsedPlan]);
   const [showGroupDialog, setShowGroupDialog] = useState(false);
   const isMultiSelection = selectedNodes.length > 1;
   const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : selectedPrimaryNode;
@@ -549,6 +553,7 @@ export function NodeDetailBody() {
   }
 
   const node = selectedNode!;
+  const outlineMarks: HintMark[] = hintAnalysis?.byNode.get(node.id)?.filter((m) => m.source === 'outline') ?? [];
   const nodeHighlight = annotations.nodeHighlights.get(node.id);
   const category = getOperationCategory(node.operation);
   const indicator = computeNodeDetailIndicator(node, parsedPlan, nodeIndicatorMetric);
@@ -758,12 +763,37 @@ export function NodeDetailBody() {
         </Accordion>
       )}
 
-      {/* Hint Report entries for this operation (DBMS_XPLAN ADVANCED) */}
-      {node.hints && node.hints.length > 0 && (
+      {/* Hint Report entries for this operation (DBMS_XPLAN ADVANCED) + the outline decisions that act on it */}
+      {((node.hints && node.hints.length > 0) || outlineMarks.length > 0) && (
         <Accordion
           title="Hints"
-          subtitle={node.hints.some((h) => h.status !== 'used') ? 'needs attention' : undefined}
+          subtitle={node.hints?.some((h) => h.status !== 'used') ? 'needs attention' : undefined}
         >
+          {outlineMarks.length > 0 && (
+            <div className={node.hints && node.hints.length > 0 ? 'mb-2.5' : ''}>
+              <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">Plan decisions here (outline)</div>
+              <ul className="space-y-1">
+                {outlineMarks.map((mark) => (
+                  <li key={mark.text} className="flex items-start gap-2 text-[11px]" data-testid="outline-decision">
+                    <span
+                      className={`shrink-0 px-1.5 py-0.5 rounded border text-[10px] font-medium ${mark.hinted ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}
+                      title={mark.hinted ? 'Your hint settled this decision' : 'The optimizer made this decision on its own'}
+                    >
+                      {mark.hinted ? 'yours' : 'optimizer'}
+                    </span>
+                    <div className="min-w-0">
+                      <code className="font-mono text-slate-800 dark:text-slate-200 break-all">{mark.text}</code>
+                      <div className="mt-0.5 text-slate-500 dark:text-slate-400 leading-snug">
+                        {HINT_FAMILY_LABELS[mark.family]}
+                        {mark.order?.has(node.id) ? ` · #${mark.order.get(node.id)} in join order` : ''}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {node.hints && node.hints.length > 0 && (
           <ul className="space-y-1.5">
             {node.hints.map((hint, idx) => (
               <li key={`${hint.text}-${idx}`} className="flex items-start gap-2 text-[11px]">
@@ -777,6 +807,7 @@ export function NodeDetailBody() {
               </li>
             ))}
           </ul>
+          )}
         </Accordion>
       )}
 

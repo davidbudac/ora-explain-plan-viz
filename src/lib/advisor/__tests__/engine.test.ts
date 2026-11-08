@@ -100,6 +100,7 @@ describe('runAdvisor', () => {
       'function-on-indexed-column': { metadata: true },
       'hash-join-build-side': {},
       'px-skew': {},
+      'hints': {},
     };
     const actual = Object.fromEntries(ALL_RULES.map((r) => [r.id, {
       ...(r.requiresActualStats ? { actualStats: true } : {}),

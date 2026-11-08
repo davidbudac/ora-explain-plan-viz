@@ -8,6 +8,7 @@ import { NodeDetailBody, NoSelectionBody } from './NodeDetailPanel';
 import { CustomizeViewMenu } from './CustomizeViewMenu';
 import { TreeLayoutControls } from './views/TreeLayoutControls';
 import { FOCUS_RING } from './ui';
+import { planHasHints } from '../lib/hints';
 
 const CONTROL_BASE = `min-h-8 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 ${FOCUS_RING}`;
 const CONTROL = `${CONTROL_BASE} px-2.5`;
@@ -109,6 +110,7 @@ export function ViewControls({ includeTreeLayout = true, labelled = false }: { i
   const {
     viewMode, parsedPlan, treeCompareEnabled, densitySelection, applyDensityPreset,
     nodeIndicatorMetric, setNodeIndicatorMetric, sankeyMetric, setSankeyMetric, flameMetric, setFlameMetric, experimentalSubView,
+    hintLens, setHintLens,
   } = usePlan();
   const densityId = useId();
   if (!parsedPlan) return null;
@@ -152,6 +154,17 @@ export function ViewControls({ includeTreeLayout = true, labelled = false }: { i
             onChange={setNodeIndicatorMetric}
             labelled={labelled}
           />
+        )}
+        {planHasHints(parsedPlan) && (
+          <button
+            type="button"
+            className={`${CONTROL} ${hintLens ? 'bg-slate-200/90 dark:bg-slate-600/80 text-slate-900 dark:text-white' : ''}`}
+            aria-pressed={hintLens}
+            title="Hints lens — pin every operation a hint acts on (yours and the optimizer's outline) and dim the rest"
+            onClick={() => setHintLens(!hintLens)}
+          >
+            Hints
+          </button>
         )}
         {includeTreeLayout && !treeCompareEnabled && <TreeLayoutStrip />}
       </>

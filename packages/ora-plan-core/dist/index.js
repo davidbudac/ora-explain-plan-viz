@@ -8,3 +8,4 @@ export * from "./parser/index.js";
 export { buildPlanFromRows } from "./parser/jsonPlanParser.js";
 export * from "./advisor/index.js";
 export * from "./metadata/bundle.js";
+export * from "./hints.js";

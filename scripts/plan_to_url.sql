@@ -19,6 +19,12 @@
 --   SQL> @plan_to_url.sql <sql_id> "" AWR
 --   SQL> @plan_to_url.sql <sql_id> "" AWR <plan_hash_value>
 --
+--   URL only, straight to the clipboard (QUIET goes after any other
+--   argument; the script then EXITs SQL*Plus, so run it from the shell):
+--
+--   $ sqlplus -s user@db @plan_to_url.sql <sql_id> QUIET | pbcopy
+--   $ sqlplus -s user@db @plan_to_url.sql <sql_id> "" AWR QUIET | pbcopy
+--
 --   Arguments:
 --     1. sql_id        Required. The V$SQL.SQL_ID of the statement.
 --     2. child_number   Optional, default 0. Only used when source=CURSOR;
@@ -46,6 +52,14 @@
 --                        AWR holds more than one plan for the sql_id, lists
 --                        them all (with executions and average elapsed time)
 --                        so you can re-run with the one you want.
+--     QUIET             Optional, last argument. Prints the URL and nothing
+--                        else (no progress line, summary, notes or listings),
+--                        then EXITs SQL*Plus - exit code 0 on success, 1 on
+--                        failure, when the one line printed is the error.
+--                        A URL over 32767 chars still comes out as several
+--                        1000-char lines (no markers); Chrome's address bar
+--                        drops the line breaks on paste, or pipe through
+--                        tr -d '\n' first.
 --
 -- Privileges needed:
 --   CURSOR (default): read access to V$SQL_PLAN / V$SQL_PLAN_STATISTICS_ALL,
@@ -90,21 +104,48 @@ SET TERMOUT ON
 SET VERIFY OFF
 
 -- Positional arguments: sql_id (required), child_number, source and
--- sql_exec_id (all optional). Default args 2-4 via the zero-row NEW_VALUE
--- idiom so SQL*Plus never prompts for them when omitted.
+-- sql_exec_id (all optional), plus a trailing QUIET flag. Default args 2-5
+-- via the zero-row NEW_VALUE idiom so SQL*Plus never prompts for them when
+-- omitted.
 SET TERMOUT OFF
 COLUMN 2 NEW_VALUE 2 NOPRINT
 COLUMN 3 NEW_VALUE 3 NOPRINT
 COLUMN 4 NEW_VALUE 4 NOPRINT
-SELECT NULL "2", NULL "3", NULL "4" FROM dual WHERE 1 = 2;
+COLUMN 5 NEW_VALUE 5 NOPRINT
+SELECT NULL "2", NULL "3", NULL "4", NULL "5" FROM dual WHERE 1 = 2;
+
+-- QUIET may sit in any of positions 2-5 (it goes after whatever arguments
+-- are given); blank it out wherever it is so the positional parsing below
+-- never sees it. A substitution variable can't be a command name, so
+-- QUIET switches behaviour through command arguments instead: TERMOUT for
+-- the progress line, WHENEVER SQLERROR for the exit at the end.
+COLUMN quiet     NEW_VALUE quiet     NOPRINT
+COLUMN termout   NEW_VALUE termout   NOPRINT
+COLUMN on_error  NEW_VALUE on_error  NOPRINT
+COLUMN a2 NEW_VALUE arg2 NOPRINT
+COLUMN a3 NEW_VALUE arg3 NOPRINT
+COLUMN a4 NEW_VALUE arg4 NOPRINT
+COLUMN a5 NEW_VALUE arg5 NOPRINT
+SELECT q quiet,
+       DECODE(q, 'Y', 'OFF', 'ON')                      termout,
+       DECODE(q, 'Y', 'EXIT :plan_to_url_rc', 'CONTINUE') on_error,
+       DECODE(UPPER(TRIM('&2')), 'QUIET', NULL, '&2')   a2,
+       DECODE(UPPER(TRIM('&3')), 'QUIET', NULL, '&3')   a3,
+       DECODE(UPPER(TRIM('&4')), 'QUIET', NULL, '&4')   a4,
+       DECODE(UPPER(TRIM('&5')), 'QUIET', NULL, '&5')   a5
+  FROM (SELECT CASE WHEN 'QUIET' IN (UPPER(TRIM('&2')), UPPER(TRIM('&3')),
+                                     UPPER(TRIM('&4')), UPPER(TRIM('&5')))
+                    THEN 'Y' ELSE 'N' END q
+          FROM dual);
 SET TERMOUT ON
 
 DEFINE arg1 = "&1"
-DEFINE arg2 = "&2"
-DEFINE arg3 = "&3"
-DEFINE arg4 = "&4"
 
+VARIABLE plan_to_url_rc NUMBER
+
+SET TERMOUT &termout
 PROMPT Building a share URL for sql_id &arg1 ...
+SET TERMOUT ON
 
 DECLARE
   -- Parsed/defaulted arguments
@@ -116,6 +157,7 @@ DECLARE
   g_phv       NUMBER;               -- AWR only: plan_hash_value to report
   g_phv_note  VARCHAR2(64);         -- what the summary line reports for it
   g_base_url  VARCHAR2(4000) := '&base_url';
+  g_quiet     BOOLEAN := '&quiet' = 'Y';  -- QUIET: print the URL only
 
   -- Friendly-abort plumbing: raised whenever we want to stop and print a
   -- one-line, non-technical explanation instead of an unhandled error.
@@ -141,6 +183,17 @@ DECLARE
   -- non-temporary locator makes ISTEMPORARY return 0/NULL, so we simply
   -- skip it) - wrapped per-LOB so one failure doesn't skip the rest.
   ------------------------------------------------------------------------
+  ------------------------------------------------------------------------
+  -- Everything except the URL and error messages goes through say(), so
+  -- QUIET mode prints the URL alone.
+  ------------------------------------------------------------------------
+  PROCEDURE say(p_text IN VARCHAR2) IS
+  BEGIN
+    IF NOT g_quiet THEN
+      DBMS_OUTPUT.PUT_LINE(p_text);
+    END IF;
+  END say;
+
   PROCEDURE cleanup_lobs IS
   BEGIN
     BEGIN
@@ -240,25 +293,33 @@ DECLARE
     l_off    INTEGER := 1;
     l_amt    INTEGER;
   BEGIN
-    DBMS_OUTPUT.PUT_LINE(' ');
+    say(' ');
     IF l_total <= 32767 THEN
       DBMS_OUTPUT.PUT_LINE(DBMS_LOB.SUBSTR(p_url, l_total, 1));
     ELSE
-      DBMS_OUTPUT.PUT_LINE('----8<---- join every line below into one URL, no spaces ----8<----');
+      say('----8<---- join every line below into one URL, no spaces ----8<----');
       WHILE l_off <= l_total LOOP
         l_amt := LEAST(1000, l_total - l_off + 1);
         DBMS_OUTPUT.PUT_LINE(DBMS_LOB.SUBSTR(p_url, l_amt, l_off));
         l_off := l_off + l_amt;
       END LOOP;
-      DBMS_OUTPUT.PUT_LINE('----8<---- end - join the lines above, in order, with nothing between them ----8<----');
+      say('----8<---- end - join the lines above, in order, with nothing between them ----8<----');
     END IF;
-    DBMS_OUTPUT.PUT_LINE(' ');
+    say(' ');
   END print_url;
 
 BEGIN
   ----------------------------------------------------------------------
   -- Parse and validate arguments
   ----------------------------------------------------------------------
+  :plan_to_url_rc := 0;
+
+  IF TRIM('&arg5') IS NOT NULL THEN
+    l_abort_msg := 'Unexpected fifth argument "&arg5" - the only thing allowed after '
+      || 'the fourth argument is QUIET.';
+    RAISE e_friendly_abort;
+  END IF;
+
   g_sql_id := TRIM('&arg1');
   IF g_sql_id IS NULL THEN
     l_abort_msg := 'Missing required sql_id argument. Usage: @plan_to_url.sql <sql_id> [<child_no>] [CURSOR|MONITOR|AWR] [<sql_exec_id>|<plan_hash_value>]';
@@ -393,21 +454,21 @@ BEGIN
               l_first_row := l_row;
             ELSE
               IF l_rows = 2 THEN
-                DBMS_OUTPUT.PUT_LINE(' ');
-                DBMS_OUTPUT.PUT_LINE('Multiple monitored executions found for sql_id=' || g_sql_id
+                say(' ');
+                say('Multiple monitored executions found for sql_id=' || g_sql_id
                   || ' (most recently active first, * = the one this report uses):');
-                DBMS_OUTPUT.PUT_LINE('  ' || RPAD('sql_exec_id', 13) || RPAD('started', 21)
+                say('  ' || RPAD('sql_exec_id', 13) || RPAD('started', 21)
                   || RPAD('status', 18) || RPAD('plan_hash', 12) || RPAD('elapsed_s', 11) || 'user');
-                DBMS_OUTPUT.PUT_LINE('* ' || l_first_row);
+                say('* ' || l_first_row);
               END IF;
-              DBMS_OUTPUT.PUT_LINE('  ' || l_row);
+              say('  ' || l_row);
             END IF;
           END LOOP;
           CLOSE l_cur;
           IF l_rows > 1 THEN
-            DBMS_OUTPUT.PUT_LINE('To share a different execution, re-run with its sql_exec_id:');
-            DBMS_OUTPUT.PUT_LINE('  @plan_to_url.sql ' || g_sql_id || ' "" MONITOR <sql_exec_id>');
-            DBMS_OUTPUT.PUT_LINE(' ');
+            say('To share a different execution, re-run with its sql_exec_id:');
+            say('  @plan_to_url.sql ' || g_sql_id || ' "" MONITOR <sql_exec_id>');
+            say(' ');
           END IF;
         EXCEPTION
           WHEN OTHERS THEN
@@ -569,14 +630,14 @@ BEGIN
           l_first_row := l_row;
         ELSE
           IF l_rows = 2 THEN
-            DBMS_OUTPUT.PUT_LINE(' ');
-            DBMS_OUTPUT.PUT_LINE('AWR holds more than one plan for sql_id=' || g_sql_id
+            say(' ');
+            say('AWR holds more than one plan for sql_id=' || g_sql_id
               || ' (most recently seen first, * = the one this run uses):');
-            DBMS_OUTPUT.PUT_LINE('  ' || RPAD('plan_hash_value', 17) || RPAD('last seen', 18)
+            say('  ' || RPAD('plan_hash_value', 17) || RPAD('last seen', 18)
               || RPAD('executions', 12) || RPAD('avg elapsed_s', 15) || 'awr');
-            DBMS_OUTPUT.PUT_LINE('* ' || l_first_row);
+            say('* ' || l_first_row);
           END IF;
-          DBMS_OUTPUT.PUT_LINE('  ' || l_row);
+          say('  ' || l_row);
         END IF;
       END LOOP;
       CLOSE l_cur;
@@ -597,9 +658,9 @@ BEGIN
       END IF;
 
       IF l_rows > 1 THEN
-        DBMS_OUTPUT.PUT_LINE('To share a different plan, re-run with its plan_hash_value:');
-        DBMS_OUTPUT.PUT_LINE('  @plan_to_url.sql ' || g_sql_id || ' "" AWR <plan_hash_value>');
-        DBMS_OUTPUT.PUT_LINE(' ');
+        say('To share a different plan, re-run with its plan_hash_value:');
+        say('  @plan_to_url.sql ' || g_sql_id || ' "" AWR <plan_hash_value>');
+        say(' ');
         g_phv_note := TO_CHAR(g_phv) || ' (latest)';
       ELSE
         g_phv_note := TO_CHAR(g_phv);
@@ -712,51 +773,70 @@ BEGIN
 
   print_url(l_url);
 
-  DBMS_OUTPUT.PUT_LINE('sql_id: ' || g_sql_id
+  say('sql_id: ' || g_sql_id
     || CASE
          WHEN g_source = 'MONITOR' THEN '   sql_exec_id: ' || NVL(g_exec_note, '(latest)')
          WHEN g_source = 'AWR' THEN '   plan_hash_value: ' || g_phv_note
          ELSE '   child: ' || g_child
        END
     || '   source: ' || g_source);
-  DBMS_OUTPUT.PUT_LINE('plan lines: ' || l_line_count);
-  DBMS_OUTPUT.PUT_LINE('raw bytes: ' || l_raw_bytes
+  say('plan lines: ' || l_line_count);
+  say('raw bytes: ' || l_raw_bytes
     || '   gzip bytes: ' || l_gzip_bytes
     || '   ratio: ' || NVL(TO_CHAR(l_ratio), '?') || 'x');
-  DBMS_OUTPUT.PUT_LINE('URL length: ' || l_url_len || ' chars');
+  say('URL length: ' || l_url_len || ' chars');
 
   IF l_url_len > 32767 THEN
-    DBMS_OUTPUT.PUT_LINE('Note: the URL is longer than one terminal line, so it was printed '
-      || 'above as numbered chunks between "----8<----" markers - join them in order, with '
-      || 'nothing in between, before pasting into a browser.');
+    say('Note: the URL is longer than one terminal line, so it was printed '
+      || 'above as 1000-char lines between "----8<----" markers. Chrome needs no extra step: '
+      || 'copy all the lines between the markers and paste them into the address bar - it '
+      || 'drops the line breaks itself. Other browsers may need the lines joined in order, '
+      || 'with nothing in between, first.');
   ELSIF l_url_len > 2000 THEN
-    DBMS_OUTPUT.PUT_LINE('Note: this URL is long (' || l_url_len || ' chars) and may get cut off '
+    say('Note: this URL is long (' || l_url_len || ' chars) and may get cut off '
       || 'if pasted as plain text into some chat or email clients. Clicking the link, or '
       || 'copying the whole line, works fine.');
   END IF;
 
   IF g_source = 'MONITOR' THEN
-    DBMS_OUTPUT.PUT_LINE('Reminder: SQL Monitor requires an active Oracle Diagnostics and Tuning Pack license.');
+    say('Reminder: SQL Monitor requires an active Oracle Diagnostics and Tuning Pack license.');
   ELSIF g_source = 'AWR' THEN
-    DBMS_OUTPUT.PUT_LINE('Note: AWR keeps optimizer estimates only - the plan has no A-Rows, A-Time or Starts.');
-    DBMS_OUTPUT.PUT_LINE('Reminder: AWR requires an active Oracle Diagnostics Pack license.');
+    say('Note: AWR keeps optimizer estimates only - the plan has no A-Rows, A-Time or Starts.');
+    say('Reminder: AWR requires an active Oracle Diagnostics Pack license.');
   END IF;
 
   cleanup_lobs;
 EXCEPTION
   WHEN e_friendly_abort THEN
-    DBMS_OUTPUT.PUT_LINE(' ');
+    :plan_to_url_rc := 1;
+    say(' ');
     DBMS_OUTPUT.PUT_LINE('plan_to_url.sql: ' || l_abort_msg);
-    DBMS_OUTPUT.PUT_LINE(' ');
+    say(' ');
     cleanup_lobs;
   WHEN OTHERS THEN
-    DBMS_OUTPUT.PUT_LINE(' ');
+    :plan_to_url_rc := 1;
+    say(' ');
     DBMS_OUTPUT.PUT_LINE('plan_to_url.sql failed: ' || SQLERRM);
-    DBMS_OUTPUT.PUT_LINE('If this looks like a privilege issue, see the privileges note in the header comment.');
-    DBMS_OUTPUT.PUT_LINE(' ');
+    say('If this looks like a privilege issue, see the privileges note in the header comment.');
+    say(' ');
     cleanup_lobs;
 END;
 /
+
+-- QUIET: leave SQL*Plus so `sqlplus -s ... | pbcopy` doesn't sit waiting
+-- for input (exit code 1 when the block reported an error): a deliberate,
+-- silenced error trips WHENEVER SQLERROR EXIT. Without QUIET the block is a
+-- no-op and on_error is CONTINUE (the SQL*Plus default).
+WHENEVER SQLERROR &on_error
+SET TERMOUT OFF
+BEGIN
+  IF '&quiet' = 'Y' THEN
+    RAISE_APPLICATION_ERROR(-20000, 'plan_to_url.sql QUIET exit');
+  END IF;
+END;
+/
+SET TERMOUT ON
+WHENEVER SQLERROR CONTINUE
 
 -- Restore SQL*Plus factory defaults for the settings this script changed.
 SET HEADING ON
@@ -769,7 +849,12 @@ UNDEFINE arg1
 UNDEFINE arg2
 UNDEFINE arg3
 UNDEFINE arg4
+UNDEFINE arg5
+UNDEFINE quiet
+UNDEFINE termout
+UNDEFINE on_error
 UNDEFINE 1
 UNDEFINE 2
 UNDEFINE 3
 UNDEFINE 4
+UNDEFINE 5

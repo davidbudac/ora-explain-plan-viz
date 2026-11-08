@@ -8,3 +8,4 @@ export * from './parser/index.ts';
 export { buildPlanFromRows } from './parser/jsonPlanParser.ts';
 export * from './advisor/index.ts';
 export * from './metadata/bundle.ts';
+export * from './hints.ts';

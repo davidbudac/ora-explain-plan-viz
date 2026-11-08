@@ -401,6 +401,7 @@ server {
 EXPLAIN PLAN FOR &lt;your statement&gt;;
 SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY(NULL, NULL, 'ALL'));</code></pre>
       <p><code>ALLSTATS LAST</code> includes A-Rows, Starts and Buffers only if the statement ran with <code>STATISTICS_LEVEL=ALL</code> or the <code>/*+ GATHER_PLAN_STATISTICS */</code> hint. The "Note" section (dynamic sampling, adaptive plans, SQL profiles, baselines…) is parsed and shown as tags.</p>
+      <p>To see what your hints did, use <code>'ADVANCED ALLSTATS LAST'</code> (or add <code>+HINT_REPORT</code> to any format): 19c prints a <strong>Hint Report</strong> with every hint, marked used, unused (with Oracle's reason) or syntax error, and the <strong>Outline Data</strong>, the complete plan written as hints. The app turns both into the <a href="#hints">hints lens</a>, the SQL tab's hint markup and the Compare tab's decision diff.</p>
 
       <h3>SQL Monitor (text and XML)</h3>
       <p>Available for monitored statements: anything that ran longer than 5 seconds, ran in parallel, or carried the <code>/*+ MONITOR */</code> hint. Requires the Diagnostics and Tuning Pack license.</p>
@@ -500,6 +501,8 @@ SPOOL OFF</code></pre>
         <em>zoom to subtree</em>, and <em>copy operation details</em> as plain text. It is never included in PNG exports; with annotation overlays hidden only zoom and copy remain.
       </p>
 
+      <p id="hints"><strong>Hints lens.</strong> When the plan carries a Hint Report or an outline, a <em>Hints</em> toggle appears in the tree toolbar (also in the command palette). It pins every operation a hint acts on and dims the rest: your own hints coloured by status (green used, amber not used, red syntax error) and the optimizer's outline decisions in grey, with join hints placed on the join they decided and <code>LEADING</code> numbering the tables in join order. The pin's tooltip lists each hint with Oracle's reason; the details panel shows the same under <em>Hints</em>, with each outline decision marked <em>yours</em> or <em>optimizer</em>. On the SQL tab, the <em>Hints lens</em> button toggles the same colouring on the hints in the statement text; click a hint to select the operation Oracle reported it on.</p>
+
       <h3>Tabular</h3>
       <p>A sortable, resizable table with every parsed column. Column widths persist. The hottest node is highlighted, and clicking a row selects it in every other view. The toolbar can expand or collapse all subtrees, show predicates in full (<em>wrap predicates</em>), hide rows that don't match the active filters instead of dimming them, and <em>Copy as TSV</em> the visible rows in their current order.</p>
 
@@ -516,6 +519,7 @@ SPOOL OFF</code></pre>
 
       <h3>SQL</h3>
       <p>The full SQL statement with syntax highlighting and a copy button. Available when the input carries the SQL text (SQL Monitor XML, some JSON exports, metadata bundles).</p>
+      <p>With a 19c Hint Report, each hint in the <code>/*+ … */</code> comment is marked used, not used or syntax error (hover for Oracle's reason) and clicking it selects the operation Oracle reported it on. Below the statement, <em>Plan decisions</em> lists every decision in the outline (access path, join method, join order, transformations) and credits the ones your hints settled, so "3 of 5 decisions hinted" answers how much of the plan the hints pinned. In DB-connector builds, <em>Explain without hints</em> runs <code>EXPLAIN PLAN</code> for the statement with its hint comments removed on the test connection and loads the result as the second plan, so the Compare tab shows what the hints changed (indicative: EXPLAIN PLAN peeks no binds).</p>
 
       <h3>Metadata</h3>
       <p>The Schema Metadata explorer: tables, indexes and columns referenced by the plan, with per-object detail and a bundle overview. It can pop out into its own window. See <a href="#metadata">Schema metadata</a>.</p>
@@ -563,7 +567,7 @@ SPOOL OFF</code></pre>
       </p>
 
       <h3>Plan advisor</h3>
-      <p>A heuristic rules engine surfaces findings per node (badge on the card, section in the detail panel) and as a ranked list in the Findings panel. Ten rules:</p>
+      <p>A heuristic rules engine surfaces findings per node (badge on the card, section in the detail panel) and as a ranked list in the Findings panel. Among the rules:</p>
       <div class="cards">
         <div class="card"><h4>Cardinality mismatch</h4><p>Large E-Rows / A-Rows divergence, with the likely cause when metadata is attached.</p></div>
         <div class="card"><h4>Implicit conversion</h4><p><code>TO_NUMBER</code>/<code>INTERNAL_FUNCTION</code> wrapped around a column in a predicate, defeating indexes.</p></div>
@@ -575,6 +579,7 @@ SPOOL OFF</code></pre>
         <div class="card"><h4>Spill to disk</h4><p>Sorts, hash joins or group-bys that used temp space.</p></div>
         <div class="card"><h4>Stats issues</h4><p>Dynamic sampling, missing or stale statistics (from the Note section or a metadata bundle).</p></div>
         <div class="card"><h4>Unused index</h4><p>An index on the filtered column exists in the metadata bundle but the plan does a full scan.</p></div>
+        <div class="card"><h4>Hints</h4><p>From the 19c Hint Report: hints with syntax errors, hints the optimizer did not use (with its reason), and embedded hints overridden by a SQL plan baseline, profile or patch.</p></div>
       </div>
       <p>Each finding has a severity, an explanation, and an optional suggestion. Suggestion hints are off by default and can be enabled in the Findings panel.</p>
 
@@ -611,7 +616,7 @@ SPOOL OFF</code></pre>
         <li>Load the first plan as usual.</li>
         <li>Click <strong>+</strong> next to the Plan A tab in the top bar to add Plan B, and load the second plan into it. Each plan tab keeps its own input, selection and error state.</li>
         <li>The <strong>Tree</strong> and <strong>Tabular</strong> tabs now render both plans side by side in dual panes, with an accent on the active plan. Use <em>Split compare</em> in the command palette to toggle this.</li>
-        <li>Open the <strong>Compare</strong> tab for the delta dashboard.</li>
+        <li>Open the <strong>Compare</strong> tab for the delta dashboard. When both plans carry an outline (DBMS_XPLAN <code>ADVANCED</code> / <code>+OUTLINE</code>, SQL Monitor XML), a <strong>Plan decisions</strong> section diffs them as optimizer decisions: which alias changed access path, which join changed method, where the join order or a transformation differs. That is the shortest answer to "what did the hint (or the index, or the upgrade) change".</li>
       </ol>
       <h3>How nodes are matched</h3>
       <p>A three-pass matcher lines up equivalent steps:</p>
@@ -663,6 +668,8 @@ SPOOL OFF</code></pre>
 SQL&gt; @plan_to_url.sql an05rsj1up1k5 1           -- specific child cursor
 SQL&gt; @plan_to_url.sql an05rsj1up1k5 "" MONITOR  -- SQL Monitor TEXT report (Tuning Pack)
 SQL&gt; @plan_to_url.sql an05rsj1up1k5 "" AWR      -- from AWR once the cursor aged out (Diagnostics Pack)</code></pre>
+      <p>Add <code>QUIET</code> after the other arguments to print the URL alone and exit SQL*Plus, so it can go straight to the clipboard from the shell:</p>
+<pre><code>$ sqlplus -s user@db @plan_to_url.sql an05rsj1up1k5 QUIET | pbcopy</code></pre>
       <p>
         The <code>AWR</code> source gives optimizer estimates only (AWR keeps no A-Rows or A-Time). When AWR holds several
         plans for the statement, the script uses the one seen most recently and lists the others; pass a plan hash value as
