@@ -26,5 +26,5 @@ Everything else is pure.
 `advisor/`, `metadata/`); the app's `src/lib/...` files are one-line re-exports. Sibling imports carry explicit `.ts`
 extensions so `tsc` can emit Node-compatible ESM.
 
-`npm run build:core` (repo root) compiles to `dist/` (ESM JS + `.d.ts`), which is committed. Test:
+`npm run build:core` (repo root) compiles to `dist/` (ESM JS + `.d.ts`), which is not committed (`npm test` at the root builds it first). Test:
 `npx vitest run packages`.

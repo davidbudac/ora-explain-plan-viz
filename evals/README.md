@@ -1,7 +1,6 @@
 # Evaluation & backtesting harness
 
-Backtests for the AI test-case builder and analysis features (plan doc:
-`docs/plans/ai-plan-analysis.md`, Phase 2.5) against a **real, existing Oracle
+Backtests for the AI test-case builder and analysis features against a **real, existing Oracle
 database** — no Docker involved. Plain Node + TypeScript via `tsx`, DB access
 via the `oracledb` package in thin mode (no Instant Client needed). Nothing in
 this directory ships in the Vite build.

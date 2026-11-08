@@ -3,7 +3,7 @@
  *
  * The agent holds the model credentials (e.g. a Claude subscription profile)
  * on the user's own machine; the browser only ever talks to localhost. Wire
- * contract (see docs/plans/ai-plan-analysis.md):
+ * contract:
  *
  *   POST {baseUrl}/api/ai/analyze   Authorization: Bearer <token>
  *   Body: { system, prompt, model|null, maxTokens|null }

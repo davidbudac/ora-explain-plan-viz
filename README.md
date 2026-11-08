@@ -98,7 +98,7 @@ The hosted-cloud AI provider is likewise behind `VITE_ENABLE_HOSTED=1` (off in t
 
 ### Shared core package
 
-The plan types, parsers (DBMS_XPLAN, SQL Monitor, V$SQL_PLAN JSON / CSV, xbi), analysis helpers and the advisor live in [`packages/ora-plan-core`](packages/ora-plan-core/README.md) (`@davidbudac/ora-plan-core`, no React or DOM dependency, unpublished) so other tools such as [modern-tkprof](https://github.com/davidbudac/modern-tkprof) can reuse them. The old `src/lib/...` paths re-export from the package; `npm run build:core` rebuilds its committed `dist/`.
+The plan types, parsers (DBMS_XPLAN, SQL Monitor, V$SQL_PLAN JSON / CSV, xbi), analysis helpers and the advisor live in [`packages/ora-plan-core`](packages/ora-plan-core/README.md) (`@davidbudac/ora-plan-core`, no React or DOM dependency, unpublished) so other tools such as [modern-tkprof](https://github.com/davidbudac/modern-tkprof) can reuse them. The old `src/lib/...` paths re-export from the package; `npm run build:core` builds its `dist/` (not committed; `npm test` builds it first).
 
 ## License
 

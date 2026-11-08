@@ -1,5 +1,6 @@
 /**
- * HTTP client for the optional local DB-connect agent (see docs/plans/db-connect-agent.md).
+ * HTTP client for the optional local DB-connect agent
+ * ([oraplanviz-db-connector](https://github.com/davidbudac/oraplanviz-db-connector)).
  *
  * This module is the app's only HTTP module. The agent is a small local
  * process the user runs on their own machine; it exposes a localhost HTTP
