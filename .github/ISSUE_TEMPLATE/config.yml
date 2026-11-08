@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea
+    url: https://github.com/davidbudac/ora-explain-plan-viz/discussions
+    about: Ask how to read a plan, how a feature works, or float an idea.
+  - name: Security vulnerability
+    url: https://github.com/davidbudac/ora-explain-plan-viz/security/advisories/new
+    about: Report privately, please.
