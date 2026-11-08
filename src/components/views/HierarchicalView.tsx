@@ -39,6 +39,7 @@ import { extractPredicateColumns } from '../../lib/metadata/predicateColumns';
 import { assessPartitionPruning, computeParallelSignals } from '../../lib/planSignals';
 import type { ParallelSignal } from '../../lib/planSignals';
 import { runAdvisor } from '../../lib/advisor';
+import { analyzeHints, planHasHints } from '../../lib/hints';
 import {
   EMPTY_COLLAPSED,
   collapseAllIds,
@@ -216,6 +217,7 @@ function HierarchicalViewContent({
     hotspotsEnabled,
     highlightStyle,
     treeMinimap,
+    hintLens,
     setTreeLayoutDirection,
     treeViewActionsRef,
     setTreeViewState,
@@ -253,6 +255,11 @@ function HierarchicalViewContent({
   const advisorReport = useMemo(
     () => (parsedPlan ? runAdvisor(parsedPlan, slot?.metadataBundle ?? null) : null),
     [parsedPlan, slot?.metadataBundle]
+  );
+  // Hint Report entries + outline decisions per operation (null when the plan carries no hints).
+  const hintAnalysis = useMemo(
+    () => (parsedPlan && planHasHints(parsedPlan) ? analyzeHints(parsedPlan) : null),
+    [parsedPlan]
   );
   // Plan-wide, so a collapse toggle or a note edit re-lays-out without redoing it.
   const parallelSignalsByNode = useMemo(() => {
@@ -485,8 +492,10 @@ function HierarchicalViewContent({
       const advisorSeverity = advisorReport?.maxSeverityByNodeId.get(node.id);
       const advisorTitles = nodeFindings?.map((f) => f.title);
       const hasAdvisorBadge = effectiveDisplayOptions.showAdvisorBadge && !!advisorSeverity;
+      const hintMarks = hintAnalysis?.byNode.get(node.id);
+      const hasHintBadge = hintLens && !!hintMarks && hintMarks.length > 0;
       // Calculate dynamic height for this node
-      const height = calculateNodeHeight(node, effectiveDisplayOptions, hasActualStats, hasAnnotation, usesGrid, isRail, isTicker, hasAdvisorBadge);
+      const height = calculateNodeHeight(node, effectiveDisplayOptions, hasActualStats, hasAnnotation, usesGrid, isRail, isTicker, hasAdvisorBadge || hasHintBadge);
       nodeDimensions.set(node.id.toString(), { width: effectiveNodeWidth, height });
       const match = bundle ? findObjectInBundle(bundle, node.objectName) : null;
       const cardSeverity = hasActualStats
@@ -539,6 +548,8 @@ function HierarchicalViewContent({
           advisorSeverity,
           advisorCount: nodeFindings?.length,
           advisorTitles,
+          hintMarks,
+          hintLens,
           layoutDirection,
           isCollapsed,
           hiddenCount: isCollapsed ? descendantCounts.get(node.id) ?? 0 : 0,
@@ -768,6 +779,8 @@ function HierarchicalViewContent({
     slot?.metadataBundle,
     advisorReport?.findingsByNodeId,
     advisorReport?.maxSeverityByNodeId,
+    hintAnalysis,
+    hintLens,
     parallelSignalsByNode,
     collapsedIds,
     descendantCounts,
