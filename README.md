@@ -50,7 +50,7 @@ Optional AI-assisted review of the loaded plan (or a plan-A vs plan-B comparison
 
 **Privacy note**: everything stays in your browser until you click Run — only then is the plan (and optional schema metadata) sent to the provider you chose. API keys are kept in sessionStorage only and are never baked into URLs or saved settings.
 
-**Repro-fidelity backtest (2026-08-29, Oracle 19c):** the deterministic test-case builder reproduced the original plan shape on an empty schema for 5 of 5 seeded scenarios (skew/histogram, stale stats, implicit conversion, missing join index, unindexed FK), 0 script errors. Analysis layer: 25/25 root-cause hits across 5 runs; advisor-floor recall 1.0; LLM judge 9/10 at top score. Harness in `evals/`; the scenario corpus is private.
+**Repro-fidelity backtest (2026-08-29, Oracle 19c):** the deterministic test-case builder reproduced the original plan shape on an empty schema for 5 of 5 seeded scenarios (skew/histogram, stale stats, implicit conversion, missing join index, unindexed FK), 0 script errors. Analysis layer: 25/25 root-cause hits across 5 runs; advisor-floor recall 1.0; LLM judge 9/10 at top score. Harness in `evals/`.
 
 ### And more
 
@@ -70,7 +70,7 @@ git clone https://github.com/davidbudac/ora-explain-plan-viz.git
 cd ora-explain-plan-viz && npm install && npm run dev      # http://localhost:5173
 ```
 
-Docker: `npm run docker:build && npm run docker:run` (port 8080). Set `APP_BASE_PATH=/sub/path/` at build time for sub-path deployments.
+Docker: `docker compose up --build` (port 8080; `PORT=…` changes it), or `npm run docker:build && npm run docker:run`. Set `APP_BASE_PATH=/sub/path/` at build time for sub-path deployments.
 
 For contributors: an evaluation harness for the AI analysis / test-case features lives in [`evals/`](evals/README.md). It backtests plan-repro fidelity and analysis quality against your own Oracle **scratch schema** (no Docker required) configured via `ORA_EVAL_*` environment variables — see [`evals/README.md`](evals/README.md) for setup and safety notes.
 
@@ -82,7 +82,7 @@ Fetch plans straight from your database instead of pasting them. A small local c
 flowchart LR
   subgraph machine["Your machine"]
     direction LR
-    B["Browser tab<br/>(Plan Visualizer)"] <-->|"127.0.0.1:8521<br/>bearer token"| A["oraplanviz-agent"]
+    B["Browser tab<br/>(Plan Visualizer)"] <-->|"127.0.0.1:8521<br/>bearer token"| A["oraplanviz-db-connector"]
   end
   A <-->|"Oracle Net<br/>(thin mode)"| D[("Oracle database")]
 ```
