@@ -31,7 +31,7 @@
     "@xyflow/react": "^12.10.0",
     "d3-force": "^3.0.0",
     "d3-sankey": "^0.12.3",
-    "dompurify": "^3.4.14",
+    "dompurify": "^3.4.17",
     "highlight.js": "^11.11.1",
     "html-to-image": "^1.11.13",
     "lz-string": "^1.5.0",
