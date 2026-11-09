@@ -27,13 +27,13 @@ npm run typecheck
 npm test             # builds packages/ora-plan-core first, then runs vitest
 ```
 
-[`CLAUDE.md`](CLAUDE.md) is the detailed project guide: structure, architecture notes, Oracle semantics the code relies on, and conventions. It's written for coding agents but is just as useful for people.
+[`CLAUDE.md`](CLAUDE.md) is the project guide: where code lives, the Oracle semantics the code relies on, invariants and gotchas. It's written for coding agents but is just as useful for people.
 
 ## Ground rules
 
 - **Parser fixtures are real Oracle output.** Files in `src/lib/parser/__tests__/fixtures/` are captures from a real database (mostly 19c), not hand-written. If you add one, say in the PR which Oracle version and which call (`DISPLAY_CURSOR` format, `REPORT_SQL_MONITOR` type, …) produced it. Synthetic plans for unit tests belong in `src/lib/__tests__/fixtures/buildPlan.ts`.
 - **Examples parse cleanly.** Bundled examples (`src/examples/NN-category-Name.txt`) must parse with no warnings; a test checks this.
-- **Keep Oracle's numbers honest.** E-Rows is per start, A-Rows is cumulative, cost is cumulative; see "Plan Numbers" in `CLAUDE.md` before touching any ratio or total.
+- **Keep Oracle's numbers honest.** E-Rows is per start, A-Rows is cumulative, cost is cumulative; see "Oracle semantics" in `CLAUDE.md` before touching any ratio or total.
 - **Nothing leaves the browser.** The app has no backend. Don't add network calls, analytics or third-party scripts; the only HTTP module is the optional local DB connector client.
 - **User-facing changes update the docs.** If a feature ships or changes, update `site/docs.html` (and the landing page if relevant) in the same PR.
 - **Style:** TypeScript strict, React function components and hooks, Tailwind for styling, `import type` for type-only imports.
