@@ -2684,11 +2684,24 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     const warning = result.ok && result.warnings.length > 0 ? result.warnings.join(' ') : undefined;
 
     if (result.ok) {
-      window.history.replaceState(null, '', result.url);
-      // Remember what the address-bar link encodes; once the plans or their
-      // annotations change, the autosave drops the (now stale) link so a
-      // reload restores the session instead of the older shared snapshot.
-      sharedContentRef.current = sessionContentSignature(buildSavedSession(stateRef.current));
+      // The address bar can only take a same-origin URL. The single-file build
+      // opened from disk (file://) makes links to the hosted app; replaceState
+      // would throw a SecurityError for those, so the address bar is left alone.
+      let addressBarUpdated = false;
+      try {
+        if (new URL(result.url).origin === window.location.origin) {
+          window.history.replaceState(null, '', result.url);
+          addressBarUpdated = true;
+        }
+      } catch {
+        // Not fatal: the link is still copied / shown below.
+      }
+      if (addressBarUpdated) {
+        // Remember what the address-bar link encodes; once the plans or their
+        // annotations change, the autosave drops the (now stale) link so a
+        // reload restores the session instead of the older shared snapshot.
+        sharedContentRef.current = sessionContentSignature(buildSavedSession(stateRef.current));
+      }
       // Robust copy with an execCommand fallback for insecure (HTTP) origins and
       // unfocused documents. `copied` is surfaced so the UI can offer a reliable
       // manual-copy affordance instead of falsely claiming success.
@@ -2702,7 +2715,15 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   // entry point (header button, command palette) gives consistent, recoverable
   // feedback — especially when the clipboard write is blocked.
   const share = useCallback(async () => {
-    const result = await sharePlan();
+    let result: Awaited<ReturnType<typeof sharePlan>>;
+    try {
+      result = await sharePlan();
+    } catch (err) {
+      // Callers fire-and-forget (`void share()`): never let a failure vanish.
+      const detail = err instanceof Error && err.message ? `: ${err.message}` : '.';
+      setShareNotice({ kind: 'error', message: `Could not create a share link${detail}` });
+      return;
+    }
     if (!result.ok) {
       setShareNotice({ kind: 'error', message: result.error });
       return;
