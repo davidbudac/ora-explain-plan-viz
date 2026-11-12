@@ -251,8 +251,12 @@ const initialFilters: FilterState = {
 
 const getInitialTheme = (): Theme => {
   if (typeof window === 'undefined') return 'light';
-  const stored = localStorage.getItem('theme');
-  if (stored === 'dark' || stored === 'light') return stored;
+  try {
+    const stored = localStorage.getItem('theme');
+    if (stored === 'dark' || stored === 'light') return stored;
+  } catch {
+    // Storage blocked (site data disabled, sandboxed iframe): use the system preference.
+  }
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 };
 
@@ -1776,7 +1780,11 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     } else {
       root.dataset.palette = state.palette;
     }
-    localStorage.setItem('theme', state.theme);
+    try {
+      localStorage.setItem('theme', state.theme);
+    } catch {
+      // Storage blocked or full: the theme still applies for this visit.
+    }
   }, [state.theme, state.palette]);
 
   // Load plan from URL param or default example on first mount
