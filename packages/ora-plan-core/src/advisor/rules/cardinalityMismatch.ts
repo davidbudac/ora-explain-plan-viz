@@ -1,7 +1,7 @@
 import type { PlanNode } from '../../types.ts';
 import type { AdvisorRule, Finding, FindingSeverity, RuleContext } from '../types.ts';
 import { nodeCardinalityRatio, cardinalityRatioSeverity } from '../../format.ts';
-import { liveChildren } from './shared.ts';
+import { effectiveChildren } from '../../analysis.ts';
 
 function describeEstimate(c: { eRowsPerStart?: number; starts?: number; eRowsTotal: number }): string {
   if (c.starts !== undefined && c.starts > 1 && c.eRowsPerStart !== undefined && c.eRowsPerStart !== c.eRowsTotal) {
@@ -38,19 +38,25 @@ export const cardinalityMismatchRule: AdvisorRule = {
     // is not a separate problem. Operations without a comparable estimate (never started,
     // cut off early) don't break the chain: look through them to their children.
     const inputsOff = (node: PlanNode): boolean =>
-      liveChildren(node).some((child) => {
+      effectiveChildren(node).some((child) => {
         if (off.get(child) !== undefined) return true;
         return nodeCardinalityRatio(child) === undefined && inputsOff(child);
       });
 
-    const byId = new Map(ctx.plan.allNodes.map((n) => [n.id, n]));
+    // Nearest active ancestor of each active node: inactive adaptive-plan rows in between are skipped
+    // (ctx.plan.allNodes may not contain them, so parentId cannot be followed).
+    const activeParentOf = new Map<PlanNode, PlanNode>();
+    for (const n of ctx.plan.allNodes) {
+      if (n.inactive) continue;
+      for (const child of effectiveChildren(n)) activeParentOf.set(child, n);
+    }
     const inheritingAncestors = (node: PlanNode): number => {
       let count = 0;
-      let parent = node.parentId === undefined ? undefined : byId.get(node.parentId);
+      let parent = activeParentOf.get(node);
       while (parent) {
         if (off.get(parent) !== undefined) count++;
         else if (nodeCardinalityRatio(parent) !== undefined) break; // estimate was right again: error absorbed
-        parent = parent.parentId === undefined ? undefined : byId.get(parent.parentId);
+        parent = activeParentOf.get(parent);
       }
       return count;
     };
@@ -70,7 +76,7 @@ export const cardinalityMismatchRule: AdvisorRule = {
       const inheritNote = c.inherited > 0
         ? ` The estimates of ${c.inherited} operation${c.inherited === 1 ? '' : 's'} above it are off because of this error.`
         : '';
-      const root = node.children.length === 0 ? '' : ' Its inputs were estimated accurately, so the error originates here.';
+      const root = effectiveChildren(node).length === 0 ? '' : ' Its inputs were estimated accurately, so the error originates here.';
       return {
         ruleId: 'cardinality-mismatch',
         severity: c.severity,

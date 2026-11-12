@@ -552,7 +552,10 @@ SPOOL OFF</code></pre>
       <div class="shot"><img src="assets/hotspot.png" alt="Node with a red hotspot ring next to the Hotspots summary panel" loading="lazy" /></div>
       <p>
         With runtime statistics present, the node with the highest self A-Time gets a red ring and a "Hotspot" badge.
-        The Hotspots panel (shown when nothing is selected) lists the top 5 nodes by A-Time, by cost, and the worst
+        SQL Monitor reports are ranked by ASH activity instead: SQL Monitor gives each operation's active window in
+        whole seconds, not its own time. A SQL Monitor report without ASH samples (typically a statement that ran
+        for under a second) therefore has no hotspot ring and no "Slowest ops" list.
+        The Hotspots panel (shown when nothing is selected) lists the top 5 nodes by time, by cost, and the worst
         cardinality mismatches. Hotspot detection can be toggled from the command palette.
       </p>
 

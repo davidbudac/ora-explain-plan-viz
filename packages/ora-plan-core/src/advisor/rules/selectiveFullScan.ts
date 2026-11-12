@@ -2,6 +2,7 @@ import type { PlanNode } from '../../types.ts';
 import type { TableObject } from '../../metadata/bundle.ts';
 import type { AdvisorRule, Finding, RuleContext } from '../types.ts';
 import { extractPredicateColumns } from '../../metadata/predicateColumns.ts';
+import { effectiveExecutions } from '../../format.ts';
 
 const FULL_SCAN_RE = /TABLE ACCESS (STORAGE )?FULL/;
 const PARTITION_ITERATOR_RE = /^(?:PX )?PARTITION\b/i;
@@ -90,27 +91,46 @@ export const selectiveFullScanRule: AdvisorRule = {
           }
         }
       }
-      const returned = node.actualRows ?? node.rows;
+      // How many times the scan really ran, when the plan lets us tell: the multiplier behind
+      // estimatedRowsTotal. Starts is not it (it also counts partitions and PX granules).
+      // Undefined = unknown; each use below then keeps its conservative reading.
+      const executions = node.estimatedRowsTotal !== undefined ? effectiveExecutions(node) ?? 1 : undefined;
+      const runs = executions ?? 1;
+      // A-Rows is cumulative over all executions, while tableRows is what ONE execution reads:
+      // compare per execution. E-Rows (no actual stats) is per execution already.
+      const returned = node.actualRows !== undefined ? node.actualRows / runs : node.rows;
 
       let finding: Finding | null = null;
 
       if (tableRows !== undefined && tableRows >= ftsMinTableRows && returned !== undefined) {
         const selectivity = tableRows > 0 ? returned / tableRows : 0;
         if (selectivity <= ftsSelectivityWarn) {
-          const isCritical = selectivity <= ftsSelectivityCritical && tableRows >= ftsCriticalMinTableRows;
+          // "Big" is judged on the rows read over all executions, not on the table size alone.
+          const isCritical = selectivity <= ftsSelectivityCritical && tableRows * runs >= ftsCriticalMinTableRows;
           const columns = extractPredicateColumns(node.accessPredicates, node.filterPredicates);
+          const scanned = partitionNote
+            ? `about ${tableRows.toLocaleString()} rows in the partitions scanned${partitionNote}`
+            : `a table with ${tableRows.toLocaleString()} rows`;
+          const pct = `${(selectivity * 100).toFixed(3)}% selectivity`;
+          const outcome = runs > 1 && node.actualRows !== undefined
+            ? `ran ${runs.toLocaleString()} times and returned only ${returned.toLocaleString()} rows per execution (${node.actualRows.toLocaleString()} in total; ${pct})`
+            : `returned only ${returned.toLocaleString()} rows (${pct})`;
           finding = {
             ruleId: 'selective-full-scan',
             severity: isCritical ? 'critical' : 'warning',
             nodeIds: [node.id],
             title: `Selective full scan on ${node.operation}`,
-            explanation: `Full scan of ${partitionNote ? `about ${tableRows.toLocaleString()} rows in the partitions scanned${partitionNote}` : `a table with ${tableRows.toLocaleString()} rows`} returned only ${returned.toLocaleString()} rows (${(selectivity * 100).toFixed(3)}% selectivity).`,
+            explanation: `Full scan of ${scanned} ${outcome}.`,
             suggestion: columns.length > 0
               ? `Consider an index on ${columns.join(', ')} to avoid scanning the entire table for this filter.`
               : 'Consider an index on the filtered column(s) to avoid scanning the entire table.',
           };
         }
-      } else {
+      }
+
+      // Measured fallback: also when the table size is known but the selectivity test did not
+      // fire (stale num_rows must not hide a scan that demonstrably read far more than it returned).
+      if (!finding) {
         const starts = node.starts;
         const actualRows = node.actualRows;
         const logicalReads = node.logicalReads;
@@ -118,7 +138,8 @@ export const selectiveFullScanRule: AdvisorRule = {
           const rowsPerStart = actualRows / starts;
           const getsPerStart = logicalReads / starts;
           if (rowsPerStart <= ftsFallbackMaxRowsPerStart && getsPerStart >= ftsFallbackMinGetsPerStart) {
-            const isCritical = starts > 1;
+            // Only a real re-execution is critical: Starts > 1 alone can be one pass over several partitions.
+            const isCritical = (executions ?? starts) > 1;
             const columns = extractPredicateColumns(node.accessPredicates, node.filterPredicates);
             finding = {
               ruleId: 'selective-full-scan',

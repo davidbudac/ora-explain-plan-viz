@@ -1,3 +1,4 @@
+import { effectiveChildren } from './analysis';
 import type { ParsedPlan, PlanNode } from './types';
 
 export interface RowFlowEntry {
@@ -26,15 +27,19 @@ export function computeRowFlow(plan: ParsedPlan): RowFlowResult {
   let leafRowsRead = 0;
 
   for (const node of plan.allNodes) {
+    // Inactive adaptive-plan rows never ran: they are not a step, and the active rows below
+    // them feed the nearest active ancestor (effectiveChildren).
+    if (node.inactive) continue;
     const { output, outputIsEstimate } = nodeOutput(node);
+    const inputs = effectiveChildren(node);
 
-    if (node.children.length === 0) {
+    if (inputs.length === 0) {
       entries.push({ node, output, outputIsEstimate, input: 0, factor: undefined, kind: 'source' });
       leafRowsRead += output;
       continue;
     }
 
-    const input = node.children.reduce((sum, child) => sum + nodeOutput(child).output, 0);
+    const input = inputs.reduce((sum, child) => sum + nodeOutput(child).output, 0);
     const factor = input === 0 ? undefined : output / input;
     let kind: RowFlowEntry['kind'] = 'passthrough';
     if (factor !== undefined) {

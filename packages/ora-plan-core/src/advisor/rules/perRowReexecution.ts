@@ -1,7 +1,7 @@
 import type { PlanNode } from '../../types.ts';
 import type { AdvisorRule, Finding, FindingSeverity, RuleContext } from '../types.ts';
 import { nestedLoopVolume } from './nestedLoopVolume.ts';
-import { liveChildren } from './shared.ts';
+import { effectiveChildren } from '../../analysis.ts';
 
 const STATEMENT_ROOT_RE = /^(SELECT|INSERT|UPDATE|DELETE|MERGE) STATEMENT/;
 
@@ -35,7 +35,7 @@ export const perRowReexecutionRule: AdvisorRule = {
 
     // (c) REMOTE operations started once per outer row.
     const visit = (node: PlanNode, owner?: Owner) => {
-      const kids = liveChildren(node);
+      const kids = effectiveChildren(node);
       const op = node.operation.toUpperCase();
 
       if (owner && op.startsWith('REMOTE') && node.starts !== undefined && node.starts >= remoteStartsWarn) {
@@ -71,7 +71,7 @@ export const perRowReexecutionRule: AdvisorRule = {
       });
     };
     const root = ctx.plan.rootNode;
-    const rootKids = root ? liveChildren(root) : [];
+    const rootKids = root ? effectiveChildren(root) : [];
     // Scalar subqueries: extra children of the statement root that come before the main row source.
     const scalarSubqueries = root && STATEMENT_ROOT_RE.test(root.operation.toUpperCase()) ? rootKids.slice(0, -1) : [];
     if (root) {
@@ -88,7 +88,7 @@ export const perRowReexecutionRule: AdvisorRule = {
       const op = node.operation.toUpperCase();
       if (!(op === 'FILTER' || op.startsWith('FILTER '))) continue;
       if (covered.has(node.id)) continue;
-      const kids = liveChildren(node);
+      const kids = effectiveChildren(node);
       if (kids.length < 2) continue;
 
       let worst: PlanNode | undefined;
