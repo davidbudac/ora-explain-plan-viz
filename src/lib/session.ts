@@ -10,6 +10,11 @@ import type { SerializedAnnotationState } from './annotations';
 import type { ViewMode } from './types';
 
 export const SESSION_KEY = 'oraplanviz.session.v1';
+/**
+ * Present ('1') while the snapshot under SESSION_KEY is older than the workspace
+ * it came from: a later autosave was skipped as too large and left it in place.
+ */
+export const SESSION_STALE_KEY = 'oraplanviz.session.stale.v1';
 export const RECENT_KEY = 'oraplanviz.recent.v1';
 
 /** Autosave is skipped (not truncated) when the serialised session exceeds this many chars. */
@@ -85,14 +90,36 @@ export function serializeSession(session: SavedSession): string {
   return JSON.stringify(session);
 }
 
+/** Flag the existing snapshot (if there is one) as older than the current workspace. */
+function markSessionStale(storage: Storage): void {
+  try {
+    if (storage.getItem(SESSION_KEY) !== null) storage.setItem(SESSION_STALE_KEY, '1');
+  } catch {
+    // ignore — storage unavailable
+  }
+}
+
+/** True when the saved session is an older snapshot (a later autosave was skipped as too large). */
+export function isSessionStale(storage: Storage | null = defaultStorage()): boolean {
+  if (!storage) return false;
+  try {
+    return storage.getItem(SESSION_STALE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Persist the session. Oversized payloads are skipped and logged at info
- * level; an empty session (no slots) removes the key instead.
+ * level: the previous snapshot is kept (it may hold notes that exist nowhere
+ * else) and flagged as stale. An empty session (no slots) removes the key
+ * instead.
  */
 export function saveSession(session: SavedSession, storage: Storage | null = defaultStorage()): SaveSessionResult {
   if (!storage) return { ok: false, reason: 'unavailable' };
   if (session.slots.length === 0) {
     removeKey(storage, SESSION_KEY);
+    removeKey(storage, SESSION_STALE_KEY);
     return { ok: true, chars: 0 };
   }
   const json = serializeSession(session);
@@ -100,10 +127,12 @@ export function saveSession(session: SavedSession, storage: Storage | null = def
     console.info(
       `[session] Autosave skipped: session is ${(json.length / 1024 / 1024).toFixed(1)} MB, over the ${MAX_SESSION_CHARS / 1024 / 1024} MB limit.`,
     );
+    markSessionStale(storage);
     return { ok: false, reason: 'too-large', chars: json.length };
   }
   try {
     storage.setItem(SESSION_KEY, json);
+    removeKey(storage, SESSION_STALE_KEY);
     return { ok: true, chars: json.length };
   } catch (err) {
     console.info('[session] Autosave failed (storage full or unavailable).', err);
@@ -146,6 +175,7 @@ export function loadSession(storage: Storage | null = defaultStorage()): SavedSe
 
 export function clearSession(storage: Storage | null = defaultStorage()): void {
   removeKey(storage, SESSION_KEY);
+  removeKey(storage, SESSION_STALE_KEY);
 }
 
 // ---------------------------------------------------------------------------

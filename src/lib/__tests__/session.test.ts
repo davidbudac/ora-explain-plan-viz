@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   SESSION_KEY,
+  SESSION_STALE_KEY,
   RECENT_KEY,
   MAX_SESSION_CHARS,
   MAX_RECENT_ENTRIES,
@@ -9,6 +10,7 @@ import {
   saveSession,
   loadSession,
   clearSession,
+  isSessionStale,
   mergeRecentPlan,
   writeRecentPlans,
   loadRecentPlans,
@@ -93,6 +95,41 @@ describe('session autosave', () => {
     expect(result).toMatchObject({ ok: false, reason: 'too-large' });
     expect(info).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem(SESSION_KEY)).toBe(before);
+  });
+
+  it('flags the kept snapshot as stale when a later save is skipped, until a save succeeds', () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {});
+    const huge = session({ slots: [{ text: 'x'.repeat(MAX_SESSION_CHARS + 10) }] });
+
+    // Nothing saved yet: there is no snapshot to flag.
+    saveSession(huge);
+    expect(isSessionStale()).toBe(false);
+    expect(localStorage.getItem(SESSION_STALE_KEY)).toBeNull();
+
+    saveSession(session());
+    expect(isSessionStale()).toBe(false);
+    saveSession(huge);
+    expect(isSessionStale()).toBe(true);
+    expect(loadSession()?.slots[0].customLabel).toBe('Before');
+
+    saveSession(session({ slots: [{ text: 'plan C' }] }));
+    expect(isSessionStale()).toBe(false);
+  });
+
+  it('drops the stale flag together with the session', () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {});
+    const huge = session({ slots: [{ text: 'x'.repeat(MAX_SESSION_CHARS + 10) }] });
+
+    saveSession(session());
+    saveSession(huge);
+    clearSession();
+    expect(isSessionStale()).toBe(false);
+
+    saveSession(session());
+    saveSession(huge);
+    saveSession(session({ slots: [] }));
+    expect(isSessionStale()).toBe(false);
+    expect(isSessionStale(null)).toBe(false);
   });
 
   it('never throws when storage is full or unavailable', () => {

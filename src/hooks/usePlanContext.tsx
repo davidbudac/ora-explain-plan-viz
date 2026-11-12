@@ -18,9 +18,11 @@ import { parseAnnotatedExport, planDrop, readDroppedFiles } from '../lib/dropFil
 import { isActiveReport, decodeActiveReport, ACTIVE_REPORT_DECODE_ERROR } from '../lib/parser/activeReport';
 import {
   SESSION_KEY,
+  MAX_SESSION_CHARS,
   loadSession,
   saveSession,
   clearSession,
+  isSessionStale,
   addRecentPlan,
   removeRecentPlan as removeRecentPlanFromStorage,
   subscribeRecentPlans,
@@ -1205,6 +1207,9 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   // Autosave stays off until the startup effect has decided whether to restore.
   const sessionReadyRef = useRef(false);
   const lastSavedSessionRef = useRef<string | null>(null);
+  // True once the user has been told this session is too large to autosave;
+  // reset by the next successful save so a later oversize episode is announced again.
+  const oversizeNotifiedRef = useRef(false);
   // Content encoded by the share link currently in the address bar, if any.
   const sharedContentRef = useRef<string | null>(null);
 
@@ -1922,7 +1927,19 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     const result = saveSession(session);
     // Remember oversized payloads too, so the skip is logged once per change.
     if (result.ok || result.reason === 'too-large') lastSavedSessionRef.current = signature;
-  }, []);
+    if (result.ok) {
+      oversizeNotifiedRef.current = false;
+    } else if (result.reason === 'too-large' && !oversizeNotifiedRef.current) {
+      oversizeNotifiedRef.current = true;
+      const sizeMb = ((result.chars ?? 0) / 1024 / 1024).toFixed(1);
+      toastApi.show({
+        tone: 'warning',
+        title: 'Autosave is off for this session',
+        message: `The loaded plans take ${sizeMb} MB, over the ${MAX_SESSION_CHARS / 1024 / 1024} MB autosave limit. Changes from now on are not saved: a reload brings back the last saved state, not this one.`,
+        duration: 15000,
+      });
+    }
+  }, [toastApi]);
 
   /** Clear the workspace and the saved session ("Start fresh"). */
   const startFresh = useCallback(async (): Promise<boolean> => {
@@ -2048,12 +2065,16 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     // No plan in the URL: bring back the previous session, if any.
     let restored = false;
     if (!loadedFromUrl) {
+      // Read before restoring: the autosave that follows a restore clears the flag.
+      const stale = isSessionStale();
       const saved = loadSession();
       if (saved && restoreSession(saved)) {
         restored = true;
         toastApi.show({
           tone: 'info',
-          message: 'Restored your previous session',
+          message: stale
+            ? 'Restored an older session: the most recent one was too large to autosave'
+            : 'Restored your previous session',
           duration: 8000,
           action: { label: 'Start fresh', onClick: () => { void startFresh(); } },
         });
