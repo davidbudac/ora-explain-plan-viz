@@ -95,6 +95,18 @@ describe('selectiveFullScanRule (actuals fallback path, no bundle info for table
     expect(selectiveFullScanRule.evaluate(ruleCtx(plan, null))).toHaveLength(0);
   });
 
+  it('names only real columns in the suggestion (no literals, format masks or binds)', () => {
+    const plan = buildPlan({
+      id: 0, operation: 'TABLE ACCESS FULL', objectName: 'EMPLOYEES',
+      filterPredicates: `"E"."STATUS"='ACTIVE' AND "E"."HIRED">TO_DATE(' 2024-01-01 00:00:00', 'syyyy-mm-dd hh24:mi:ss') AND "E"."DEPT_ID"=:B1`,
+      starts: 1, actualRows: 5, logicalReads: 50_000,
+    });
+    const findings = selectiveFullScanRule.evaluate(ruleCtx(plan, null));
+    expect(findings[0].suggestion).toBe(
+      'Consider an index on STATUS, HIRED, DEPT_ID to avoid scanning the entire table for this filter.',
+    );
+  });
+
   it('names filter columns in the suggestion', () => {
     const plan = buildPlan({
       id: 0, operation: 'TABLE ACCESS FULL', objectName: 'EMPLOYEES',

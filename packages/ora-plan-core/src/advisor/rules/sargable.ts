@@ -51,7 +51,12 @@ const isWord = (t: Tok | undefined, word: string): boolean =>
   t !== undefined && t.t === 'id' && t.v.toUpperCase() === word;
 const isPunct = (t: Tok | undefined, p: string): boolean => t !== undefined && t.t === 'punct' && t.v === p;
 
-interface Ref { qualifier?: string; column: string }
+interface Ref {
+  qualifier?: string;
+  column: string;
+  /** The column name was a quoted identifier ("SAL"), as Oracle prints every real column reference. */
+  quoted: boolean;
+}
 
 /** Column references in a token run; function names and keywords are skipped. */
 function columnRefs(toks: Tok[]): Ref[] {
@@ -71,6 +76,7 @@ function columnRefs(toks: Tok[]): Ref[] {
       refs.push({
         column: unquote(last.v),
         qualifier: parts.length >= 2 ? unquote(parts[parts.length - 2].v) : undefined,
+        quoted: last.t === 'qid',
       });
     }
     i = j - 1;
@@ -237,6 +243,24 @@ export function referencedColumns(predicates: Array<string | undefined>, alias: 
   for (const predicate of predicates) {
     if (!predicate) continue;
     for (const ref of columnRefs(tokenize(predicate))) if (owns(ref, alias)) seen.add(ref.column);
+  }
+  return [...seen];
+}
+
+/**
+ * Every column the predicates reference, whichever alias qualifies it (upper-cased, first seen first).
+ * String literals, bind variables, numbers, function names and keywords are not columns. Oracle quotes
+ * every column in the predicates it prints, so in a predicate that has quoted references only those
+ * count (the bare words left are keywords such as OVER / PARTITION BY); a hand-written predicate with
+ * no quoted identifier falls back to its bare identifiers.
+ */
+export function allReferencedColumns(predicates: Array<string | undefined>): string[] {
+  const seen = new Set<string>();
+  for (const predicate of predicates) {
+    if (!predicate) continue;
+    const refs = columnRefs(tokenize(predicate));
+    const quotedOnly = refs.some((ref) => ref.quoted);
+    for (const ref of refs) if (!quotedOnly || ref.quoted) seen.add(ref.column);
   }
   return [...seen];
 }
