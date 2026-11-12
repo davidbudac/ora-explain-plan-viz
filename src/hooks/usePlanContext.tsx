@@ -2010,10 +2010,24 @@ export function PlanProvider({ children }: { children: ReactNode }) {
           applyUrlPlanData(classifyDecodedPlanText(text));
           applyDeepLinkExtras(true);
         })
-        .catch(() => dispatch({
-          type: 'SET_ERROR',
-          payload: 'The shared plan link is corrupt or truncated. Ask for a fresh link or paste the plan text directly.',
-        }));
+        .catch(() => {
+          const linkError = 'The shared plan link is corrupt or truncated. Ask for a fresh link or paste the plan text directly.';
+          // A broken link must not cost the user their autosaved workspace:
+          // SET_ERROR alone would leave zero loaded plans, and the autosave
+          // would then delete the saved session. Bring the session back and
+          // report the link problem as a toast instead.
+          const saved = loadSession();
+          if (saved && restoreSession(saved)) {
+            toastApi.show({
+              tone: 'error',
+              title: 'Shared link could not be opened',
+              message: `${linkError} Your previous session was restored.`,
+              duration: 12000,
+            });
+            return;
+          }
+          dispatch({ type: 'SET_ERROR', payload: linkError });
+        });
       return;
     }
 
