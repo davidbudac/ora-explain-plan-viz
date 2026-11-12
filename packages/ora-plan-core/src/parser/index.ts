@@ -5,7 +5,7 @@ import { sqlMonitorTextParser, sqlMonitorXmlParser } from './sqlMonitorParser.ts
 import { buildPlanFromRows, jsonPlanParser } from './jsonPlanParser.ts';
 import { csvPlanParser, splitCsvPlanBatches } from './csvPlanParser.ts';
 import { xbiParser } from './xbiParser.ts';
-import { normalizeNewlines } from './values.ts';
+import { normalizeNewlines, prepareTextLines } from './values.ts';
 import { computeEstimatedRowTotals, computeSelfCosts, computeSelfTimes } from '../analysis.ts';
 
 const SUPPORTED_FORMATS_HINT =
@@ -41,8 +41,18 @@ function stripWrappingQuotes(input: string): string {
   return trimmed;
 }
 
+/**
+ * Line endings normalised, then - for text that holds a plan-table header row - a per-line
+ * prefix and rich-text blanks undone (`prepareTextLines`), then wrapping quotes stripped.
+ * JSON, CSV and XML have no such header row and pass through untouched.
+ */
+function cleanInput(input: string): string {
+  const text = normalizeNewlines(input);
+  return stripWrappingQuotes(/\|\s*Id\s*\|/i.test(text) ? prepareTextLines(text).join('\n') : text);
+}
+
 export function detectFormat(input: string): DetectedFormat {
-  const cleaned = stripWrappingQuotes(normalizeNewlines(input));
+  const cleaned = cleanInput(input);
   for (const { format, parser } of parsers) {
     if (parser.canParse(cleaned)) {
       return format;
@@ -76,7 +86,7 @@ export function parsePlanRows(rows: Record<string, unknown>[]): ParsedPlan {
  * @returns Parsed plan structure with source metadata
  */
 export function parsePlan(input: string): ParsedPlan {
-  input = stripWrappingQuotes(normalizeNewlines(input));
+  input = cleanInput(input);
   const format = detectFormat(input);
 
   for (const { format: parserFormat, parser } of parsers) {

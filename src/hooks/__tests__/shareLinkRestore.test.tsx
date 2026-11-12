@@ -5,6 +5,7 @@ import { cleanup } from '../../components/ui/__tests__/testUtils';
 import { SIMPLE_PLAN, renderPlanContext } from '../../components/ui/__tests__/planContext';
 import type { SharePayload } from '../../lib/url';
 import type { SamplePlan } from '../../examples';
+import { SESSION_KEY, loadSession } from '../../lib/session';
 
 // jsdom's Blob has no stream(), so the real gzip decoder cannot run here.
 vi.mock('../../lib/url', async (importOriginal) => {
@@ -19,6 +20,8 @@ vi.mock('../../lib/url', async (importOriginal) => {
 const PLAN_A = SIMPLE_PLAN;
 const PLAN_B = PLAN_A.replace('1234567890', '987654321').replace('ORDERS', 'ITEMS');
 
+const toastText = () => document.querySelector<HTMLElement>('[data-ui-toast-region]')?.textContent ?? '';
+const LINK_ERROR = 'The shared plan link is corrupt or truncated. Ask for a fresh link or paste the plan text directly.';
 const flush = () => act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
 
 function gzHash(payload: unknown): string {
@@ -161,5 +164,47 @@ describe('?node= and ?q= deep links', () => {
     });
     await flush();
     expect(ctx.current().selectedNodeId).toBeNull();
+  });
+});
+
+describe('corrupt #gz= link', () => {
+  // Not gzip data: the decoder rejects, like a link cut short by a mail or chat client.
+  const CORRUPT = '/#gz=AAAA';
+
+  function saveSessionWith(text: string, customLabel: string) {
+    localStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({ version: 1, savedAt: '', activePlanIndex: 0, viewMode: 'hierarchical', slots: [{ text, customLabel }] }),
+    );
+  }
+
+  it('restores the autosaved session and keeps it in storage', async () => {
+    saveSessionWith(PLAN_A, 'Kept');
+    setUrl(CORRUPT);
+    const ctx = renderPlanContext();
+    await flush();
+
+    expect(ctx.current().parsedPlan).not.toBeNull();
+    expect(ctx.current().plans[0].customLabel).toBe('Kept');
+    expect(ctx.current().error).toBeNull();
+    expect(toastText()).toContain(LINK_ERROR);
+    expect(toastText()).toContain('Your previous session was restored.');
+    expect(window.location.hash).toBe('');
+
+    // Force the autosave that would otherwise run after its 1 s debounce.
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'));
+    });
+    expect(loadSession()?.slots[0].customLabel).toBe('Kept');
+  });
+
+  it('shows the link error in the input panel when there is no session to restore', async () => {
+    setUrl(CORRUPT);
+    const ctx = renderPlanContext();
+    await flush();
+
+    expect(ctx.current().parsedPlan).toBeNull();
+    expect(ctx.current().error).toBe(LINK_ERROR);
+    expect(localStorage.getItem(SESSION_KEY)).toBeNull();
   });
 });

@@ -4,6 +4,10 @@
  * overlay itself lives in `components/Walkthrough.tsx`.
  */
 
+import type { AdvisorReport } from './advisor/types';
+import { computeHottestNodeId } from './analysis';
+import type { ParsedPlan } from './types';
+
 export type WalkthroughPlacement = 'top' | 'bottom' | 'left' | 'right' | 'auto';
 export type ResolvedPlacement = 'top' | 'bottom' | 'left' | 'right' | 'center';
 
@@ -45,7 +49,7 @@ export const WALKTHROUGH_STEPS: WalkthroughStep[] = [
     placement: 'left',
     action: 'selectHotNode',
     body:
-      "We selected the hottest operation for you. The details panel shows its predicates, estimated vs actual rows, spills and the advisor's findings for that node.",
+      "We selected an operation worth a look for you. The details panel shows its predicates, estimated vs actual rows, spills and the advisor's findings for that node.",
   },
   {
     id: 'filters',
@@ -221,6 +225,19 @@ export interface WalkthroughSampleLike {
   name: string;
   category: string;
   featured?: boolean;
+}
+
+/**
+ * The operation the tour selects on its "details" step: the hotspot when the plan has one, else
+ * the operation of the advisor's top finding, else the first operation under the statement.
+ * (A SQL Monitor report without ASH samples has no hotspot.)
+ */
+export function pickTourNodeId(plan: ParsedPlan | null, report: AdvisorReport | null): number | null {
+  if (!plan) return null;
+  return computeHottestNodeId(plan)
+    ?? report?.findings.find((f) => f.nodeIds.length > 0)?.nodeIds[0]
+    ?? plan.rootNode?.children[0]?.id
+    ?? null;
 }
 
 /**

@@ -6,6 +6,7 @@ import {
   nodeCardinalityRatio,
   formatCardinalityRatio,
   cardinalityRatioSeverity,
+  effectiveExecutions,
   formatBytes,
   formatNumberShort,
   formatTimeCompact,
@@ -267,11 +268,13 @@ function buildHotspotsSection(input: ClientReportInput): string {
 <p class="caption">Operations ranked by time spent in the operation itself (excluding child operations).</p>`;
 }
 
-/** Total estimate, with the per-start breakdown when Starts > 1 so it visibly matches the deviation. */
+/** Total estimate, with its per-execution breakdown when the operation ran more than once, so it visibly matches the deviation. */
 function estimateCell(node: PlanNode): string {
   const total = formatNumberShort(node.estimatedRowsTotal) ?? '';
-  if (node.starts !== undefined && node.starts > 1 && node.rows !== undefined && node.rows !== node.estimatedRowsTotal) {
-    return `${total} <span style="color:#64748b">(${formatNumberShort(node.rows) ?? ''} &times; ${formatNumberShort(node.starts) ?? ''} starts)</span>`;
+  const executions = effectiveExecutions(node);
+  if (executions !== undefined) {
+    const times = formatNumberShort(Number.isInteger(executions) ? executions : Math.round(executions * 10) / 10) ?? '';
+    return `${total} <span style="color:#64748b">(${formatNumberShort(node.rows) ?? ''} &times; ${times} executions)</span>`;
   }
   return total;
 }

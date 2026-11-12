@@ -13,19 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-  tailwind.config = {
-    theme: {
-      extend: {
-        fontFamily: {
-          mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
-          sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
-        },
-      },
-    },
-  };
-</script>
+<link rel="stylesheet" href="assets/site.css">
 
 <style>
   body { background: #0b0f17; }
@@ -274,14 +262,14 @@
         Every <a href="https://github.com/davidbudac/ora-explain-plan-viz/releases">GitHub release</a> attaches
         <code>oraplanviz-vX.Y.Z.html</code>: the whole app in one file. Download it and open it straight from disk,
         mail it to a colleague, or drop it on any file share or web server. It needs no network; the only outside
-        request is the Manrope web font, which falls back to a system font when offline. This copy doesn't install
+        requests are for web fonts from Google Fonts (Manrope, Inter, Fira Code), which fall back to system fonts when offline. This copy doesn't install
         as an offline app (there's no service worker), and share links made from it point at the hosted app (the plan
         travels in the link's <code>#</code> fragment, which browsers never send to the server). Build it yourself with
         <code>npm run build:single</code> (writes <code>dist-single/index.html</code>).
       </p>
 
       <h3>Option A — Docker (recommended for self-hosting)</h3>
-      <p>The repository ships a multi-stage <code>Dockerfile</code> (Node 20 build → nginx 1.27 runtime) and an <code>nginx.conf</code> with the SPA fallback already configured.</p>
+      <p>The repository ships a multi-stage <code>Dockerfile</code> (Node 22 build → nginx 1.27 runtime) and an <code>nginx.conf</code> with the SPA fallback already configured.</p>
 <pre><code>git clone https://github.com/davidbudac/ora-explain-plan-viz.git
 cd ora-explain-plan-viz
 
@@ -469,7 +457,7 @@ SPOOL OFF</code></pre>
         <li><strong>Focus mode</strong> (<kbd>Z</kbd>, persisted) hides both side panels and replaces them with a floating search/filters/findings pill and a selection-driven inspector card. It composes with maximize.</li>
       </ul>
       <p>Below 1100px the docked panels and their edge tabs are replaced by the toolbar's Filters and Details buttons, which open the panels as floating, non-modal sheets (selecting a node opens Details; Esc closes it). Focus mode is not available in this layout.</p>
-      <p>The workspace is autosaved to the browser (plans, labels, metadata bundles, annotations, active plan and view) and restored on your next visit, with a "Restored your previous session" toast that offers <em>Start fresh</em>. The <em>Load example</em> menu also lists your last 8 loaded plans above the bundled examples; entries can be removed individually. Everything stays in localStorage on your machine. You can also drop files anywhere on the window: one plan plus an optional metadata bundle, an annotated-plan export, or just a bundle to attach to the loaded plan.</p>
+      <p>The workspace is autosaved to the browser (plans, labels, metadata bundles, annotations, active plan and view) and restored on your next visit, with a "Restored your previous session" toast that offers <em>Start fresh</em>. A workspace over 4 MB is not autosaved: the app says so when that happens, and a reload brings back the last state that was saved. The <em>Load example</em> menu also lists your last 8 loaded plans above the bundled examples; entries can be removed individually. Everything stays in localStorage on your machine. You can also drop files anywhere on the window: one plan plus an optional metadata bundle, an annotated-plan export, or just a bundle to attach to the loaded plan.</p>
     </section>
 
     <!-- ---------- Views ---------- -->
@@ -552,7 +540,10 @@ SPOOL OFF</code></pre>
       <div class="shot"><img src="assets/hotspot.png" alt="Node with a red hotspot ring next to the Hotspots summary panel" loading="lazy" /></div>
       <p>
         With runtime statistics present, the node with the highest self A-Time gets a red ring and a "Hotspot" badge.
-        The Hotspots panel (shown when nothing is selected) lists the top 5 nodes by A-Time, by cost, and the worst
+        SQL Monitor reports are ranked by ASH activity instead: SQL Monitor gives each operation's active window in
+        whole seconds, not its own time. A SQL Monitor report without ASH samples (typically a statement that ran
+        for under a second) therefore has no hotspot ring and no "Slowest ops" list.
+        The Hotspots panel (shown when nothing is selected) lists the top 5 nodes by time, by cost, and the worst
         cardinality mismatches. Hotspot detection can be toggled from the command palette.
       </p>
 
@@ -764,7 +755,7 @@ SQL&gt; @gather_plan_metadata.sql LIST "HR.EMPLOYEES,HR.DEPARTMENTS"</code></pre
       <ul>
         <li><strong>Hint text</strong>, one hint per line, is prefilled with the plan's full outline when the plan carries one
           (DBMS_XPLAN <code>ADVANCED</code> / <code>+OUTLINE</code> output or a SQL Monitor XML report). The full outline pins the
-          current plan; trim it to the hints you need, or type your own.</li>
+          current plan; trim it to the hints you need, or type your own. A line that SQL*Plus would run as a command instead of reading as hint text (only <code>/</code> or <code>.</code>, or starting with <code>#</code>) is rejected.</li>
         <li><strong>Patch name</strong> defaults to <code>PLANVIZ_PATCH_&lt;SQL_ID&gt;</code>.</li>
         <li>The statement must still be in the cursor cache (or AWR) when the script runs. The script lists existing patches,
           creates the patch, verifies it, and ends with a crib sheet (disable, drop).</li>
@@ -1052,14 +1043,15 @@ oraplanviz-agent --allow-origin http://localhost:8081</code></pre>
       <ul>
         <li><strong>No backend.</strong> The app is static files. Parsing, layout, analysis, comparison and report generation all run in the browser tab. The public deployment makes no network requests with your data.</li>
         <li><strong>localStorage</strong> (this browser only) holds view preferences (theme, palette, color scheme, density, panel states, column widths, client/author names for reports), your last session (loaded plans, labels, metadata bundles and annotations, restored on the next visit; <em>Start fresh</em> in the restore toast discards it) and the Recent plans list (entries can be removed one by one). It never holds API keys.</li>
-        <li><strong>Page views.</strong> The public deployment counts anonymous page views with GoatCounter. No plan data is sent.</li>
+        <li><strong>Page views.</strong> The hosted copy on GitHub Pages counts anonymous page views with GoatCounter; no plan data is sent. Only that build includes the counter: the Docker image, your own <code>npm run build</code> and the single-file release load no analytics script.</li>
+        <li><strong>Web fonts.</strong> Every copy of the app (hosted, self-hosted, single-file) loads its fonts from Google Fonts, so Google receives a font request (IP address, browser) when the app opens. No plan data is part of it, and the app works without it.</li>
         <li><strong>Share URLs</strong> contain the plan itself, compressed. Treat a share link like the plan text: anyone with the link has the plan. Nothing is stored server-side.</li>
         <li><strong>Annotations</strong> stay in this browser (session autosave) unless you export them or put them in a share link.</li>
         <li><strong>Database connector</strong> traffic stays on your machine (browser ↔ 127.0.0.1). Credentials are never sent to the app's host.</li>
         <li><strong>Agent handoff</strong> is built in the browser and copied or downloaded; it goes only where you paste it. It contains your SQL text, object names and any bind values, so review the included sections first.</li>
         <li><strong>AI analysis</strong> (when enabled) sends the plan and optional metadata to the provider you chose, only when you click Run. Keys live in sessionStorage for the tab's lifetime.</li>
       </ul>
-      <p>Plans often contain object names and literal values from predicates. If that is sensitive, self-host the app on your own network; the behavior is identical.</p>
+      <p>Plans often contain object names and literal values from predicates. If that is sensitive, self-host the app on your own network: it behaves the same, without the page-view counter.</p>
     </section>
 
     <!-- ---------- Troubleshooting ---------- -->
@@ -1068,7 +1060,7 @@ oraplanviz-agent --allow-origin http://localhost:8081</code></pre>
       <h2>Troubleshooting &amp; FAQ<a class="anchor" href="#troubleshooting">#</a></h2>
 
       <h4>"Could not detect the plan format"</h4>
-      <p>The parser looks for the DBMS_XPLAN table header (<code>| Id | Operation |</code>), the SQL Monitor "SQL Plan Monitoring Details" header, an XML <code>&lt;report&gt;</code> root, a JSON array, a CSV header row with <code>ID</code> and <code>OPERATION</code> columns, or the xbi.sql header. Make sure the whole table is pasted including the header row and the dashed separator lines, and that line wrapping hasn't broken rows (set <code>LINESIZE 300</code> or more in SQL*Plus).</p>
+      <p>The parser looks for the DBMS_XPLAN table header (<code>| Id | Operation |</code>), the SQL Monitor "SQL Plan Monitoring Details" header, an XML <code>&lt;report&gt;</code> root, a JSON array, a CSV header row with <code>ID</code> and <code>OPERATION</code> columns, or the xbi.sql header. Make sure the whole table is pasted including the header row and the dashed separator lines, and that line wrapping hasn't broken rows (set <code>LINESIZE 300</code> or more in SQL*Plus). A prefix in front of every line (indentation, <code>&gt;</code> mail quoting, one quoted string per line, a log timestamp) and no-break spaces left by mail or chat tools are removed automatically.</p>
 
       <h4>The XML report is truncated or the tree is incomplete</h4>
       <p>SQL*Plus cuts long CLOB output at <code>LONG</code>. Use the spool recipe in <a href="#input-formats">Getting a plan out of Oracle</a> with <code>SET LONG 10000000</code>.</p>

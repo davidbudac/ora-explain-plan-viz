@@ -17,19 +17,21 @@ import {
   stripXmlWrapper,
   textTableWarnings,
   truncatedXmlWarning,
+  unreachableNodeIds,
   xmlWrapperWarning,
 } from './warnings.ts';
 import { alignColumnsToRow, pipeIndexes } from './rowAlign.ts';
 import { parsePredicateSection, parseQueryBlockSection } from './predicateSection.ts';
 import type { NodePredicates, NodeQueryBlock } from './predicateSection.ts';
 import {
-  expandTableTabs,
-  normalizeNewlines,
+  normalizePlanHash,
+  normalizeSqlId,
   parseByteSize,
   parseCostCell,
   parseCount,
   parseTimeToMs,
   parseUsedMem,
+  prepareTextLines,
 } from './values.ts';
 
 /** Header markers that only a SQL Monitor report carries. */
@@ -50,7 +52,7 @@ export const sqlMonitorTextParser: PlanParser = {
   },
 
   parse(input: string): ParsedPlan {
-    const lines = expandTableTabs(normalizeNewlines(input).split('\n'));
+    const lines = prepareTextLines(input);
 
     // Extract SQL ID if present
     const sqlId = extractSqlId(lines);
@@ -108,6 +110,7 @@ export const sqlMonitorTextParser: PlanParser = {
       rejectedLines: table.rejectedLines,
       nodeIds: allNodes.map(node => node.id),
       predicateIds: [...predicates.keys()],
+      unreachableIds: unreachableNodeIds(rootNode, allNodes),
     });
     if (!SQL_MONITOR_MARKERS.test(input)) {
       // Reached only through the bare "Id | Operation | … | A-Rows" clause of canParse.
@@ -133,6 +136,9 @@ export const sqlMonitorTextParser: PlanParser = {
       source: 'sql_monitor_text',
       hasActualStats,
       totalElapsedTime,
+      // A real SQL Monitor report's time column is "Time Active(s)". A bare A-Rows table (no
+      // report markers) carries a true, cumulative A-Time instead.
+      timeIsActiveWindow: SQL_MONITOR_MARKERS.test(input) || undefined,
       notes,
     };
   },
@@ -220,14 +226,18 @@ interface RawSqlMonitorRow {
 }
 
 function extractSqlId(lines: string[]): string | undefined {
+  // The "Global Information" line of a SQL Monitor report: " SQL ID              :  7ch0an9vx5ysp".
+  // The report prints the statement above it, so a "sql_id" inside the SQL text must not win:
+  // only a line that is nothing but this field counts.
   for (const line of lines) {
-    // Matches both the SQL Monitor header ("SQL ID : 7ch0an9vx5ysp") and the
-    // DBMS_XPLAN.DISPLAY_CURSOR header ("SQL_ID  7ch0an9vx5ysp, child number 0"),
-    // which this parser also handles via its A-Rows detection.
-    const match = line.match(/SQL[\s_]*ID[:\s]+(\w+)/i);
-    if (match) {
-      return match[1];
-    }
+    const match = line.match(/^\s*SQL\s+ID\s*:\s*(\w+)\s*$/i);
+    if (match) return normalizeSqlId(match[1]);
+  }
+  // The DBMS_XPLAN.DISPLAY_CURSOR header ("SQL_ID  7ch0an9vx5ysp, child number 0"), which this
+  // parser also handles via its A-Rows detection.
+  for (const line of lines) {
+    const match = line.match(/^\s*SQL_ID\s*[:\s]\s*(\w+)\s*(?:,.*)?$/i);
+    if (match) return normalizeSqlId(match[1]);
   }
   return undefined;
 }
@@ -660,15 +670,13 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
     undefined;
   const sqlExecStartMs = sqlExecStartStr ? parseOracleTimestamp(sqlExecStartStr) : undefined;
 
-  const sqlId =
-    reportParams?.querySelector('sql_id')?.textContent?.trim() ||
-    target?.getAttribute('sql_id') ||
-    undefined;
+  const sqlId = normalizeSqlId(
+    reportParams?.querySelector('sql_id')?.textContent?.trim() || target?.getAttribute('sql_id'),
+  );
 
-  const planHashValue =
-    target?.getAttribute('sql_plan_hash') ||
-    reportParams?.querySelector('plan_hash')?.textContent?.trim() ||
-    undefined;
+  const planHashValue = normalizePlanHash(
+    target?.getAttribute('sql_plan_hash') || reportParams?.querySelector('plan_hash')?.textContent?.trim(),
+  );
 
   // SQL text from <target><sql_fulltext>
   const sqlText = target?.querySelector('sql_fulltext')?.textContent?.trim() || undefined;
@@ -741,6 +749,12 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
 
   // Parse activity samples (ASH) and assign per-operation activityPercent
   applyActivitySamples(doc, nodeMap, activityTimeline);
+
+  // Per-operation time comes from the "duration" stat: whole seconds between first_active and
+  // last_active (minimum 1), an active window. Only a per-operation elapsed_time would be measured time.
+  const operationStat = (name: string): Element | null =>
+    planMonitor?.querySelector(`:scope > operation stats[type="plan_monitor"] > stat[name="${name}"]`) ?? null;
+  const timeIsActiveWindow = operationStat('duration') !== null && operationStat('elapsed_time') === null;
 
   // Find root node (id 0, or node without parent_id)
   const rootNode = nodeMap.get(0) || allNodes.find(n => n.parentId === undefined) || null;
@@ -847,6 +861,7 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
     source: 'sql_monitor_xml',
     hasActualStats,
     totalElapsedTime,
+    timeIsActiveWindow: timeIsActiveWindow || undefined,
     bindVariables: bindVariables.length > 0 ? bindVariables : undefined,
     monitorMetadata: Object.keys(monitorMetadata).length > 0 ? monitorMetadata : undefined,
     activityTimeline,
@@ -877,19 +892,19 @@ function parsePlanSection(doc: Document): Map<number, PlanEstimates> {
     // Estimated cardinality (rows)
     const card = op.querySelector(':scope > card');
     if (card?.textContent) {
-      estimates.rows = parseInt(card.textContent, 10) || undefined;
+      estimates.rows = parseIntText(card.textContent);
     }
 
     // Bytes
     const bytes = op.querySelector(':scope > bytes');
     if (bytes?.textContent) {
-      estimates.bytes = parseInt(bytes.textContent, 10) || undefined;
+      estimates.bytes = parseIntText(bytes.textContent);
     }
 
     // Cost
     const cost = op.querySelector(':scope > cost');
     if (cost?.textContent) {
-      estimates.cost = parseInt(cost.textContent, 10) || undefined;
+      estimates.cost = parseIntText(cost.textContent);
     }
 
     // Object name (simple text in <plan> section)
@@ -981,11 +996,11 @@ function parseMonitorOperation(
 
   if (optimizer) {
     const card = optimizer.querySelector('cardinality');
-    if (card?.textContent) rows = parseInt(card.textContent, 10) || undefined;
+    if (card?.textContent) rows = parseIntText(card.textContent);
     const bytesEl = optimizer.querySelector('bytes');
-    if (bytesEl?.textContent) bytes = parseInt(bytesEl.textContent, 10) || undefined;
+    if (bytesEl?.textContent) bytes = parseIntText(bytesEl.textContent);
     const costEl = optimizer.querySelector('cost');
-    if (costEl?.textContent) cost = parseInt(costEl.textContent, 10) || undefined;
+    if (costEl?.textContent) cost = parseIntText(costEl.textContent);
   }
 
   // Partition pruning: <partition_start>15</partition_start><partition_stop>20</partition_stop>
@@ -1331,23 +1346,30 @@ function getStatText(statsEl: Element | null, name: string): string | undefined 
  * the string doesn't match — do NOT use Date.parse(), which does not reliably
  * handle this format across environments.
  *
- * Uses the *local* Date constructor (not UTC). Since this is only ever used
- * to diff two timestamps parsed the same way from the same report, timezone
- * offset cancels out — but the returned epoch ms is not a true UTC timestamp.
+ * The fields are read as if they were UTC. The report does not say which zone its
+ * timestamps are in, and the result is only ever used to subtract two timestamps of the
+ * same report: reading both as UTC gives their wall-clock difference, whereas the local
+ * Date constructor would lose or gain an hour across the viewer's daylight-saving change.
  */
 export function parseOracleTimestamp(s: string): number | undefined {
   const m = s.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
   if (!m) return undefined;
   const [, mm, dd, yyyy, hh, mi, ss] = m;
-  const ms = new Date(
+  const ms = Date.UTC(
     parseInt(yyyy, 10),
     parseInt(mm, 10) - 1,
     parseInt(dd, 10),
     parseInt(hh, 10),
     parseInt(mi, 10),
     parseInt(ss, 10)
-  ).getTime();
+  );
   return isNaN(ms) ? undefined : ms;
+}
+
+/** Integer in an element's text, or undefined when it is not a number. 0 is a value, not "missing". */
+function parseIntText(text: string): number | undefined {
+  const num = parseInt(text.trim(), 10);
+  return isNaN(num) ? undefined : num;
 }
 
 /** Get an integer value from a direct child element. */
@@ -1414,8 +1436,8 @@ function parseBindVariables(doc: Document): BindVariable[] {
 
 function parseLegacyXml(doc: Document): ParsedPlan {
   // Extract metadata
-  const sqlId = getXmlText(doc, 'sql_id');
-  const planHashValue = getXmlText(doc, 'plan_hash');
+  const sqlId = normalizeSqlId(getXmlText(doc, 'sql_id'));
+  const planHashValue = normalizePlanHash(getXmlText(doc, 'plan_hash'));
   const sqlText = getXmlText(doc, 'sql_text');
 
   // Parse plan operations (legacy: flat <operation> elements or under <plan_operations>)
@@ -1484,18 +1506,18 @@ function parseLegacyXmlOperation(op: Element): PlanNode | null {
     depth,
     operation,
     objectName: op.getAttribute('object_name') || op.querySelector('object_name')?.textContent || undefined,
-    rows: parseLegacyXmlNumber(op, 'cardinality') || parseLegacyXmlNumber(op, 'e_rows'),
+    rows: parseLegacyXmlNumber(op, 'cardinality') ?? parseLegacyXmlNumber(op, 'e_rows'),
     bytes: parseLegacyXmlNumber(op, 'bytes'),
     cost: parseLegacyXmlNumber(op, 'cost'),
-    actualRows: parseLegacyXmlNumber(op, 'output_rows') || parseLegacyXmlNumber(op, 'a_rows'),
+    actualRows: parseLegacyXmlNumber(op, 'output_rows') ?? parseLegacyXmlNumber(op, 'a_rows'),
     actualTime: parseLegacyXmlNumber(op, 'elapsed_time'),
     starts: parseLegacyXmlNumber(op, 'starts'),
-    memoryUsed: parseLegacyXmlNumber(op, 'max_memory') || parseLegacyXmlNumber(op, 'used_mem'),
+    memoryUsed: parseLegacyXmlNumber(op, 'max_memory') ?? parseLegacyXmlNumber(op, 'used_mem'),
     tempSpace: parseLegacyXmlNumber(op, 'temp_space'),
     tempUsed: parseLegacyXmlNumber(op, 'used_tmp'),
-    physicalReads: parseLegacyXmlNumber(op, 'physical_reads') || parseLegacyXmlNumber(op, 'cr_buffer_gets'),
-    logicalReads: parseLegacyXmlNumber(op, 'logical_reads') || parseLegacyXmlNumber(op, 'buffer_gets'),
-    activityPercent: parseLegacyXmlFloat(op, 'activity_percent') || parseLegacyXmlFloat(op, 'percent'),
+    physicalReads: parseLegacyXmlNumber(op, 'physical_reads') ?? parseLegacyXmlNumber(op, 'cr_buffer_gets'),
+    logicalReads: parseLegacyXmlNumber(op, 'logical_reads') ?? parseLegacyXmlNumber(op, 'buffer_gets'),
+    activityPercent: parseLegacyXmlFloat(op, 'activity_percent') ?? parseLegacyXmlFloat(op, 'percent'),
     accessPredicates: op.querySelector('access_predicates')?.textContent?.trim() ||
       op.getAttribute('access_predicates') || undefined,
     filterPredicates: op.querySelector('filter_predicates')?.textContent?.trim() ||

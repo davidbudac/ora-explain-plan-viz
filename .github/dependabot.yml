@@ -19,3 +19,11 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    # The Node major is chosen on purpose and kept equal to node-version in the workflows.
+    ignore:
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]

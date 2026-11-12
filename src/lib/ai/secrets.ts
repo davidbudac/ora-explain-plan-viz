@@ -1,9 +1,9 @@
 /**
  * API-key storage for the AI analysis feature.
  *
- * Follows the ConnectPanel convention: keys live in sessionStorage by default
- * (gone when the tab closes); an opt-in "remember on this device" mirrors the
- * key to localStorage. Reads fall back sessionStorage -> localStorage.
+ * Keys live in sessionStorage only (gone when the tab closes), as SECURITY.md
+ * promises. Earlier versions could mirror a key to localStorage ("remember on
+ * this device"); any such copy is deleted, unused, on the next read or write.
  *
  * Keys are NEVER written to the settings blob (settings.ts) or share URLs
  * (url.ts). Every storage access is try/catch-wrapped — storage may be
@@ -46,21 +46,18 @@ function safeRemove(storage: () => Storage, key: string): void {
   }
 }
 
-/** Read a secret: sessionStorage first, then localStorage, then memory. */
+/** Read a secret: sessionStorage first, then memory. */
 export function getAiSecret(key: AiSecretKey): string | null {
   const storageKey = STORAGE_KEYS[key];
+  // Drop a copy left behind by the old "remember on this device" option.
+  safeRemove(() => localStorage, storageKey);
   const session = safeGet(() => sessionStorage, storageKey);
   if (session !== null) return session;
-  const local = safeGet(() => localStorage, storageKey);
-  if (local !== null) return local;
   return memoryStore.get(storageKey) ?? null;
 }
 
-/**
- * Store a secret for this session. With `remember` it is also mirrored to
- * localStorage; without it any previously remembered copy is removed.
- */
-export function setAiSecret(key: AiSecretKey, value: string, remember: boolean): void {
+/** Store a secret for this session (sessionStorage, or memory when storage is unavailable). */
+export function setAiSecret(key: AiSecretKey, value: string): void {
   const storageKey = STORAGE_KEYS[key];
   const wroteSession = safeSet(() => sessionStorage, storageKey, value);
   if (!wroteSession) {
@@ -68,11 +65,7 @@ export function setAiSecret(key: AiSecretKey, value: string, remember: boolean):
   } else {
     memoryStore.delete(storageKey);
   }
-  if (remember) {
-    safeSet(() => localStorage, storageKey, value);
-  } else {
-    safeRemove(() => localStorage, storageKey);
-  }
+  safeRemove(() => localStorage, storageKey);
 }
 
 /** Remove a secret from every store (session, local, memory). */

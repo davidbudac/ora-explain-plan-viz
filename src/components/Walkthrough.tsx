@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePlan } from '../hooks/usePlanContext';
-import { computeHottestNodeId } from '../lib/analysis';
 import {
   WALKTHROUGH_STEPS,
   computeCardPosition,
+  pickTourNodeId,
   spotlightRect,
   type Rect,
   type Size,
@@ -261,7 +261,7 @@ export function WalkthroughView({ steps, index, onNext, onBack, onClose }: Walkt
 /** Context-wired tour: owns the step index and the per-step side effects. */
 export function Walkthrough() {
   const {
-    setWalkthroughOpen, parsedPlan, selectedNodeIds, selectNode, setDetailPanelCollapsed,
+    setWalkthroughOpen, parsedPlan, advisorReport, selectedNodeIds, selectNode, setDetailPanelCollapsed,
   } = usePlan();
   const [index, setIndex] = useState(0);
   const step = WALKTHROUGH_STEPS[index];
@@ -272,18 +272,18 @@ export function Walkthrough() {
 
   // Entering a step with an action runs it once per step (not on every re-render).
   const hasSelection = selectedNodeIds.length > 0;
-  const selectionRef = useRef({ hasSelection, parsedPlan, selectNode, setDetailPanelCollapsed });
+  const selectionRef = useRef({ hasSelection, parsedPlan, advisorReport, selectNode, setDetailPanelCollapsed });
   useEffect(() => {
-    selectionRef.current = { hasSelection, parsedPlan, selectNode, setDetailPanelCollapsed };
+    selectionRef.current = { hasSelection, parsedPlan, advisorReport, selectNode, setDetailPanelCollapsed };
   });
   const action = step?.action;
   useEffect(() => {
     if (action !== 'selectHotNode') return;
-    const { hasSelection: selected, parsedPlan: plan, selectNode: select, setDetailPanelCollapsed: expand } = selectionRef.current;
+    const { hasSelection: selected, parsedPlan: plan, advisorReport: report, selectNode: select, setDetailPanelCollapsed: expand } = selectionRef.current;
     expand(false);
     if (selected) return;
-    const hot = computeHottestNodeId(plan);
-    if (hot !== null) select(hot);
+    const target = pickTourNodeId(plan, report);
+    if (target !== null) select(target);
   }, [action, index]);
 
   return <WalkthroughView steps={WALKTHROUGH_STEPS} index={index} onNext={next} onBack={back} onClose={close} />;

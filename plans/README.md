@@ -17,27 +17,34 @@ plans that edit the same file placed next to each other.
 
 | Plan | Title | Finding | Category | Priority | Effort | Depends on | Status |
 |------|-------|---------|----------|----------|--------|------------|--------|
-| [001](001-typecheck-tests.md) | `npm run typecheck` also type-checks the test files and `evals/` | #9 | dx | P1 | S | — | TODO |
-| [002](002-keep-session-on-corrupt-share-link.md) | A corrupt or truncated share link no longer deletes the autosaved session | #1 | bug | P1 | S | — | TODO |
-| [003](003-flag-stale-session-when-autosave-skipped.md) | The user is told when autosave is skipped as too large, and an older restored session is labelled as older | #11 | bug | P2 | S | 002 | TODO |
-| [004](004-share-from-single-file-build.md) | Share works in the single-file build opened from disk, and a failed share is always reported | #2 | bug | P1 | S | — | TODO |
-| [005](005-guard-theme-storage.md) | The app starts and switches theme when `localStorage` is blocked | #12 | bug | P2 | S | — | TODO |
-| [006](006-crlf-paste-auto-parse.md) | Pasting a plan parses it immediately even with Windows (CRLF) clipboard text | #8 | bug | P1 | S | — | TODO |
-| [007](007-analytics-only-in-pages-build.md) | Page-view analytics load only in the GitHub Pages build | #3 | security | P1 | S | — | TODO |
-| [008](008-sql-patch-script-line-safety.md) | The SQL Patch script generator refuses hint lines that SQL*Plus would execute | #4 | security | P1 | S | — | TODO |
-| [009](009-advisor-effective-children.md) | Advisor rules, row flow and selection stats look through inactive adaptive-plan rows | #5 | bug | P1 | S | — | TODO |
-| [010](010-selective-full-scan-per-execution.md) | The selective-full-scan rule judges a re-executed scan per execution | #18 | bug | P2 | S | 009 (sequencing) | TODO |
-| [011](011-predicate-columns-ignore-literals.md) | Predicate column lists contain only columns (no literals, binds or function names) | #6 | bug | P1 | S | 010 (sequencing) | TODO |
-| [012](012-plan-table-prefix-and-nbsp.md) | A plan pasted with a per-line prefix or no-break spaces parses like the original capture | #7 | bug | P1 | S–M | — | TODO |
-| [013](013-display-cursor-sql-text.md) | SQL text read from a DBMS_XPLAN header is complete and unmodified | #10 | bug | P2 | S | 012 (same file) | TODO |
-| [014](014-validate-sql-id-and-plan-hash.md) | Only a well-formed SQL_ID and plan hash value leave the parsers and reach the agent-handoff instructions | #19 | security | P2 | S | 013 (same file) | TODO |
-| [015](015-small-correctness-fixes.md) | Five small correctness fixes (Storage filter in share links, OPT_PARAM outline diff, zero values in SQL Monitor XML, "× executions" wording, SQL Monitor text SQL ID) | #14 a–e | bug | P2 | S | 014, 009 (same files) | TODO |
-| [016](016-formatter-unit-boundaries.md) | Short number, byte and time formatters never print a value at or above its own unit | #14 f | bug | P3 | S | 015 (same file) | TODO |
-| [017](017-remove-dead-code-and-deps.md) | Unreachable prototype views, unused dependencies and the eagerly bundled AI SDK are gone from the app bundle | #15 | tech-debt | P2 | S | — | TODO |
-| [018](018-node-22-and-release-hardening.md) | Release, Pages and Docker builds run on Node 22 with least-privilege workflow tokens | #16 | migration | P2 | S | — | TODO |
-| [019](019-security-docs-match-code.md) | The published security promises match the code, and a test keeps network access inside an allow-list | #17 | security | P2 | S | 007 (hard) | TODO |
-| [020](020-site-css-without-cdn.md) | The `/welcome/` pages use a precompiled stylesheet instead of the Tailwind Play CDN script | #20 | security | P3 | S–M | — | TODO |
-| [021](021-sql-monitor-time-without-ash.md) | SQL Monitor active-window times are not turned into self time or a hotspot | #13 | bug | P2 | M | maintainer decision | TODO |
+| [001](001-typecheck-tests.md) | `npm run typecheck` also type-checks the test files and `evals/` | #9 | dx | P1 | S | — | DONE |
+| [002](002-keep-session-on-corrupt-share-link.md) | A corrupt or truncated share link no longer deletes the autosaved session | #1 | bug | P1 | S | — | DONE |
+| [003](003-flag-stale-session-when-autosave-skipped.md) | The user is told when autosave is skipped as too large, and an older restored session is labelled as older | #11 | bug | P2 | S | 002 | DONE |
+| [004](004-share-from-single-file-build.md) | Share works in the single-file build opened from disk, and a failed share is always reported | #2 | bug | P1 | S | — | DONE |
+| [005](005-guard-theme-storage.md) | The app starts and switches theme when `localStorage` is blocked | #12 | bug | P2 | S | — | DONE |
+| [006](006-crlf-paste-auto-parse.md) | Pasting a plan parses it immediately even with Windows (CRLF) clipboard text | #8 | bug | P1 | S | — | DONE |
+| [007](007-analytics-only-in-pages-build.md) | Page-view analytics load only in the GitHub Pages build | #3 | security | P1 | S | — | DONE |
+| [008](008-sql-patch-script-line-safety.md) | The SQL Patch script generator refuses hint lines that SQL*Plus would execute | #4 | security | P1 | S | — | DONE |
+| [009](009-advisor-effective-children.md) | Advisor rules, row flow and selection stats look through inactive adaptive-plan rows | #5 | bug | P1 | S | — | DONE |
+| [010](010-selective-full-scan-per-execution.md) | The selective-full-scan rule judges a re-executed scan per execution | #18 | bug | P2 | S | 009 (sequencing) | DONE |
+| [011](011-predicate-columns-ignore-literals.md) | Predicate column lists contain only columns (no literals, binds or function names) | #6 | bug | P1 | S | 010 (sequencing) | DONE |
+| [012](012-plan-table-prefix-and-nbsp.md) | A plan pasted with a per-line prefix or no-break spaces parses like the original capture | #7 | bug | P1 | S–M | — | DONE |
+| [013](013-display-cursor-sql-text.md) | SQL text read from a DBMS_XPLAN header is complete and unmodified | #10 | bug | P2 | S | 012 (same file) | DONE |
+| [014](014-validate-sql-id-and-plan-hash.md) | Only a well-formed SQL_ID and plan hash value leave the parsers and reach the agent-handoff instructions | #19 | security | P2 | S | 013 (same file) | DONE |
+| [015](015-small-correctness-fixes.md) | Five small correctness fixes (Storage filter in share links, OPT_PARAM outline diff, zero values in SQL Monitor XML, "× executions" wording, SQL Monitor text SQL ID) | #14 a–e | bug | P2 | S | 014, 009 (same files) | DONE |
+| [016](016-formatter-unit-boundaries.md) | Short number, byte and time formatters never print a value at or above its own unit | #14 f | bug | P3 | S | 015 (same file) | DONE |
+| [017](017-remove-dead-code-and-deps.md) | Unreachable prototype views, unused dependencies and the eagerly bundled AI SDK are gone from the app bundle | #15 | tech-debt | P2 | S | — | DONE |
+| [018](018-node-22-and-release-hardening.md) | Release, Pages and Docker builds run on Node 22 with least-privilege workflow tokens | #16 | migration | P2 | S | — | DONE |
+| [019](019-security-docs-match-code.md) | The published security promises match the code, and a test keeps network access inside an allow-list | #17 | security | P2 | S | 007 (hard) | DONE |
+| [020](020-site-css-without-cdn.md) | The `/welcome/` pages use a precompiled stylesheet instead of the Tailwind Play CDN script | #20 | security | P3 | S–M | — | DONE |
+| [021](021-sql-monitor-time-without-ash.md) | SQL Monitor active-window times are not turned into self time or a hotspot | #13 | bug | P2 | M | maintainer decision | DONE |
+
+Implemented 2026-11-12 on branch `feat/improve-plans-001-021` (all 21 plans,
+021 with Option A). Combined result: `npm run lint` and `npm run typecheck`
+clean, `npm test` 167 files / 2088 tests, `build`, `build:pages` and
+`build:single` succeed. Still open (need a browser or GitHub): re-capture
+`hero.png` / `hotspot.png` / `hotspots.gif` (021), visual check of `/welcome/`
+(020), first push and next tag run (018), GoatCounter hit after deploy (007).
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 

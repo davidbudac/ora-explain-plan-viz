@@ -1,6 +1,7 @@
 import type { PlanNode, ParsedPlan } from '../types.ts';
 import { planRootCost } from '../analysis.ts';
 import type { PlanParser } from './types.ts';
+import { normalizeSqlId } from './values.ts';
 
 interface ColumnBounds {
   start: number;
@@ -127,7 +128,7 @@ function extractSqlId(lines: string[]): string | undefined {
   for (const line of lines) {
     // From banner: "sql_id=czxpthmzk8nnd"
     const match = line.match(/sql_id[=]\s*(\w+)/i);
-    if (match) return match[1];
+    if (match) return normalizeSqlId(match[1]);
   }
   return undefined;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { effectiveExecutions, formatEstimatedRows } from '../format';
+import { cardinalityMismatchText, effectiveExecutions, formatEstimatedRows } from '../format';
 import { planNodeAriaLabel } from '../nodeAriaLabel';
 import type { PlanNode } from '../types';
 
@@ -90,5 +90,28 @@ describe('planNodeAriaLabel estimate', () => {
     expect(planNodeAriaLabel({ ...base, estimatedRowsTotal: 4 }, { hasActualStats: true })).toContain('estimated 4 rows,');
     expect(planNodeAriaLabel(base, { hasActualStats: false })).toContain('estimated 4 rows');
     expect(planNodeAriaLabel(base, { hasActualStats: false })).not.toContain('executions');
+  });
+});
+
+describe('cardinalityMismatchText', () => {
+  it('multiplies by the executions the total was built with, not by the node\'s own Starts', () => {
+    // allstats-nlj-batching.txt line 7: a rowid fetch with Starts 786 whose total is E-Rows 5 × 167 (the index's Starts).
+    const n = node({ rows: 5, starts: 786, estimatedRowsTotal: 835, actualRows: 786 });
+    expect(cardinalityMismatchText(n)).toBe('Cardinality mismatch: estimated 835 rows (E-Rows 5 × 167 executions) vs A-Rows 786');
+  });
+
+  it('keeps the plain nested-loop case, now worded as executions', () => {
+    const n = node({ rows: 1, starts: 1000, estimatedRowsTotal: 1000, actualRows: 250000 });
+    expect(cardinalityMismatchText(n)).toBe('Cardinality mismatch: estimated 1.0K rows (E-Rows 1 × 1.0K executions) vs A-Rows 250.0K');
+  });
+
+  it('has no breakdown when the total is the per-start estimate (PX slave set, single execution)', () => {
+    expect(cardinalityMismatchText(node({ rows: 1000, starts: 8, estimatedRowsTotal: 1000, actualRows: 9 }))).toBe(
+      'Cardinality mismatch: estimated 1.0K rows vs A-Rows 9',
+    );
+  });
+
+  it('falls back to E-Rows when there is no comparable total', () => {
+    expect(cardinalityMismatchText(node({ rows: 7, actualRows: 3 }))).toBe('Cardinality mismatch: E-Rows 7 vs A-Rows 3');
   });
 });

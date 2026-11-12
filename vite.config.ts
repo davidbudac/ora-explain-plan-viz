@@ -54,7 +54,7 @@ const port = process.env.PORT ? Number(process.env.PORT) : undefined
 
 // `vite build --mode single`: one self-contained index.html for release
 // downloads. Drops what only makes sense on a hosted origin (service worker,
-// manifest, analytics) and inlines the icon.
+// manifest) and inlines the icon.
 function singleFileHtml(): Plugin {
   const icon = readFileSync('public/icon.svg', 'utf8')
   return {
@@ -63,17 +63,38 @@ function singleFileHtml(): Plugin {
     transformIndexHtml: (html) =>
       html
         .replace(/\s*<link rel="(apple-touch-icon|manifest)"[^>]*>/g, '')
-        .replace(/\s*<script data-goatcounter[^>]*><\/script>/, '')
         .replace('href="/icon.svg"', `href="data:image/svg+xml,${encodeURIComponent(icon)}"`),
+  }
+}
+
+// Page-view counting (GoatCounter) is injected only when APP_ANALYTICS=1, which
+// only the GitHub Pages build sets (package.json `build:pages`). Self-hosted,
+// Docker, dev-server and single-file builds never load a third-party script.
+function pagesAnalytics(): Plugin {
+  return {
+    name: 'pages-analytics',
+    apply: 'build',
+    transformIndexHtml: () => [
+      {
+        tag: 'script',
+        attrs: {
+          'data-goatcounter': 'https://davidbudac.goatcounter.com/count',
+          async: true,
+          src: 'https://gc.zgo.at/count.js',
+        },
+        injectTo: 'body',
+      },
+    ],
   }
 }
 
 export default defineConfig(({ mode }) => {
   const single = mode === 'single'
+  const analytics = !single && process.env.APP_ANALYTICS === '1'
   return {
     plugins: single
       ? [react(), tailwindcss(), singleFileHtml(), viteSingleFile()]
-      : [react(), tailwindcss(), serviceWorkerBuildId()],
+      : [react(), tailwindcss(), serviceWorkerBuildId(), ...(analytics ? [pagesAnalytics()] : [])],
     base: single ? './' : normalizeBasePath(process.env.APP_BASE_PATH),
     publicDir: single ? false : 'public',
     build: single ? { outDir: 'dist-single' } : undefined,

@@ -81,3 +81,20 @@ describe('computeSelectionStats', () => {
     expect(stats.sumSelfBuffers).toBe(0);
   });
 });
+
+describe('computeSelectionStats on adaptive plans', () => {
+  it('subtracts the active rows below an inactive child from self buffers', () => {
+    // 0 NESTED LOOPS (100) -> [ 1 STATISTICS COLLECTOR (inactive, 70) -> 2 scan (70), 3 scan (20) ]
+    const join = node(0, undefined, { logicalReads: 100, physicalReads: 10 });
+    const collector = node(1, 0, { inactive: true, logicalReads: 70, physicalReads: 7 });
+    const outer = node(2, 1, { logicalReads: 70, physicalReads: 7 });
+    const inner = node(3, 0, { logicalReads: 20, physicalReads: 2 });
+    join.children = [collector, inner];
+    collector.children = [outer];
+    const allNodes = [join, collector, outer, inner];
+
+    const stats = computeSelectionStats([join], allNodes, 'dbms_xplan');
+    expect(stats.sumSelfBuffers).toBe(10); // 100 - 70 - 20, not 100 - 20
+    expect(stats.sumSelfPhysicalReads).toBe(1); // 10 - 7 - 2, not 10 - 2
+  });
+});
