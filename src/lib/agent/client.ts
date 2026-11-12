@@ -2,10 +2,12 @@
  * HTTP client for the optional local DB-connect agent
  * ([oraplanviz-db-connector](https://github.com/davidbudac/oraplanviz-db-connector)).
  *
- * This module is the app's only HTTP module. The agent is a small local
- * process the user runs on their own machine; it exposes a localhost HTTP
- * API that this client talks to over `fetch`. Credentials and plan text
- * never touch any server other than the user's own agent.
+ * This module and the AI providers (src/lib/ai/providers/) are the app's
+ * only network code; src/lib/__tests__/networkBoundary.test.ts enforces
+ * that. The agent is a small local process the user runs on their own
+ * machine; it exposes a localhost HTTP API that this client talks to over
+ * `fetch`. Credentials and plan text never touch any server other than the
+ * user's own agent.
  *
  * The whole feature is build-time gated via `isDbAgentEnabled()` — it is
  * only ever surfaced when `VITE_ENABLE_DB_AGENT` is set to '1' or 'true' at

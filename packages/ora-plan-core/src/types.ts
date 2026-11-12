@@ -308,7 +308,7 @@ export interface FilterState {
   minCardinalityMismatch: number;
 }
 
-export type ViewMode = 'hierarchical' | 'sankey' | 'flame' | 'tabular' | 'text' | 'sql' | 'metadata' | 'compare' | 'monitor' | 'experimental' | 'ai' | 'ai-report';
+export type ViewMode = 'hierarchical' | 'sankey' | 'flame' | 'tabular' | 'text' | 'sql' | 'metadata' | 'compare' | 'monitor' | 'experimental' | 'ai';
 export type SankeyMetric = 'rows' | 'cost' | 'actualRows' | 'actualTime';
 export type ExperimentalSubView = 'flame' | 'scatter' | 'timeline' | 'waterfall' | 'morph' | 'waits';
 export type { FlameMetric } from './flameLayout.ts';

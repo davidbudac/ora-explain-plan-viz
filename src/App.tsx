@@ -799,8 +799,8 @@ function AppContent() {
               <p>Repeated DBMS_XPLAN sections with different plan hash values are imported as separate plan tabs.</p>
               <p className="max-w-3xl">
                 Everything runs in your browser: plans are never uploaded. Your last session and recent plans are kept
-                only in this browser&apos;s local storage. The public build counts anonymous page views with GoatCounter
-                and sends no plan data.
+                only in this browser&apos;s local storage. The hosted copy at davidbudac.github.io counts anonymous page
+                views with GoatCounter and sends no plan data; self-hosted and downloaded copies load no analytics.
               </p>
             </div>
           </div>

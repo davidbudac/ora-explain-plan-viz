@@ -373,6 +373,25 @@ describe('BaselineScriptModal: SQL Patch mode', () => {
     expect(document.body.textContent).not.toContain('Mark as FIXED');
   });
 
+  it('refuses hint lines that SQL*Plus would run as commands', async () => {
+    renderWithProviders(
+      <BaselineScriptModal
+        initialKind="patch"
+        initialSqlId="abc123"
+        initialOutlineHints={['FULL(a)', '/', 'PROMPT x']}
+        onClose={() => {}}
+      />,
+    );
+    const alert = () => dialog()!.querySelector('[role="alert"]');
+    expect(alert()?.textContent).toContain('SQL*Plus would run');
+    expect(buttonByText('Copy script').disabled).toBe(true);
+    expect(buttonByText('Download .sql').disabled).toBe(true);
+    expect(document.querySelector('details pre')).toBeNull();
+    await typeInto(hints(), 'FULL(a)\nINDEX(b)');
+    expect(alert()).toBeNull();
+    expect(buttonByText('Copy script').disabled).toBe(false);
+  });
+
   it('initialKind="patch" opens in patch mode with the hint box prefilled from the outline', () => {
     renderWithProviders(
       <BaselineScriptModal initialKind="patch" initialSqlId="abc123" initialOutlineHints={OUTLINE} onClose={() => {}} />,

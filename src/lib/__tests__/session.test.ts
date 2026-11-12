@@ -159,6 +159,17 @@ describe('session autosave', () => {
     expect(loaded?.viewMode).toBe('hierarchical');
   });
 
+  it('falls back to the tree view for a session saved on the removed ai-report view', () => {
+    localStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({ version: 1, activePlanIndex: 0, viewMode: 'ai-report', slots: [{ text: 'a' }] }),
+    );
+    const loaded = loadSession();
+    expect(loaded?.slots).toHaveLength(1);
+    expect(loaded?.viewMode).toBe('hierarchical');
+    expect(isViewMode('ai-report')).toBe(false);
+  });
+
   it('clearSession removes the saved session', () => {
     saveSession(session());
     clearSession();
