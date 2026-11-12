@@ -175,3 +175,73 @@ describe('selectiveFullScanRule (partitioned tables)', () => {
     expect(selectiveFullScanRule.evaluate(ruleCtx(plan, partitioned()))).toHaveLength(0);
   });
 });
+
+describe('selectiveFullScanRule (re-executed scans: A-Rows is cumulative, the table is read once per execution)', () => {
+  // Full scan of T as the inner side of a nested loop: 2,000 executions, 1 row and 12,000 gets each.
+  const nlInnerScan = () => buildPlan({
+    id: 0, operation: 'NESTED LOOPS', rows: 2000, actualRows: 2000, starts: 1,
+    children: [
+      { id: 1, operation: 'TABLE ACCESS FULL', objectName: 'DRIVER', rows: 2000, actualRows: 2000, starts: 1 },
+      {
+        id: 2, operation: 'TABLE ACCESS FULL', objectName: 'T', filterPredicates: '"T"."ID"="D"."ID"',
+        rows: 1, actualRows: 2000, starts: 2000, logicalReads: 24_000_000,
+      },
+    ],
+  });
+  const bundleT = (numRows: number) => makeBundle({ 'APP.T': makeTable({ num_rows: numRows }) });
+
+  it('is critical without a bundle (measured fallback)', () => {
+    const findings = selectiveFullScanRule.evaluate(ruleCtx(nlInnerScan(), null));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ severity: 'critical', nodeIds: [2] });
+    expect(findings[0].explanation).toContain('logical reads per start');
+  });
+
+  it('stays critical with a bundle: selectivity is per execution, size is rows read over all executions', () => {
+    const findings = selectiveFullScanRule.evaluate(ruleCtx(nlInnerScan(), bundleT(50_000)));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ severity: 'critical', nodeIds: [2] });
+    expect(findings[0].explanation).toContain(`ran ${(2000).toLocaleString()} times`);
+    expect(findings[0].explanation).toContain('returned only 1 rows per execution');
+    expect(findings[0].explanation).toContain(`${(2000).toLocaleString()} in total`);
+    expect(findings[0].explanation).toContain('0.002% selectivity');
+  });
+
+  it('keeps the single-execution wording and severity when the scan ran once', () => {
+    const plan = buildPlan({
+      id: 0, operation: 'TABLE ACCESS FULL', objectName: 'T', filterPredicates: '"T"."STATUS"=:1',
+      rows: 400, actualRows: 500, starts: 1,
+    });
+    const findings = selectiveFullScanRule.evaluate(ruleCtx(plan, bundleT(100_000)));
+    expect(findings).toHaveLength(1);
+    expect(findings[0].severity).toBe('warning');
+    expect(findings[0].explanation).toContain('returned only 500 rows (0.500% selectivity)');
+    expect(findings[0].explanation).not.toContain('per execution');
+  });
+
+  it('does not treat one pass over several partitions as a re-execution (fallback path)', () => {
+    // Starts = 12 on the scan counts partitions; the iterator ran once.
+    const plan = buildPlan({
+      id: 1, operation: 'PARTITION RANGE ALL', rows: 600, actualRows: 600, starts: 1, pstart: '1', pstop: '12',
+      children: [{
+        id: 2, operation: 'TABLE ACCESS FULL', objectName: 'SALES', filterPredicates: '"S"."STATUS"=:1',
+        rows: 600, actualRows: 600, starts: 12, logicalReads: 240_000, pstart: '1', pstop: '12',
+      }],
+    });
+    const findings = selectiveFullScanRule.evaluate(ruleCtx(plan, null));
+    expect(findings).toHaveLength(1);
+    expect(findings[0].severity).toBe('warning');
+  });
+
+  it('falls back to measured buffer gets when the bundle row count says the scan was not selective', () => {
+    // Stale num_rows: 20,000 in the bundle, yet the scan read 500,000 buffers to return 900 rows (4.5%).
+    const plan = buildPlan({
+      id: 0, operation: 'TABLE ACCESS FULL', objectName: 'T', filterPredicates: '"T"."STATUS"=:1',
+      rows: 900, actualRows: 900, starts: 1, logicalReads: 500_000,
+    });
+    const findings = selectiveFullScanRule.evaluate(ruleCtx(plan, bundleT(20_000)));
+    expect(findings).toHaveLength(1);
+    expect(findings[0].severity).toBe('warning');
+    expect(findings[0].explanation).toContain('logical reads per start');
+  });
+});
