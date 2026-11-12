@@ -537,6 +537,10 @@ export function outlineDecisionKey(hint: ParsedHint): string {
     : hint.queryBlock ?? '';
   // LEADING is one decision per query block, whatever the alias order.
   if (hint.family === 'order') return `order@${hint.queryBlock ?? ''}`;
+  // OPT_PARAM names no alias or query block: each parameter is its own decision.
+  if (hint.name === 'OPT_PARAM' && hint.args.length > 0) {
+    return `opt_param@${hint.args[0].replace(/'/g, '').toLowerCase()}`;
+  }
   return `${decisionName(hint)}@${target}`;
 }
 

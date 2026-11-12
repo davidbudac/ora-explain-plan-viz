@@ -35,6 +35,109 @@ export function expandTableTabs(lines: string[]): string[] {
   return lines.map((line) => (line.startsWith('|') ? expandTabs(line) : line));
 }
 
+/** The plan-table header row ("| Id | Operation | ..."). */
+const TABLE_HEADER = /\|\s*Id\s*\|.*Operation/i;
+/** Unicode space separators that mail clients, chat tools and word processors put in place of U+0020. */
+const SPACE_LIKE = '\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000';
+const SPACE_LIKE_CHAR = new RegExp(`[${SPACE_LIKE}]`);
+const SPACE_LIKE_ALL = new RegExp(`[${SPACE_LIKE}]`, 'g');
+/** A separator rule of the plan table or of a section title ("-----", "=====", "+----+"). */
+const RULE_REST = /^[-=+]{5,}\s*$/;
+
+/**
+ * Pattern for a per-line prefix, built from the text in front of the header row's first `|`:
+ * a digit matches any digit (timestamps, line numbers), a blank matches any blank (space, tab,
+ * no-break space ...), everything else must match literally.
+ */
+function prefixPattern(prefix: string): RegExp {
+  let source = '^';
+  for (const ch of prefix) {
+    if (/\d/.test(ch)) source += '\\d';
+    else if (ch === ' ' || ch === '\t' || SPACE_LIKE_CHAR.test(ch)) source += `[ \\t${SPACE_LIKE}]`;
+    else source += ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+  return new RegExp(source);
+}
+
+/**
+ * Remove a prefix that something between Oracle and the paste put in front of every line:
+ * indentation (Markdown code blocks), "> " quoting (mail), a quote character per line (CSV
+ * export of PLAN_TABLE_OUTPUT) or a log timestamp. The prefix is the text before the first
+ * `|` of the plan-table header row and is removed only when a table row below the header
+ * carries it too, so output copied straight from SQL*Plus comes back unchanged (same array).
+ */
+export function stripLinePrefix(lines: string[]): string[] {
+  const headerIndex = lines.findIndex((line) => TABLE_HEADER.test(line));
+  if (headerIndex < 0) return lines;
+  const width = lines[headerIndex].search(/\|\s*Id\s*\|/i);
+  if (width <= 0) return lines;
+
+  const prefix = lines[headerIndex].slice(0, width);
+  const pattern = prefixPattern(prefix);
+  /** How many leading characters of `line` are prefix; -1 when the line does not carry it. */
+  const cutAt = (line: string): number => {
+    const padded = line.length < width ? line.padEnd(width) : line;
+    if (pattern.test(padded)) return Math.min(width, line.length);
+    // Same-width prefix with other text (a thread name, a wider line number) in front of a table line.
+    const rest = line.slice(width);
+    if ((rest.startsWith('|') || RULE_REST.test(rest)) && !line.slice(0, width).includes('|')) return width;
+    return -1;
+  };
+
+  const confirmed = lines.some((line, i) => i > headerIndex && cutAt(line) === width && line[width] === '|');
+  if (!confirmed) return lines;
+
+  const quote = prefix.trim();
+  const quoted = quote === '"' || quote === "'";
+  return lines.map((line) => {
+    const cut = cutAt(line);
+    if (cut < 0) return line;
+    let rest = line.slice(cut);
+    if (quoted) {
+      // "| Id | Operation |" - one quoted string per line; CSV exports also double the inner quotes.
+      rest = rest.replace(new RegExp(`${quote}\\s*$`), '');
+      if (quote === '"') rest = rest.replace(/""/g, '"');
+    }
+    return rest;
+  });
+}
+
+/**
+ * Split plan text into lines ready for the column-position parsers: line endings normalised,
+ * a per-line prefix removed (`stripLinePrefix`), tabs expanded on plan-table lines and - when
+ * the plan table shows the paste went through a rich-text tool - Unicode space separators
+ * turned back into plain spaces, so indentation depth is read correctly.
+ */
+export function prepareTextLines(input: string): string[] {
+  const lines = stripLinePrefix(normalizeNewlines(input).split('\n'));
+  const richText = lines.some((line) => line.startsWith('|') && SPACE_LIKE_CHAR.test(line));
+  return expandTableTabs(richText ? lines.map((line) => line.replace(SPACE_LIKE_ALL, ' ')) : lines);
+}
+
+/**
+ * A SQL_ID as Oracle prints it: letters and digits only, at most 13 characters (real ones are
+ * exactly 13; shorter ones turn up in hand-edited plans). Anything else is not a SQL_ID.
+ */
+const SQL_ID_SHAPE = /^[0-9A-Za-z]{1,13}$/;
+/** A plan hash value: digits only. */
+const PLAN_HASH_SHAPE = /^\d+$/;
+
+/**
+ * The SQL_ID found in plan input, or undefined when the text does not have the shape of one.
+ * Plan input is untrusted (a pasted plan, a share link) and the id is later written into
+ * generated SQL and into prompts, so nothing but a well-formed id may get through.
+ */
+export function normalizeSqlId(value: string | null | undefined): string | undefined {
+  const text = value?.trim();
+  return text && SQL_ID_SHAPE.test(text) ? text : undefined;
+}
+
+/** The plan hash value found in plan input, or undefined when it is not all digits. See `normalizeSqlId`. */
+export function normalizePlanHash(value: string | null | undefined): string | undefined {
+  const text = value?.trim();
+  return text && PLAN_HASH_SHAPE.test(text) ? text : undefined;
+}
+
 function scaled(num: string, suffix: string | undefined, base: number): number | null {
   const value = parseFloat(num);
   if (!Number.isFinite(value)) return null;

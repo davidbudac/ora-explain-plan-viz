@@ -1,14 +1,18 @@
 import type { PlanNode } from '../../types.ts';
 import type { AdvisorRule, Finding, FindingSeverity, RuleContext } from '../types.ts';
-import { nodeCardinalityRatio, cardinalityRatioSeverity } from '../../format.ts';
+import { nodeCardinalityRatio, cardinalityRatioSeverity, effectiveExecutions } from '../../format.ts';
 import { effectiveChildren } from '../../analysis.ts';
 
-function describeEstimate(c: { eRowsPerStart?: number; starts?: number; eRowsTotal: number }): string {
-  if (c.starts !== undefined && c.starts > 1 && c.eRowsPerStart !== undefined && c.eRowsPerStart !== c.eRowsTotal) {
-    const unit = c.eRowsPerStart === 1 ? 'row' : 'rows';
-    return `Estimated ${c.eRowsPerStart.toLocaleString()} ${unit} per start × ${c.starts.toLocaleString()} starts = ${c.eRowsTotal.toLocaleString()} rows`;
+/** "Estimated 5 rows per execution × 167 executions = 835 rows": the arithmetic behind `estimatedRowsTotal`. */
+function describeEstimate(node: PlanNode): string {
+  const total = node.estimatedRowsTotal as number;
+  const executions = effectiveExecutions(node);
+  if (executions !== undefined && node.rows !== undefined) {
+    const unit = node.rows === 1 ? 'row' : 'rows';
+    const times = Number.isInteger(executions) ? executions.toLocaleString() : executions.toFixed(1);
+    return `Estimated ${node.rows.toLocaleString()} ${unit} per execution × ${times} executions = ${total.toLocaleString()} rows`;
   }
-  return `Estimated ${c.eRowsTotal.toLocaleString()} rows (E-Rows)`;
+  return `Estimated ${total.toLocaleString()} rows (E-Rows)`;
 }
 
 export const cardinalityMismatchRule: AdvisorRule = {
@@ -82,7 +86,7 @@ export const cardinalityMismatchRule: AdvisorRule = {
         severity: c.severity,
         nodeIds: [node.id],
         title: `Cardinality mismatch on ${node.operation}`,
-        explanation: `${describeEstimate({ eRowsPerStart: node.rows, starts: node.starts, eRowsTotal: node.estimatedRowsTotal as number })} but actually produced ${(node.actualRows as number).toLocaleString()} rows (A-Rows), a ${c.deviation.toFixed(1)}x deviation.${root}${inheritNote}`,
+        explanation: `${describeEstimate(node)} but actually produced ${(node.actualRows as number).toLocaleString()} rows (A-Rows), a ${c.deviation.toFixed(1)}x deviation.${root}${inheritNote}`,
         suggestion: 'Gather fresh statistics (including histograms on filtered columns) or consider an SQL profile/plan baseline if the estimate consistently diverges from reality.',
       };
     });

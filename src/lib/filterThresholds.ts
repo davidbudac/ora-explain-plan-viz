@@ -84,5 +84,5 @@ export function parseThreshold(text: string, kind: ThresholdKind): number | null
 export function formatThreshold(value: number, kind: ThresholdKind): string {
   if (kind === 'time') return formatTimeCompact(value) ?? '';
   if (kind === 'ratio') return `${Number(value.toFixed(1))}×`;
-  return (formatNumberShort(value) ?? '').replace(/\.0(?=[KM]$)/, '');
+  return (formatNumberShort(value) ?? '').replace(/\.0(?=[KMGT]$)/, '');
 }

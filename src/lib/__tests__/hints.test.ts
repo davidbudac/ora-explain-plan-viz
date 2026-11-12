@@ -165,6 +165,35 @@ describe('diffOutlines', () => {
   it('is empty for two plans without an outline', () => {
     expect(diffOutlines(undefined, undefined)).toEqual({ changed: [], onlyA: [], onlyB: [], same: [] });
   });
+
+  describe('OPT_PARAM entries', () => {
+    const FEEDBACK = "OPT_PARAM('_optimizer_use_feedback' 'false')";
+    const COST_ADJ = "OPT_PARAM('optimizer_index_cost_adj' 20)";
+
+    it('matches the same parameters whatever their order', () => {
+      const d = diffOutlines([FEEDBACK, COST_ADJ], [COST_ADJ, FEEDBACK]);
+      expect(d.same.map((e) => e.key).sort()).toEqual(['opt_param@_optimizer_use_feedback', 'opt_param@optimizer_index_cost_adj']);
+      expect(d.changed).toEqual([]);
+      expect(d.onlyA).toEqual([]);
+      expect(d.onlyB).toEqual([]);
+    });
+
+    it('reports a parameter that only one plan sets as "only in" that plan', () => {
+      const d = diffOutlines([FEEDBACK], [COST_ADJ, FEEDBACK]);
+      expect(d.same.map((e) => e.a)).toEqual([FEEDBACK]);
+      expect(d.changed).toEqual([]);
+      expect(d.onlyA).toEqual([]);
+      expect(d.onlyB.map((e) => e.b)).toEqual([COST_ADJ]);
+    });
+
+    it('reports a parameter whose value differs as changed', () => {
+      const d = diffOutlines([COST_ADJ], ["OPT_PARAM('optimizer_index_cost_adj' 50)"]);
+      expect(d.changed.map((e) => [e.key, e.a, e.b])).toEqual([
+        ['opt_param@optimizer_index_cost_adj', COST_ADJ, "OPT_PARAM('optimizer_index_cost_adj' 50)"],
+      ]);
+      expect(d.same).toEqual([]);
+    });
+  });
 });
 
 describe('hintChipsForNode (what the lens draws)', () => {
