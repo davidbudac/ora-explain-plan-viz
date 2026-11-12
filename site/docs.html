@@ -764,7 +764,7 @@ SQL&gt; @gather_plan_metadata.sql LIST "HR.EMPLOYEES,HR.DEPARTMENTS"</code></pre
       <ul>
         <li><strong>Hint text</strong>, one hint per line, is prefilled with the plan's full outline when the plan carries one
           (DBMS_XPLAN <code>ADVANCED</code> / <code>+OUTLINE</code> output or a SQL Monitor XML report). The full outline pins the
-          current plan; trim it to the hints you need, or type your own.</li>
+          current plan; trim it to the hints you need, or type your own. A line that SQL*Plus would run as a command instead of reading as hint text (only <code>/</code> or <code>.</code>, or starting with <code>#</code>) is rejected.</li>
         <li><strong>Patch name</strong> defaults to <code>PLANVIZ_PATCH_&lt;SQL_ID&gt;</code>.</li>
         <li>The statement must still be in the cursor cache (or AWR) when the script runs. The script lists existing patches,
           creates the patch, verifies it, and ends with a crib sheet (disable, drop).</li>

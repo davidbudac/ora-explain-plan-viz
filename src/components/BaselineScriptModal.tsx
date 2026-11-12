@@ -1,6 +1,6 @@
 import { useId, useMemo, useRef, useState } from 'react';
 import { buildBaselineScript, baselineScriptFilename } from '../lib/baselineScript';
-import { buildSqlPatchScript, sqlPatchScriptFilename } from '../lib/sqlPatchScript';
+import { buildSqlPatchScript, sqlPatchScriptFilename, unsafeHintLines } from '../lib/sqlPatchScript';
 import { downloadTextFile } from '../lib/fileExport';
 import type { BaselineSource, BaselineScriptOptions } from '../lib/baselineScript';
 import { CopyButton, Dialog, DialogBody, DialogFooter, BTN_PRIMARY, BTN_SECONDARY, FOCUS_RING } from './ui';
@@ -94,7 +94,9 @@ export function BaselineScriptModal({
   const planHashValid = planHash !== '' && PLAN_HASH_RE.test(planHash);
   const patchNameValid = PATCH_NAME_RE.test(patchName);
   const hintsEmpty = hintText.trim() === '';
-  const hintsValid = !hintsEmpty;
+  // Lines SQL*Plus would run as commands (a lone / or ., or a # prefix): never offered as a script
+  const unsafeHints = useMemo(() => unsafeHintLines(hintText), [hintText]);
+  const hintsValid = !hintsEmpty && unsafeHints.length === 0;
 
   const baselineOptions = useMemo<BaselineScriptOptions | null>(() => {
     if (isPatch || !sqlIdValid || !planHashValid) return null;
@@ -271,7 +273,7 @@ export function BaselineScriptModal({
                 rows={6}
                 spellCheck={false}
                 placeholder={'One hint per line, e.g.\nFULL(@"SEL$1" "E"@"SEL$1")'}
-                className={`${inputClass(true)} resize-y whitespace-pre`}
+                className={`${inputClass(unsafeHints.length === 0)} resize-y whitespace-pre`}
               />
               {outlinePrefill !== '' ? (
                 <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
@@ -285,6 +287,17 @@ export function BaselineScriptModal({
               )}
               {hintsEmpty && (
                 <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Enter at least one hint.</p>
+              )}
+              {unsafeHints.length > 0 && (
+                <p role="alert" className="mt-1 text-[11px] text-red-600 dark:text-red-400">
+                  Remove {unsafeHints.length === 1 ? 'this line' : 'these lines'}: SQL*Plus would run{' '}
+                  {unsafeHints.length === 1 ? 'it' : 'them'} as a command, not read {unsafeHints.length === 1 ? 'it' : 'them'} as
+                  hint text —{' '}
+                  {unsafeHints.slice(0, 3).map((line, i) => (
+                    <code key={i} className="mr-1">{line.length > 40 ? `${line.slice(0, 37)}...` : line}</code>
+                  ))}
+                  {unsafeHints.length > 3 && `and ${unsafeHints.length - 3} more`}
+                </p>
               )}
             </div>
           </>
