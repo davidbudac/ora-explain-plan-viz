@@ -133,6 +133,9 @@ export const sqlMonitorTextParser: PlanParser = {
       source: 'sql_monitor_text',
       hasActualStats,
       totalElapsedTime,
+      // A real SQL Monitor report's time column is "Time Active(s)". A bare A-Rows table (no
+      // report markers) carries a true, cumulative A-Time instead.
+      timeIsActiveWindow: SQL_MONITOR_MARKERS.test(input) || undefined,
       notes,
     };
   },
@@ -742,6 +745,12 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
   // Parse activity samples (ASH) and assign per-operation activityPercent
   applyActivitySamples(doc, nodeMap, activityTimeline);
 
+  // Per-operation time comes from the "duration" stat: whole seconds between first_active and
+  // last_active (minimum 1), an active window. Only a per-operation elapsed_time would be measured time.
+  const operationStat = (name: string): Element | null =>
+    planMonitor?.querySelector(`:scope > operation stats[type="plan_monitor"] > stat[name="${name}"]`) ?? null;
+  const timeIsActiveWindow = operationStat('duration') !== null && operationStat('elapsed_time') === null;
+
   // Find root node (id 0, or node without parent_id)
   const rootNode = nodeMap.get(0) || allNodes.find(n => n.parentId === undefined) || null;
 
@@ -847,6 +856,7 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
     source: 'sql_monitor_xml',
     hasActualStats,
     totalElapsedTime,
+    timeIsActiveWindow: timeIsActiveWindow || undefined,
     bindVariables: bindVariables.length > 0 ? bindVariables : undefined,
     monitorMetadata: Object.keys(monitorMetadata).length > 0 ? monitorMetadata : undefined,
     activityTimeline,
