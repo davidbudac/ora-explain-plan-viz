@@ -17,19 +17,19 @@ import {
   stripXmlWrapper,
   textTableWarnings,
   truncatedXmlWarning,
+  unreachableNodeIds,
   xmlWrapperWarning,
 } from './warnings.ts';
 import { alignColumnsToRow, pipeIndexes } from './rowAlign.ts';
 import { parsePredicateSection, parseQueryBlockSection } from './predicateSection.ts';
 import type { NodePredicates, NodeQueryBlock } from './predicateSection.ts';
 import {
-  expandTableTabs,
-  normalizeNewlines,
   parseByteSize,
   parseCostCell,
   parseCount,
   parseTimeToMs,
   parseUsedMem,
+  prepareTextLines,
 } from './values.ts';
 
 /** Header markers that only a SQL Monitor report carries. */
@@ -50,7 +50,7 @@ export const sqlMonitorTextParser: PlanParser = {
   },
 
   parse(input: string): ParsedPlan {
-    const lines = expandTableTabs(normalizeNewlines(input).split('\n'));
+    const lines = prepareTextLines(input);
 
     // Extract SQL ID if present
     const sqlId = extractSqlId(lines);
@@ -108,6 +108,7 @@ export const sqlMonitorTextParser: PlanParser = {
       rejectedLines: table.rejectedLines,
       nodeIds: allNodes.map(node => node.id),
       predicateIds: [...predicates.keys()],
+      unreachableIds: unreachableNodeIds(rootNode, allNodes),
     });
     if (!SQL_MONITOR_MARKERS.test(input)) {
       // Reached only through the bare "Id | Operation | … | A-Rows" clause of canParse.

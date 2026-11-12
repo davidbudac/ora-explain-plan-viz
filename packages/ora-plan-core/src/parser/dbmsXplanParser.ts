@@ -19,10 +19,10 @@ import {
   isRejectedRow,
   scanTableShape,
   textTableWarnings,
+  unreachableNodeIds,
   unreadSectionsWarning,
 } from './warnings.ts';
 import {
-  expandTableTabs,
   normalizeNewlines,
   parseByteSize,
   parseCostCell,
@@ -30,6 +30,8 @@ import {
   parseTimeToMs,
   parseUsedMem,
   parseWorkareaExecutions,
+  prepareTextLines,
+  stripLinePrefix,
 } from './values.ts';
 
 /** Runtime-statistics fields a DBMS_XPLAN row can carry (ALLSTATS / DISPLAY_CURSOR columns). */
@@ -129,7 +131,7 @@ export const dbmsXplanParser: PlanParser = {
   },
 
   parse(input: string): ParsedPlan {
-    const lines = expandTableTabs(normalizeNewlines(input).split('\n'));
+    const lines = prepareTextLines(input);
 
     // Extract plan hash value if present
     const planHashValue = extractPlanHashValue(lines);
@@ -200,6 +202,7 @@ export const dbmsXplanParser: PlanParser = {
       rejectedLines: table.rejectedLines,
       nodeIds: allNodes.map(node => node.id),
       predicateIds: [...predicates.keys()],
+      unreachableIds: unreachableNodeIds(rootNode, allNodes),
     });
     const unreadSections = unreadSectionsWarning(
       findUnreadSections(lines, scanTableShape(lines, table.headerIndex).endIndex),
@@ -234,7 +237,8 @@ export function extractDbmsXplanSegments(input: string): string[] {
   const normalized = normalizeNewlines(input).trim();
   if (!normalized) return [];
 
-  const lines = normalized.split('\n');
+  // A quoted / indented / log-prefixed paste: find the SQL_ID headers and hash lines on the bare text.
+  const lines = stripLinePrefix(normalized.split('\n'));
   const segmentStarts: number[] = [];
 
   for (let i = 0; i < lines.length; i++) {

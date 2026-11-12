@@ -1068,7 +1068,7 @@ oraplanviz-agent --allow-origin http://localhost:8081</code></pre>
       <h2>Troubleshooting &amp; FAQ<a class="anchor" href="#troubleshooting">#</a></h2>
 
       <h4>"Could not detect the plan format"</h4>
-      <p>The parser looks for the DBMS_XPLAN table header (<code>| Id | Operation |</code>), the SQL Monitor "SQL Plan Monitoring Details" header, an XML <code>&lt;report&gt;</code> root, a JSON array, a CSV header row with <code>ID</code> and <code>OPERATION</code> columns, or the xbi.sql header. Make sure the whole table is pasted including the header row and the dashed separator lines, and that line wrapping hasn't broken rows (set <code>LINESIZE 300</code> or more in SQL*Plus).</p>
+      <p>The parser looks for the DBMS_XPLAN table header (<code>| Id | Operation |</code>), the SQL Monitor "SQL Plan Monitoring Details" header, an XML <code>&lt;report&gt;</code> root, a JSON array, a CSV header row with <code>ID</code> and <code>OPERATION</code> columns, or the xbi.sql header. Make sure the whole table is pasted including the header row and the dashed separator lines, and that line wrapping hasn't broken rows (set <code>LINESIZE 300</code> or more in SQL*Plus). A prefix in front of every line (indentation, <code>&gt;</code> mail quoting, one quoted string per line, a log timestamp) and no-break spaces left by mail or chat tools are removed automatically.</p>
 
       <h4>The XML report is truncated or the tree is incomplete</h4>
       <p>SQL*Plus cuts long CLOB output at <code>LONG</code>. Use the spool recipe in <a href="#input-formats">Getting a plan out of Oracle</a> with <code>SET LONG 10000000</code>.</p>
