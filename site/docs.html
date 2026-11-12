@@ -1052,14 +1052,14 @@ oraplanviz-agent --allow-origin http://localhost:8081</code></pre>
       <ul>
         <li><strong>No backend.</strong> The app is static files. Parsing, layout, analysis, comparison and report generation all run in the browser tab. The public deployment makes no network requests with your data.</li>
         <li><strong>localStorage</strong> (this browser only) holds view preferences (theme, palette, color scheme, density, panel states, column widths, client/author names for reports), your last session (loaded plans, labels, metadata bundles and annotations, restored on the next visit; <em>Start fresh</em> in the restore toast discards it) and the Recent plans list (entries can be removed one by one). It never holds API keys.</li>
-        <li><strong>Page views.</strong> The public deployment counts anonymous page views with GoatCounter. No plan data is sent.</li>
+        <li><strong>Page views.</strong> The hosted copy on GitHub Pages counts anonymous page views with GoatCounter; no plan data is sent. Only that build includes the counter: the Docker image, your own <code>npm run build</code> and the single-file release load no analytics script.</li>
         <li><strong>Share URLs</strong> contain the plan itself, compressed. Treat a share link like the plan text: anyone with the link has the plan. Nothing is stored server-side.</li>
         <li><strong>Annotations</strong> stay in this browser (session autosave) unless you export them or put them in a share link.</li>
         <li><strong>Database connector</strong> traffic stays on your machine (browser ↔ 127.0.0.1). Credentials are never sent to the app's host.</li>
         <li><strong>Agent handoff</strong> is built in the browser and copied or downloaded; it goes only where you paste it. It contains your SQL text, object names and any bind values, so review the included sections first.</li>
         <li><strong>AI analysis</strong> (when enabled) sends the plan and optional metadata to the provider you chose, only when you click Run. Keys live in sessionStorage for the tab's lifetime.</li>
       </ul>
-      <p>Plans often contain object names and literal values from predicates. If that is sensitive, self-host the app on your own network; the behavior is identical.</p>
+      <p>Plans often contain object names and literal values from predicates. If that is sensitive, self-host the app on your own network: it behaves the same, without the page-view counter.</p>
     </section>
 
     <!-- ---------- Troubleshooting ---------- -->
