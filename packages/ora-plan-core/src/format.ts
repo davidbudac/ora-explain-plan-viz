@@ -5,54 +5,88 @@ export interface FormatOptions {
   infinity?: string;
 }
 
+/** `undefined`, NaN and -Infinity have no display value (Infinity has its own symbol). */
+function isBlank(value: number | undefined): value is undefined {
+  return value === undefined || Number.isNaN(value) || value === -Infinity;
+}
+
+/** Count suffixes as Oracle prints them in plan tables (1000-based). */
+const COUNT_UNITS = ['K', 'M', 'G', 'T'];
+const BYTE_UNITS = ['KB', 'MB', 'GB', 'TB'];
+
+/**
+ * `value` scaled down by `base` until it prints below `base` with one decimal: the unit is
+ * chosen after rounding, so 999,950 reads "1.0M", never "1000.0K". Values past the last
+ * unit stay in it.
+ */
+function scaleToUnit(value: number, base: number, units: string[]): { text: string; unit: string } {
+  let scaled = value / base;
+  let index = 0;
+  while (index < units.length - 1 && Number(scaled.toFixed(1)) >= base) {
+    scaled /= base;
+    index++;
+  }
+  return { text: scaled.toFixed(1), unit: units[index] };
+}
+
 export function formatNumberShort(value?: number, options: FormatOptions = {}): string | undefined {
-  if (value === undefined) return options.empty;
+  if (isBlank(value)) return options.empty;
   if (value === Infinity) return options.infinity ?? '∞';
-  if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
-  if (value >= 1000) return (value / 1000).toFixed(1) + 'K';
-  return value.toString();
+  if (value < 1000) return value.toString();
+  const { text, unit } = scaleToUnit(value, 1000, COUNT_UNITS);
+  return text + unit;
 }
 
 export function formatBytes(value?: number, options: FormatOptions = {}): string | undefined {
-  if (value === undefined) return options.empty;
+  if (isBlank(value)) return options.empty;
   if (value === Infinity) return options.infinity ?? '∞';
-  if (value >= 1073741824) return (value / 1073741824).toFixed(1) + ' GB';
-  if (value >= 1048576) return (value / 1048576).toFixed(1) + ' MB';
-  if (value >= 1024) return (value / 1024).toFixed(1) + ' KB';
-  return value + ' B';
+  if (value < 1024) return value + ' B';
+  const { text, unit } = scaleToUnit(value, 1024, BYTE_UNITS);
+  return `${text} ${unit}`;
 }
 
+// The time formatters take milliseconds. Each range test rounds to the precision that range
+// prints with before comparing, so a value never shows as "1000ms", "60.00s" or "1m 60.0s".
+
+/** "2m 5.3s" from a duration, via tenths of a second so the seconds part is always below 60. */
+function minutesAndSeconds(ms: number): string {
+  const tenths = Math.round(ms / 100);
+  return `${Math.floor(tenths / 600)}m ${((tenths % 600) / 10).toFixed(1)}s`;
+}
+
+/** True while `ms` still prints below one hour in the "Xm Y.Ys" form. */
+const belowOneHour = (ms: number): boolean => Math.round(ms / 100) < 36000;
+/** True while `ms` still prints below one minute in the "S.SSs" form. */
+const belowOneMinute = (ms: number): boolean => Math.round(ms / 10) < 6000;
+
 export function formatTimeCompact(value?: number, options: FormatOptions = {}): string | undefined {
-  if (value === undefined) return options.empty;
+  if (isBlank(value)) return options.empty;
   if (value === Infinity) return options.infinity ?? '∞';
-  if (value >= 60000) {
-    const mins = Math.floor(value / 60000);
-    const secs = ((value % 60000) / 1000).toFixed(1);
-    return `${mins}m ${secs}s`;
-  }
-  if (value >= 1000) return (value / 1000).toFixed(2) + 's';
-  return value.toFixed(0) + 'ms';
+  if (Math.round(value) < 1000) return value.toFixed(0) + 'ms';
+  if (belowOneMinute(value)) return (value / 1000).toFixed(2) + 's';
+  if (belowOneHour(value)) return minutesAndSeconds(value);
+  const minutes = Math.round(value / 60000);
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
 export function formatTimeShort(value?: number, options: FormatOptions = {}): string | undefined {
-  if (value === undefined) return options.empty;
+  if (isBlank(value)) return options.empty;
   if (value === Infinity) return options.infinity ?? '∞';
-  if (value >= 60000) return (value / 60000).toFixed(1) + 'm';
-  if (value >= 1000) return (value / 1000).toFixed(2) + 's';
-  return value.toFixed(0) + 'ms';
+  if (Math.round(value) < 1000) return value.toFixed(0) + 'ms';
+  if (belowOneMinute(value)) return (value / 1000).toFixed(2) + 's';
+  if (Math.round(value / 6000) < 600) return (value / 60000).toFixed(1) + 'm';
+  return (value / 3600000).toFixed(1) + 'h';
 }
 
 export function formatTimeDetailed(value?: number, options: FormatOptions = {}): string | undefined {
-  if (value === undefined) return options.empty;
+  if (isBlank(value)) return options.empty;
   if (value === Infinity) return options.infinity ?? '∞';
-  if (value >= 60000) {
-    const minutes = Math.floor(value / 60000);
-    const seconds = ((value % 60000) / 1000).toFixed(1);
-    return `${minutes}m ${seconds}s`;
-  }
-  if (value >= 1000) return (value / 1000).toFixed(2) + 's';
-  if (value >= 1) return value.toFixed(1) + 'ms';
-  return (value * 1000).toFixed(0) + 'us';
+  if (Math.round(value * 1000) < 1000) return (value * 1000).toFixed(0) + 'us';
+  if (Math.round(value * 10) < 10000) return value.toFixed(1) + 'ms';
+  if (belowOneMinute(value)) return (value / 1000).toFixed(2) + 's';
+  if (belowOneHour(value)) return minutesAndSeconds(value);
+  const seconds = Math.round(value / 1000);
+  return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m ${seconds % 60}s`;
 }
 
 /**
@@ -110,7 +144,7 @@ export function formatEstimatedRows(
   const execText = Number.isInteger(executions) ? executions.toLocaleString('en-US') : executions.toFixed(1);
   const perExec = node.rows.toLocaleString('en-US');
   return {
-    text: `${formatNumberShort(node.rows)} × ${formatNumberShort(executions)!.replace(/\.0(?=[KM]$)/, '')}`,
+    text: `${formatNumberShort(node.rows)} × ${formatNumberShort(executions)!.replace(/\.0(?=[KMGT]$)/, '')}`,
     title:
       `${perExec} ${node.rows === 1 ? 'row' : 'rows'} per execution × ${execText} executions = ` +
       `${Math.round(node.estimatedRowsTotal).toLocaleString('en-US')} estimated in total ` +
