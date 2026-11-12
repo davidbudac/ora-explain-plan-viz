@@ -114,6 +114,30 @@ export function prepareTextLines(input: string): string[] {
   return expandTableTabs(richText ? lines.map((line) => line.replace(SPACE_LIKE_ALL, ' ')) : lines);
 }
 
+/**
+ * A SQL_ID as Oracle prints it: letters and digits only, at most 13 characters (real ones are
+ * exactly 13; shorter ones turn up in hand-edited plans). Anything else is not a SQL_ID.
+ */
+const SQL_ID_SHAPE = /^[0-9A-Za-z]{1,13}$/;
+/** A plan hash value: digits only. */
+const PLAN_HASH_SHAPE = /^\d+$/;
+
+/**
+ * The SQL_ID found in plan input, or undefined when the text does not have the shape of one.
+ * Plan input is untrusted (a pasted plan, a share link) and the id is later written into
+ * generated SQL and into prompts, so nothing but a well-formed id may get through.
+ */
+export function normalizeSqlId(value: string | null | undefined): string | undefined {
+  const text = value?.trim();
+  return text && SQL_ID_SHAPE.test(text) ? text : undefined;
+}
+
+/** The plan hash value found in plan input, or undefined when it is not all digits. See `normalizeSqlId`. */
+export function normalizePlanHash(value: string | null | undefined): string | undefined {
+  const text = value?.trim();
+  return text && PLAN_HASH_SHAPE.test(text) ? text : undefined;
+}
+
 function scaled(num: string, suffix: string | undefined, base: number): number | null {
   const value = parseFloat(num);
   if (!Number.isFinite(value)) return null;

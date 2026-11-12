@@ -24,6 +24,7 @@ import {
 } from './warnings.ts';
 import {
   normalizeNewlines,
+  normalizeSqlId,
   parseByteSize,
   parseCostCell,
   parseCount,
@@ -326,7 +327,7 @@ function extractSqlHeader(lines: string[]): { sqlId?: string; childNumber?: numb
     }
 
     const sqlText = cleanSqlLines(dropPageBreaks(lines.slice(j, end)), { verbatim: true });
-    return { sqlId: sqlId || undefined, childNumber, sqlText: sqlText || undefined };
+    return { sqlId: normalizeSqlId(sqlId), childNumber, sqlText: sqlText || undefined };
   }
 
   // Shapes 2 & 3: look at everything before the first "Plan hash value:".

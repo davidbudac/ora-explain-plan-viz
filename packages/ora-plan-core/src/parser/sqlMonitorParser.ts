@@ -24,6 +24,8 @@ import { alignColumnsToRow, pipeIndexes } from './rowAlign.ts';
 import { parsePredicateSection, parseQueryBlockSection } from './predicateSection.ts';
 import type { NodePredicates, NodeQueryBlock } from './predicateSection.ts';
 import {
+  normalizePlanHash,
+  normalizeSqlId,
   parseByteSize,
   parseCostCell,
   parseCount,
@@ -227,7 +229,7 @@ function extractSqlId(lines: string[]): string | undefined {
     // which this parser also handles via its A-Rows detection.
     const match = line.match(/SQL[\s_]*ID[:\s]+(\w+)/i);
     if (match) {
-      return match[1];
+      return normalizeSqlId(match[1]);
     }
   }
   return undefined;
@@ -661,15 +663,13 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
     undefined;
   const sqlExecStartMs = sqlExecStartStr ? parseOracleTimestamp(sqlExecStartStr) : undefined;
 
-  const sqlId =
-    reportParams?.querySelector('sql_id')?.textContent?.trim() ||
-    target?.getAttribute('sql_id') ||
-    undefined;
+  const sqlId = normalizeSqlId(
+    reportParams?.querySelector('sql_id')?.textContent?.trim() || target?.getAttribute('sql_id'),
+  );
 
-  const planHashValue =
-    target?.getAttribute('sql_plan_hash') ||
-    reportParams?.querySelector('plan_hash')?.textContent?.trim() ||
-    undefined;
+  const planHashValue = normalizePlanHash(
+    target?.getAttribute('sql_plan_hash') || reportParams?.querySelector('plan_hash')?.textContent?.trim(),
+  );
 
   // SQL text from <target><sql_fulltext>
   const sqlText = target?.querySelector('sql_fulltext')?.textContent?.trim() || undefined;
@@ -1415,8 +1415,8 @@ function parseBindVariables(doc: Document): BindVariable[] {
 
 function parseLegacyXml(doc: Document): ParsedPlan {
   // Extract metadata
-  const sqlId = getXmlText(doc, 'sql_id');
-  const planHashValue = getXmlText(doc, 'plan_hash');
+  const sqlId = normalizeSqlId(getXmlText(doc, 'sql_id'));
+  const planHashValue = normalizePlanHash(getXmlText(doc, 'plan_hash'));
   const sqlText = getXmlText(doc, 'sql_text');
 
   // Parse plan operations (legacy: flat <operation> elements or under <plan_operations>)
