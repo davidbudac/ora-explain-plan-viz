@@ -91,3 +91,29 @@ describe('computeRowFlow', () => {
     expect(rootEntry.kind).toBe('passthrough');
   });
 });
+
+describe('computeRowFlow on adaptive plans', () => {
+  it('leaves out inactive rows and feeds the rows below them to the nearest active ancestor', () => {
+    // NESTED LOOPS (ran) -> [ STATISTICS COLLECTOR (inactive) -> outer scan (ran), inner scan (ran) ],
+    // next to the unused alternative: an inactive leaf that only has an estimate.
+    const outer = makeNode({ id: 3, operation: 'TABLE ACCESS FULL', actualRows: 40 });
+    const collector = makeNode({ id: 2, operation: 'STATISTICS COLLECTOR', inactive: true, rows: 7000, children: [outer] });
+    const inner = makeNode({ id: 4, operation: 'INDEX RANGE SCAN', actualRows: 60 });
+    const unused = makeNode({ id: 5, operation: 'TABLE ACCESS FULL', inactive: true, rows: 5000 });
+    const root = makeNode({ id: 1, operation: 'NESTED LOOPS', actualRows: 50, children: [collector, inner, unused] });
+    const plan: ParsedPlan = {
+      rootNode: root,
+      allNodes: [root, collector, outer, inner, unused],
+      totalCost: 0,
+      maxRows: 0,
+      source: 'sql_monitor_xml',
+      hasActualStats: true,
+    };
+
+    const flow = computeRowFlow(plan);
+
+    expect(flow.entries.map((e) => e.node.id)).toEqual([1, 3, 4]);
+    expect(flow.entries.find((e) => e.node.id === 1)!.input).toBe(100); // 40 + 60, not 7000 + 60 + 5000
+    expect(flow.leafRowsRead).toBe(100); // not 5,100: the inactive leaf's estimate is not rows read
+  });
+});
