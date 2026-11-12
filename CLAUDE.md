@@ -59,6 +59,7 @@ npm run build:single   # dist-single/index.html, opens from file://; v* tag → 
 - Agent handoff's "Reading the numbers" + inventory fetch SQL (`lib/agentHandoff.ts`) ↔ the skill's copies. In `data-requests.md`, `SET SERVEROUTPUT OFF` must precede the statement or `DISPLAY_CURSOR(NULL, NULL)` shows SQL*Plus's own call.
 - DB Connect panel step names ↔ connector README Quick start + `site/docs.html#db-connector`. Connector install is `pipx install git+https://github.com/davidbudac/oraplanviz-db-connector.git` (not on PyPI).
 - README diagrams: `docs/diagrams/build_diagrams.py` (light + dark); regenerate both skins.
+- Edit classes in `site/*.html` → run `npm run build:site-css` and commit `site/assets/site.css` (a test fails otherwise; the pages load no CDN script).
 
 ## Showcase media
 

@@ -11,6 +11,7 @@
     "build": "tsc -b && vite build",
     "build:pages": "APP_BASE_PATH=/ora-explain-plan-viz/ APP_ANALYTICS=1 npm run build",
     "build:single": "tsc -b && vite build --mode single",
+    "build:site-css": "npx -y tailwindcss@3.4.19 -c scripts/site/tailwind.config.cjs -i scripts/site/tailwind.css -o site/assets/site.css --minify",
     "lint": "eslint .",
     "typecheck": "tsc -b",
     "build:core": "node packages/ora-plan-core/scripts/build.mjs",
