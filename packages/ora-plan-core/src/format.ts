@@ -120,8 +120,9 @@ export function formatEstimatedRows(
 
 /**
  * One-line explanation of a node's estimate-vs-actual comparison, e.g.
- * "Cardinality mismatch: estimated 1,000 rows (E-Rows 1 × 1,000 starts) vs A-Rows 250,000".
- * The "× starts" breakdown appears only when it changes the number.
+ * "Cardinality mismatch: estimated 1.0K rows (E-Rows 1 × 1.0K executions) vs A-Rows 250.0K".
+ * The "× executions" breakdown appears only when it changes the number, and uses the multiplier
+ * the total was built with (`effectiveExecutions`), which is not always the node's own Starts.
  */
 export function cardinalityMismatchText(node: PlanNode): string {
   const total = node.estimatedRowsTotal;
@@ -129,10 +130,11 @@ export function cardinalityMismatchText(node: PlanNode): string {
   if (total === undefined) {
     return `Cardinality mismatch: E-Rows ${fmt(node.rows)} vs A-Rows ${fmt(node.actualRows)}`;
   }
-  const perStart = node.starts !== undefined && node.starts > 1 && node.rows !== undefined && node.rows !== total
-    ? ` (E-Rows ${fmt(node.rows)} × ${fmt(node.starts)} starts)`
+  const executions = effectiveExecutions(node);
+  const breakdown = executions !== undefined
+    ? ` (E-Rows ${fmt(node.rows)} × ${fmt(Number.isInteger(executions) ? executions : Math.round(executions * 10) / 10)} executions)`
     : '';
-  return `Cardinality mismatch: estimated ${fmt(total)} rows${perStart} vs A-Rows ${fmt(node.actualRows)}`;
+  return `Cardinality mismatch: estimated ${fmt(total)} rows${breakdown} vs A-Rows ${fmt(node.actualRows)}`;
 }
 
 /** Format a cardinality ratio as a human-readable string like "10x over" or "5x under". */
