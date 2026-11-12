@@ -101,7 +101,7 @@ function sessionContentSignature(session: SavedSession): string {
 
 /** View modes worth restoring (AI tabs hold session-only state). */
 function restorableViewMode(mode: ViewMode | null, parsedPlanCount: number): ViewMode | null {
-  if (!mode || mode === 'ai' || mode === 'ai-report') return null;
+  if (!mode || mode === 'ai') return null;
   if (mode === 'compare' && parsedPlanCount < 2) return null;
   return mode;
 }

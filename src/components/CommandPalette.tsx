@@ -97,7 +97,7 @@ const SANKEY_METRIC_LABELS: Record<SankeyMetric, string> = {
   actualTime: 'A-Time',
 };
 
-const VIEW_MODE_LABELS: Record<Exclude<ViewMode, 'ai' | 'ai-report'>, string> = {
+const VIEW_MODE_LABELS: Record<Exclude<ViewMode, 'ai'>, string> = {
   hierarchical: 'Tree',
   sankey: 'Sankey',
   flame: 'Flame graph',

@@ -22,7 +22,7 @@ export const MAX_RECENT_ENTRIES = 8;
 
 const VIEW_MODES: readonly ViewMode[] = [
   'hierarchical', 'sankey', 'flame', 'tabular', 'text', 'sql', 'metadata',
-  'compare', 'monitor', 'experimental', 'ai', 'ai-report',
+  'compare', 'monitor', 'experimental', 'ai',
 ];
 
 export function isViewMode(value: unknown): value is ViewMode {
