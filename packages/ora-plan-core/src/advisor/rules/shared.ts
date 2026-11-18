@@ -1,9 +1,5 @@
 import type { PlanNode } from '../../types.ts';
-
-/** Children of a node that belong to the executed plan (adaptive-plan rows that were not used are excluded). */
-export function liveChildren(node: PlanNode): PlanNode[] {
-  return node.children.filter((c) => !c.inactive);
-}
+import { effectiveChildren } from '../../analysis.ts';
 
 export const INDEX_SCAN_RE = /^INDEX\b.*\bSCAN\b/;
 export const FULL_SCAN_RE = /TABLE ACCESS (STORAGE )?FULL/;
@@ -24,15 +20,15 @@ export function isTableByRowid(node: PlanNode): boolean {
  */
 export function selfBuffers(node: PlanNode): number | undefined {
   if (node.logicalReads === undefined) return undefined;
-  const childGets = liveChildren(node).reduce((sum, c) => sum + (c.logicalReads ?? 0), 0);
+  const childGets = effectiveChildren(node).reduce((sum, c) => sum + (c.logicalReads ?? 0), 0);
   return Math.max(0, node.logicalReads - childGets);
 }
 
-/** Descendants of `node` (excluding it), skipping inactive adaptive-plan rows. */
+/** Active descendants of `node` (excluding it). Inactive adaptive-plan rows are looked through, not returned. */
 export function liveDescendants(node: PlanNode): PlanNode[] {
   const out: PlanNode[] = [];
   const walk = (n: PlanNode) => {
-    for (const c of liveChildren(n)) {
+    for (const c of effectiveChildren(n)) {
       out.push(c);
       walk(c);
     }

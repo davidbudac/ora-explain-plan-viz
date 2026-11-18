@@ -529,7 +529,7 @@ function readFilters(raw: unknown): ShareFilters | undefined {
     out.operationTypes = src.operationTypes.filter((v): v is string => typeof v === 'string');
   }
   if (Array.isArray(src.predicateTypes)) {
-    const allowed: PredicateType[] = ['access', 'filter', 'none'];
+    const allowed: PredicateType[] = ['access', 'filter', 'storage', 'none'];
     out.predicateTypes = src.predicateTypes.filter((v): v is PredicateType => allowed.includes(v as PredicateType));
   }
   return Object.keys(out).length > 0 ? (out as ShareFilters) : undefined;

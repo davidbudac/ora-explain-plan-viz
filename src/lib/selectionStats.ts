@@ -1,3 +1,4 @@
+import { effectiveChildren } from './analysis';
 import type { ParsedPlan, PlanNode } from './types';
 
 /**
@@ -43,12 +44,12 @@ function hasExclusiveIo(source: ParsedPlan['source'] | undefined): boolean {
   return source === 'sql_monitor_text' || source === 'sql_monitor_xml';
 }
 
-/** A node's own value of a cumulative count: node − Σ live children, floored at 0. */
+/** A node's own value of a cumulative count: node − Σ effective children, floored at 0. */
 function selfOf(node: PlanNode, pick: (n: PlanNode) => number | undefined, cumulative: boolean): number {
   const own = pick(node);
   if (own === undefined) return 0;
   if (!cumulative) return own;
-  const childSum = node.children.filter((c) => !c.inactive).reduce((sum, c) => sum + (pick(c) ?? 0), 0);
+  const childSum = effectiveChildren(node).reduce((sum, c) => sum + (pick(c) ?? 0), 0);
   return Math.max(0, own - childSum);
 }
 

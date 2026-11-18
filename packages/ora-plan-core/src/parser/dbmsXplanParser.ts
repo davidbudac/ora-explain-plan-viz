@@ -19,17 +19,20 @@ import {
   isRejectedRow,
   scanTableShape,
   textTableWarnings,
+  unreachableNodeIds,
   unreadSectionsWarning,
 } from './warnings.ts';
 import {
-  expandTableTabs,
   normalizeNewlines,
+  normalizeSqlId,
   parseByteSize,
   parseCostCell,
   parseCount,
   parseTimeToMs,
   parseUsedMem,
   parseWorkareaExecutions,
+  prepareTextLines,
+  stripLinePrefix,
 } from './values.ts';
 
 /** Runtime-statistics fields a DBMS_XPLAN row can carry (ALLSTATS / DISPLAY_CURSOR columns). */
@@ -129,7 +132,7 @@ export const dbmsXplanParser: PlanParser = {
   },
 
   parse(input: string): ParsedPlan {
-    const lines = expandTableTabs(normalizeNewlines(input).split('\n'));
+    const lines = prepareTextLines(input);
 
     // Extract plan hash value if present
     const planHashValue = extractPlanHashValue(lines);
@@ -200,6 +203,7 @@ export const dbmsXplanParser: PlanParser = {
       rejectedLines: table.rejectedLines,
       nodeIds: allNodes.map(node => node.id),
       predicateIds: [...predicates.keys()],
+      unreachableIds: unreachableNodeIds(rootNode, allNodes),
     });
     const unreadSections = unreadSectionsWarning(
       findUnreadSections(lines, scanTableShape(lines, table.headerIndex).endIndex),
@@ -234,7 +238,8 @@ export function extractDbmsXplanSegments(input: string): string[] {
   const normalized = normalizeNewlines(input).trim();
   if (!normalized) return [];
 
-  const lines = normalized.split('\n');
+  // A quoted / indented / log-prefixed paste: find the SQL_ID headers and hash lines on the bare text.
+  const lines = stripLinePrefix(normalized.split('\n'));
   const segmentStarts: number[] = [];
 
   for (let i = 0; i < lines.length; i++) {
@@ -311,19 +316,18 @@ function extractSqlHeader(lines: string[]): { sqlId?: string; childNumber?: numb
     let j = i + 1;
     while (j < lines.length && /^\s*[-=]+\s*$/.test(lines[j])) j++;
 
-    const collected: string[] = [];
-    for (; j < lines.length; j++) {
-      const line = lines[j];
-      if (/Plan\s+hash\s+value\s*:/i.test(line)) break;
-      if (/^\s*$/.test(line)) {
-        if (collected.length === 0) continue; // skip leading blanks
-        break;
-      }
-      collected.push(line);
+    // The statement runs up to this block's "Plan hash value:" line and may hold blank lines.
+    // Without such a line (a header-only fragment), fall back to stopping at the first blank line.
+    let end = lines.findIndex((line, k) => k >= j && /Plan\s+hash\s+value\s*:/i.test(line));
+    if (end === -1) {
+      let k = j;
+      while (k < lines.length && /^\s*$/.test(lines[k])) k++; // skip leading blanks
+      while (k < lines.length && !/^\s*$/.test(lines[k])) k++;
+      end = k;
     }
 
-    const sqlText = cleanSqlLines(collected);
-    return { sqlId: sqlId || undefined, childNumber, sqlText: sqlText || undefined };
+    const sqlText = cleanSqlLines(dropPageBreaks(lines.slice(j, end)), { verbatim: true });
+    return { sqlId: normalizeSqlId(sqlId), childNumber, sqlText: sqlText || undefined };
   }
 
   // Shapes 2 & 3: look at everything before the first "Plan hash value:".
@@ -365,17 +369,53 @@ function extractSqlHeader(lines: string[]): { sqlId?: string; childNumber?: numb
   return sqlText ? { sqlText } : {};
 }
 
-function cleanSqlLines(lines: string[]): string {
-  const cleaned = lines.map((line) =>
-    line
-      .replace(/^\s*SQL>\s?/i, '')
-      // SQL*Plus continuation: "  2    FROM ..." — strip leading line number.
-      .replace(/^\s{0,4}\d+\s{1,4}/, '')
-      .trimEnd(),
-  );
-  // Drop trailing blank lines.
+/**
+ * SQL*Plus repeats the column heading on every page (SET PAGESIZE): a blank line, the
+ * "PLAN_TABLE_OUTPUT" heading and its underline. Drop those from text printed by DBMS_XPLAN.
+ */
+function dropPageBreaks(lines: string[]): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\s*PLAN_TABLE_OUTPUT\s*$/.test(lines[i])) {
+      if (out.length > 0 && out[out.length - 1].trim() === '') out.pop();
+      if (/^\s*-{5,}\s*$/.test(lines[i + 1] ?? '')) i++;
+      continue;
+    }
+    out.push(lines[i]);
+  }
+  return out;
+}
+
+/**
+ * Join the lines of a statement found above a plan.
+ *
+ * `verbatim` (the DISPLAY_CURSOR / DISPLAY_AWR header shape): DBMS_XPLAN printed the cursor's
+ * text itself, so nothing is stripped - a wrapped line may well begin with a number, and a
+ * PL/SQL block ends in ";".
+ *
+ * Otherwise the text was typed at (or pasted next to) a SQL*Plus prompt: the "SQL> " prompt and
+ * the statement terminator go, and continuation numbers go only when they really are the
+ * sequence 2, 3, 4 ... that SQL*Plus prints.
+ */
+function cleanSqlLines(lines: string[], options: { verbatim?: boolean } = {}): string {
+  let cleaned = lines.map((line) => line.trimEnd());
+  if (!options.verbatim) {
+    const prompted = /^\s*SQL>/i.test(cleaned[0] ?? '');
+    cleaned = cleaned.map((line) => line.replace(/^\s*SQL>\s?/i, ''));
+    const numbered =
+      prompted &&
+      cleaned.length > 1 &&
+      cleaned.slice(1).every((line, i) => new RegExp(`^\\s*${i + 2}(?:\\s|$)`).test(line));
+    if (numbered) {
+      // "  2    FROM ..." - strip the continuation number SQL*Plus put in front.
+      cleaned = cleaned.map((line, i) => (i === 0 ? line : line.replace(/^\s*\d+\s{0,4}/, '')));
+    }
+  }
+  // Drop leading and trailing blank lines; blank lines inside the statement stay.
+  while (cleaned.length && cleaned[0].trim() === '') cleaned.shift();
   while (cleaned.length && cleaned[cleaned.length - 1].trim() === '') cleaned.pop();
-  return cleaned.join('\n').replace(/;\s*$/, '').trim();
+  const text = cleaned.join('\n').trim();
+  return options.verbatim ? text : text.replace(/;\s*$/, '').trim();
 }
 
 function extractPlanHashValue(lines: string[]): string | undefined {

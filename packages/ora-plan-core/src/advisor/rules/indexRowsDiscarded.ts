@@ -2,7 +2,8 @@ import type { PlanNode } from '../../types.ts';
 import type { AdvisorThresholds } from '../config.ts';
 import type { AdvisorRule, Finding, RuleContext } from '../types.ts';
 import { extractQuotedColumns } from '../predicates.ts';
-import { isIndexScan, isTableByRowid, liveChildren } from './shared.ts';
+import { effectiveChildren } from '../../analysis.ts';
+import { isIndexScan, isTableByRowid } from './shared.ts';
 
 export interface IndexDiscard {
   table: PlanNode;
@@ -21,7 +22,7 @@ export function findIndexDiscards(nodes: PlanNode[], thresholds: AdvisorThreshol
   const hits: IndexDiscard[] = [];
   for (const table of nodes) {
     if (!isTableByRowid(table) || !table.filterPredicates) continue;
-    const index = liveChildren(table).find(isIndexScan);
+    const index = effectiveChildren(table).find(isIndexScan);
     if (!index) continue;
     const indexRows = index.actualRows;
     const tableRows = table.actualRows;

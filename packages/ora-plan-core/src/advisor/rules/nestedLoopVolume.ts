@@ -1,7 +1,8 @@
 import type { PlanNode } from '../../types.ts';
 import type { AdvisorThresholds } from '../config.ts';
 import type { AdvisorRule, Finding, RuleContext } from '../types.ts';
-import { liveChildren, liveDescendants } from './shared.ts';
+import { effectiveChildren } from '../../analysis.ts';
+import { liveDescendants } from './shared.ts';
 
 interface NestedLoopVolume {
   probes: number;
@@ -12,7 +13,7 @@ interface NestedLoopVolume {
 /** Probe count and inner volume of a high-volume nested loop, or undefined when it is not one. */
 export function nestedLoopVolume(node: PlanNode, thresholds: AdvisorThresholds): NestedLoopVolume | undefined {
   if (!node.operation.toUpperCase().startsWith('NESTED LOOPS')) return undefined;
-  const children = liveChildren(node);
+  const children = effectiveChildren(node);
   if (children.length < 2) return undefined;
 
   const outer = children[0];
@@ -42,7 +43,7 @@ export const nestedLoopVolumeRule: AdvisorRule = {
       if (!vol) continue;
 
       // Each probe of a remote inner side is a network round trip, which is worse than the local volume suggests.
-      const inner = liveChildren(node)[1];
+      const inner = effectiveChildren(node)[1];
       const remote = [inner, ...liveDescendants(inner)].some((n) => n.operation.toUpperCase().startsWith('REMOTE'));
       const remoteNote = remote ? ' The inner side includes a REMOTE operation, so every probe is a network round trip to the remote database.' : '';
 

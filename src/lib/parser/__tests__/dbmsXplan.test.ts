@@ -307,4 +307,47 @@ describe('SQL text extraction', () => {
     expect(plan.sqlText).toBeUndefined();
     expect(plan.sqlId).toBeUndefined();
   });
+
+  const CURSOR_HEADER = ['SQL_ID  dvuvg3u3z13bg, child number 0', '-------------------------------------'];
+  const sqlTextOf = (lines: string[]): string | undefined => parseDbmsXplanPlans(lines.join('\n'))[0].sqlText;
+
+  it('keeps wrapped lines that start with a number (DISPLAY_CURSOR header)', () => {
+    const sql = ['select e.ename from emp e where e.sal >', '1000 and e.deptno in (10, 20,', '30 ) and rownum <=', '50'];
+    expect(sqlTextOf([...CURSOR_HEADER, ...sql, '', PLAN_A])).toBe(sql.join('\n'));
+  });
+
+  it('keeps the SQL after a blank line inside the statement', () => {
+    // DISPLAY_AWR pads the blank line before "Plan hash value" with one space.
+    expect(sqlTextOf([...CURSOR_HEADER, 'select e.ename', 'from emp e', '', 'order by e.ename', ' ', PLAN_A])).toBe(
+      'select e.ename\nfrom emp e\n\norder by e.ename',
+    );
+  });
+
+  it('keeps the closing ";" of a PL/SQL block', () => {
+    expect(sqlTextOf([...CURSOR_HEADER, 'BEGIN refresh_orders(:1); END;', '', PLAN_A])).toBe('BEGIN refresh_orders(:1); END;');
+  });
+
+  it('drops a SQL*Plus page heading printed in the middle of the statement', () => {
+    const pageBreak = ['', 'PLAN_TABLE_OUTPUT', '--------------------------------------------------------------------------------'];
+    expect(sqlTextOf([...CURSOR_HEADER, 'select e.ename', ...pageBreak, 'from emp e', '', PLAN_A])).toBe(
+      'select e.ename\nfrom emp e',
+    );
+  });
+
+  it('stops at the first blank line when the block has no "Plan hash value" line', () => {
+    const tableOnly = PLAN_A.split('\n').slice(2).join('\n');
+    expect(sqlTextOf([...CURSOR_HEADER, 'select 1 from dual', '', 'some other text', '', tableOnly])).toBe('select 1 from dual');
+  });
+
+  it('does not strip a leading number from bare SQL above the plan', () => {
+    expect(sqlTextOf(['select name from emp where sal >', '1000 and deptno = 10', '', PLAN_A])).toBe(
+      'select name from emp where sal >\n1000 and deptno = 10',
+    );
+  });
+
+  it('keeps numbers after a SQL> prompt that are not the 2, 3, 4 ... continuation numbers', () => {
+    expect(sqlTextOf(['SQL> select name from emp where sal >', '1000 and deptno = 10;', '', PLAN_A])).toBe(
+      'select name from emp where sal >\n1000 and deptno = 10',
+    );
+  });
 });

@@ -124,6 +124,18 @@ describe('buildShareWorkspace / readShareWorkspace', () => {
     });
   });
 
+  it('keeps every predicate-type filter the app offers, including Storage', () => {
+    const filters: FilterState = { ...baseFilters, predicateTypes: ['storage', 'filter'] };
+    const workspace = buildShareWorkspace({ ...input, compareMetrics: ['cost'], filters });
+    const payload = JSON.parse(JSON.stringify({ plans: [{ rawInput: 'a' }, { rawInput: 'b' }], workspace })) as SharePayload;
+    expect(readShareWorkspace(payload, 2)?.filters).toEqual({ predicateTypes: ['storage', 'filter'] });
+
+    const all = { plans: [{ rawInput: 'a' }], workspace: { v: 1, filters: { predicateTypes: ['access', 'filter', 'storage', 'none', 'x'] } } };
+    expect(readShareWorkspace(all as unknown as SharePayload, 1)?.filters).toEqual({
+      predicateTypes: ['access', 'filter', 'storage', 'none'],
+    });
+  });
+
   it('returns null for an old link without a workspace block', () => {
     expect(readShareWorkspace({ plans: [{ rawInput: 'a' }], viewMode: 'compare' }, 1)).toBeNull();
   });

@@ -130,6 +130,12 @@ export interface ParsedPlan {
   childNumber?: number;       // cursor child number (DISPLAY_CURSOR header "SQL_ID x, child number N")
   sqlText?: string;
   totalElapsedTime?: number;  // total execution time in milliseconds
+  /**
+   * True when each operation's `actualTime` is SQL Monitor's active WINDOW (whole seconds from its
+   * first to its last activity, minimum 1 s) instead of a measured, cumulative A-Time. Windows of a
+   * parent and its children overlap, so no self time, time ranking or hotspot is derived from them.
+   */
+  timeIsActiveWindow?: boolean;
 
   // Bind variables from SQL Monitor XML
   bindVariables?: BindVariable[];
@@ -302,7 +308,7 @@ export interface FilterState {
   minCardinalityMismatch: number;
 }
 
-export type ViewMode = 'hierarchical' | 'sankey' | 'flame' | 'tabular' | 'text' | 'sql' | 'metadata' | 'compare' | 'monitor' | 'experimental' | 'ai' | 'ai-report';
+export type ViewMode = 'hierarchical' | 'sankey' | 'flame' | 'tabular' | 'text' | 'sql' | 'metadata' | 'compare' | 'monitor' | 'experimental' | 'ai';
 export type SankeyMetric = 'rows' | 'cost' | 'actualRows' | 'actualTime';
 export type ExperimentalSubView = 'flame' | 'scatter' | 'timeline' | 'waterfall' | 'morph' | 'waits';
 export type { FlameMetric } from './flameLayout.ts';

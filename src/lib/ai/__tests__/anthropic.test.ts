@@ -4,8 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // provider runs without the real SDK.
 vi.mock('@anthropic-ai/sdk', async () => (await import('./anthropicSdkMock')).anthropicSdkModule());
 
-import { streamMock, constructorMock } from './anthropicSdkMock';
-import Anthropic from '@anthropic-ai/sdk';
+import { streamMock, constructorMock, sdkErrors } from './anthropicSdkMock';
 import { streamAnthropic } from '../providers/anthropic';
 import { AiError } from '../types';
 import type { AiRequest, AiStreamEvent } from '../types';
@@ -118,7 +117,7 @@ describe('streamAnthropic', () => {
 
   it('maps AuthenticationError to an AiError with kind auth', async () => {
     streamMock.mockImplementation(() => {
-      throw new Anthropic.AuthenticationError('invalid x-api-key', 401);
+      throw new sdkErrors.AuthenticationError('invalid x-api-key', 401);
     });
     const gen = streamAnthropic({ apiKey: 'bad' }, REQ, new AbortController().signal);
     await expect(collect(gen)).rejects.toSatisfy((err: unknown) => {
@@ -131,11 +130,11 @@ describe('streamAnthropic', () => {
 
   it('maps abort, rate-limit, overload, network and bad-request errors', async () => {
     const cases: Array<[Error, string, number | null]> = [
-      [new Anthropic.APIUserAbortError('aborted'), 'aborted', null],
-      [new Anthropic.RateLimitError('slow down', 429), 'rate-limit', 429],
-      [new Anthropic.APIError('overloaded_error', 529), 'overloaded', 529],
-      [new Anthropic.APIConnectionError('conn'), 'network', null],
-      [new Anthropic.BadRequestError('bad', 400), 'bad-request', 400],
+      [new sdkErrors.APIUserAbortError('aborted'), 'aborted', null],
+      [new sdkErrors.RateLimitError('slow down', 429), 'rate-limit', 429],
+      [new sdkErrors.APIError('overloaded_error', 529), 'overloaded', 529],
+      [new sdkErrors.APIConnectionError('conn'), 'network', null],
+      [new sdkErrors.BadRequestError('bad', 400), 'bad-request', 400],
     ];
     for (const [thrown, kind, status] of cases) {
       streamMock.mockImplementation(() => {

@@ -1,14 +1,18 @@
 import type { PlanNode } from '../../types.ts';
 import type { AdvisorRule, Finding, FindingSeverity, RuleContext } from '../types.ts';
-import { nodeCardinalityRatio, cardinalityRatioSeverity } from '../../format.ts';
-import { liveChildren } from './shared.ts';
+import { nodeCardinalityRatio, cardinalityRatioSeverity, effectiveExecutions } from '../../format.ts';
+import { effectiveChildren } from '../../analysis.ts';
 
-function describeEstimate(c: { eRowsPerStart?: number; starts?: number; eRowsTotal: number }): string {
-  if (c.starts !== undefined && c.starts > 1 && c.eRowsPerStart !== undefined && c.eRowsPerStart !== c.eRowsTotal) {
-    const unit = c.eRowsPerStart === 1 ? 'row' : 'rows';
-    return `Estimated ${c.eRowsPerStart.toLocaleString()} ${unit} per start × ${c.starts.toLocaleString()} starts = ${c.eRowsTotal.toLocaleString()} rows`;
+/** "Estimated 5 rows per execution × 167 executions = 835 rows": the arithmetic behind `estimatedRowsTotal`. */
+function describeEstimate(node: PlanNode): string {
+  const total = node.estimatedRowsTotal as number;
+  const executions = effectiveExecutions(node);
+  if (executions !== undefined && node.rows !== undefined) {
+    const unit = node.rows === 1 ? 'row' : 'rows';
+    const times = Number.isInteger(executions) ? executions.toLocaleString() : executions.toFixed(1);
+    return `Estimated ${node.rows.toLocaleString()} ${unit} per execution × ${times} executions = ${total.toLocaleString()} rows`;
   }
-  return `Estimated ${c.eRowsTotal.toLocaleString()} rows (E-Rows)`;
+  return `Estimated ${total.toLocaleString()} rows (E-Rows)`;
 }
 
 export const cardinalityMismatchRule: AdvisorRule = {
@@ -38,19 +42,25 @@ export const cardinalityMismatchRule: AdvisorRule = {
     // is not a separate problem. Operations without a comparable estimate (never started,
     // cut off early) don't break the chain: look through them to their children.
     const inputsOff = (node: PlanNode): boolean =>
-      liveChildren(node).some((child) => {
+      effectiveChildren(node).some((child) => {
         if (off.get(child) !== undefined) return true;
         return nodeCardinalityRatio(child) === undefined && inputsOff(child);
       });
 
-    const byId = new Map(ctx.plan.allNodes.map((n) => [n.id, n]));
+    // Nearest active ancestor of each active node: inactive adaptive-plan rows in between are skipped
+    // (ctx.plan.allNodes may not contain them, so parentId cannot be followed).
+    const activeParentOf = new Map<PlanNode, PlanNode>();
+    for (const n of ctx.plan.allNodes) {
+      if (n.inactive) continue;
+      for (const child of effectiveChildren(n)) activeParentOf.set(child, n);
+    }
     const inheritingAncestors = (node: PlanNode): number => {
       let count = 0;
-      let parent = node.parentId === undefined ? undefined : byId.get(node.parentId);
+      let parent = activeParentOf.get(node);
       while (parent) {
         if (off.get(parent) !== undefined) count++;
         else if (nodeCardinalityRatio(parent) !== undefined) break; // estimate was right again: error absorbed
-        parent = parent.parentId === undefined ? undefined : byId.get(parent.parentId);
+        parent = activeParentOf.get(parent);
       }
       return count;
     };
@@ -70,13 +80,13 @@ export const cardinalityMismatchRule: AdvisorRule = {
       const inheritNote = c.inherited > 0
         ? ` The estimates of ${c.inherited} operation${c.inherited === 1 ? '' : 's'} above it are off because of this error.`
         : '';
-      const root = node.children.length === 0 ? '' : ' Its inputs were estimated accurately, so the error originates here.';
+      const root = effectiveChildren(node).length === 0 ? '' : ' Its inputs were estimated accurately, so the error originates here.';
       return {
         ruleId: 'cardinality-mismatch',
         severity: c.severity,
         nodeIds: [node.id],
         title: `Cardinality mismatch on ${node.operation}`,
-        explanation: `${describeEstimate({ eRowsPerStart: node.rows, starts: node.starts, eRowsTotal: node.estimatedRowsTotal as number })} but actually produced ${(node.actualRows as number).toLocaleString()} rows (A-Rows), a ${c.deviation.toFixed(1)}x deviation.${root}${inheritNote}`,
+        explanation: `${describeEstimate(node)} but actually produced ${(node.actualRows as number).toLocaleString()} rows (A-Rows), a ${c.deviation.toFixed(1)}x deviation.${root}${inheritNote}`,
         suggestion: 'Gather fresh statistics (including histograms on filtered columns) or consider an SQL profile/plan baseline if the estimate consistently diverges from reality.',
       };
     });

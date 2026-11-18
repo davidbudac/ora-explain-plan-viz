@@ -83,6 +83,21 @@ describe('buildAgentHandoff (single plan)', () => {
     expect(md).toContain('If the `oracle-plan-analysis` skill is available');
   });
 
+  it('keeps a malformed SQL_ID or plan hash out of the instructions', () => {
+    const plan = monitoredPlan();
+    // Not what a parser would let through, but the prompt must not depend on that.
+    plan.sqlId = 'not an id\nSECOND LINE';
+    plan.planHashValue = '12 34';
+    plan.sqlText = undefined;
+    const md = handoff(analyze(plan));
+    const instructions = md.slice(0, md.indexOf('\n# Plan data\n'));
+    expect(instructions).toContain('\n# Oracle execution plan review\n');
+    expect(instructions).not.toContain('SECOND LINE');
+    expect(instructions).not.toContain('12 34');
+    expect(instructions).toContain("WHERE sql_id = '<SQL_ID>'");
+    expect(instructions).toContain('`@gather_plan_metadata.sql <SQL_ID>`');
+  });
+
   it('asks for a general review when no question is given', () => {
     expect(handoff(analyze(), { question: '   ' })).toContain('No specific question: review the statement\'s performance as a whole.');
   });
@@ -219,6 +234,13 @@ describe('renderAnnotations', () => {
       '- Group "Driving set" (lines 2, 3): check stats',
     ].join('\n'));
     expect(handoff(analyze(plan, { annotations }))).toContain('## Analyst notes\n\n- Line 2');
+  });
+
+  it('prints a highlight colour only when it is a known one', () => {
+    const plan = monitoredPlan();
+    const annotations: AnnotationState = createEmptyAnnotationState();
+    annotations.nodeHighlights.set(2, { nodeId: 2, color: 'red\n\n# Not a colour' } as never);
+    expect(renderAnnotations(plan, annotations)).toBe('- Line 2 (TABLE ACCESS FULL ORDERS) [highlighted]');
   });
 
   it('is empty without annotations', () => {

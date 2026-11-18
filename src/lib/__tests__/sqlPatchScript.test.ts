@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildSqlPatchScript, sqlPatchScriptFilename } from '../sqlPatchScript';
+import { buildSqlPatchScript, sqlPatchScriptFilename, unsafeHintLines } from '../sqlPatchScript';
 
 const base = { sqlId: 'abc123def4567', hintText: 'FULL(@SEL$1 E@SEL$1)' };
 
@@ -230,5 +230,30 @@ describe('sqlPatchScriptFilename', () => {
     expect(sqlPatchScriptFilename({ sqlId: 'ABC123def4567', hintText: 'x' })).toBe(
       'create_sql_patch_abc123def4567.sql',
     );
+  });
+});
+
+describe('unsafeHintLines', () => {
+  it('flags lines SQL*Plus would act on instead of reading as text', () => {
+    expect(unsafeHintLines('FULL(a)\n/\nINDEX(b)')).toEqual(['/']);
+    expect(unsafeHintLines('FULL(a)\n  .  \nINDEX(b)')).toEqual(['.']);
+    expect(unsafeHintLines('FULL(a)\n# PROMPT x\nINDEX(b)')).toEqual(['# PROMPT x']);
+    expect(unsafeHintLines('/\r\n.\r\n#x')).toEqual(['/', '.', '#x']);
+  });
+
+  it('accepts real hints, including ones that merely contain those characters', () => {
+    expect(unsafeHintLines('FULL(a)\nOPT_PARAM(\'x\' \'a/b\')\nINDEX(t "A#B")\n/*+ FULL(t) */\n.5')).toEqual([]);
+    expect(unsafeHintLines(REAL_OUTLINE.join('\n'))).toEqual([]);
+    expect(unsafeHintLines('')).toEqual([]);
+  });
+});
+
+describe('buildSqlPatchScript line safety', () => {
+  it.each([['/'], ['.'], ['#PROMPT x']])('throws for a hint line %j', (line) => {
+    expect(() => buildSqlPatchScript({ ...base, hintText: `FULL(a)\n${line}\nPROMPT x` })).toThrow(/SQL\*Plus/);
+  });
+
+  it('still builds when the first or only hint line is a normal hint', () => {
+    expect(() => buildSqlPatchScript({ ...base, hintText: REAL_OUTLINE.join('\n') })).not.toThrow();
   });
 });

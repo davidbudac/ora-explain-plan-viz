@@ -23,6 +23,7 @@ vi.mock('../../hooks/usePlanContext', () => ({
 }));
 
 import { FilterPanelBody } from '../FilterPanel';
+import { defaultBehaviourOptions, defaultNodeDisplayOptions } from '../../lib/settings';
 import { buttonByText, cleanup, click, press, render } from '../ui/__tests__/testUtils';
 
 const DEFAULT_FILTERS: FilterState = {
@@ -30,13 +31,16 @@ const DEFAULT_FILTERS: FilterState = {
   minCost: 0,
   maxCost: Infinity,
   searchText: '',
+  showPredicates: true,
   predicateTypes: [],
+  ...defaultBehaviourOptions,
+  nodeDisplayOptions: defaultNodeDisplayOptions,
   minActualRows: 0,
   maxActualRows: Infinity,
   minActualTime: 0,
   maxActualTime: Infinity,
   minCardinalityMismatch: 0,
-} as FilterState;
+};
 
 function node(id: number, operation: string, extra: Partial<PlanNode> = {}): PlanNode {
   return { id, depth: id, operation, cost: 10 * (id + 1), children: [], ...extra } as PlanNode;

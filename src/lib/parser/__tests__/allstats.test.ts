@@ -36,6 +36,31 @@ describe('format routing', () => {
     expect(parsePlan(bare).source).toBe('sql_monitor_text');
   });
 
+  it('reads the SQL ID from its own header line, not from "sql_id" inside the SQL text above it', () => {
+    const report = readFileSync(join(__dirname, '../../../examples', '18-sql_monitor-Skewed Parallel (J. Lewis).txt'), 'utf-8');
+    // SQL Monitor prints the statement before the Global Information block.
+    const withSqlIdInText = report.replace('WHERE 1 = 1', 'WHERE 1 = 1\nAND s.sql_id is not null\nORDER BY\nsql_id desc');
+    expect(withSqlIdInText).not.toBe(report);
+    const plan = parsePlan(withSqlIdInText);
+    expect(plan.source).toBe('sql_monitor_text');
+    expect(plan.sqlId).toBe('3cjg20q2vw41f');
+  });
+
+  it('still reads the SQL_ID of a DISPLAY_CURSOR header when the table has no plan hash line', () => {
+    const bare = [
+      'SQL_ID  7ch0an9vx5ysp, child number 2',
+      '-------------------------------------',
+      'select sql_id from v$sql',
+      '',
+      '| Id | Operation        | Name | E-Rows | A-Rows | A-Time   | Starts |',
+      '|  0 | SELECT STATEMENT |      |        |      1 | 00:00:01 |      1 |',
+    ].join('\n');
+    const plan = parsePlan(bare);
+    expect(plan.source).toBe('sql_monitor_text');
+    expect(plan.sqlId).toBe('7ch0an9vx5ysp');
+    expect(plan.childNumber).toBe(2);
+  });
+
   it('keeps SQL Monitor reports on the SQL Monitor text parser even with a plan hash line', () => {
     const report = `
 SQL Monitoring Report

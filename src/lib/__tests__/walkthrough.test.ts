@@ -2,9 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   WALKTHROUGH_STEPS,
   computeCardPosition,
+  pickTourNodeId,
   pickWalkthroughSample,
   spotlightRect,
 } from '../walkthrough';
+import { computeSelfTimes } from '../analysis';
+import type { AdvisorReport, Finding } from '../advisor/types';
+import { buildPlan } from './fixtures/buildPlan';
 
 const VIEWPORT = { width: 1200, height: 800 };
 const CARD = { width: 340, height: 200 };
@@ -111,5 +115,48 @@ describe('pickWalkthroughSample', () => {
     const only = mk('B');
     expect(pickWalkthroughSample({ sql_monitor: [only] }, [])).toBe(only);
     expect(pickWalkthroughSample({ sql_monitor: [] }, [])).toBeNull();
+  });
+});
+
+describe('pickTourNodeId', () => {
+  const finding = (nodeIds: number[]): Finding => ({
+    ruleId: 'cardinality-mismatch', severity: 'warning', nodeIds, title: 't', explanation: 'e', suggestion: 's',
+  });
+  const report = (findings: Finding[]): AdvisorReport => ({
+    findings,
+    findingsByNodeId: new Map(),
+    counts: { critical: 0, warning: findings.length, info: 0 },
+    maxSeverityByNodeId: new Map(),
+  });
+  // 0 SELECT -> 1 HASH JOIN -> 2 scan (fast), 3 scan (slow)
+  const plan = (activeWindow: boolean) => {
+    const p = buildPlan({
+      id: 0, op: 'SELECT STATEMENT', actualRows: 1, actualTime: 3000, kids: [{
+        id: 1, op: 'HASH JOIN', actualRows: 1, actualTime: 3000, kids: [
+          { id: 2, op: 'TABLE ACCESS FULL', actualRows: 10, actualTime: 1000 },
+          { id: 3, op: 'TABLE ACCESS FULL', actualRows: 10, actualTime: 2000 },
+        ],
+      }],
+    }, activeWindow ? 'sql_monitor_xml' : 'dbms_xplan');
+    if (activeWindow) p.timeIsActiveWindow = true;
+    computeSelfTimes(p);
+    return p;
+  };
+
+  it('picks the hotspot when the plan has one', () => {
+    expect(pickTourNodeId(plan(false), report([finding([2])]))).toBe(3);
+  });
+
+  it('falls back to the top finding when there is no hotspot (SQL Monitor report without ASH)', () => {
+    expect(pickTourNodeId(plan(true), report([finding([]), finding([2, 3])]))).toBe(2);
+  });
+
+  it('falls back to the first operation under the statement when there are no findings', () => {
+    expect(pickTourNodeId(plan(true), report([]))).toBe(1);
+    expect(pickTourNodeId(plan(true), null)).toBe(1);
+  });
+
+  it('returns null without a plan', () => {
+    expect(pickTourNodeId(null, null)).toBeNull();
   });
 });

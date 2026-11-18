@@ -18,9 +18,11 @@ import { parseAnnotatedExport, planDrop, readDroppedFiles } from '../lib/dropFil
 import { isActiveReport, decodeActiveReport, ACTIVE_REPORT_DECODE_ERROR } from '../lib/parser/activeReport';
 import {
   SESSION_KEY,
+  MAX_SESSION_CHARS,
   loadSession,
   saveSession,
   clearSession,
+  isSessionStale,
   addRecentPlan,
   removeRecentPlan as removeRecentPlanFromStorage,
   subscribeRecentPlans,
@@ -101,7 +103,7 @@ function sessionContentSignature(session: SavedSession): string {
 
 /** View modes worth restoring (AI tabs hold session-only state). */
 function restorableViewMode(mode: ViewMode | null, parsedPlanCount: number): ViewMode | null {
-  if (!mode || mode === 'ai' || mode === 'ai-report') return null;
+  if (!mode || mode === 'ai') return null;
   if (mode === 'compare' && parsedPlanCount < 2) return null;
   return mode;
 }
@@ -249,8 +251,12 @@ const initialFilters: FilterState = {
 
 const getInitialTheme = (): Theme => {
   if (typeof window === 'undefined') return 'light';
-  const stored = localStorage.getItem('theme');
-  if (stored === 'dark' || stored === 'light') return stored;
+  try {
+    const stored = localStorage.getItem('theme');
+    if (stored === 'dark' || stored === 'light') return stored;
+  } catch {
+    // Storage blocked (site data disabled, sandboxed iframe): use the system preference.
+  }
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 };
 
@@ -1205,6 +1211,9 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   // Autosave stays off until the startup effect has decided whether to restore.
   const sessionReadyRef = useRef(false);
   const lastSavedSessionRef = useRef<string | null>(null);
+  // True once the user has been told this session is too large to autosave;
+  // reset by the next successful save so a later oversize episode is announced again.
+  const oversizeNotifiedRef = useRef(false);
   // Content encoded by the share link currently in the address bar, if any.
   const sharedContentRef = useRef<string | null>(null);
 
@@ -1771,7 +1780,11 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     } else {
       root.dataset.palette = state.palette;
     }
-    localStorage.setItem('theme', state.theme);
+    try {
+      localStorage.setItem('theme', state.theme);
+    } catch {
+      // Storage blocked or full: the theme still applies for this visit.
+    }
   }, [state.theme, state.palette]);
 
   // Load plan from URL param or default example on first mount
@@ -1922,7 +1935,19 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     const result = saveSession(session);
     // Remember oversized payloads too, so the skip is logged once per change.
     if (result.ok || result.reason === 'too-large') lastSavedSessionRef.current = signature;
-  }, []);
+    if (result.ok) {
+      oversizeNotifiedRef.current = false;
+    } else if (result.reason === 'too-large' && !oversizeNotifiedRef.current) {
+      oversizeNotifiedRef.current = true;
+      const sizeMb = ((result.chars ?? 0) / 1024 / 1024).toFixed(1);
+      toastApi.show({
+        tone: 'warning',
+        title: 'Autosave is off for this session',
+        message: `The loaded plans take ${sizeMb} MB, over the ${MAX_SESSION_CHARS / 1024 / 1024} MB autosave limit. Changes from now on are not saved: a reload brings back the last saved state, not this one.`,
+        duration: 15000,
+      });
+    }
+  }, [toastApi]);
 
   /** Clear the workspace and the saved session ("Start fresh"). */
   const startFresh = useCallback(async (): Promise<boolean> => {
@@ -2010,10 +2035,24 @@ export function PlanProvider({ children }: { children: ReactNode }) {
           applyUrlPlanData(classifyDecodedPlanText(text));
           applyDeepLinkExtras(true);
         })
-        .catch(() => dispatch({
-          type: 'SET_ERROR',
-          payload: 'The shared plan link is corrupt or truncated. Ask for a fresh link or paste the plan text directly.',
-        }));
+        .catch(() => {
+          const linkError = 'The shared plan link is corrupt or truncated. Ask for a fresh link or paste the plan text directly.';
+          // A broken link must not cost the user their autosaved workspace:
+          // SET_ERROR alone would leave zero loaded plans, and the autosave
+          // would then delete the saved session. Bring the session back and
+          // report the link problem as a toast instead.
+          const saved = loadSession();
+          if (saved && restoreSession(saved)) {
+            toastApi.show({
+              tone: 'error',
+              title: 'Shared link could not be opened',
+              message: `${linkError} Your previous session was restored.`,
+              duration: 12000,
+            });
+            return;
+          }
+          dispatch({ type: 'SET_ERROR', payload: linkError });
+        });
       return;
     }
 
@@ -2034,12 +2073,16 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     // No plan in the URL: bring back the previous session, if any.
     let restored = false;
     if (!loadedFromUrl) {
+      // Read before restoring: the autosave that follows a restore clears the flag.
+      const stale = isSessionStale();
       const saved = loadSession();
       if (saved && restoreSession(saved)) {
         restored = true;
         toastApi.show({
           tone: 'info',
-          message: 'Restored your previous session',
+          message: stale
+            ? 'Restored an older session: the most recent one was too large to autosave'
+            : 'Restored your previous session',
           duration: 8000,
           action: { label: 'Start fresh', onClick: () => { void startFresh(); } },
         });
@@ -2649,11 +2692,24 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     const warning = result.ok && result.warnings.length > 0 ? result.warnings.join(' ') : undefined;
 
     if (result.ok) {
-      window.history.replaceState(null, '', result.url);
-      // Remember what the address-bar link encodes; once the plans or their
-      // annotations change, the autosave drops the (now stale) link so a
-      // reload restores the session instead of the older shared snapshot.
-      sharedContentRef.current = sessionContentSignature(buildSavedSession(stateRef.current));
+      // The address bar can only take a same-origin URL. The single-file build
+      // opened from disk (file://) makes links to the hosted app; replaceState
+      // would throw a SecurityError for those, so the address bar is left alone.
+      let addressBarUpdated = false;
+      try {
+        if (new URL(result.url).origin === window.location.origin) {
+          window.history.replaceState(null, '', result.url);
+          addressBarUpdated = true;
+        }
+      } catch {
+        // Not fatal: the link is still copied / shown below.
+      }
+      if (addressBarUpdated) {
+        // Remember what the address-bar link encodes; once the plans or their
+        // annotations change, the autosave drops the (now stale) link so a
+        // reload restores the session instead of the older shared snapshot.
+        sharedContentRef.current = sessionContentSignature(buildSavedSession(stateRef.current));
+      }
       // Robust copy with an execCommand fallback for insecure (HTTP) origins and
       // unfocused documents. `copied` is surfaced so the UI can offer a reliable
       // manual-copy affordance instead of falsely claiming success.
@@ -2667,7 +2723,15 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   // entry point (header button, command palette) gives consistent, recoverable
   // feedback — especially when the clipboard write is blocked.
   const share = useCallback(async () => {
-    const result = await sharePlan();
+    let result: Awaited<ReturnType<typeof sharePlan>>;
+    try {
+      result = await sharePlan();
+    } catch (err) {
+      // Callers fire-and-forget (`void share()`): never let a failure vanish.
+      const detail = err instanceof Error && err.message ? `: ${err.message}` : '.';
+      setShareNotice({ kind: 'error', message: `Could not create a share link${detail}` });
+      return;
+    }
     if (!result.ok) {
       setShareNotice({ kind: 'error', message: result.error });
       return;

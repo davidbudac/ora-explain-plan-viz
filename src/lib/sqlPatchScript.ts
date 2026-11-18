@@ -42,6 +42,19 @@ function hintLines(hintText: string): string[] {
     .filter((l) => l !== '');
 }
 
+/**
+ * Hint lines that SQL*Plus / SQLcl would act on instead of reading as text.
+ * Both tools read a script line by line and know nothing about PL/SQL string
+ * literals: while the block is being entered, a line that is only `/` runs the
+ * buffer, a line that is only `.` ends the block, and a line starting with `#`
+ * is executed at once as a SQL*Plus command. Hint lines are written at column 0
+ * (see hintAssignment), so such a line would cut the block short and the lines
+ * after it would run as top-level commands. No real hint has any of these shapes.
+ */
+export function unsafeHintLines(hintText: string): string[] {
+  return hintLines(hintText).filter((l) => l === '/' || l === '.' || l.startsWith('#'));
+}
+
 // Oracle stores hint text in 500-character pieces (sqlobj$data <hint>
 // elements) and cuts blindly at every 500th character, so a hint straddling a
 // boundary becomes a syntax error. Hints are therefore packed into chunks of at
@@ -252,6 +265,13 @@ function cribSheetLines(): string[] {
 }
 
 export function buildSqlPatchScript(opts: SqlPatchScriptOptions): string {
+  const unsafe = unsafeHintLines(opts.hintText);
+  if (unsafe.length > 0) {
+    throw new Error(
+      `Hint text has ${unsafe.length} line(s) that SQL*Plus would run as a command instead of reading as hint text: ` +
+        unsafe.map((l) => JSON.stringify(l.length > 40 ? `${l.slice(0, 37)}...` : l)).join(', '),
+    );
+  }
   const sqlId = sanitize(opts.sqlId);
   const patchName = sanitize(opts.name ?? `PLANVIZ_PATCH_${opts.sqlId}`);
 

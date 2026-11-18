@@ -15,7 +15,6 @@ import { AnalysisOverview } from './AnalysisOverview';
 import { MetadataView } from './metadata/MetadataView';
 import { ExperimentalView } from './views/experimental/ExperimentalView';
 import { AiReportView } from './views/AiReportView';
-import { AiReportPrototypeView } from './views/prototype/AiReportPrototypeView';
 import { isFilterActive, matchesFilters } from '../lib/filtering';
 import { OVERVIEW_VIEW_MODES } from '../lib/overview';
 import type { ViewMode } from '../lib/types';
@@ -103,7 +102,6 @@ export function VisualizationTabs() {
         {viewMode === 'monitor' && <MonitorDetailsView />}
         {viewMode === 'experimental' && <ExperimentalView />}
         {viewMode === 'ai' && <AiReportView />}
-        {viewMode === 'ai-report' && <AiReportPrototypeView />}
         {FILTERED_VIEWS.has(viewMode) && <NoMatchesBanner visible={noMatches} top={top} />}
         <AnalysisOverview active={OVERVIEW_VIEW_MODES.has(viewMode) && !sideBySide} top={top} />
       </div>
