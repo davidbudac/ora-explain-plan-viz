@@ -61,6 +61,14 @@ const SHORTCUT_GROUPS: { title: string; items: { keys: string[]; description: st
     ],
   },
   {
+    title: 'Replay (Experimental)',
+    items: [
+      { keys: ['Space'], description: 'Play / pause' },
+      { keys: ['[', ']'], description: 'Previous / next chapter' },
+      { keys: ['←', '→'], description: 'On the scrubber: step back / forward' },
+    ],
+  },
+  {
     title: 'Selection',
     items: [
       { keys: [`${MOD}+Click`], description: 'Add or remove a node from a multi-selection' },
