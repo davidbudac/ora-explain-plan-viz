@@ -112,7 +112,7 @@ export const defaultAiSections: Record<AiSectionId, boolean> = {
 
 const VALID_COLOR_SCHEMES: ColorScheme[] = ['contrast', 'semantic', 'estact', 'rail', 'ticker', 'stripe', 'tinted', 'terminal'];
 const VALID_PALETTES: AppPalette[] = APP_PALETTE_ORDER;
-const VALID_EXPERIMENTAL_SUB_VIEWS: ExperimentalSubView[] = ['flame', 'scatter', 'timeline', 'waterfall', 'morph', 'waits'];
+const VALID_EXPERIMENTAL_SUB_VIEWS: ExperimentalSubView[] = ['flame', 'scatter', 'timeline', 'waterfall', 'morph', 'waits', 'replay'];
 
 const defaultSettings: UserSettings = {
   version: SETTINGS_VERSION,

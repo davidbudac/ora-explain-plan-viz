@@ -6,6 +6,7 @@ import { TimelineView } from './TimelineView';
 import { WaterfallView } from './WaterfallView';
 import { MorphView } from './MorphView';
 import { WaitsView } from './WaitsView';
+import { ReplayView } from './replay/ReplayView';
 import { FOCUS_RING } from '../../ui';
 
 const SUB_VIEWS: { id: ExperimentalSubView; label: string; description: string }[] = [
@@ -34,6 +35,11 @@ const SUB_VIEWS: { id: ExperimentalSubView; label: string; description: string }
     id: 'waits',
     label: 'Waits',
     description: 'Wait-class composition per operation from ASH samples',
+  },
+  {
+    id: 'replay',
+    label: 'Replay',
+    description: 'Animated replay of the execution: what each operation was doing, step by step',
   },
 ];
 
@@ -72,6 +78,7 @@ function renderSubView(view: ExperimentalSubView) {
     case 'waterfall': return <WaterfallView />;
     case 'morph': return <MorphView />;
     case 'waits': return <WaitsView />;
+    case 'replay': return <ReplayView />;
   }
 }
 

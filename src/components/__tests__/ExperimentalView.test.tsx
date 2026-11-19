@@ -18,6 +18,7 @@ vi.mock('../views/experimental/TimelineView', () => ({ TimelineView: () => <div 
 vi.mock('../views/experimental/WaterfallView', () => ({ WaterfallView: () => <div data-testid="waterfall" /> }));
 vi.mock('../views/experimental/MorphView', () => ({ MorphView: () => <div data-testid="morph" /> }));
 vi.mock('../views/experimental/WaitsView', () => ({ WaitsView: () => <div data-testid="waits" /> }));
+vi.mock('../views/experimental/replay/ReplayView', () => ({ ReplayView: () => <div data-testid="replay" /> }));
 vi.mock('../views/FlameView', () => ({ FlameView: () => <div data-testid="flame" /> }));
 
 import { ExperimentalView } from '../views/experimental/ExperimentalView';
@@ -45,6 +46,7 @@ describe('ExperimentalView switcher', () => {
       waterfall: 'Rows read vs rows returned per operation — wasted work',
       morph: 'Animated estimate→actual icicle',
       waits: 'Wait-class composition per operation from ASH samples',
+      replay: 'Animated replay of the execution: what each operation was doing, step by step',
     };
     for (const view of Object.keys(expected) as ExperimentalSubView[]) {
       state.experimentalSubView = view;

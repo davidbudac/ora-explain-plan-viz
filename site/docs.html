@@ -519,7 +519,7 @@ SPOOL OFF</code></pre>
 
       <h3>Experimental</h3>
       <div class="shot"><img src="assets/timeline.png" alt="Execution timeline Gantt with ASH wait-class cells" loading="lazy" /></div>
-      <p>Six views behind a segmented switcher (the last one used is remembered):</p>
+      <p>Seven views behind a segmented switcher (the last one used is remembered):</p>
       <ul>
         <li><strong>Flame.</strong> The flame graph described above.</li>
         <li><strong>Timeline.</strong> A Gantt of when each operation was actually active (from per-op first/last active offsets), with ASH wait-class cells per time bucket. SQL Monitor XML only.</li>
@@ -527,7 +527,39 @@ SPOOL OFF</code></pre>
         <li><strong>Waterfall.</strong> Wasted work: rows read vs rows returned per node, so a full scan that reads a million rows to return ten stands out.</li>
         <li><strong>Morph.</strong> An animated icicle that morphs from the optimizer's estimated shape to the actual one.</li>
         <li><strong>Waits.</strong> Per-line wait-class composition from ASH samples.</li>
+        <li><strong>Replay.</strong> An animated replay of how the plan ran, described below.</li>
       </ul>
+
+      <h4>Replay</h4>
+      <p>
+        Plays the execution back: which operation was reading, building a hash table, sorting, waiting or returning rows at each moment,
+        and how many rows each had produced so far against the optimizer's estimate. It follows Oracle's row-source order: a hash join
+        reads its whole build side before it probes, the inner side of a nested loop runs once per outer row, and a blocking sort or
+        aggregation returns nothing until its input is complete. Rows that pass ten times the estimate turn red, and a work area that
+        spills shows how much went to TEMP.
+      </p>
+      <p>The badge next to the layout switch says how much of the timing is real:</p>
+      <ul>
+        <li><strong>Measured timing.</strong> SQL Monitor reports that ran for at least three seconds: each operation's active window, with ASH samples. Time is in seconds.</li>
+        <li><strong>Approximate timing · actual rows.</strong> Plans with runtime statistics: the order comes from the rules above, durations from A-Time or from A-Rows, Starts and buffers. Time is shown as a share of the work.</li>
+        <li><strong>Simulated from estimates.</strong> Plans without runtime statistics: durations from the optimizer's cost, rows from E-Rows.</li>
+      </ul>
+      <p>
+        Chapters mark the moments worth stopping at: the first read, a finished hash build, a spill, a blocking step letting go, a
+        misestimate, the busiest loops, the first row to the client and the end. Three layouts play the same replay, and switching keeps
+        the position (the last one used is remembered):
+      </p>
+      <ul>
+        <li><strong>Tree.</strong> The whole plan tree. Edges carry rows to the parent while they flow, labelled with the rows passed so far.</li>
+        <li><strong>Lanes.</strong> One row per operation with a lane showing when it consumed input, produced rows or waited, and a rows bar racing the estimate. <em>Show what's ahead</em> draws the rest of each lane faintly.</li>
+        <li><strong>Story.</strong> Chapter by chapter: the view zooms to the operations each chapter is about, and the side panel lists the chapters with the live numbers behind the current one.</li>
+      </ul>
+      <p>
+        <kbd>Space</kbd> plays and pauses; <kbd>[</kbd> and <kbd>]</kbd> step to the previous and next chapter. Drag or click the scrubber
+        to jump, or use the arrow keys, <kbd>Home</kbd> and <kbd>End</kbd> on it. <em>Smart pacing</em> (on by default) holds each chapter on
+        screen for a few seconds and skips idle stretches. Click an operation to select it.
+        Parallel plans are replayed as if one process ran them.
+      </p>
     </section>
 
     <!-- ---------- Analysis ---------- -->
