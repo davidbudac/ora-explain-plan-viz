@@ -309,6 +309,9 @@ function HierarchicalViewContent({
     () => (parsedPlan && planHasHints(parsedPlan) ? analyzeHints(parsedPlan) : null),
     [parsedPlan]
   );
+  // The lens setting persists across plans. A plan with no hints has no lens
+  // (and no toggle for it), so it must not dim every operation.
+  const hintLensOn = hintLens && hintAnalysis !== null;
   // Plan-wide, so a collapse toggle or a note edit re-lays-out without redoing it.
   const parallelSignalsByNode = useMemo(() => {
     const byNode = new Map<number, ParallelSignal[]>();
@@ -543,7 +546,7 @@ function HierarchicalViewContent({
       const advisorTitles = nodeFindings?.map((f) => f.title);
       const hasAdvisorBadge = effectiveDisplayOptions.showAdvisorBadge && !!advisorSeverity;
       const hintMarks = hintAnalysis?.byNode.get(node.id);
-      const hintRows = hintLens && hintMarks ? estimateHintChipRows(hintChipsForNode(hintMarks, node.id), effectiveNodeWidth - 28) : 0;
+      const hintRows = hintLensOn && hintMarks ? estimateHintChipRows(hintChipsForNode(hintMarks, node.id), effectiveNodeWidth - 28) : 0;
       // Calculate dynamic height for this node
       const height = calculateNodeHeight(node, effectiveDisplayOptions, hasActualStats, hasAnnotation, usesGrid, isRail, isTicker, hasAdvisorBadge, hintRows);
       nodeDimensions.set(node.id.toString(), { width: effectiveNodeWidth, height });
@@ -599,7 +602,7 @@ function HierarchicalViewContent({
           advisorCount: nodeFindings?.length,
           advisorTitles,
           hintMarks,
-          hintLens,
+          hintLens: hintLensOn,
           layoutDirection,
           isCollapsed,
           hiddenCount: isCollapsed ? descendantCounts.get(node.id) ?? 0 : 0,
@@ -680,6 +683,8 @@ function HierarchicalViewContent({
       const formattedRowFlow = formatNumberShort(rowFlow) ?? rowFlow.toString();
       return {
         ...edge,
+        // The focus-path pass widens edges; it starts from this width each time.
+        data: { ...edge.data, baseStrokeWidth: strokeWidth },
         label: formattedRowFlow,
         labelStyle: { fill: '#a1a1aa', fontSize: 10, fontWeight: 500 },
         labelBgStyle: { fill: 'transparent', fillOpacity: 0 },
@@ -830,7 +835,7 @@ function HierarchicalViewContent({
     advisorReport?.findingsByNodeId,
     advisorReport?.maxSeverityByNodeId,
     hintAnalysis,
-    hintLens,
+    hintLensOn,
     parallelSignalsByNode,
     collapsedIds,
     descendantCounts,
@@ -1241,8 +1246,8 @@ function HierarchicalViewContent({
 
         let stroke = newStroke;
         let strokeOpacity: number | undefined = undefined;
-        const baseWidthRaw = edge.style?.strokeWidth ?? 2;
-        const baseWidth = typeof baseWidthRaw === 'number' ? baseWidthRaw : parseFloat(baseWidthRaw.toString()) || 2;
+        // From the layout, not edge.style: that already carries the last focus widening.
+        const baseWidth = (edge.data as { baseStrokeWidth?: number } | undefined)?.baseStrokeWidth ?? 2;
         let strokeWidth = baseWidth;
 
         if (focusEnabled) {
@@ -1509,7 +1514,7 @@ function HierarchicalViewContent({
             <SelectionBreadcrumb path={breadcrumbPath} onSelect={selectBreadcrumbNode} onReturn={focusSelected} />
           </Panel>
         )}
-        {hintLens && hintAnalysis && (
+        {hintLensOn && hintAnalysis && (
           <Panel position="top-right">
             <HintLensLegend coverage={hintAnalysis.coverage} counts={hintAnalysis.counts} onOff={() => setHintLens(false)} />
           </Panel>
