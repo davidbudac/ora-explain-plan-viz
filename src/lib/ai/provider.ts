@@ -8,9 +8,21 @@
 import type { AgentConfig } from '../agent/client';
 import type { AiChatMessage, AiProviderId, AiRequest, AiStreamEvent } from './types';
 import { AiError } from './types';
-import { streamAnthropic } from './providers/anthropic';
 import { streamOpenAiCompat } from './providers/openaiCompat';
 import { streamAgentProxy } from './providers/agent';
+
+/**
+ * The Anthropic provider is loaded on first use, so the Anthropic SDK stays
+ * out of the initial bundle (the other providers are plain `fetch`).
+ */
+async function* streamAnthropic(
+  config: { apiKey: string },
+  req: AiRequest & { messages?: AiChatMessage[] },
+  signal: AbortSignal,
+): AsyncGenerator<AiStreamEvent> {
+  const provider = await import('./providers/anthropic');
+  yield* provider.streamAnthropic(config, req, signal);
+}
 
 /** Resolved, ready-to-run configuration for one analysis request. */
 export interface AiRunConfig {

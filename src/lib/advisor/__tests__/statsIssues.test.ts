@@ -30,6 +30,23 @@ describe('statsIssuesRule', () => {
     expect(mismatch!.severity).toBe('info');
   });
 
+  it('does not let a literal that equals another column name hide the no-histogram badge', () => {
+    // 'ACTIVE' is a literal here, but the table also has a column called ACTIVE (with a histogram).
+    const table = makeTable({}, {
+      STATUS: makeColumn({ histogram: { type: 'NONE', buckets: 0 } }),
+      ACTIVE: makeColumn({ histogram: { type: 'FREQUENCY', buckets: 2 } }),
+    });
+    const bundle = makeBundle({ 'HR.EMPLOYEES': table });
+    const plan = buildPlan({
+      id: 0, operation: 'TABLE ACCESS FULL', objectName: 'EMPLOYEES',
+      filterPredicates: `"E"."STATUS"='ACTIVE'`, rows: 100, actualRows: 5000,
+    }, { hasActualStats: true });
+    const findings = statsIssuesRule.evaluate(ruleCtx(plan, bundle));
+    const mismatch = findings.find((f) => f.title.includes('mismatch no histogram'));
+    expect(mismatch).toBeDefined();
+    expect(mismatch!.explanation).toContain('no histogram on predicate column STATUS.');
+  });
+
   it('groups multiple nodes referencing the same table under one finding per badge', () => {
     const bundle = makeBundle({ 'HR.EMPLOYEES': makeTable({ stale_stats: 'YES' }) });
     const plan = buildPlan({

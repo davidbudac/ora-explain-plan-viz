@@ -12,20 +12,34 @@ import { vi } from 'vitest';
 export const streamMock = vi.fn();
 export const constructorMock = vi.fn();
 
-export function anthropicSdkModule() {
-  class APIError extends Error {
-    status: number | undefined;
-    constructor(message: string, status?: number) {
-      super(message);
-      this.status = status;
-    }
+class APIError extends Error {
+  status: number | undefined;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.status = status;
   }
-  class APIUserAbortError extends APIError {}
-  class APIConnectionError extends APIError {}
-  class AuthenticationError extends APIError {}
-  class RateLimitError extends APIError {}
-  class BadRequestError extends APIError {}
+}
+class APIUserAbortError extends APIError {}
+class APIConnectionError extends APIError {}
+class AuthenticationError extends APIError {}
+class RateLimitError extends APIError {}
+class BadRequestError extends APIError {}
 
+/**
+ * The stand-in error classes, for tests that need to throw one. Construct them
+ * through this object, not through the `Anthropic` default import: that import
+ * is typed as the real SDK, whose error constructors take different arguments.
+ */
+export const sdkErrors = {
+  APIError,
+  APIUserAbortError,
+  APIConnectionError,
+  AuthenticationError,
+  RateLimitError,
+  BadRequestError,
+};
+
+export function anthropicSdkModule() {
   class Anthropic {
     beta = { messages: { stream: streamMock } };
     constructor(opts: unknown) {

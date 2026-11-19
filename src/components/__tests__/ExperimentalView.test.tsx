@@ -19,6 +19,7 @@ vi.mock('../views/experimental/WaterfallView', () => ({ WaterfallView: () => <di
 vi.mock('../views/experimental/MorphView', () => ({ MorphView: () => <div data-testid="morph" /> }));
 vi.mock('../views/experimental/WaitsView', () => ({ WaitsView: () => <div data-testid="waits" /> }));
 vi.mock('../views/experimental/replay/ReplayView', () => ({ ReplayView: () => <div data-testid="replay" /> }));
+vi.mock('../views/FlameView', () => ({ FlameView: () => <div data-testid="flame" /> }));
 
 import { ExperimentalView } from '../views/experimental/ExperimentalView';
 import { buttonByText, cleanup, click, render } from '../ui/__tests__/testUtils';
@@ -39,6 +40,7 @@ describe('ExperimentalView switcher', () => {
 
   it('describes the active sub-view under the switcher', () => {
     const expected: Record<ExperimentalSubView, string> = {
+      flame: "Flame graph — bars sized by each operation's own share of the metric; click a bar to zoom into its subtree",
       scatter: 'Estimated vs actual rows per operation, log-log; far from the diagonal means a misestimate',
       timeline: 'When each operation was active during execution, with ASH wait classes',
       waterfall: 'Rows read vs rows returned per operation — wasted work',

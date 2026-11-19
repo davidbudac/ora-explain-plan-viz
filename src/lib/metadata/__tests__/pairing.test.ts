@@ -28,6 +28,7 @@ function makeSlot(id: string, parsedPlan: ParsedPlan | null): PlanSlot {
     selectedNodeIds: [],
     annotations: createEmptyAnnotationState(),
     metadataBundle: null,
+    metadataBundleWarning: null,
   };
 }
 

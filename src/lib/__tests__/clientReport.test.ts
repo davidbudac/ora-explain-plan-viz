@@ -195,7 +195,7 @@ describe('buildClientReport', () => {
     child.estimatedRowsTotal = 1000;
     child.actualRows = 250000;
     const html = buildClientReport(makeInput({ plan }), makeOptions());
-    expect(html).toContain('1.0K <span style="color:#64748b">(1 &times; 1.0K starts)</span>');
+    expect(html).toContain('1.0K <span style="color:#64748b">(1 &times; 1.0K executions)</span>');
     expect(html).toContain('250x over');
   });
 

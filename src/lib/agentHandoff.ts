@@ -3,9 +3,10 @@ import type { MetadataBundle } from './metadata/bundle';
 import type { AdvisorReport } from './advisor/types';
 import type { AnnotationState } from './annotations';
 import type { AiSectionId, ContextSection } from './ai/types';
-import { hasAnnotations } from './annotations';
+import { hasAnnotations, isHighlightColor } from './annotations';
 import { buildAnalyzeSections, buildCompareSections, estimateTokens } from './ai/context';
 import { getSourceDisplayName } from './parser';
+import { normalizePlanHash, normalizeSqlId } from './parser/values';
 import { AGENT_SKILL_NAME } from './agentSkill';
 
 /**
@@ -123,7 +124,8 @@ export function renderAnnotations(plan: ParsedPlan, annotations: AnnotationState
     const highlight = annotations.nodeHighlights.get(id);
     const bits = [`- Line ${id} (${nodeTitle(byId.get(id)) || 'unknown operation'})`];
     if (note) bits.push(`: ${oneLine(note)}`);
-    if (highlight) bits.push(` [highlighted ${highlight.color}]`);
+    // The colour comes from stored or shared annotations: print it only when it is one of ours.
+    if (highlight) bits.push(isHighlightColor(highlight.color) ? ` [highlighted ${highlight.color}]` : ' [highlighted]');
     lines.push(bits.join(''));
   }
   for (const group of annotations.groups) {
@@ -217,8 +219,22 @@ function planUsesBinds(plan: ParsedPlan): boolean {
   return plan.allNodes.some((n) => BIND_REFERENCE.test(`${n.accessPredicates ?? ''} ${n.filterPredicates ?? ''}`));
 }
 
+/**
+ * The plan's SQL_ID / plan hash value for the instruction part of the prompt (heading, task,
+ * ready-to-paste SQL). The parsers already drop malformed ids; they are checked again here
+ * because this text is read by an agent as instructions, not as data.
+ */
+function safeSqlId(plan: ParsedPlan): string | undefined {
+  return normalizeSqlId(plan.sqlId);
+}
+
+function safePlanHash(plan: ParsedPlan): string | undefined {
+  return normalizePlanHash(plan.planHashValue);
+}
+
 function sqlIdLiteral(plan: ParsedPlan): string {
-  return plan.sqlId ? `'${plan.sqlId}'` : `'<SQL_ID>'`;
+  const sqlId = safeSqlId(plan);
+  return sqlId ? `'${sqlId}'` : `'<SQL_ID>'`;
 }
 
 function planInventory(
@@ -292,7 +308,7 @@ function planInventory(
         : {
             detail: input.bundle
               ? 'the attached bundle covers none of the plan\'s objects'
-              : `not attached. To get it: ${APP_NAME}'s gather script (in the app: Metadata, then Gather script; \`@gather_plan_metadata.sql ${plan.sqlId ?? '<SQL_ID>'}${plan.planHashValue ? ` ${plan.planHashValue}` : ''}\`), or targeted queries on DBA_TAB_STATISTICS, DBA_TAB_COL_STATISTICS and DBA_INDEXES`,
+              : `not attached. To get it: ${APP_NAME}'s gather script (in the app: Metadata, then Gather script; \`@gather_plan_metadata.sql ${safeSqlId(plan) ?? '<SQL_ID>'}${safePlanHash(plan) ? ` ${safePlanHash(plan)}` : ''}\`), or targeted queries on DBA_TAB_STATISTICS, DBA_TAB_COL_STATISTICS and DBA_INDEXES`,
           }),
     });
 
@@ -369,8 +385,10 @@ function sideName(side: 'A' | 'B', label: string): string {
 function headingFor(source: HandoffSource): string {
   const id = (plan: ParsedPlan) => {
     const bits: string[] = [];
-    if (plan.sqlId) bits.push(`SQL_ID \`${plan.sqlId}\``);
-    if (plan.planHashValue) bits.push(`plan hash value \`${plan.planHashValue}\``);
+    const sqlId = safeSqlId(plan);
+    const planHash = safePlanHash(plan);
+    if (sqlId) bits.push(`SQL_ID \`${sqlId}\``);
+    if (planHash) bits.push(`plan hash value \`${planHash}\``);
     return bits.join(', ');
   };
   if (source.mode === 'analyze') {
@@ -388,8 +406,8 @@ function taskFor(source: HandoffSource): string {
   const lines = [
     `You are an expert Oracle performance engineer. Compare the two execution plans below: ${sideName('A', planA.label)} is the baseline, ${sideName('B', planB.label)} the candidate. Explain what changed between them and why the optimizer chose differently, judge which performs better (by actuals when available, not by cost), and recommend what to do, including how to keep the better plan. When a conclusion depends on data that is not here, ask for it (see "Asking for more data").`,
   ];
-  const idA = planA.plan.sqlId;
-  const idB = planB.plan.sqlId;
+  const idA = safeSqlId(planA.plan);
+  const idB = safeSqlId(planB.plan);
   if (idA && idB && idA !== idB) {
     lines.push(`The plans have different SQL_IDs (A: \`${idA}\`, B: \`${idB}\`), so they belong to different statements: compare their shapes, not their numbers.`);
   }

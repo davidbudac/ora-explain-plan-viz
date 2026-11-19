@@ -7,7 +7,7 @@
  * that says what is missing and how to fix the capture.
  */
 
-import type { PlanWarning } from '../types.ts';
+import type { PlanNode, PlanWarning } from '../types.ts';
 
 /** What to tell someone whose CLOB output stops mid-document. */
 export const TRUNCATION_ADVICE =
@@ -112,6 +112,22 @@ export interface TextTableDiagnostics {
   nodeIds: number[];
   /** Ids the Predicate Information section refers to. */
   predicateIds: number[];
+  /** Ids of operations that were read but hang under no parent (see `unreachableNodeIds`). */
+  unreachableIds?: number[];
+}
+
+/** Ids of the nodes that cannot be reached from the root by following `children`. */
+export function unreachableNodeIds(rootNode: PlanNode | null, allNodes: PlanNode[]): number[] {
+  if (!rootNode) return [];
+  const reached = new Set<PlanNode>();
+  const pending: PlanNode[] = [rootNode];
+  while (pending.length > 0) {
+    const node = pending.pop()!;
+    if (reached.has(node)) continue;
+    reached.add(node);
+    pending.push(...node.children);
+  }
+  return allNodes.filter((node) => !reached.has(node)).map((node) => node.id);
 }
 
 /** Warnings for a DBMS_XPLAN / SQL Monitor text plan table. */
@@ -132,6 +148,23 @@ export function textTableWarnings(d: TextTableDiagnostics): PlanWarning[] {
     warnings.push({
       code: 'truncated_plan_table',
       message: `The plan ends in the middle of a row, so the paste looks cut off. ${TRUNCATION_ADVICE}`,
+    });
+  }
+
+  if (d.nodeIds.length === 0 && d.rejectedLines.length === 0 && !shape.truncated) {
+    warnings.push({
+      code: 'no_plan_rows',
+      message: 'The plan-table header was found but no rows could be read under it. Rows must start with "|" exactly as Oracle printed them: copy the plain output again, without quoting or re-formatting it.',
+    });
+    return warnings;
+  }
+
+  const unreachable = d.unreachableIds ?? [];
+  if (unreachable.length > 0) {
+    const n = unreachable.length;
+    warnings.push({
+      code: 'disconnected_rows',
+      message: `${n} operation${n === 1 ? '' : 's'} could not be attached to the plan tree (id${n === 1 ? '' : 's'} ${listIds(unreachable)}), so the tree is incomplete. The tree is built from the indentation of the Operation column: paste the plan as plain text with its spacing intact.`,
     });
   }
 

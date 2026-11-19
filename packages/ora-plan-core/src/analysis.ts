@@ -39,6 +39,7 @@ export function effectiveChildren(node: PlanNode): PlanNode[] {
  *   total (children's self times sum to it). Non-root actualTime is rolled up
  *   bottom-up to cumulative (matching the other sources), the root is derived
  *   like a cumulative source, and activityPercent is recomputed from self time.
+ * - SQL Monitor active windows (`plan.timeIsActiveWindow`): no self time is derived.
  */
 export function computeSelfTimes(plan: ParsedPlan): void {
   if (!plan.rootNode) return;
@@ -76,6 +77,10 @@ export function computeSelfTimes(plan: ParsedPlan): void {
         }
       }
     }
+  } else if (plan.timeIsActiveWindow) {
+    // SQL Monitor: actualTime is each operation's active window in whole seconds, and the windows
+    // of a parent and its children overlap. "time − Σ children" is not the operation's own time.
+    for (const node of plan.allNodes) node.selfTime = undefined;
   } else {
     for (const node of plan.allNodes) {
       if (node.actualTime === undefined || node.inactive) {
@@ -251,6 +256,8 @@ export function usesActivityRanking(plan: ParsedPlan): boolean {
  */
 export function rankNodesByTime(plan: ParsedPlan): PlanNode[] {
   const byActivity = usesActivityRanking(plan);
+  // Active windows say when an operation was busy, not how much work it did: without ASH there is no ranking.
+  if (!byActivity && plan.timeIsActiveWindow) return [];
   const measure = (n: PlanNode): number | undefined =>
     byActivity ? n.activityPercent : (n.selfTime ?? n.actualTime);
   return plan.allNodes
@@ -263,12 +270,13 @@ export function rankNodesByTime(plan: ParsedPlan): PlanNode[] {
  * SQL Monitor sources with ASH data use the highest `activityPercent`;
  * otherwise the highest self time (falling back to cumulative A-Time for
  * nodes without derived self time). Returns null when the plan has no actual
- * statistics.
+ * statistics. SQL Monitor reports without ASH samples have no hotspot.
  */
 export function computeHottestNodeId(plan: ParsedPlan | null): number | null {
   if (!plan?.hasActualStats) return null;
 
   const byActivity = usesActivityRanking(plan);
+  if (!byActivity && plan.timeIsActiveWindow) return null;
   let hottestId: number | null = null;
   let hottestTime = 0;
   for (const node of plan.allNodes) {

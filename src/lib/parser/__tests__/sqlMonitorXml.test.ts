@@ -104,6 +104,11 @@ Plan hash value: 123456
       expect(result.totalElapsedTime).toBeCloseTo(2451, 0);
     });
 
+    it('keeps an optimizer cost of 0 (line 12, <cost>0</cost>) instead of dropping it', () => {
+      expect(byId(12)?.cost).toBe(0);
+      expect(byId(12)?.rows).toBe(1);
+    });
+
     it('handles INDEX operations with options and SORT ORDER BY', () => {
       expect(byId(6)?.operation).toBe('INDEX RANGE SCAN');
       expect(byId(6)?.objectName).toBe('CUST_REGION_IX');
@@ -216,6 +221,68 @@ Plan hash value: 123456
       expect(result.allNodes[1].objectName).toBe('EMPLOYEES');
       expect(result.allNodes[2].accessPredicates).toBe('DEPARTMENT_ID=10');
       expect(result.hasActualStats).toBe(true);
+    });
+  });
+
+  describe('zero values and timestamps (synthetic)', () => {
+    it('reads 0 from <plan> and <optimizer> elements as 0, not as missing', () => {
+      const xml = `<report><sql_monitor_report>
+        <plan>
+          <operation name="SELECT STATEMENT" id="0" depth="0"><card>0</card><bytes>0</bytes><cost>0</cost></operation>
+        </plan>
+        <plan_monitor>
+          <operation id="0" name="SELECT STATEMENT" depth="0"/>
+          <operation id="1" parent_id="0" name="TABLE ACCESS" options="FULL" depth="1">
+            <optimizer><cardinality>0</cardinality><bytes>0</bytes><cost>0</cost></optimizer>
+          </operation>
+        </plan_monitor>
+      </sql_monitor_report></report>`;
+      const result = sqlMonitorXmlParser.parse(xml);
+      for (const id of [0, 1]) {
+        const node = result.allNodes.find((n) => n.id === id)!;
+        expect([node.rows, node.bytes, node.cost]).toEqual([0, 0, 0]);
+      }
+    });
+
+    it('legacy format: A-Rows 0 stays 0 and does not fall through to the alternative attribute', () => {
+      const xml = `<?xml version="1.0"?><report><sql_monitor><plan_operations>
+        <operation id="0" name="SELECT STATEMENT" depth="0" cardinality="0" e_rows="7" output_rows="0" a_rows="9"
+                   max_memory="0" used_mem="5" physical_reads="0" cr_buffer_gets="4" logical_reads="0" buffer_gets="3"
+                   activity_percent="0" percent="50"/>
+      </plan_operations></sql_monitor></report>`;
+      const [node] = sqlMonitorXmlParser.parse(xml).allNodes;
+      expect(node.rows).toBe(0);
+      expect(node.actualRows).toBe(0);
+      expect(node.memoryUsed).toBe(0);
+      expect(node.physicalReads).toBe(0);
+      expect(node.logicalReads).toBe(0);
+      expect(node.activityPercent).toBe(0);
+    });
+
+    it('computes active-window offsets as wall-clock differences, whatever the viewer time zone', () => {
+      // 2026-03-08 is the night US clocks jump from 02:00 to 03:00: local Date arithmetic loses an hour.
+      const xml = `<report><sql_monitor_report>
+        <report_parameters><sql_exec_start>03/08/2026 01:30:00</sql_exec_start></report_parameters>
+        <plan_monitor>
+          <operation id="0" name="SELECT STATEMENT" depth="0">
+            <stats type="plan_monitor">
+              <stat name="first_active">03/08/2026 01:30:00</stat>
+              <stat name="last_active">03/08/2026 03:30:00</stat>
+            </stats>
+          </operation>
+        </plan_monitor>
+      </sql_monitor_report></report>`;
+      const previous = process.env.TZ;
+      try {
+        for (const zone of ['America/New_York', 'UTC', 'Asia/Kolkata']) {
+          process.env.TZ = zone;
+          const [node] = sqlMonitorXmlParser.parse(xml).allNodes;
+          expect([zone, node.firstActiveOffset, node.lastActiveOffset]).toEqual([zone, 0, 7200]);
+        }
+      } finally {
+        if (previous === undefined) delete process.env.TZ;
+        else process.env.TZ = previous;
+      }
     });
   });
 

@@ -95,7 +95,6 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
   }));
   const [anthropicKey, setAnthropicKey] = useState(initialSecrets.anthropic);
   const [openAiKey, setOpenAiKey] = useState(initialSecrets.openai);
-  const [rememberKey, setRememberKey] = useState(false);
 
   const [openAiBaseUrl, setOpenAiBaseUrl] = useState(settings.aiOpenAiBaseUrl);
   const [openAiModel, setOpenAiModel] = useState(settings.aiOpenAiModel);
@@ -196,10 +195,10 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
       },
     });
     if (provider === 'anthropic' && anthropicKey.trim() !== '') {
-      setAiSecret('anthropic', anthropicKey.trim(), rememberKey);
+      setAiSecret('anthropic', anthropicKey.trim());
     }
     if (provider === 'openai-compat' && openAiKey.trim() !== '') {
-      setAiSecret('openai', openAiKey.trim(), rememberKey);
+      setAiSecret('openai', openAiKey.trim());
     }
 
     const runConfig: AiRunConfig = provider === 'anthropic'
@@ -324,14 +323,6 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
                 autoComplete="off"
                 className={inputClass}
               />
-              <label className="mt-1.5 flex items-center gap-1.5 cursor-pointer text-[11px] text-neutral-600 dark:text-neutral-400">
-                <input
-                  type="checkbox"
-                  checked={rememberKey}
-                  onChange={(e) => setRememberKey(e.target.checked)}
-                />
-                Remember on this device
-              </label>
             </div>
           </div>
         )}
@@ -374,14 +365,6 @@ export function AiAnalysisDialog({ onClose }: AiAnalysisDialogProps) {
                 autoComplete="off"
                 className={inputClass}
               />
-              <label className="mt-1.5 flex items-center gap-1.5 cursor-pointer text-[11px] text-neutral-600 dark:text-neutral-400">
-                <input
-                  type="checkbox"
-                  checked={rememberKey}
-                  onChange={(e) => setRememberKey(e.target.checked)}
-                />
-                Remember on this device
-              </label>
             </div>
           </div>
         )}

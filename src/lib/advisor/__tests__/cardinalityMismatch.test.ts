@@ -65,7 +65,28 @@ describe('cardinalityMismatchRule', () => {
       expect(findings[0].nodeIds).toEqual([3]);
       expect(findings[0].severity).toBe('critical');
       expect(findings[0].explanation).toBe(
-        'Estimated 1 row per start × 1,000 starts = 1,000 rows but actually produced 250,000 rows (A-Rows), a 250.0x deviation.',
+        'Estimated 1 row per execution × 1,000 executions = 1,000 rows but actually produced 250,000 rows (A-Rows), a 250.0x deviation.',
+      );
+    });
+
+    it('explains a batched rowid fetch with the executions its total was built from, not its own Starts', () => {
+      // NLJ batching: the table line's E-Rows is per start of the index feeding it (167), not per rowid (50,000).
+      const plan = buildPlan({
+        id: 0, operation: 'SELECT STATEMENT', children: [{
+          id: 1, operation: 'NESTED LOOPS', rows: 830, actualRows: 50000, starts: 1, children: [
+            {
+              id: 2, operation: 'NESTED LOOPS', rows: 830, actualRows: 50000, starts: 1, children: [
+                { id: 3, operation: 'TABLE ACCESS FULL', rows: 166, actualRows: 167, starts: 1 },
+                { id: 4, operation: 'INDEX RANGE SCAN', rows: 5, actualRows: 50000, starts: 167 },
+              ],
+            },
+            { id: 5, operation: 'TABLE ACCESS BY INDEX ROWID', rows: 5, actualRows: 50000, starts: 50000 },
+          ],
+        }],
+      });
+      const finding = cardinalityMismatchRule.evaluate(ruleCtx(plan)).find((f) => f.nodeIds[0] === 5);
+      expect(finding?.explanation).toContain(
+        'Estimated 5 rows per execution × 167 executions = 835 rows but actually produced 50,000 rows (A-Rows), a 59.9x deviation.',
       );
     });
 

@@ -1,6 +1,7 @@
 import type { PlanNode, ParsedPlan, PlanSource } from '../types.ts';
 import { planRootCost } from '../analysis.ts';
 import type { PlanParser } from './types.ts';
+import { normalizePlanHash, normalizeSqlId } from './values.ts';
 
 /**
  * Parser for Oracle execution plans in JSON format.
@@ -124,9 +125,10 @@ export function buildPlanFromRows(rows: Record<string, unknown>[], source: PlanS
   const totalElapsedTime = rootNode?.actualTime || 0;
 
   // Try to extract plan hash from the data (some scripts include it as metadata)
-  const planHashValue = getStr(normalized[0], 'plan_hash_value') ||
-    getStr(normalized[0], 'plan_hash') || undefined;
-  const sqlId = getStr(normalized[0], 'sql_id') || undefined;
+  const planHashValue = normalizePlanHash(
+    getStr(normalized[0], 'plan_hash_value') || getStr(normalized[0], 'plan_hash'),
+  );
+  const sqlId = normalizeSqlId(getStr(normalized[0], 'sql_id'));
   const childNumber = getInt(normalized[0], 'child_number');
   const sqlText = getStr(normalized[0], 'sql_text', 'sql_fulltext');
 

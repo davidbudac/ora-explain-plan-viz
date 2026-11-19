@@ -1,7 +1,7 @@
 import type { PlanNode } from '../../types.ts';
 import type { AdvisorRule, Finding, RuleContext } from '../types.ts';
 import { formatBytes } from '../../format.ts';
-import { liveChildren } from './shared.ts';
+import { effectiveChildren } from '../../analysis.ts';
 
 function rowsOf(node: PlanNode, useActual: boolean): number | undefined {
   return useActual ? node.actualRows : node.estimatedRowsTotal ?? node.rows;
@@ -16,7 +16,7 @@ export const hashJoinBuildSideRule: AdvisorRule = {
 
     for (const node of ctx.plan.allNodes) {
       if (!node.operation.toUpperCase().startsWith('HASH JOIN')) continue;
-      const kids = liveChildren(node);
+      const kids = effectiveChildren(node);
       if (kids.length < 2) continue;
       const [build, probe] = kids;
 

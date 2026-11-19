@@ -43,6 +43,9 @@ const FLAG_BASE = 'inline-flex items-center px-1.5 py-px border border-dashed ro
 const CHIP_CLASS = `${FLAG_BASE} border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400`;
 const BADGE_BASE = 'font-mono text-[11px] leading-4 px-1.5 rounded border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400';
 
+/** CRLF / lone CR line endings to LF. */
+const toLf = (text: string): string => text.replace(/\r\n?/g, '\n');
+
 /** Marks a top-bar button's text as collapsible (see `useTopBarMode`). */
 const topBarLabelProps = { [TOP_BAR_LABEL_ATTR]: '' };
 // Heroicons outline: database cylinder, and a book for the examples menu.
@@ -165,7 +168,9 @@ export function InputPanel() {
     window.setTimeout(() => {
       const value = textarea.value;
       if (!value.trim()) return;
-      const replacedWholeBox = value.trim() === pasted.trim();
+      // The clipboard keeps its own line endings (CRLF from Windows apps);
+      // textarea.value always reports LF. Compare them line-ending-blind.
+      const replacedWholeBox = toLf(value).trim() === toLf(pasted).trim();
       if (replacedWholeBox && (looksLikeMetadataBundle(value) || looksLikePlan(value))) {
         setShowParseHint(false);
         void parsePlan(value);

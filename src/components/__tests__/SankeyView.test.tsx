@@ -71,7 +71,10 @@ beforeEach(() => {
   vi.stubGlobal(
     'ResizeObserver',
     class {
-      constructor(private cb: () => void) {}
+      private cb: () => void;
+      constructor(cb: () => void) {
+        this.cb = cb;
+      }
       observe() {
         resizeCallbacks.push(this.cb);
         this.cb();
