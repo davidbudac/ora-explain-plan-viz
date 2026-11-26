@@ -2,6 +2,13 @@
 
 Notable changes per release. Each [GitHub release](https://github.com/davidbudac/ora-explain-plan-viz/releases) also attaches the whole app as one self-contained `oraplanviz-vX.Y.Z.html`.
 
+## 1.5.0 — 2026-11-26
+
+- **Plan Replay** animates execution in the tree using row-source timing when available ([#133](https://github.com/davidbudac/ora-explain-plan-viz/pull/133)).
+- More accurate advisor findings for repeated full scans and adaptive plans. SQL Monitor active windows no longer count as measured self time or drive hotspot selection ([#129](https://github.com/davidbudac/ora-explain-plan-viz/pull/129)).
+- Improved plan parsing, including pasted plans with Windows line endings, prefixed plan tables, and SQL text with blank lines or leading numbers ([#129](https://github.com/davidbudac/ora-explain-plan-viz/pull/129)).
+- AI API keys are stored only in session storage. Page-view analytics are limited to the hosted GitHub Pages build ([#129](https://github.com/davidbudac/ora-explain-plan-viz/pull/129)).
+
 ## 1.4.0 — 2026-11-08
 
 - **Client report is a facts-only handover** ([#121](https://github.com/davidbudac/ora-explain-plan-viz/pull/121)): no client / prepared-by fields (and they are no longer remembered), no executive summary or stat cards, advisor findings without recommendation text; optimizer-note tags moved into Execution Details.
