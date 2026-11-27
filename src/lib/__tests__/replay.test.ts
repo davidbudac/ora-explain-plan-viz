@@ -251,6 +251,30 @@ describe('buildReplayScript: hotspot from measured activity', () => {
   });
 });
 
+describe('buildReplayScript: first row to the client', () => {
+  const example = (name: string) => script(parsePlan(SAMPLE_PLANS.find((x) => x.name.includes(name))!.data));
+  const chapter = (s: ReplayScript, kind: string) => s.chapters.find((c) => c.kind === kind)!;
+
+  it('announces the recorded first-row time, inside the second SQL Monitor recorded it in', () => {
+    // sql_exec_start 18:51:54, root first_row 18:52:03: +9 s, to the second. Replay time [9, 10) is that second.
+    const s = example('Window Sort Spill');
+    const firstRow = chapter(s, 'first-row');
+    expect(firstRow.caption).toContain('9 s after the start');
+    expect(firstRow.caption).not.toMatch(/inferred/);
+    expect(firstRow.t).toBeGreaterThanOrEqual(9);
+    expect(firstRow.t).toBeLessThan(10);
+    expect(replayStateAt(track(s, 0), firstRow.t).rows).toBe(1);
+    expect(chapter(s, 'done').caption).toMatch(/^1 row returned in 9 s\./);
+  });
+
+  it('labels the first-row time inferred when the report did not record one', () => {
+    // Text report: the root is active in second +13 only, and the Duration is 13 s.
+    const firstRow = chapter(example('Exadata Cell Offload'), 'first-row');
+    expect(firstRow.caption).toContain('about 13 s after the start');
+    expect(firstRow.caption).toMatch(/inferred/);
+  });
+});
+
 describe('buildReplayScript on the bundled examples', () => {
   const scripts = SAMPLE_PLANS.map((sample) => ({ name: sample.name, s: buildReplayScript(parsePlan(sample.data)) }));
 
