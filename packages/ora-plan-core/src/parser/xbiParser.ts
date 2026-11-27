@@ -543,7 +543,9 @@ function buildTree(
   for (const row of rows) {
     const preds = predicates.get(row.id);
 
-    // Derive per-start estimated rows from total estimated rows
+    // "Est. rows total" is CARDINALITY × LAST_STARTS, an integer product, so the division is exact.
+    // The total itself is not kept: computeEstimatedRowTotals applies the partition, NLJ-batching
+    // and PX rules to the per-start figure, as for DBMS_XPLAN.
     let estimatedRows: number | undefined;
     if (row.estRowsTotal !== undefined && row.starts && row.starts > 0) {
       estimatedRows = Math.round(row.estRowsTotal / row.starts);
@@ -564,10 +566,6 @@ function buildTree(
       objectName: row.objectName,
       cost: row.cost,
       rows: estimatedRows,
-      // XBI reports the true total estimate; keep it exact instead of re-deriving
-      // it from the rounded per-start figure. A never-started row carries no signal.
-      estimatedRowsTotal:
-        row.actualRows !== undefined && row.starts !== 0 ? row.estRowsTotal : undefined,
       actualRows: row.actualRows,
       actualTime: row.selfElapsedMs,
       starts: row.starts,

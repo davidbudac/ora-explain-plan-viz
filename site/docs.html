@@ -431,6 +431,9 @@ SPOOL OFF</code></pre>
         JSON input is an array of rows from <code>V$SQL_PLAN_STATISTICS_ALL</code> (as produced by xdd.sql, Datadog's explain
         tool, or your own <code>JSON_ARRAYAGG</code> query). xbi.sql input is the raw SQL*Plus output of Tanel Poder's
         <a href="https://github.com/tanelpoder/tpt-oracle/blob/master/xbi.sql">eXplain Better</a> script.
+        Its <em>Est. rows total</em> column is E-Rows × Starts as printed. The app keeps the per-start E-Rows and
+        compares it with A-Rows by the same partition and nested-loop batching rules as DBMS_XPLAN, so a scan of 22
+        partitions is not reported as a 22× misestimate.
         The full query for the JSON export is in the repo's
         <a href="https://github.com/davidbudac/ora-explain-plan-viz/blob/main/docs/input-formats.md">docs/input-formats.md</a>.
       </p>
