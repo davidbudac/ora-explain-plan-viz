@@ -1,8 +1,11 @@
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { compressToEncodedURIComponent } from 'lz-string';
 import { gzipSync } from 'zlib';
 import { cleanup } from '../../components/ui/__tests__/testUtils';
-import { SIMPLE_PLAN, renderPlanContext } from '../../components/ui/__tests__/planContext';
+import { SIMPLE_PLAN, loadPlan, renderPlanContext } from '../../components/ui/__tests__/planContext';
 import type { SharePayload } from '../../lib/url';
 import type { SamplePlan } from '../../examples';
 import { SESSION_KEY, loadSession } from '../../lib/session';
@@ -25,7 +28,11 @@ const LINK_ERROR = 'The shared plan link is corrupt or truncated. Ask for a fres
 const flush = () => act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
 
 function gzHash(payload: unknown): string {
-  return `#gz=${gzipSync(Buffer.from(JSON.stringify(payload))).toString('base64url')}`;
+  return gzTextHash(JSON.stringify(payload));
+}
+
+function gzTextHash(text: string): string {
+  return `#gz=${gzipSync(Buffer.from(text)).toString('base64url')}`;
 }
 
 function setUrl(url: string) {
@@ -206,5 +213,75 @@ describe('corrupt #gz= link', () => {
     expect(ctx.current().parsedPlan).toBeNull();
     expect(ctx.current().error).toBe(LINK_ERROR);
     expect(localStorage.getItem(SESSION_KEY)).toBeNull();
+  });
+});
+
+describe('share link with no usable plan', () => {
+  // A real 19c DISPLAY_CURSOR capture cut off before its plan table.
+  const TRUNCATED = readFileSync(join(__dirname, '../../lib/parser/__tests__/fixtures/advanced-allstats-19c.txt'), 'utf-8')
+    .split('\n').slice(0, 7).join('\n');
+  const autosaveNow = () => act(() => { window.dispatchEvent(new Event('pagehide')); });
+
+  async function saveWorkspace() {
+    const handle = renderPlanContext();
+    await loadPlan(handle, PLAN_A);
+    act(() => {
+      handle.current().renamePlanSlot(0, 'Mine');
+      handle.current().setNodeAnnotation(1, 'keep this note');
+    });
+    autosaveNow();
+    cleanup();
+    expect(loadSession()?.slots[0].annotations?.nodeAnnotations['1']?.text).toBe('keep this note');
+  }
+
+  const links: Array<[string, string]> = [
+    ['a #gz= link holding plan text', `/${gzTextHash(TRUNCATED)}`],
+    ['a #gz= link holding a payload', `/${gzHash({ plans: [{ rawInput: TRUNCATED }] })}`],
+    ['a ?plan= link', `/?plan=${compressToEncodedURIComponent(TRUNCATED)}`],
+    ['a corrupt #gz= link', '/#gz=AAAA'],
+  ];
+
+  it.each(links)('keeps the saved workspace after %s', async (_name, url) => {
+    await saveWorkspace();
+    setUrl(url);
+    const ctx = renderPlanContext();
+    await flush();
+    autosaveNow();
+
+    const saved = loadSession();
+    expect(saved?.slots).toHaveLength(1);
+    expect(saved?.slots[0].text).toBe(PLAN_A);
+    expect(saved?.slots[0].customLabel).toBe('Mine');
+    expect(saved?.slots[0].annotations?.nodeAnnotations['1']?.text).toBe('keep this note');
+
+    expect(ctx.current().plans).toHaveLength(1);
+    expect(ctx.current().plans[0].customLabel).toBe('Mine');
+    expect(ctx.current().rawInput).toBe(PLAN_A);
+    expect(ctx.current().annotations.nodeAnnotations.get(1)?.text).toBe('keep this note');
+    expect(toastText()).toContain('Shared link could not be opened');
+    expect(toastText()).toContain('Your previous session was restored.');
+  });
+
+  it('shows the parse error with the link text when there is no session to restore', async () => {
+    setUrl(`/${gzTextHash(TRUNCATED)}`);
+    const ctx = renderPlanContext();
+    await flush();
+
+    expect(ctx.current().parsedPlan).toBeNull();
+    expect(ctx.current().error).toBeTruthy();
+    expect(ctx.current().plans[0].draftInput).toBe(TRUNCATED);
+    autosaveNow();
+    expect(localStorage.getItem(SESSION_KEY)).toBeNull();
+  });
+
+  it('replaces the saved workspace when at least one shared plan is usable', async () => {
+    await saveWorkspace();
+    setUrl(`/${gzHash({ plans: [{ rawInput: TRUNCATED }, { rawInput: PLAN_B }] })}`);
+    const ctx = renderPlanContext();
+    await flush();
+
+    expect(ctx.current().plans.some((slot) => slot.rawInput === PLAN_B.trim())).toBe(true);
+    autosaveNow();
+    expect(loadSession()?.slots.map((slot) => slot.text)).toEqual([PLAN_B.trim()]);
   });
 });
