@@ -110,7 +110,10 @@ export interface ReplayScript {
   chapters: ReplayChapter[];
   ash?: ReplayAshIndex;
   hotspotId?: number;
-  elapsedMs?: number;
+  /** Wall-clock duration of the statement (SQL Monitor's Duration, else the root's A-Time). */
+  durationMs?: number;
+  /** SQL Monitor took the report before the statement finished (status other than DONE…). */
+  stillRunning?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -211,8 +214,18 @@ function driverIndex(node: PlanNode, kind: ReplayOpKind, kids: PlanNode[]): numb
 // Tier detection
 // ---------------------------------------------------------------------------
 
+/** Whole seconds stay whole: SQL Monitor's Duration has no more precision than that. */
 function formatMs(ms: number): string {
-  return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`;
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  const s = ms / 1000;
+  return Number.isInteger(s) ? `${s} s` : `${s.toFixed(1)} s`;
+}
+
+/** SQL Monitor reports carry the statement's wall clock separately from their per-process elapsed time. */
+function statementDurationMs(plan: ParsedPlan): number | undefined {
+  if (!plan.timeIsActiveWindow && !plan.monitorMetadata) return plan.totalElapsedTime;
+  const seconds = plan.monitorMetadata?.duration;
+  return seconds === undefined ? undefined : seconds * 1000;
 }
 
 function detectTier(plan: ParsedPlan, nodes: PlanNode[]): { tier: ReplayTier; reason: string } {
@@ -232,7 +245,7 @@ function detectTier(plan: ParsedPlan, nodes: PlanNode[]): { tier: ReplayTier; re
         reason: `Real time: SQL Monitor active windows (1 s granularity)${samples ? ` and ${samples} ASH samples` : ''}.`,
       };
     }
-    const ms = plan.totalElapsedTime;
+    const ms = statementDurationMs(plan);
     return {
       tier: 'weighted',
       reason: `Order from Oracle's row-source semantics; durations from A-Rows and Starts. The report is too short for real timing${ms !== undefined ? ` (${formatMs(ms)})` : ''}.`,
@@ -435,7 +448,8 @@ export function buildReplayScript(plan: ParsedPlan): ReplayScript | null {
     tracks,
     chapters: [],
     hotspotId,
-    elapsedMs: plan.totalElapsedTime,
+    durationMs: statementDurationMs(plan),
+    stillRunning: plan.monitorMetadata?.status !== undefined && !/^DONE/i.test(plan.monitorMetadata.status),
   };
   if (tier === 'measured' && plan.activityTimeline) script.ash = indexAsh(plan);
   script.chapters = buildChapters(script, hasActual);
@@ -876,12 +890,16 @@ function buildChapters(script: ReplayScript, hasActual: boolean): ReplayChapter[
   }
 
   const hot = script.hotspotId !== undefined ? tracks.get(script.hotspotId) : undefined;
-  const elapsed = script.elapsedMs;
+  const rows = `${n0(root.rowsTotal)} row${root.rowsTotal === 1 ? '' : 's'}`;
+  const took = script.durationMs !== undefined ? formatMs(script.durationMs) : undefined;
+  const outcome = script.stillRunning
+    ? `Still executing when the report was taken${took ? `, ${took} in` : ''}: ${rows} so far.`
+    : `${rows} returned${took ? ` in ${took}` : ''}.`;
   chapters.push({
     t: duration,
     kind: 'done',
-    title: 'Done',
-    caption: `${n0(root.rowsTotal)} row${root.rowsTotal === 1 ? '' : 's'} returned${elapsed ? ` in ${formatMs(elapsed)}` : ''}.${hot ? ` Most of the work: #${hot.id} ${hot.label} (${Math.round(hot.work * 100)}%).` : ''}`,
+    title: script.stillRunning ? 'End of the report' : 'Done',
+    caption: `${outcome}${hot ? ` Most of the work: #${hot.id} ${hot.label} (${Math.round(hot.work * 100)}%).` : ''}`,
     focus: hot ? [hot.id] : [root.id],
   });
 

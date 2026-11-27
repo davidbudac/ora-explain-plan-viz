@@ -546,8 +546,10 @@ SPOOL OFF</code></pre>
       </ul>
       <p>
         Chapters mark the moments worth stopping at: the first read, a finished hash build, a spill, a blocking step letting go, a
-        misestimate, the busiest loops, the first row to the client and the end. Three layouts play the same replay, and switching keeps
-        the position (the last one used is remembered):
+        misestimate, the busiest loops, the first row to the client and the end. For a SQL Monitor report the end gives the
+        statement's Duration from the report header: its wall-clock time, not the elapsed time added up over parallel servers. A
+        report taken while the statement was still executing says so instead of announcing a finish. Three layouts play the same
+        replay, and switching keeps the position (the last one used is remembered):
       </p>
       <ul>
         <li><strong>Tree.</strong> The whole plan tree. Edges carry rows to the parent while they flow, labelled with the rows passed so far.</li>
