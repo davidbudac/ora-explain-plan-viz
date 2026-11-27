@@ -117,23 +117,40 @@ function preCheckLines(opts: BaselineScriptOptions): string[] {
     );
   }
 
+  // Baselines are keyed on the exact-matching signature. V$SQL has it only while the cursor
+  // is cached, so the AWR sources compute it from the AWR text (same value, checked on 19.27).
+  const signatureQuery =
+    opts.source === 'cursor_cache'
+      ? [
+          '  SELECT MAX(exact_matching_signature) INTO :target_signature',
+          '  FROM   v$sql',
+          "  WHERE  sql_id = '&sql_id';",
+        ]
+      : [
+          '  SELECT MAX(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sql_text)) INTO :target_signature',
+          '  FROM   dba_hist_sqltext',
+          "  WHERE  sql_id = '&sql_id';",
+        ];
+  const signatureStore = opts.source === 'cursor_cache' ? 'V$SQL' : 'DBA_HIST_SQLTEXT';
+
   lines.push(
     'PROMPT === Existing baselines for this statement (if any) ===',
+    'BEGIN',
+    ...signatureQuery,
+    '  SELECT COUNT(*) INTO :baselines_before',
+    '  FROM   dba_sql_plan_baselines',
+    '  WHERE  signature = :target_signature;',
+    '  IF :target_signature IS NULL THEN',
+    `    DBMS_OUTPUT.PUT_LINE('SQL_ID &sql_id not found in ${signatureStore} - baselines for it cannot be listed.');`,
+    '  END IF;',
+    'END;',
+    '/',
     'SELECT sql_handle, plan_name, enabled, accepted, fixed, origin,',
     "       TO_CHAR(created, 'YYYY-MM-DD HH24:MI:SS') AS created",
     'FROM   dba_sql_plan_baselines',
-    'WHERE  signature IN (SELECT exact_matching_signature',
-    '                     FROM   v$sql',
-    "                     WHERE  sql_id = '&sql_id');",
+    'WHERE  signature = :target_signature',
+    'ORDER  BY created;',
   );
-
-  if (opts.source !== 'cursor_cache') {
-    lines.push(
-      '',
-      'PROMPT No rows here just means the cursor is no longer cached - the load',
-      'PROMPT step below does not depend on it.',
-    );
-  }
 
   return lines;
 }
@@ -153,6 +170,7 @@ function loadBlockLines(opts: BaselineScriptOptions): string[] {
       '                plan_hash_value => &plan_hash,',
       `                fixed           => '${fixed}',`,
       `                enabled         => '${enabled}');`,
+      '  :plans_loaded := l_loaded;',
       "  DBMS_OUTPUT.PUT_LINE('Baseline plans loaded: ' || l_loaded);",
       '  IF l_loaded = 0 THEN',
       "    DBMS_OUTPUT.PUT_LINE('Nothing loaded - the cursor is probably no longer in the shared pool.');",
@@ -175,6 +193,7 @@ function loadBlockLines(opts: BaselineScriptOptions): string[] {
       "                basic_filter => q'[sql_id = '&sql_id' AND plan_hash_value = &plan_hash]',",
       `                fixed        => '${fixed}',`,
       `                enabled      => '${enabled}');`,
+      '  :plans_loaded := l_loaded;',
       "  DBMS_OUTPUT.PUT_LINE('Baseline plans loaded: ' || l_loaded);",
       'END;',
       '/',
@@ -214,6 +233,7 @@ function loadBlockLines(opts: BaselineScriptOptions): string[] {
     "                basic_filter => q'[plan_hash_value = &plan_hash]',",
     `                fixed        => '${fixed}',`,
     `                enabled      => '${enabled}');`,
+    '  :plans_loaded := l_loaded;',
     "  DBMS_OUTPUT.PUT_LINE('Baseline plans loaded: ' || l_loaded);",
     '',
     '  DBMS_SQLTUNE.DROP_SQLSET(sqlset_name => l_sts_name);',
@@ -228,8 +248,20 @@ function verificationLines(): string[] {
     'SELECT sql_handle, plan_name, enabled, accepted, fixed, origin,',
     "       TO_CHAR(created, 'YYYY-MM-DD HH24:MI:SS') AS created",
     'FROM   dba_sql_plan_baselines',
-    'WHERE  created > SYSDATE - 1/24',
+    'WHERE  signature = :target_signature',
     'ORDER  BY created DESC;',
+    '',
+    'DECLARE',
+    '  l_after  PLS_INTEGER;',
+    'BEGIN',
+    '  SELECT COUNT(*) INTO l_after',
+    '  FROM   dba_sql_plan_baselines',
+    '  WHERE  signature = :target_signature;',
+    "  DBMS_OUTPUT.PUT_LINE('Baseline plans loaded: ' || NVL(TO_CHAR(:plans_loaded), 'none (load step failed)'));",
+    "  DBMS_OUTPUT.PUT_LINE('Baselines for this statement before the load: ' || :baselines_before);",
+    "  DBMS_OUTPUT.PUT_LINE('Baselines for this statement after the load: ' || l_after);",
+    'END;',
+    '/',
   ];
 }
 
@@ -290,6 +322,10 @@ export function buildBaselineScript(opts: BaselineScriptOptions): string {
     '',
     `DEFINE sql_id    = "${sqlId}"`,
     `DEFINE plan_hash = "${planHash}"`,
+    '',
+    'VARIABLE target_signature NUMBER',
+    'VARIABLE baselines_before NUMBER',
+    'VARIABLE plans_loaded     NUMBER',
     '',
     ...preCheckLines(opts),
     '',

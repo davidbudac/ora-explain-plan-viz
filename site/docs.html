@@ -778,7 +778,7 @@ SQL&gt; @gather_plan_metadata.sql LIST "HR.EMPLOYEES,HR.DEPARTMENTS"</code></pre
       <ul>
         <li><strong>Source</strong>: cursor cache, AWR directly (19c+), or AWR via a temporary SQL Tuning Set (11.2+).</li>
         <li><strong>Options</strong>: FIXED and ENABLED flags.</li>
-        <li>The script includes a pre-check query, the load call, verification queries, and a management crib sheet (disable, drop, evolve).</li>
+        <li>The script includes a pre-check query, the load call, verification queries, and a management crib sheet (disable, drop, evolve). The existing-baseline and verification queries list only baselines for this statement (matched on its signature, taken from <code>V$SQL</code> or, for the AWR sources, from the AWR SQL text), and the script prints the number of plans loaded next to how many baselines the statement had before and after the load: reloading a plan that is already in a baseline still counts as loaded.</li>
       </ul>
       <p>
         <strong>SQL Patch</strong> (<code>DBMS_SQLDIAG.CREATE_SQL_PATCH</code>, 12.2+, no Tuning Pack) attaches hints to the
