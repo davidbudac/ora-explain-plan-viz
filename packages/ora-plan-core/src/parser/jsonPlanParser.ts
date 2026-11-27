@@ -292,8 +292,9 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
   // Workarea sizes (LAST_MEMORY_USED, ESTIMATED_*_SIZE) are bytes in these views,
   // although the Oracle reference says KB (verified on 19c against DBMS_XPLAN OMem/1Mem/Used-Mem).
   const memoryUsed = getInt(row, 'actual_memory_used', 'last_memory_used', 'max_memory', 'used_mem');
-  // LAST_TEMPSEG_SIZE is bytes.
-  const tempUsed = getInt(row, 'actual_tempseg_size', 'last_tempseg_size', 'max_tempseg_size', 'used_tmp');
+  // LAST_TEMPSEG_SIZE is bytes, null when the last execution stayed in memory. MAX_TEMPSEG_SIZE is the
+  // largest spill of any execution, so it never stands in for the last one.
+  const tempUsed = getInt(row, 'actual_tempseg_size', 'last_tempseg_size', 'used_tmp');
   const physicalReads = getInt(row, 'actual_disk_reads', 'last_disk_reads', 'physical_reads');
   const physicalWrites = getInt(row, 'actual_disk_writes', 'last_disk_writes', 'disk_writes', 'physical_writes');
   const logicalReads = getBufferGets(row);
