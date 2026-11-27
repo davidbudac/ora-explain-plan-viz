@@ -2052,11 +2052,19 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     const gzParam = getGzipPlanParamFromHash();
     if (gzParam) {
       clearPlanFromUrl({ includeDeepLinks: true });
+      // Until the link is decoded the workspace is still empty; a pagehide flush now would delete the saved session.
+      sessionReadyRef.current = false;
       void decodeGzipPlanParam(gzParam)
-        .then((text) => openSharedLink(classifyDecodedPlanText(text)))
-        .catch(() => recoverFromUnusableLink(
-          'The shared plan link is corrupt or truncated. Ask for a fresh link or paste the plan text directly.',
-        ));
+        .then((text) => {
+          sessionReadyRef.current = true;
+          openSharedLink(classifyDecodedPlanText(text));
+        })
+        .catch(() => {
+          sessionReadyRef.current = true;
+          recoverFromUnusableLink(
+            'The shared plan link is corrupt or truncated. Ask for a fresh link or paste the plan text directly.',
+          );
+        });
       return;
     }
 
