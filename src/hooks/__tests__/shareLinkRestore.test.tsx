@@ -262,6 +262,16 @@ describe('share link with no usable plan', () => {
     expect(toastText()).toContain('Your previous session was restored.');
   });
 
+  it('keeps the saved workspace when the page closes while a #gz= link is still decoding', async () => {
+    await saveWorkspace();
+    setUrl(`/${gzHash({ plans: [{ rawInput: PLAN_B }] })}`);
+    renderPlanContext();
+    autosaveNow();
+
+    expect(loadSession()?.slots[0].customLabel).toBe('Mine');
+    await flush();
+  });
+
   it('shows the parse error with the link text when there is no session to restore', async () => {
     setUrl(`/${gzTextHash(TRUNCATED)}`);
     const ctx = renderPlanContext();
