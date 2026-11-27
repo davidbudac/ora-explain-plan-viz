@@ -115,13 +115,14 @@ interface ImportOptions {
   view?: ViewMode;
   /** Recent-plans entry options, or false to not record the load. */
   recent?: { label?: string } | false;
+  /** False: return a parse failure in the outcome without showing it. */
+  reportFailure?: boolean;
 }
 
-interface ImportOutcome {
-  ok: boolean;
+type ImportOutcome = {
   /** What happened to `metadataText`, when one was passed. */
   bundle: 'none' | 'attached' | 'unmatched' | 'invalid';
-}
+} & ({ ok: true } | { ok: false; error: string });
 
 function pluralize(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`;
@@ -1351,10 +1352,11 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
     // Nothing parsed: keep whatever plan is loaded (never overwrite its text)
     // and put the offending text in the drawer next to the error.
-    if (parsedSlots.length === 0) {
-      reportError(slots[0]?.error ?? describeParseFailure(input), { draft: input });
-      return { ok: false, bundle };
-    }
+    const fail = (error: string): ImportOutcome => {
+      if (options?.reportFailure !== false) reportError(error, { draft: input });
+      return { ok: false, bundle, error };
+    };
+    if (parsedSlots.length === 0) return fail(slots[0]?.error ?? describeParseFailure(input));
 
     const recent = options?.recent === false ? null : (options?.recent ?? {});
 
@@ -1408,10 +1410,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     }
 
     const [slot] = slots;
-    if (!slot?.parsedPlan) {
-      reportError(slot?.error ?? describeParseFailure(input), { draft: input });
-      return { ok: false, bundle };
-    }
+    if (!slot?.parsedPlan) return fail(slot?.error ?? describeParseFailure(input));
 
     dispatch({ type: 'SET_PARSED_PLAN', payload: { plan: slot.parsedPlan, text: input } });
     dispatch({ type: 'SET_INPUT_PANEL_COLLAPSED', payload: true });
@@ -1799,12 +1798,21 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     if (nodeById.has(id)) dispatch({ type: 'SELECT_NODE', payload: { id } });
   }, [parsedPlan, nodeById]);
 
-  const applyUrlPlanData = useCallback((urlData: UrlPlanData) => {
+  /**
+   * Load a decoded share link. Returns null once at least one plan loaded;
+   * otherwise changes nothing and returns why, with the text to show as draft.
+   */
+  const applyUrlPlanData = useCallback((urlData: UrlPlanData): { error: string; draft?: string } | null => {
     if (urlData.type === 'legacy') {
-      importPlanInput(urlData.planText);
+      const outcome = importPlanInput(urlData.planText, { reportFailure: false });
+      return outcome.ok ? null : { error: outcome.error, draft: urlData.planText };
     } else {
       const { plans, annotations: legacyAnnotations } = urlData.payload;
       const restoredPlans = buildPlanSlotsFromInputs(plans.map((plan) => plan.rawInput));
+      if (!restoredPlans.some((slot) => slot.parsedPlan)) {
+        const failed = restoredPlans.find((slot) => slot.error);
+        return failed?.error ? { error: failed.error, draft: failed.draftInput } : { error: 'The shared link holds no plan.' };
+      }
 
       // Restore per-plan annotations and metadata bundles from URL
       for (let i = 0; i < restoredPlans.length && i < plans.length; i++) {
@@ -1883,6 +1891,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
           // Annotations from URL failed to deserialize
         }
       }
+      return null;
     }
   }, [buildPlanSlotsFromInputs, importPlanInput, recordRecent]);
 
@@ -2015,12 +2024,36 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       if (deepLink.node !== null && planIsLoading) pendingNodeRef.current = deepLink.node;
     };
 
+    // A link that yields no usable plan must not cost the user their
+    // autosaved workspace: with zero loaded plans the autosave would delete
+    // the saved session. Bring the session back and toast the link problem.
+    const recoverFromUnusableLink = (error: string, draft?: string) => {
+      const saved = loadSession();
+      if (saved && restoreSession(saved)) {
+        toastApi.show({
+          tone: 'error',
+          title: 'Shared link could not be opened',
+          message: `${error} Your previous session was restored.`,
+          duration: 12000,
+        });
+        return;
+      }
+      reportError(error, { draft });
+    };
+    const openSharedLink = (data: UrlPlanData) => {
+      const failure = applyUrlPlanData(data);
+      if (failure) {
+        recoverFromUnusableLink(failure.error, failure.draft);
+        return;
+      }
+      applyDeepLinkExtras(true);
+    };
+
     // Check URL for shared plan first (legacy ?plan= wins for back-compat)
     const urlData = getPlanFromUrl();
     if (urlData) {
       clearPlanFromUrl({ includeDeepLinks: true });
-      applyUrlPlanData(urlData);
-      applyDeepLinkExtras(true);
+      openSharedLink(urlData);
       return;
     }
 
@@ -2031,28 +2064,10 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     if (gzParam) {
       clearPlanFromUrl({ includeDeepLinks: true });
       void decodeGzipPlanParam(gzParam)
-        .then((text) => {
-          applyUrlPlanData(classifyDecodedPlanText(text));
-          applyDeepLinkExtras(true);
-        })
-        .catch(() => {
-          const linkError = 'The shared plan link is corrupt or truncated. Ask for a fresh link or paste the plan text directly.';
-          // A broken link must not cost the user their autosaved workspace:
-          // SET_ERROR alone would leave zero loaded plans, and the autosave
-          // would then delete the saved session. Bring the session back and
-          // report the link problem as a toast instead.
-          const saved = loadSession();
-          if (saved && restoreSession(saved)) {
-            toastApi.show({
-              tone: 'error',
-              title: 'Shared link could not be opened',
-              message: `${linkError} Your previous session was restored.`,
-              duration: 12000,
-            });
-            return;
-          }
-          dispatch({ type: 'SET_ERROR', payload: linkError });
-        });
+        .then((text) => openSharedLink(classifyDecodedPlanText(text)))
+        .catch(() => recoverFromUnusableLink(
+          'The shared plan link is corrupt or truncated. Ask for a fresh link or paste the plan text directly.',
+        ));
       return;
     }
 
@@ -2099,7 +2114,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     applyDeepLinkExtras(loadedFromUrl || restored);
     // Drop the params once consumed so a reload or a share link does not replay them.
     clearPlanFromUrl({ includeDeepLinks: true });
-  }, [applyUrlPlanData, importPlanInput, restoreSession, startFresh, toastApi]);
+  }, [applyUrlPlanData, importPlanInput, reportError, restoreSession, startFresh, toastApi]);
 
   // Persist settings when they change (debounced)
   useEffect(() => {

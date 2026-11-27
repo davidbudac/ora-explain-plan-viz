@@ -1107,7 +1107,7 @@ oraplanviz-agent --allow-origin http://localhost:8081</code></pre>
       <p>They need a SQL Monitor XML report. The timeline additionally needs the report's activity detail, which is present with <code>report_level =&gt; 'ALL'</code>.</p>
 
       <h4>Share link doesn't open / "corrupt or truncated"</h4>
-      <p>The URL was cut by a chat client or email. Send the link as plain text, or fall back to the saved-JSON export. Very large reports may not fit a URL at all.</p>
+      <p>The URL was cut by a chat client or email. Send the link as plain text, or fall back to the saved-JSON export. Very large reports may not fit a URL at all. A link that holds no readable plan never replaces your workspace: the app brings back your autosaved session and says why the link failed.</p>
 
       <h4>Self-hosted app shows a blank page under a sub-path</h4>
       <p>Rebuild with <code>APP_BASE_PATH=/your/path/</code> so asset URLs are prefixed correctly, and make sure the server falls back to <code>index.html</code>.</p>
