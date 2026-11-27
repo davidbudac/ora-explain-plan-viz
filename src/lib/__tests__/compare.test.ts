@@ -506,6 +506,30 @@ describe('buildComparisonRows', () => {
   });
 });
 
+describe('buildComparisonRows: temp space', () => {
+  const MiB = 1024 * 1024;
+  const tempRow = (a: Partial<PlanNode>, b: Partial<PlanNode>) =>
+    buildComparisonRows(matchNodes(
+      makePlan([makeNode({ id: 0, operation: 'SORT ORDER BY', ...a })]),
+      makePlan([makeNode({ id: 0, operation: 'SORT ORDER BY', ...b })]),
+    ))[0];
+
+  it('shows no delta between an estimate in A and a measured spill in B', () => {
+    const row = tempRow({ tempSpace: 100 * MiB }, { tempUsed: 10 * MiB });
+    expect(row.deltas.tempSpace?.delta).toBeUndefined();
+    expect(row.deltas.tempUsed?.delta).toBeUndefined();
+  });
+
+  it('compares estimate with estimate and spill with spill', () => {
+    const row = tempRow(
+      { tempSpace: 100 * MiB, tempUsed: 40 * MiB },
+      { tempSpace: 50 * MiB, tempUsed: 10 * MiB },
+    );
+    expect(row.deltas.tempSpace?.delta).toBe(-50 * MiB);
+    expect(row.deltas.tempUsed?.delta).toBe(-30 * MiB);
+  });
+});
+
 describe('rowHasVisibleChange', () => {
   it('always counts unmatched rows as changed', () => {
     const planA = makePlan([
