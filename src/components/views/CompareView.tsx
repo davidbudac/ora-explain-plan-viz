@@ -19,7 +19,7 @@ import type { ParsedPlan } from '../../lib/types';
 function formatMetricValue(value: number | undefined, metric: string): string {
   if (value === undefined) return '-';
   if (metric === 'actualTime' || metric === 'selfTime') return formatTimeShort(value) ?? '-';
-  if (metric === 'tempSpace' || metric === 'memoryUsed') {
+  if (metric === 'tempSpace' || metric === 'tempUsed' || metric === 'memoryUsed') {
     if (value >= 1048576) return (value / 1048576).toFixed(1) + ' MB';
     if (value >= 1024) return (value / 1024).toFixed(1) + ' KB';
     return value + ' B';

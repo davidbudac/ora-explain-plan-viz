@@ -23,7 +23,8 @@ export interface PlanSlot {
   metadataBundleWarning: string | null;
 }
 
-export type CompareMetric = 'cost' | 'rows' | 'bytes' | 'actualRows' | 'actualTime' | 'selfTime' | 'starts' | 'tempSpace' | 'memoryUsed';
+/** `tempSpace` is the optimizer's estimate, `tempUsed` the measured spill; they are never compared with each other. */
+export type CompareMetric = 'cost' | 'rows' | 'bytes' | 'actualRows' | 'actualTime' | 'selfTime' | 'starts' | 'tempSpace' | 'tempUsed' | 'memoryUsed';
 
 export type MatchType = 'exact-id' | 'heuristic' | 'access-changed' | 'unmatched';
 
@@ -251,7 +252,8 @@ export function getNodeMetricValue(node: PlanNode, metric: CompareMetric): numbe
     case 'actualTime': return node.actualTime;
     case 'selfTime': return node.selfTime;
     case 'starts': return node.starts;
-    case 'tempSpace': return node.tempUsed ?? node.tempSpace;
+    case 'tempSpace': return node.tempSpace;
+    case 'tempUsed': return node.tempUsed;
     case 'memoryUsed': return node.memoryUsed;
   }
 }
@@ -266,17 +268,18 @@ export function getMetricLabel(metric: CompareMetric): string {
     case 'selfTime': return 'Self time';
     case 'starts': return 'Starts';
     case 'tempSpace': return 'Temp space';
+    case 'tempUsed': return 'Temp used';
     case 'memoryUsed': return 'Memory';
   }
 }
 
 export const ALL_COMPARE_METRICS: CompareMetric[] = [
-  'cost', 'rows', 'bytes', 'actualRows', 'actualTime', 'selfTime', 'starts', 'tempSpace', 'memoryUsed',
+  'cost', 'rows', 'bytes', 'actualRows', 'actualTime', 'selfTime', 'starts', 'tempSpace', 'tempUsed', 'memoryUsed',
 ];
 
 /** Metrics where a negative B−A delta is an improvement. */
 export const LOWER_IS_BETTER: ReadonlySet<CompareMetric> = new Set([
-  'cost', 'actualTime', 'selfTime', 'tempSpace', 'memoryUsed',
+  'cost', 'actualTime', 'selfTime', 'tempSpace', 'tempUsed', 'memoryUsed',
 ]);
 
 export interface MetricDelta {

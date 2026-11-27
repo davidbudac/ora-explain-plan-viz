@@ -414,7 +414,8 @@ describe('getNodeMetricValue', () => {
     expect(getNodeMetricValue(node, 'actualRows')).toBe(600);
     expect(getNodeMetricValue(node, 'actualTime')).toBe(250);
     expect(getNodeMetricValue(node, 'starts')).toBe(3);
-    expect(getNodeMetricValue(node, 'tempSpace')).toBe(4096);
+    expect(getNodeMetricValue(node, 'tempUsed')).toBe(4096);
+    expect(getNodeMetricValue(node, 'tempSpace')).toBeUndefined();
     expect(getNodeMetricValue(node, 'memoryUsed')).toBe(8192);
   });
 
