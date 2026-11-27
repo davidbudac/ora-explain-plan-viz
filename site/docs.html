@@ -546,7 +546,8 @@ SPOOL OFF</code></pre>
       </ul>
       <p>
         Chapters mark the moments worth stopping at: the first read, a finished hash build, a spill, a blocking step letting go, a
-        misestimate, the busiest loops, the first row to the client and the end. For a SQL Monitor report the end gives the
+        misestimate, the busiest loops, the first row to the client and the end. The first row is placed at SQL Monitor's recorded
+        first-row time, which is to the second; without one, the time is marked as inferred. For a SQL Monitor report the end gives the
         statement's Duration from the report header: its wall-clock time, not the elapsed time added up over parallel servers. A
         report taken while the statement was still executing says so instead of announcing a finish. When the report has ASH
         activity, the operation the end names as doing most of the work, and its share, are SQL Monitor's Activity (%), whichever
