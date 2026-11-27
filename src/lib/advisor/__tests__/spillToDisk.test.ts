@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { parsePlan } from '../../parser';
+import { runAdvisor } from '..';
 import { spillToDiskRule } from '../rules/spillToDisk';
 import { DEFAULT_THRESHOLDS } from '../config';
 import { buildPlan, ruleCtx, type NodeSpec } from './helpers';
@@ -82,5 +84,34 @@ describe('spillToDiskRule work-area passes', () => {
   it('mentions the optimizer memory estimate when known', () => {
     const findings = evaluate({ id: 0, operation: 'SORT ORDER BY', workareaPasses: 1, estimatedOptimalMemory: 200 * 1024 * 1024 });
     expect(findings[0].explanation).toContain('200.0 MB');
+  });
+});
+
+describe('spillToDiskRule on V$SQL_PLAN_STATISTICS_ALL imports', () => {
+  const MiB256 = 256 * 1024 * 1024;
+  const sortRows = (workarea: Record<string, unknown>) => JSON.stringify([
+    { ID: 0, PARENT_ID: null, OPERATION: 'SELECT STATEMENT', LAST_STARTS: 1, LAST_OUTPUT_ROWS: 10 },
+    {
+      ID: 1, PARENT_ID: 0, POSITION: 1, OPERATION: 'SORT', OPTIONS: 'ORDER BY',
+      LAST_STARTS: 1, LAST_OUTPUT_ROWS: 10, LAST_MEMORY_USED: 1048576, ...workarea,
+    },
+    { ID: 2, PARENT_ID: 1, POSITION: 1, OPERATION: 'TABLE ACCESS', OPTIONS: 'FULL', OBJECT_NAME: 'T', LAST_STARTS: 1, LAST_OUTPUT_ROWS: 10 },
+  ]);
+  const spillFindings = (input: string) =>
+    runAdvisor(parsePlan(input), null).findings.filter(f => f.ruleId === 'spill-to-disk');
+
+  it('does not report a historical MAX_TEMPSEG_SIZE as temp used by an in-memory last execution', () => {
+    const input = sortRows({ LAST_EXECUTION: 'OPTIMAL', LAST_TEMPSEG_SIZE: null, MAX_TEMPSEG_SIZE: MiB256 });
+    expect(spillFindings(input)).toEqual([]);
+    expect(parsePlan(input).allNodes.find(n => n.id === 1)?.tempUsed).toBeUndefined();
+  });
+
+  it('reports the last execution spill from LAST_TEMPSEG_SIZE', () => {
+    const input = sortRows({ LAST_EXECUTION: '1 PASS', LAST_TEMPSEG_SIZE: MiB256, MAX_TEMPSEG_SIZE: MiB256 });
+    expect(parsePlan(input).allNodes.find(n => n.id === 1)?.tempUsed).toBe(MiB256);
+    const findings = spillFindings(input);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].nodeIds).toEqual([1]);
+    expect(findings[0].explanation).toContain('256.0 MB');
   });
 });
