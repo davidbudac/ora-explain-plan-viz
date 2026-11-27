@@ -1,6 +1,8 @@
-import type { PlanNode } from './types.ts';
+import type { ParsedPlan, PlanNode } from './types.ts';
+import { usesActivityRanking } from './analysis.ts';
 
-export type FlameMetric = 'actualTime' | 'cost' | 'actualRows' | 'rows';
+/** `activity` is each operation's own share of ASH samples (%); the others are cumulative per operation. */
+export type FlameMetric = 'actualTime' | 'activity' | 'cost' | 'actualRows' | 'rows';
 
 export interface FlameRect {
   node: PlanNode;
@@ -23,6 +25,8 @@ function rawValue(node: PlanNode, metric: FlameMetric): number {
   switch (metric) {
     case 'actualTime':
       return node.actualTime ?? 0;
+    case 'activity':
+      return node.activityPercent ?? 0;
     case 'cost':
       return node.cost ?? 0;
     case 'actualRows':
@@ -46,7 +50,8 @@ export function rollupMetric(root: PlanNode, metric: FlameMetric): Map<number, n
     for (const child of node.children) {
       childSum += visit(child);
     }
-    const value = Math.max(rawValue(node, metric), childSum);
+    const own = rawValue(node, metric);
+    const value = metric === 'activity' ? own + childSum : Math.max(own, childSum);
     values.set(node.id, value);
     return value;
   }
@@ -163,7 +168,23 @@ export function computeFlameLayout(
   return out;
 }
 
-export function getEffectiveFlameMetric(preferred: FlameMetric, hasActualStats: boolean): FlameMetric {
+/**
+ * The time measure a plan's flame can show. SQL Monitor active windows of a parent and its
+ * children overlap, so rolling them up is not elapsed time: those plans use ASH activity when
+ * they have samples and have no time measure otherwise.
+ */
+export function flameTimeMetric(plan: ParsedPlan): 'actualTime' | 'activity' | null {
+  if (!plan.timeIsActiveWindow) return 'actualTime';
+  return usesActivityRanking(plan) ? 'activity' : null;
+}
+
+/** `timeMetric` is the plan's {@link flameTimeMetric}; a time preference (A-Time or activity) resolves to it. */
+export function getEffectiveFlameMetric(
+  preferred: FlameMetric,
+  hasActualStats: boolean,
+  timeMetric: 'actualTime' | 'activity' | null = 'actualTime',
+): FlameMetric {
   if (preferred !== 'cost' && !hasActualStats) return 'cost';
+  if (preferred === 'actualTime' || preferred === 'activity') return timeMetric ?? 'cost';
   return preferred;
 }

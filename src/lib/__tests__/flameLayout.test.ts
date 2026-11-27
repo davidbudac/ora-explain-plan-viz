@@ -236,6 +236,24 @@ describe('computeFlameLayout', () => {
     expect(getEffectiveFlameMetric('actualRows', true)).toBe('actualRows');
   });
 
+  it('getEffectiveFlameMetric resolves a time preference to the time measure the plan supports', () => {
+    expect(getEffectiveFlameMetric('actualTime', true, 'activity')).toBe('activity');
+    expect(getEffectiveFlameMetric('activity', true, 'actualTime')).toBe('actualTime');
+    expect(getEffectiveFlameMetric('actualTime', true, null)).toBe('cost');
+    expect(getEffectiveFlameMetric('actualRows', true, null)).toBe('actualRows');
+  });
+
+  it('activity metric rolls up own sample shares, so a bar is its own share plus its children', () => {
+    const root = buildNode({ id: 0, children: [{ id: 1, children: [{ id: 2 }, { id: 3 }] }] });
+    const shares: Record<number, number> = { 1: 50, 2: 45, 3: 3 };
+    const visit = (n: PlanNode) => { n.activityPercent = shares[n.id]; n.children.forEach(visit); };
+    visit(root);
+    const values = rollupMetric(root, 'activity');
+    expect(values.get(1)).toBe(98);
+    expect(values.get(0)).toBe(98);
+    expect(byId(computeFlameLayout(root, 'activity', { width: 980 }), 1).selfValue).toBe(50);
+  });
+
   it('zooms: passing a subtree root yields depth 0 at that node and full width for it', () => {
     const root = buildNode({
       id: 0,

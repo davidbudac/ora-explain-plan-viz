@@ -499,7 +499,7 @@ SPOOL OFF</code></pre>
 
       <h3>Flame graph (Experimental)</h3>
       <div class="shot"><img src="assets/flame.png" alt="Flame graph of an execution plan" loading="lazy" /></div>
-      <p>Under the Experimental tab's <em>Flame</em> switch: the plan as a flame graph, bars sized by each operation's <em>self</em> value (the metric minus its children's). Metric toggle: Cost, A-Time, A-Rows. Click a bar to select it and double-click (or <kbd>Shift</kbd>+<kbd>Enter</kbd> on a focused bar) to zoom into that subtree; click an ancestor bar above the graph or press Esc to zoom out.</p>
+      <p>Under the Experimental tab's <em>Flame</em> switch: the plan as a flame graph, bars sized by each operation's <em>self</em> value (the metric minus its children's). Metric toggle: Cost, A-Time, A-Rows. A SQL Monitor report gives each operation's time as an active window, and a parent's window overlaps its children's, so adding the windows up is not elapsed time. For these reports the time choice is <em>Activity</em>, each operation's share of ASH samples; a report without samples offers no time choice and the graph falls back to Cost. Click a bar to select it and double-click (or <kbd>Shift</kbd>+<kbd>Enter</kbd> on a focused bar) to zoom into that subtree; click an ancestor bar above the graph or press Esc to zoom out.</p>
 
       <h3>Plan text</h3>
       <p>The raw input, kept verbatim, with the selected node's line highlighted. Handy for quoting in a ticket. It has its own search (<kbd>Enter</kbd> / <kbd>Shift</kbd>+<kbd>Enter</kbd> step through matches; the Filters search is highlighted too), line-number and wrap-lines toggles (persisted), a copy button, and clicking a line selects its operation in the other views.</p>
