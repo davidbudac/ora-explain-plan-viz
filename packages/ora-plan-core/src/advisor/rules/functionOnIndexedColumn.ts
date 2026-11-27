@@ -32,7 +32,7 @@ export const functionOnIndexedColumnRule: AdvisorRule = {
       const isFullScan = FULL_SCAN_RE.test(op);
       if (!isFullScan && !node.filterPredicates) continue;
 
-      const match = ctx.findObject(node.objectName);
+      const match = ctx.findObject(node.objectName, node.objectOwner);
       if (!match || match.object.type !== 'TABLE') continue;
       const table = match.object;
       const { indexes } = resolveIndexesForBlock(match, bundle);

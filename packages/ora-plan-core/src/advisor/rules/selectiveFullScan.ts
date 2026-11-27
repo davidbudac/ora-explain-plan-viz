@@ -69,7 +69,7 @@ export const selectiveFullScanRule: AdvisorRule = {
       if (!node.accessPredicates && !node.filterPredicates) continue;
       if (node.starts === 0) continue;
 
-      const match = ctx.findObject(node.objectName);
+      const match = ctx.findObject(node.objectName, node.objectOwner);
       const table = match && match.object.type === 'TABLE' ? match.object : undefined;
       // Rows the scan could read: the whole table, or for a pruned scan of a partitioned table an
       // even-partition share of it. Without the partition count a pruned scan has no usable

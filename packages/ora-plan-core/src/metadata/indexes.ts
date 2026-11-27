@@ -51,7 +51,7 @@ export function findUsedIndexKeys(
   const used = new Set<string>();
   for (const node of nodes) {
     if (!node.objectName) continue;
-    const hit = findObjectInBundle(bundle, node.objectName);
+    const hit = findObjectInBundle(bundle, node.objectName, node.objectOwner);
     if (hit && hit.object.type === 'INDEX') {
       used.add(hit.key);
     }

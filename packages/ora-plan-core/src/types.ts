@@ -8,6 +8,8 @@ export interface PlanNode {
   depth: number;
   operation: string;
   objectName?: string;
+  /** Schema of objectName, when the format records it (V$SQL_PLAN OBJECT_OWNER). */
+  objectOwner?: string;
   alias?: string;
   // Adaptive plan row the optimizer did not use ('-' Id prefix with +ADAPTIVE). Kept in the
   // tree for its shape, excluded from totals, self cost/time and advisor findings.

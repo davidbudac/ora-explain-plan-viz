@@ -25,7 +25,7 @@ export function projectMetadata(bundle: MetadataBundle, plan: ParsedPlan): strin
   // Objects directly referenced by plan lines.
   const keys = new Set<string>();
   for (const node of plan.allNodes) {
-    const found = findObjectInBundle(bundle, node.objectName);
+    const found = findObjectInBundle(bundle, node.objectName, node.objectOwner);
     if (found) keys.add(found.key);
   }
   // Indexes of referenced tables (the optimizer's alternatives matter too).

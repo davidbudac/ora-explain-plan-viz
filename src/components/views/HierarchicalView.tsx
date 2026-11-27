@@ -550,7 +550,7 @@ function HierarchicalViewContent({
       // Calculate dynamic height for this node
       const height = calculateNodeHeight(node, effectiveDisplayOptions, hasActualStats, hasAnnotation, usesGrid, isRail, isTicker, hasAdvisorBadge, hintRows);
       nodeDimensions.set(node.id.toString(), { width: effectiveNodeWidth, height });
-      const match = bundle ? findObjectInBundle(bundle, node.objectName) : null;
+      const match = bundle ? findObjectInBundle(bundle, node.objectName, node.objectOwner) : null;
       const cardSeverity = hasActualStats
         ? cardinalityRatioSeverity(nodeCardinalityRatio(node))
         : 'good';

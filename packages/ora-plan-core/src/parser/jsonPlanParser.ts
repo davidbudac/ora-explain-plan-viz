@@ -276,6 +276,7 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
 
   // Object info
   const objectName = getStr(row, 'object_name');
+  const objectOwner = unquote(getStr(row, 'object_owner'));
   // V$SQL_PLAN quotes aliases ("P"@"SEL$1"); the other parsers store them without quotes
   const objectAlias = unquote(getStr(row, 'object_alias'));
 
@@ -343,6 +344,7 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
     depth,
     operation: fullOperation,
     objectName,
+    objectOwner,
     objectAlias,
     queryBlock,
     rows,

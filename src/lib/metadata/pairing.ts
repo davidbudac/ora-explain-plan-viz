@@ -27,9 +27,13 @@ export function pairBundleWithSlots(
     };
   }
 
-  const matchIndex = candidateIndices.find(
+  const sqlIdMatches = candidateIndices.filter(
     (i) => slots[i].parsedPlan?.sqlId === bundleSqlId,
   );
+  const bundleHash = bundle.plan_ref.plan_hash_value;
+  const matchIndex =
+    sqlIdMatches.find((i) => bundleHash !== null && slots[i].parsedPlan?.planHashValue === String(bundleHash)) ??
+    sqlIdMatches[0];
   if (matchIndex === undefined) {
     return {
       kind: 'needs-choice',
@@ -40,16 +44,15 @@ export function pairBundleWithSlots(
 
   const slot = slots[matchIndex];
   const planHashValue = slot.parsedPlan?.planHashValue;
-  const bundlePlanHash = bundle.plan_ref.plan_hash_value;
   if (
-    bundlePlanHash !== null &&
+    bundleHash !== null &&
     planHashValue !== undefined &&
-    planHashValue !== String(bundlePlanHash)
+    planHashValue !== String(bundleHash)
   ) {
     return {
       kind: 'auto-attach',
       slotIndex: matchIndex,
-      warning: `Metadata was captured for a different plan_hash of this SQL — stats may have changed (plan ${planHashValue} vs. bundle ${bundlePlanHash}).`,
+      warning: `Metadata was captured for a different plan_hash of this SQL — stats may have changed (plan ${planHashValue} vs. bundle ${bundleHash}).`,
     };
   }
   return { kind: 'auto-attach', slotIndex: matchIndex, warning: null };
