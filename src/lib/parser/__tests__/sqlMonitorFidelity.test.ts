@@ -55,6 +55,14 @@ describe('SQL Monitor XML: optimizer temp estimate', () => {
     expect(node(5)?.tempUsed).toBeUndefined();
   });
 
+  it('reads the temp estimate from a report that has only the <plan> section', () => {
+    const planOnly = readExample('23-sql_monitor-Window Sort Spill.txt').replace(/<plan_monitor\b[\s\S]*?<\/plan_monitor>/, '');
+    const plan = parsePlan(planOnly);
+
+    expect(plan.allNodes.find((n) => n.id === 3)?.tempSpace).toBe(56_312_000);
+    expect(plan.allNodes.find((n) => n.id === 3)?.tempUsed).toBeUndefined();
+  });
+
   it('keeps an estimate on an operation that never spilled', () => {
     const plan = parsePlan(readExample('24-sql_monitor-Recursive BOM.txt'));
     const sort = plan.allNodes.find((n) => n.id === 1);
