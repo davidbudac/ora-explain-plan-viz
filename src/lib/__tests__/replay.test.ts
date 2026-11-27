@@ -214,6 +214,43 @@ describe('buildReplayScript: SQL Monitor statement duration', () => {
   });
 });
 
+describe('buildReplayScript: hotspot from measured activity', () => {
+  const example = (name: string) => script(parsePlan(SAMPLE_PLANS.find((x) => x.name.includes(name))!.data));
+  const done = (s: ReplayScript) => s.chapters.find((c) => c.kind === 'done')!;
+
+  it('names the operation with the most ASH activity, at its Activity %', () => {
+    // Activity (%): #4 SORT AGGREGATE 50.52, #5 PX BLOCK ITERATOR 45.36, #6 TABLE ACCESS STORAGE FULL 3.09.
+    const s = example('Exadata Cell Offload');
+    expect(s.hotspotId).toBe(4);
+    expect(done(s).caption).toContain('Most of the work: #4 SORT AGGREGATE (51%).');
+  });
+
+  it('places a text report on the timeline from its Start Active offsets', () => {
+    // | 4 | SORT AGGREGATE | ... | 13 | +1 |   | 0 | SELECT STATEMENT | ... | 1 | +13 |
+    const s = example('Exadata Cell Offload');
+    expect(s.tier).toBe('measured');
+    expect(s.unit).toBe('s');
+    expect(track(s, 4).firstActive).toBe(1);
+    expect(track(s, 0).firstActive).toBe(13);
+  });
+
+  it('takes the hotspot from activity even when the animation is paced by rows', () => {
+    const s = script(buildPlan({
+      id: 0, op: 'SELECT STATEMENT', actualRows: 10, starts: 1,
+      kids: [{
+        id: 1, op: 'HASH JOIN', rows: 10, actualRows: 10, starts: 1, activityPercent: 5,
+        kids: [
+          { id: 2, op: 'TABLE ACCESS FULL', objectName: 'DIM', rows: 100, actualRows: 100, starts: 1, activityPercent: 80 },
+          { id: 3, op: 'TABLE ACCESS FULL', objectName: 'FACT', rows: 1_000_000, actualRows: 1_000_000, starts: 1, activityPercent: 15 },
+        ],
+      }],
+    }));
+    expect(s.tier).toBe('weighted');
+    expect(s.hotspotId).toBe(2);
+    expect(done(s).caption).toContain('Most of the work: #2 TABLE ACCESS FULL DIM (80%).');
+  });
+});
+
 describe('buildReplayScript on the bundled examples', () => {
   const scripts = SAMPLE_PLANS.map((sample) => ({ name: sample.name, s: buildReplayScript(parsePlan(sample.data)) }));
 

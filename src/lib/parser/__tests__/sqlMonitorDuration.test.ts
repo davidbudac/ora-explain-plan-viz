@@ -57,3 +57,29 @@ describe('SQL Monitor statement duration', () => {
     expect(plan.totalElapsedTime).toBeUndefined();
   });
 });
+
+describe('SQL Monitor text Start Active offsets', () => {
+  it('places each operation from its Start Active offset and Time Active window', () => {
+    const plan = parsePlan(readExample(EXADATA));
+    // | 4 | SORT AGGREGATE | ... | 13 | +1 | ...  → active seconds 1..13
+    expect(node(plan, 4).firstActiveOffset).toBe(1);
+    expect(node(plan, 4).lastActiveOffset).toBe(13);
+    // | 3 | PX SEND QC (RANDOM) | ... | 2 | +12 | ...  → 12..13
+    expect(node(plan, 3).firstActiveOffset).toBe(12);
+    expect(node(plan, 3).lastActiveOffset).toBe(13);
+    expect(node(plan, 0).firstActiveOffset).toBe(13);
+    expect(node(plan, 0).lastActiveOffset).toBe(13);
+  });
+
+  it('leaves operations with blank Start Active cells unplaced', () => {
+    const plan = parsePlan(readExample(SKEWED));
+    expect(node(plan, 0).firstActiveOffset).toBeUndefined();
+    expect(node(plan, 0).lastActiveOffset).toBeUndefined();
+    // | 22 | TABLE ACCESS BY LOCAL INDEX ROWID | ... | 3 | +1 | ...
+    expect(node(plan, 22).firstActiveOffset).toBe(1);
+    expect(node(plan, 22).lastActiveOffset).toBe(3);
+    // | -> 30 | TABLE ACCESS BY LOCAL INDEX ROWID | ... | 220 | +2 | ...
+    expect(node(plan, 30).firstActiveOffset).toBe(2);
+    expect(node(plan, 30).lastActiveOffset).toBe(221);
+  });
+});
