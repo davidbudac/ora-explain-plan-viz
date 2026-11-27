@@ -1172,6 +1172,7 @@ function parsePlanOnlyOperation(op: Element): PlanNode | null {
     rows: getDirectChildInt(op, 'card'),
     bytes: getDirectChildInt(op, 'bytes'),
     cost: getDirectChildInt(op, 'cost'),
+    tempSpace: getDirectChildInt(op, 'temp_space'),
     pstart: op.querySelector(':scope > partition')?.getAttribute('start') || undefined,
     pstop: op.querySelector(':scope > partition')?.getAttribute('stop') || undefined,
     children: [],
