@@ -40,3 +40,27 @@ describe('SQL Monitor text: SQL Text section', () => {
     expect(parsePlan(input).sqlText).toBe('select /*+ INDEX (SKEW2 SKEW2_COL1) */ avg(pk_col)\n\nfrom kso.skew2');
   });
 });
+
+describe('SQL Monitor XML: optimizer temp estimate', () => {
+  it('reads the temp estimate into tempSpace and the measured spill into tempUsed, independently', () => {
+    const plan = parsePlan(readExample('23-sql_monitor-Window Sort Spill.txt'));
+    const node = (id: number) => plan.allNodes.find((n) => n.id === id);
+
+    expect(plan.source).toBe('sql_monitor_xml');
+    expect(node(3)?.tempSpace).toBe(56_312_000);
+    expect(node(3)?.tempUsed).toBe(65_011_712);
+    expect(node(4)?.tempSpace).toBe(56_312_000);
+    expect(node(4)?.tempUsed).toBe(60_817_408);
+    expect(node(5)?.tempSpace).toBeUndefined();
+    expect(node(5)?.tempUsed).toBeUndefined();
+  });
+
+  it('keeps an estimate on an operation that never spilled', () => {
+    const plan = parsePlan(readExample('24-sql_monitor-Recursive BOM.txt'));
+    const sort = plan.allNodes.find((n) => n.id === 1);
+
+    expect(sort?.operation).toBe('SORT GROUP BY');
+    expect(sort?.tempSpace).toBe(71_957_085_709_000);
+    expect(sort?.tempUsed).toBeUndefined();
+  });
+});
