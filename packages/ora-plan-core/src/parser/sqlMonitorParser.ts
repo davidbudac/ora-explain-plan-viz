@@ -224,6 +224,8 @@ interface RawSqlMonitorRow {
   ioWriteRequests?: number;
   ioWriteBytes?: number;
   activityPercent?: number;
+  /** "Start Active": seconds from the start of the execution to the operation's first activity. */
+  startActive?: number;
   depth: number;
   /** Adaptive-plan row marked '-' in the Id column. */
   inactive: boolean;
@@ -273,6 +275,7 @@ interface SqlMonitorColumnPositions {
   cost?: { start: number; end: number };
   aRows?: { start: number; end: number };
   aTime?: { start: number; end: number };
+  startActive?: { start: number; end: number };
   starts?: { start: number; end: number };
   memory?: { start: number; end: number };
   temp?: { start: number; end: number };
@@ -425,8 +428,9 @@ function parseSqlMonitorColumnPositions(
       if (segment === 'starts' || segment === 'execs') {
         cols.starts = { start, end };
         startsSeen = true;
+      } else {
+        cols.startActive = { start, end };
       }
-      // "Start Active" is a start-time marker, not a count — ignore
     } else if (segment === 'start' && !startsSeen && !sub) {
       cols.starts = { start, end };
       startsSeen = true;
@@ -513,6 +517,11 @@ function parseSqlMonitorDataRow(line: string, columns: SqlMonitorColumnPositions
   if (columns.starts) {
     const val = parseCount(line.substring(columns.starts.start, columns.starts.end).trim());
     if (val !== null) row.starts = val;
+  }
+
+  if (columns.startActive) {
+    const match = line.substring(columns.startActive.start, columns.startActive.end).trim().match(/^\+?(\d+)$/);
+    if (match) row.startActive = parseInt(match[1], 10);
   }
 
   if (columns.memory) {
@@ -649,6 +658,11 @@ function buildTree(
       ioWriteRequests: row.ioWriteRequests,
       ioWriteBytes: row.ioWriteBytes,
       activityPercent: row.activityPercent,
+      // Time Active(s) counts the seconds from first to last activity, both included (as XML's "duration").
+      firstActiveOffset: row.startActive,
+      lastActiveOffset: row.startActive !== undefined && row.actualTime !== undefined
+        ? row.startActive + Math.max(1, Math.round(row.actualTime / 1000)) - 1
+        : undefined,
       accessPredicates: preds?.access,
       filterPredicates: preds?.filter,
       storagePredicates: preds?.storage,

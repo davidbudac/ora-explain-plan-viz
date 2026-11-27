@@ -522,7 +522,7 @@ SPOOL OFF</code></pre>
       <p>Seven views behind a segmented switcher (the last one used is remembered):</p>
       <ul>
         <li><strong>Flame.</strong> The flame graph described above.</li>
-        <li><strong>Timeline.</strong> A Gantt of when each operation was actually active (from per-op first/last active offsets), with ASH wait-class cells per time bucket. SQL Monitor XML only.</li>
+        <li><strong>Timeline.</strong> A Gantt of when each operation was actually active (from per-op first/last active offsets), with ASH wait-class cells per time bucket. SQL Monitor reports only: XML, or text from its Start Active and Time Active columns (without ASH cells).</li>
         <li><strong>Scatter.</strong> E-Rows vs A-Rows on log-log axes. Points on the diagonal are well estimated; distance from it is the cardinality error.</li>
         <li><strong>Waterfall.</strong> Wasted work: rows read vs rows returned per node, so a full scan that reads a million rows to return ten stands out.</li>
         <li><strong>Morph.</strong> An animated icicle that morphs from the optimizer's estimated shape to the actual one.</li>
@@ -540,7 +540,7 @@ SPOOL OFF</code></pre>
       </p>
       <p>The badge next to the layout switch says how much of the timing is real:</p>
       <ul>
-        <li><strong>Measured timing.</strong> SQL Monitor reports that ran for at least three seconds: each operation's active window, with ASH samples. Time is in seconds.</li>
+        <li><strong>Measured timing.</strong> SQL Monitor reports that ran for at least three seconds: each operation's active window, with ASH samples when the report has them. Time is in seconds.</li>
         <li><strong>Approximate timing · actual rows.</strong> Plans with runtime statistics: the order comes from the rules above, durations from A-Time or from A-Rows, Starts and buffers. Time is shown as a share of the work.</li>
         <li><strong>Simulated from estimates.</strong> Plans without runtime statistics: durations from the optimizer's cost, rows from E-Rows.</li>
       </ul>
@@ -548,7 +548,9 @@ SPOOL OFF</code></pre>
         Chapters mark the moments worth stopping at: the first read, a finished hash build, a spill, a blocking step letting go, a
         misestimate, the busiest loops, the first row to the client and the end. For a SQL Monitor report the end gives the
         statement's Duration from the report header: its wall-clock time, not the elapsed time added up over parallel servers. A
-        report taken while the statement was still executing says so instead of announcing a finish. Three layouts play the same
+        report taken while the statement was still executing says so instead of announcing a finish. When the report has ASH
+        activity, the operation the end names as doing most of the work, and its share, are SQL Monitor's Activity (%), whichever
+        timing the badge shows. Three layouts play the same
         replay, and switching keeps the position (the last one used is remembered):
       </p>
       <ul>

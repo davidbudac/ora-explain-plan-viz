@@ -16,7 +16,7 @@
 // children one after the other.
 
 import type { ActivitySample, ParsedPlan, PlanNode } from './types.ts';
-import { effectiveChildren } from './analysis.ts';
+import { computeHottestNodeId, effectiveChildren, usesActivityRanking } from './analysis.ts';
 import {
   cardinalityRatioSeverity,
   formatBytes,
@@ -413,13 +413,15 @@ export function buildReplayScript(plan: ParsedPlan): ReplayScript | null {
     ? scheduleMeasured(root, kidsOf, tracks)
     : schedulePhases(root, kidsOf, tracks, rawWork);
 
-  // Work share.
-  if (tier === 'measured') {
-    const sum = nodes.reduce((a, n) => a + (n.activityPercent ?? 0), 0);
+  // Work share. ASH activity says where the time went, however the animation is paced.
+  const byActivity = usesActivityRanking(plan);
+  if (byActivity) {
+    for (const n of nodes) tracks.get(n.id)!.work = (n.activityPercent ?? 0) / 100;
+  } else if (tier === 'measured') {
     for (const n of nodes) {
       const tr = tracks.get(n.id)!;
       const win = tr.spans.length ? tr.spans[tr.spans.length - 1].to - tr.spans[0].from : 0;
-      tr.work = sum > 0 ? (n.activityPercent ?? 0) / sum : win / Math.max(1, duration);
+      tr.work = win / Math.max(1, duration);
     }
   } else {
     const total = [...rawWork.values()].reduce((a, b) => a + b, 0) || 1;
@@ -430,11 +432,16 @@ export function buildReplayScript(plan: ParsedPlan): ReplayScript | null {
 
   const order = nodes.map((n) => tracks.get(n.id)!);
   let hotspotId: number | undefined;
-  let best = -1;
-  for (const tr of order) {
-    if (tr.work > best) {
-      best = tr.work;
-      hotspotId = tr.id;
+  if (byActivity) {
+    const hottest = computeHottestNodeId(plan);
+    if (hottest !== null && tracks.has(hottest)) hotspotId = hottest;
+  } else {
+    let best = -1;
+    for (const tr of order) {
+      if (tr.work > best) {
+        best = tr.work;
+        hotspotId = tr.id;
+      }
     }
   }
 
