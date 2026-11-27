@@ -670,6 +670,7 @@ interface PlanEstimates {
   rows?: number;
   bytes?: number;
   cost?: number;
+  tempSpace?: number;
   objectName?: string;
   objectAlias?: string;
   queryBlock?: string;
@@ -928,6 +929,11 @@ function parsePlanSection(doc: Document): Map<number, PlanEstimates> {
       estimates.cost = parseIntText(cost.textContent);
     }
 
+    const tempSpace = op.querySelector(':scope > temp_space');
+    if (tempSpace?.textContent) {
+      estimates.tempSpace = parseIntText(tempSpace.textContent);
+    }
+
     // Object name (simple text in <plan> section)
     const obj = op.querySelector(':scope > object');
     if (obj?.textContent && !obj.querySelector('name')) {
@@ -1107,6 +1113,7 @@ function parseMonitorOperation(
     actualTime: actualTimeMs,
     starts,
     memoryUsed: maxMemory,
+    tempSpace: estimates?.tempSpace,
     tempUsed: maxTempSeg,
     physicalReads: readReqs,
     logicalReads: bufferGets,
