@@ -594,8 +594,28 @@ function buildTree(
     }
   }
 
+  for (const node of allNodes) {
+    if (node.parentId === undefined) rollUpIo(node);
+  }
+
   // Root is id 0 or first node without a parent
   const rootNode = nodeMap.get(0) || allNodes.find(n => n.parentId === undefined) || allNodes[0] || null;
 
   return { rootNode, allNodes };
+}
+
+/**
+ * xbi.sql prints each line's own gets and reads (its value minus its children's), except line 0,
+ * which carries the plan total. Every other source reports them cumulatively, so add the children back.
+ */
+function rollUpIo(node: PlanNode): void {
+  for (const child of node.children) rollUpIo(child);
+  if (node.id === 0) return;
+  node.logicalReads = withChildren(node.logicalReads, node.children.map((c) => c.logicalReads));
+  node.physicalReads = withChildren(node.physicalReads, node.children.map((c) => c.physicalReads));
+}
+
+function withChildren(own: number | undefined, children: Array<number | undefined>): number | undefined {
+  if (own === undefined && children.every((c) => c === undefined)) return undefined;
+  return children.reduce<number>((sum, c) => sum + (c ?? 0), own ?? 0);
 }
