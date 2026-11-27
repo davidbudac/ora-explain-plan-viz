@@ -643,8 +643,8 @@ SPOOL OFF</code></pre>
       <h3>How nodes are matched</h3>
       <p>A three-pass matcher lines up equivalent steps:</p>
       <ol>
-        <li><strong>Exact ID</strong>: same node ID with a similar operation.</li>
-        <li><strong>Heuristic</strong>: same operation + object signature, closest depth wins.</li>
+        <li><strong>Exact ID</strong>: same node ID, operation and object. Two different known aliases (the two sides of a self-join) are never an exact match.</li>
+        <li><strong>Heuristic</strong>: same operation + object signature. Nodes with the same alias pair first, then the closest depth wins.</li>
         <li><strong>Unmatched</strong>: leftovers from either side are listed as added or removed.</li>
       </ol>
       <p>Deltas are computed across nine metrics: cost, rows, bytes, A-Rows, A-Time, self time, starts, temp space and memory. Each is flagged as an improvement or a regression, and the metric pills at the top of the dashboard choose which ones are shown.</p>
