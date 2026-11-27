@@ -72,19 +72,24 @@ export function buildPlanFromRows(rows: Record<string, unknown>[], source: PlanS
   const normalized = rows.map(normalizeKeys);
 
   const allNodes: PlanNode[] = [];
-  const nodeMap = new Map<number, PlanNode>();
+  const positions = new Map<PlanNode, number>();
 
   for (const row of normalized) {
     const node = parseJsonOperation(row);
     if (node) {
-      nodeMap.set(node.id, node);
       allNodes.push(node);
+      const position = getInt(row, 'position');
+      if (position !== undefined) positions.set(node, position);
     }
   }
 
   if (allNodes.length === 0) {
     return emptyPlan(source);
   }
+
+  // Exports may be sorted any way; plan IDs are the pre-order the tree and advisor rely on.
+  allNodes.sort((a, b) => a.id - b.id);
+  const nodeMap = new Map(allNodes.map(n => [n.id, n]));
 
   // Build parent-child relationships
   for (const node of allNodes) {
@@ -93,6 +98,12 @@ export function buildPlanFromRows(rows: Record<string, unknown>[], source: PlanS
       if (parent) {
         parent.children.push(node);
       }
+    }
+  }
+  // POSITION is the child's input order (build side first); without it, ID order stands.
+  for (const node of allNodes) {
+    if (node.children.length > 1 && node.children.every(c => positions.has(c))) {
+      node.children.sort((a, b) => positions.get(a)! - positions.get(b)!);
     }
   }
 
