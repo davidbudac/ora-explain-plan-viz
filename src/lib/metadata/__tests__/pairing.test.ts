@@ -77,6 +77,15 @@ describe('pairBundleWithSlots', () => {
     }
   });
 
+  it('attaches to the tab whose plan_hash matches among several tabs of the same sql_id', () => {
+    const bundle = makeBundle({ sqlId: 'abc', planHash: 222 });
+    const slots = [
+      makeSlot('a', makeParsedPlan({ sqlId: 'abc', planHash: '111' })),
+      makeSlot('b', makeParsedPlan({ sqlId: 'abc', planHash: '222' })),
+    ];
+    expect(pairBundleWithSlots(bundle, slots)).toEqual({ kind: 'auto-attach', slotIndex: 1, warning: null });
+  });
+
   it('returns needs-choice when bundle sql_id matches no loaded plan', () => {
     const bundle = makeBundle({ sqlId: 'xyz', planHash: 1 });
     const slots = [
