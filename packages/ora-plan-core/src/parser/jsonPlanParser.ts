@@ -132,9 +132,6 @@ export function buildPlanFromRows(rows: Record<string, unknown>[], source: PlanS
   const maxActualRows = Math.max(...allNodes.map(n => n.actualRows || 0), 0);
   const maxStarts = Math.max(...allNodes.map(n => n.starts || 0), 0);
 
-  // Total elapsed time: root node's actualTime or sum heuristic
-  const totalElapsedTime = rootNode?.actualTime || 0;
-
   // Try to extract plan hash from the data (some scripts include it as metadata)
   const planHashValue = normalizePlanHash(
     getStr(normalized[0], 'plan_hash_value') || getStr(normalized[0], 'plan_hash'),
@@ -156,7 +153,7 @@ export function buildPlanFromRows(rows: Record<string, unknown>[], source: PlanS
     maxStarts: hasActualStats ? maxStarts : undefined,
     source,
     hasActualStats,
-    totalElapsedTime,
+    totalElapsedTime: rootNode?.actualTime,
   };
 }
 
