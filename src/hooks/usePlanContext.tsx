@@ -96,11 +96,6 @@ function buildSavedSession(state: PlanState): SavedSession {
   };
 }
 
-/** Plans + labels + bundles + annotations, ignoring the view and timestamp. */
-function sessionContentSignature(session: SavedSession): string {
-  return JSON.stringify(session.slots);
-}
-
 /** View modes worth restoring (AI tabs hold session-only state). */
 function restorableViewMode(mode: ViewMode | null, parsedPlanCount: number): ViewMode | null {
   if (!mode || mode === 'ai') return null;
@@ -1215,8 +1210,6 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   // True once the user has been told this session is too large to autosave;
   // reset by the next successful save so a later oversize episode is announced again.
   const oversizeNotifiedRef = useRef(false);
-  // Content encoded by the share link currently in the address bar, if any.
-  const sharedContentRef = useRef<string | null>(null);
 
   // Tree view layout preferences — self-contained state, persisted on change.
   const [treeLayoutDirection, setTreeLayoutDirectionState] = useState<TreeLayoutDirection>(
@@ -1934,10 +1927,6 @@ export function PlanProvider({ children }: { children: ReactNode }) {
 
   const persistSessionNow = useCallback(() => {
     const session = buildSavedSession(stateRef.current);
-    if (sharedContentRef.current !== null && sessionContentSignature(session) !== sharedContentRef.current) {
-      sharedContentRef.current = null;
-      clearPlanFromUrl();
-    }
     // Compare without the timestamp so selection-only changes don't rewrite storage.
     const signature = JSON.stringify({ ...session, savedAt: '' });
     if (signature === lastSavedSessionRef.current) return;
@@ -2707,24 +2696,8 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     const warning = result.ok && result.warnings.length > 0 ? result.warnings.join(' ') : undefined;
 
     if (result.ok) {
-      // The address bar can only take a same-origin URL. The single-file build
-      // opened from disk (file://) makes links to the hosted app; replaceState
-      // would throw a SecurityError for those, so the address bar is left alone.
-      let addressBarUpdated = false;
-      try {
-        if (new URL(result.url).origin === window.location.origin) {
-          window.history.replaceState(null, '', result.url);
-          addressBarUpdated = true;
-        }
-      } catch {
-        // Not fatal: the link is still copied / shown below.
-      }
-      if (addressBarUpdated) {
-        // Remember what the address-bar link encodes; once the plans or their
-        // annotations change, the autosave drops the (now stale) link so a
-        // reload restores the session instead of the older shared snapshot.
-        sharedContentRef.current = sessionContentSignature(buildSavedSession(stateRef.current));
-      }
+      // The link never goes into the sender's address bar: a reload must bring
+      // back the full autosaved workspace, not the link's reduced copy.
       // Robust copy with an execCommand fallback for insecure (HTTP) origins and
       // unfocused documents. `copied` is surfaced so the UI can offer a reliable
       // manual-copy affordance instead of falsely claiming success.

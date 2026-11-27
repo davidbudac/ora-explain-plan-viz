@@ -33,8 +33,11 @@ afterEach(() => {
 });
 
 describe('share', () => {
-  it('hands out a link to the hosted app without touching the address bar when the page cannot adopt it', async () => {
-    link.url = PUBLIC_LINK;
+  it.each([
+    ['a link to the hosted app', PUBLIC_LINK],
+    ['a same-origin link', `${window.location.origin}/#gz=H4sIAAAA`],
+  ])('hands out %s without touching the address bar', async (_name, url) => {
+    link.url = url;
     const handle = renderPlanContext();
     await loadPlan(handle);
     const replaceState = vi.spyOn(window.history, 'replaceState');
@@ -47,21 +50,8 @@ describe('share', () => {
     const notice = handle.current().shareNotice;
     expect(notice).not.toBeNull();
     expect(notice?.kind).not.toBe('error');
-    expect(notice && 'url' in notice ? notice.url : '').toBe(PUBLIC_LINK);
+    expect(notice && 'url' in notice ? notice.url : '').toBe(url);
     expect(window.location.hash).toBe('');
-  });
-
-  it('still puts a same-origin link in the address bar', async () => {
-    link.url = `${window.location.origin}/#gz=H4sIAAAA`;
-    const handle = renderPlanContext();
-    await loadPlan(handle);
-
-    await act(async () => {
-      await handle.current().share();
-    });
-
-    expect(window.location.hash).toBe('#gz=H4sIAAAA');
-    expect(handle.current().shareNotice?.kind).not.toBe('error');
   });
 
   it('reports a failure instead of rejecting', async () => {
