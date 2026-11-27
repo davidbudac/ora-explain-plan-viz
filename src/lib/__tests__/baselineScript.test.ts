@@ -77,6 +77,32 @@ describe('buildBaselineScript', () => {
     expect(script).toContain('DEFINE plan_hash = "12345"');
   });
 
+  describe.each(['cursor_cache', 'awr', 'awr_sts'] as const)('%s: verification is scoped to the target statement', (source) => {
+    const script = buildBaselineScript({ ...base, source });
+    const statementAfter = (prompt: string): string => {
+      const rest = script.slice(script.indexOf(prompt));
+      return rest.slice(rest.indexOf('SELECT'), rest.indexOf(';') + 1);
+    };
+    const verification = statementAfter('PROMPT === Verification');
+
+    it('filters the listed baselines by the statement signature, not by creation time', () => {
+      expect(verification).toMatch(/\bFROM\s+dba_sql_plan_baselines\b/i);
+      expect(verification).toMatch(/\bWHERE\s+signature\s*=/i);
+      expect(verification).not.toMatch(/\bcreated\s*>/i);
+    });
+
+    it('derives the signature from the target SQL_ID in a store that has it for this source', () => {
+      const signatureSource = source === 'cursor_cache' ? /FROM\s+v\$sql\s+WHERE\s+sql_id\s*=\s*'&sql_id'/i : /FROM\s+dba_hist_sqltext\s+WHERE\s+sql_id\s*=\s*'&sql_id'/i;
+      expect(script).toMatch(signatureSource);
+    });
+
+    it('reports the load count apart from how many baselines the statement had before and after', () => {
+      expect(script).toContain("'Baseline plans loaded: '");
+      expect(script).toMatch(/'Baselines for this statement before the load: '/);
+      expect(script).toMatch(/'Baselines for this statement after the load: '/);
+    });
+  });
+
   it('generates the expected filename', () => {
     expect(baselineScriptFilename(base)).toBe('create_baseline_an05rsj1up1k5_3001234567.sql');
     expect(baselineScriptFilename({ ...base, sqlId: 'ABC123' })).toBe('create_baseline_abc123_3001234567.sql');
