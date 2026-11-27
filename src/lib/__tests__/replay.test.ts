@@ -180,6 +180,40 @@ describe('buildReplayScript: what is replayed', () => {
   });
 });
 
+describe('buildReplayScript: SQL Monitor statement duration', () => {
+  const example = (name: string) => script(parsePlan(SAMPLE_PLANS.find((x) => x.name.includes(name))!.data));
+  const done = (s: ReplayScript) => s.chapters.find((c) => c.kind === 'done')!;
+
+  it('ends a text report with its Global Information Duration, not the root active window', () => {
+    // Duration : 13s; the root's Time Active(s) is 1.
+    expect(done(example('Exadata Cell Offload')).caption).toMatch(/^1 row returned in 13 s\./);
+  });
+
+  it('ends an XML report with its target duration, not the elapsed time summed over PX processes', () => {
+    // <duration>.0861</duration>; the global elapsed_time of 325716 µs adds up the QC and 8 PX servers.
+    const s = example('Partitioned Star Query');
+    expect(done(s).caption).toMatch(/^120 rows returned in 86 ms\./);
+    expect(s.tierReason).toContain('(86 ms)');
+  });
+
+  it('does not report a completion for a statement still executing when the report was taken', () => {
+    // Status : EXECUTING, Duration : 221s.
+    const caption = done(example('Skewed Parallel')).caption;
+    expect(caption).toMatch(/still executing/i);
+    expect(caption).toContain('221 s');
+    expect(caption).not.toMatch(/returned in/);
+  });
+
+  it('names no duration when the report has none', () => {
+    const text = SAMPLE_PLANS.find((x) => x.name.includes('Exadata Cell Offload'))!.data;
+    const lines = text.split('\n');
+    const from = lines.findIndex((l) => l.startsWith('Global Information'));
+    const to = lines.findIndex((l) => l.startsWith('Parallel Execution Details'));
+    const s = script(parsePlan([...lines.slice(0, from), ...lines.slice(to)].join('\n')));
+    expect(done(s).caption).toMatch(/^1 row returned\./);
+  });
+});
+
 describe('buildReplayScript on the bundled examples', () => {
   const scripts = SAMPLE_PLANS.map((sample) => ({ name: sample.name, s: buildReplayScript(parsePlan(sample.data)) }));
 
