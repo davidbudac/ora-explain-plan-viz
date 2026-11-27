@@ -56,6 +56,7 @@ export const sqlMonitorTextParser: PlanParser = {
 
     // Extract SQL ID if present
     const sqlId = extractSqlId(lines);
+    const sqlText = extractSqlText(lines);
     const childNumber = extractChildNumber(lines);
     const planHashValue = extractPlanHashValue(lines);
 
@@ -70,6 +71,7 @@ export const sqlMonitorTextParser: PlanParser = {
       return {
         planHashValue,
         sqlId,
+        sqlText,
         childNumber,
         warnings: emptyWarnings.length > 0 ? emptyWarnings : undefined,
         rootNode: null,
@@ -125,6 +127,7 @@ export const sqlMonitorTextParser: PlanParser = {
     return {
       planHashValue,
       sqlId,
+      sqlText,
       childNumber,
       rootNode,
       allNodes,
@@ -240,6 +243,24 @@ function extractSqlId(lines: string[]): string | undefined {
     if (match) return normalizeSqlId(match[1]);
   }
   return undefined;
+}
+
+const UNDERLINE = /^\s*[-=]{5,}\s*$/;
+
+/**
+ * The statement under the report's "SQL Text" heading. It runs up to the next heading (a line
+ * after a blank line, underlined with dashes or equals signs), so blank lines inside it stay.
+ */
+function extractSqlText(lines: string[]): string | undefined {
+  const start = lines.findIndex((line, i) => /^\s*SQL Text\s*$/i.test(line) && UNDERLINE.test(lines[i + 1] ?? ''));
+  if (start === -1) return undefined;
+  const body: string[] = [];
+  for (let i = start + 2; i < lines.length; i++) {
+    const isHeading = lines[i - 1].trim() === '' && lines[i].trim() !== '' && UNDERLINE.test(lines[i + 1] ?? '');
+    if (isHeading) break;
+    body.push(lines[i].trimEnd());
+  }
+  return body.join('\n').replace(/^\n+/, '').trimEnd() || undefined;
 }
 
 /** Cursor child number from a DISPLAY_CURSOR header ("SQL_ID  7ch0an9vx5ysp, child number 1"). */
