@@ -678,7 +678,7 @@ SPOOL OFF</code></pre>
 
       <h3>Share via URL</h3>
       <p>
-        <em>Share plan via URL</em> compresses the raw plan (gzip, base64url) into the <code>?plan=</code> query parameter and
+        <em>Share plan via URL</em> compresses the raw plan (gzip, base64url) into the <code>#gz=</code> part of the URL (<code>?plan=</code> on browsers without <code>CompressionStream</code>) and
         shows the link in a dialog. Whoever opens it gets the plan loaded in their own browser; nothing is stored anywhere.
         Attached annotations are included; custom tab names are not. Your own address bar is left as it is, so a reload
         brings back your full workspace rather than the link's copy. Very large plans (big SQL Monitor XML reports) can
