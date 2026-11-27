@@ -647,7 +647,7 @@ SPOOL OFF</code></pre>
         <li><strong>Heuristic</strong>: same operation + object signature. Nodes with the same alias pair first, then the closest depth wins.</li>
         <li><strong>Unmatched</strong>: leftovers from either side are listed as added or removed.</li>
       </ol>
-      <p>Deltas are computed across ten metrics: cost, rows, bytes, A-Rows, A-Time, self time, starts, temp space (the optimizer's estimate), temp used (the measured spill) and memory. An estimate is never subtracted from a measurement: when one side lacks the matching value, the delta is left blank. Each is flagged as an improvement or a regression, and the metric pills at the top of the dashboard choose which ones are shown.</p>
+      <p>Deltas are computed across ten metrics: cost, rows, bytes, A-Rows, A-Time, self time, starts, temp space (the optimizer's estimate), temp used (the measured spill) and memory. An estimate is never subtracted from a measurement: when one side lacks the matching value, the delta is left blank. Cost, time, temp and memory deltas are flagged as an improvement or a regression. Starts, rows and bytes deltas stay neutral: more or fewer of them can be right or wrong depending on the plan shape and the result size. The metric pills at the top of the dashboard choose which ones are shown.</p>
     </section>
 
     <!-- ---------- Annotations ---------- -->

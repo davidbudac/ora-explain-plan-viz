@@ -31,8 +31,6 @@ function formatMetricValue(value: number | undefined, metric: string): string {
 function formatDelta(delta: MetricDelta, metric: CompareMetric): { text: string; tone: 'neutral' | 'improvement' | 'regression' | 'none' } {
   if (delta.delta === undefined) return { text: '-', tone: 'none' };
   if (delta.delta === 0) return { text: '=', tone: 'neutral' };
-  const lowerIsBetter = LOWER_IS_BETTER.has(metric);
-  const isImprovement = lowerIsBetter ? delta.delta < 0 : delta.delta > 0;
   const sign = delta.delta > 0 ? '+' : '';
   const formatted = metric === 'actualTime' || metric === 'selfTime'
     ? `${delta.delta < 0 ? '-' : '+'}${formatTimeShort(Math.abs(delta.delta))}`
@@ -40,7 +38,8 @@ function formatDelta(delta: MetricDelta, metric: CompareMetric): { text: string;
   const pct = delta.deltaPercent !== undefined && delta.deltaPercent !== 0
     ? ` (${delta.deltaPercent > 0 ? '+' : ''}${delta.deltaPercent.toFixed(0)}%)`
     : '';
-  return { text: `${formatted}${pct}`, tone: isImprovement ? 'improvement' : 'regression' };
+  const tone = !LOWER_IS_BETTER.has(metric) ? 'neutral' : delta.delta < 0 ? 'improvement' : 'regression';
+  return { text: `${formatted}${pct}`, tone };
 }
 
 const DELTA_TONE_CLASS: Record<string, string> = {

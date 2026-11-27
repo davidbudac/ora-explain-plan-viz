@@ -277,7 +277,11 @@ export const ALL_COMPARE_METRICS: CompareMetric[] = [
   'cost', 'rows', 'bytes', 'actualRows', 'actualTime', 'selfTime', 'starts', 'tempSpace', 'tempUsed', 'memoryUsed',
 ];
 
-/** Metrics where a negative B−A delta is an improvement. */
+/**
+ * Metrics where a negative B−A delta is an improvement. The rest (Starts, rows,
+ * bytes) can rightly move either way with plan shape and result size, so their
+ * deltas carry no verdict.
+ */
 export const LOWER_IS_BETTER: ReadonlySet<CompareMetric> = new Set([
   'cost', 'actualTime', 'selfTime', 'tempSpace', 'tempUsed', 'memoryUsed',
 ]);
