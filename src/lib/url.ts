@@ -185,38 +185,46 @@ export function clearPlanFromUrl(options?: { includeDeepLinks?: boolean }): void
   window.history.replaceState(null, '', url.toString());
 }
 
+const SQL_MONITOR_XML = /<sql_monitor_report|<plan_monitor/i;
+
+function removeElements(input: string, names: readonly string[]): string {
+  return names.reduce(
+    (text, name) => text.replace(new RegExp(`<${name}\\b[^>]*>[\\s\\S]*?<\\/${name}>`, 'gi'), ''),
+    input,
+  );
+}
+
 /**
- * Strip bulky XML sections that the visualizer doesn't use.
- * Removes <statistic_buckets>, <bucket>, and <activity_sampled> elements
- * (with all their contents) which can dominate SQL Monitor XML size.
- * Non-XML input is returned unchanged.
+ * Shrink SQL Monitor XML without changing anything the app reads from it:
+ * drops elements the parser never looks at (per-operation activity
+ * histograms, the query block registry, hint usage, ...), comments, and the
+ * indentation between tags. Text content and CDATA (SQL text, bind values)
+ * are kept as they are. Non-XML input is returned unchanged.
  */
 export function stripUnusedXmlSections(input: string): string {
-  if (!/<sql_monitor_report|<plan_monitor/i.test(input)) return input;
-
-  let result = input
-    // Bulky data sections
-    .replace(/<statistic_buckets\b[^>]*>[\s\S]*?<\/statistic_buckets>/gi, '')
-    .replace(/<bucket\b[^>]*>[\s\S]*?<\/bucket>/gi, '')
-    .replace(/<activity_sampled\b[^>]*>[\s\S]*?<\/activity_sampled>/gi, '')
-    // Unused sections
-    .replace(/<other_xml\b[^>]*>[\s\S]*?<\/other_xml>/gi, '')
-    .replace(/<outline\b[^>]*>[\s\S]*?<\/outline>/gi, '')
-    .replace(/<hint_usage\b[^>]*>[\s\S]*?<\/hint_usage>/gi, '')
-    .replace(/<parallel\b[^>]*>[\s\S]*?<\/parallel>/gi, '')
-    .replace(/<px_sets\b[^>]*>[\s\S]*?<\/px_sets>/gi, '')
-    // XML comments
-    .replace(/<!--[\s\S]*?-->/g, '');
-
-  // Minify: collapse indentation and blank lines
-  result = result
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0)
-    .join('\n');
-
-  return result;
+  if (!SQL_MONITOR_XML.test(input)) return input;
+  const stripped = removeElements(input, [
+    'statistic_buckets', 'activity_histogram', 'qb_registry', 'outline', 'hint_usage', 'parallel', 'px_sets',
+  ]).replace(/<!--[\s\S]*?-->/g, '');
+  return stripped
+    .split(/(<!\[CDATA\[[\s\S]*?\]\]>)/)
+    .map((part, i) => (i % 2 === 1 ? part : part.replace(/>\s+</g, '>\n<')))
+    .join('');
 }
+
+/** What {@link stripXmlForSizeLimit} costs the recipient, by the section that carried it. */
+const SIZE_LIMIT_LOSSES: ReadonlyArray<{ section: RegExp; loss: string }> = [
+  { section: /<activity_detail\b/i, loss: 'the ASH activity samples (Waits and Timeline views, Activity %)' },
+  { section: /<other_xml\b/i, loss: 'the optimizer outline, plan info and plan notes' },
+];
+
+/** Last resort for a link: also drops the ASH samples and `<other_xml>`, which the app does read. */
+function stripXmlForSizeLimit(input: string): string {
+  if (!SQL_MONITOR_XML.test(input)) return input;
+  return removeElements(stripUnusedXmlSections(input), ['activity_detail', 'activity_sampled', 'other_xml']);
+}
+
+const FULL_EXPORT_HINT = 'Send the report file or a Save annotated plan (.json) export to share everything.';
 
 /**
  * Base64-encode an ArrayBuffer in ~32KB chunks (avoids blowing the call stack
@@ -313,7 +321,7 @@ function buildLegacyShareUrl(payload: SharePayload): ShareResult {
   if (fullUrl.length > LEGACY_MAX_URL_LENGTH) {
     return {
       ok: false,
-      error: `Plan is too large to share via URL (${fullUrl.length} chars, max ${LEGACY_MAX_URL_LENGTH}). Try a shorter plan.`,
+      error: `Plan is too large to share via URL (${fullUrl.length} chars, max ${LEGACY_MAX_URL_LENGTH}).`,
     };
   }
 
@@ -348,7 +356,7 @@ export async function buildShareUrl(payload: SharePayload): Promise<ShareResult>
   if (fullUrl.length > HARD_MAX_URL_LENGTH) {
     return {
       ok: false,
-      error: `Plan is too large to share via URL (${fullUrl.length} chars, max ${HARD_MAX_URL_LENGTH}). Try a shorter plan.`,
+      error: `Plan is too large to share via URL (${fullUrl.length} chars, max ${HARD_MAX_URL_LENGTH}).`,
     };
   }
 
@@ -421,7 +429,9 @@ function toPayload(
  *  1. full payload incl. metadata bundles;
  *  2. without bundles when (1) is longer than ~32k chars or fails
  *     ("metadata bundle omitted: too large");
- *  3. with bulky SQL Monitor XML sections stripped when still too large.
+ *  3. SQL Monitor XML without the sections the app never reads;
+ *  4. also without the ASH samples and `<other_xml>`, with a warning naming
+ *     what the recipient loses.
  */
 export async function buildShareLink(plans: SharePlanEntry[], options: ShareLinkOptions = {}): Promise<ShareLinkResult> {
   const build = options.build ?? buildShareUrl;
@@ -447,9 +457,24 @@ export async function buildShareLink(plans: SharePlanEntry[], options: ShareLink
     const stripped = await build(
       toPayload(plans, options.viewMode, options.workspace, { includeBundles: false, transform: stripUnusedXmlSections }),
     );
-    if (!stripped.ok) return stripped;
-    result = stripped;
-    warnings.push('Some non-essential data was stripped to fit the URL size limit.');
+    if (stripped.ok) {
+      result = stripped;
+      warnings.push('XML sections the app does not read and the indentation were left out to fit the URL size limit.');
+    }
+  }
+
+  if (!result.ok) {
+    const reduced = await build(
+      toPayload(plans, options.viewMode, options.workspace, { includeBundles: false, transform: stripXmlForSizeLimit }),
+    );
+    if (!reduced.ok) return { ok: false, error: `${reduced.error} ${FULL_EXPORT_HINT}` };
+    result = reduced;
+    const losses = SIZE_LIMIT_LOSSES
+      .filter(({ section }) => plans.some((plan) => section.test(plan.rawInput)))
+      .map(({ loss }) => loss);
+    if (losses.length > 0) {
+      warnings.push(`To fit the URL size limit the link leaves out ${losses.join(' and ')}. ${FULL_EXPORT_HINT}`);
+    }
   }
 
   if (result.warning) warnings.push(result.warning);

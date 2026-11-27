@@ -222,7 +222,7 @@ describe('share payload: view mode + metadata bundles', () => {
     const { build, payloads } = recordingBuilder((p) => (p.plans[0].rawInput.includes('<other_xml>') ? null : 100));
     const result = await buildShareLink([{ rawInput: xml }], { build });
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.warnings.join(' ')).toMatch(/stripped/);
+    if (result.ok) expect(result.warnings.join(' ')).toMatch(/leaves out the optimizer outline/);
     expect(payloads[payloads.length - 1].plans[0].rawInput).not.toContain('<other_xml>');
   });
 

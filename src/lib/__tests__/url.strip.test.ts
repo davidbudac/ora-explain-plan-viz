@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'fs';
+import { readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { parseExplainPlan } from '../parser';
-import { buildShareLink } from '../url';
+import { buildShareLink, stripUnusedXmlSections } from '../url';
 import type { SharePayload, ShareResult } from '../url';
 
-const REPORT = readFileSync(join(__dirname, '../../examples/23-sql_monitor-Window Sort Spill.txt'), 'utf-8');
+const EXAMPLES = join(__dirname, '../../examples');
+const FIXTURES = join(__dirname, '../parser/__tests__/fixtures');
+const REPORT = readFileSync(join(EXAMPLES, '23-sql_monitor-Window Sort Spill.txt'), 'utf-8');
+const XML_CAPTURES: Array<[string, string]> = [EXAMPLES, FIXTURES]
+  .flatMap((dir) => readdirSync(dir)
+    .filter((name) => name.endsWith('.txt'))
+    .map((name): [string, string] => [name, readFileSync(join(dir, name), 'utf-8')]))
+  .filter(([, text]) => /<sql_monitor_report|<plan_monitor/i.test(text));
 
 /** Builder that accepts only payloads whose plan text passes `fits`, and records what it accepted. */
 function budgetBuilder(fits: (rawInput: string) => boolean) {
@@ -18,19 +25,9 @@ function budgetBuilder(fits: (rawInput: string) => boolean) {
   return { build, accepted };
 }
 
-/** What the views read from a SQL Monitor XML plan. */
-function viewData(text: string) {
-  const plan = parseExplainPlan(text);
-  return {
-    sqlText: plan.sqlText,
-    activityTimeline: plan.activityTimeline,
-    outlineHints: plan.outlineHints,
-    planInfo: plan.planInfo,
-    notes: plan.notes,
-    nodes: plan.allNodes.map(({ id, activityPercent, actualRows, actualTime, tempUsed }) => ({
-      id, activityPercent, actualRows, actualTime, tempUsed,
-    })),
-  };
+/** Everything the app reads from a plan. */
+function parsed(text: string): unknown {
+  return JSON.parse(JSON.stringify(parseExplainPlan(text)));
 }
 
 describe('share link for a SQL Monitor XML report over the size limit', () => {
@@ -44,7 +41,13 @@ describe('share link for a SQL Monitor XML report over the size limit', () => {
     // The report's activity_detail holds 9 one-sample buckets; its outline_data holds 8 hints.
     expect(plan.activityTimeline?.samples.reduce((sum, sample) => sum + sample.count, 0)).toBe(9);
     expect(plan.outlineHints).toHaveLength(8);
-    expect(viewData(shared)).toEqual(viewData(REPORT));
+    expect(parsed(shared)).toEqual(parsed(REPORT));
+  });
+
+  it.each(XML_CAPTURES)('drops nothing the app reads from %s', (_name, text) => {
+    const stripped = stripUnusedXmlSections(text);
+    expect(stripped.length).toBeLessThan(text.length);
+    expect(parsed(stripped)).toEqual(parsed(text));
   });
 
   it('names what the recipient loses when only the last-resort strip fits', async () => {
