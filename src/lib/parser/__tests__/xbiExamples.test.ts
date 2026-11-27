@@ -105,6 +105,24 @@ describe('xbi estimates against actual rows', () => {
   });
 });
 
+describe('xbi I/O', () => {
+  const query = loadExample('XBI TPC-DS Query');
+  const tempTable = loadExample('XBI TPC-DS Temp Table');
+  const byId = (plan: ParsedPlan, id: number) => plan.allNodes.find((n) => n.id === id)!;
+
+  it('reports each line’s buffer gets and reads including its children, like DBMS_XPLAN Buffers / Reads', () => {
+    // xbi.sql prints per-line own gets: ITEM 10,374 + index 866 under NESTED LOOPS 6, rowid fetch 112,515 under 5.
+    expect(byId(query, 9).logicalReads).toBe(112515);
+    expect(byId(query, 6).logicalReads).toBe(10374 + 866);
+    expect(byId(query, 5).logicalReads).toBe(10374 + 866 + 112515);
+    expect(byId(query, 5).physicalReads).toBe(77 + 9314);
+    expect(byId(query, 0).logicalReads).toBe(125211);
+    // TEMP TABLE TRANSFORMATION holds every line below the root, so it equals the plan totals row.
+    expect(byId(tempTable, 1).logicalReads).toBe(170271 + 2);
+    expect(byId(tempTable, 1).physicalReads).toBe(153524);
+  });
+});
+
 describe('xbi Row Source truncation', () => {
   const header = [
     ' Pred    Op  Par.  #Sib                              Query Block             ms spent in Consistent  Rowsource  Real #rows     Est. rows',
