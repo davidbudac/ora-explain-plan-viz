@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { SAMPLE_PLANS } from '../../examples';
 import { computeSelectionStats, outermostNodes } from '../selectionStats';
 import { computeSelfCosts, computeSelfTimes } from '../analysis';
+import { parsePlan } from '../parser';
 import type { ParsedPlan, PlanNode } from '../types';
 
 function node(id: number, parentId: number | undefined, extra: Partial<PlanNode> = {}): PlanNode {
@@ -96,5 +98,31 @@ describe('computeSelectionStats on adaptive plans', () => {
     const stats = computeSelectionStats([join], allNodes, 'dbms_xplan');
     expect(stats.sumSelfBuffers).toBe(10); // 100 - 70 - 20, not 100 - 20
     expect(stats.sumSelfPhysicalReads).toBe(1); // 10 - 7 - 2, not 10 - 2
+  });
+});
+
+describe('computeSelectionStats on xbi.sql plans', () => {
+  // xbi.sql prints each line's own gets and reads, except the ">>> Plan totals >>>" root row.
+  const load = (name: string): ParsedPlan => parsePlan(SAMPLE_PLANS.find((p) => p.name === name)!.data);
+  const pick = (plan: ParsedPlan, ids: number[]) => plan.allNodes.filter((n) => ids.includes(n.id));
+  const query = load('XBI TPC-DS Query');
+  const tempTable = load('XBI TPC-DS Temp Table');
+
+  it('selecting every operation gives the plan totals row', () => {
+    const q = computeSelectionStats(query.allNodes, query.allNodes, query.source);
+    expect(q.sumSelfBuffers).toBe(125211);
+    expect(q.sumSelfPhysicalReads).toBe(9391);
+    const t = computeSelectionStats(tempTable.allNodes, tempTable.allNodes, tempTable.source);
+    expect(t.sumSelfBuffers).toBe(170271 + 2); // consistent + current gets
+    expect(t.sumSelfPhysicalReads).toBe(153524);
+  });
+
+  it('selecting part of the plan sums the gets xbi.sql printed for those lines', () => {
+    const subtree = pick(tempTable, [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+    expect(computeSelectionStats(subtree, tempTable.allNodes, tempTable.source).sumSelfBuffers).toBe(1 + 18 + 1 + 1 + 14966);
+    expect(computeSelectionStats(pick(tempTable, [10, 20]), tempTable.allNodes, tempTable.source).sumSelfBuffers).toBe(1 + 14966);
+    const rootAndLeaf = computeSelectionStats(pick(query, [0, 9]), query.allNodes, query.source);
+    expect(rootAndLeaf.sumSelfBuffers).toBe(112515);
+    expect(rootAndLeaf.sumSelfPhysicalReads).toBe(9314);
   });
 });

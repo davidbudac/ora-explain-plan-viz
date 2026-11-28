@@ -161,16 +161,14 @@ describe('computeEstimatedRowTotals', () => {
     expect(get(plan, 2).estimatedRowsTotal).toBe(10);
   });
 
-  it('keeps a total the parser already set and skips nodes without both numbers', () => {
+  it('skips nodes without both E-Rows and A-Rows', () => {
     const plan = buildPlan({
       id: 0, op: 'SELECT STATEMENT', kids: [
-        { id: 1, op: 'TABLE ACCESS FULL', rows: 3, actualRows: 9, starts: 3, estimatedRowsTotal: 7 },
-        { id: 2, op: 'TABLE ACCESS FULL', rows: 3, starts: 3 },
+        { id: 1, op: 'TABLE ACCESS FULL', rows: 3, starts: 3 },
       ],
     });
     computeEstimatedRowTotals(plan);
-    expect(get(plan, 1).estimatedRowsTotal).toBe(7);
-    expect(get(plan, 2).estimatedRowsTotal).toBeUndefined();
+    expect(get(plan, 1).estimatedRowsTotal).toBeUndefined();
   });
 });
 

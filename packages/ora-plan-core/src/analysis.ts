@@ -137,7 +137,6 @@ const lastChild = (node: PlanNode): PlanNode | undefined => node.children[node.c
  *   summed over slaves, so those still use E-Rows × Starts);
  * - below a COUNT STOPKEY where fewer rows than estimated were produced: early
  *   termination, not a misestimate, left undefined.
- * Values already set by a parser (e.g. XBI) are kept.
  */
 export function computeEstimatedRowTotals(plan: ParsedPlan): void {
   if (!plan.rootNode) return;
@@ -153,7 +152,6 @@ export function computeEstimatedRowTotals(plan: ParsedPlan): void {
 
   for (const node of plan.allNodes) {
     if (node.inactive) continue;
-    if (node.estimatedRowsTotal !== undefined) continue;
     if (node.actualRows === undefined || node.rows === undefined) continue;
     if (node.starts === 0) continue;
 

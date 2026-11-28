@@ -543,7 +543,9 @@ function buildTree(
   for (const row of rows) {
     const preds = predicates.get(row.id);
 
-    // Derive per-start estimated rows from total estimated rows
+    // "Est. rows total" is CARDINALITY × LAST_STARTS, an integer product, so the division is exact.
+    // The total itself is not kept: computeEstimatedRowTotals applies the partition, NLJ-batching
+    // and PX rules to the per-start figure, as for DBMS_XPLAN.
     let estimatedRows: number | undefined;
     if (row.estRowsTotal !== undefined && row.starts && row.starts > 0) {
       estimatedRows = Math.round(row.estRowsTotal / row.starts);
@@ -564,10 +566,6 @@ function buildTree(
       objectName: row.objectName,
       cost: row.cost,
       rows: estimatedRows,
-      // XBI reports the true total estimate; keep it exact instead of re-deriving
-      // it from the rounded per-start figure. A never-started row carries no signal.
-      estimatedRowsTotal:
-        row.actualRows !== undefined && row.starts !== 0 ? row.estRowsTotal : undefined,
       actualRows: row.actualRows,
       actualTime: row.selfElapsedMs,
       starts: row.starts,
@@ -596,8 +594,28 @@ function buildTree(
     }
   }
 
+  for (const node of allNodes) {
+    if (node.parentId === undefined) rollUpIo(node);
+  }
+
   // Root is id 0 or first node without a parent
   const rootNode = nodeMap.get(0) || allNodes.find(n => n.parentId === undefined) || allNodes[0] || null;
 
   return { rootNode, allNodes };
+}
+
+/**
+ * xbi.sql prints each line's own gets and reads (its value minus its children's), except line 0,
+ * which carries the plan total. Every other source reports them cumulatively, so add the children back.
+ */
+function rollUpIo(node: PlanNode): void {
+  for (const child of node.children) rollUpIo(child);
+  if (node.id === 0) return;
+  node.logicalReads = withChildren(node.logicalReads, node.children.map((c) => c.logicalReads));
+  node.physicalReads = withChildren(node.physicalReads, node.children.map((c) => c.physicalReads));
+}
+
+function withChildren(own: number | undefined, children: Array<number | undefined>): number | undefined {
+  if (own === undefined && children.every((c) => c === undefined)) return undefined;
+  return children.reduce<number>((sum, c) => sum + (c ?? 0), own ?? 0);
 }
