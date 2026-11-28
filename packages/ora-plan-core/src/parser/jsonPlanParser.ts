@@ -72,19 +72,24 @@ export function buildPlanFromRows(rows: Record<string, unknown>[], source: PlanS
   const normalized = rows.map(normalizeKeys);
 
   const allNodes: PlanNode[] = [];
-  const nodeMap = new Map<number, PlanNode>();
+  const positions = new Map<PlanNode, number>();
 
   for (const row of normalized) {
     const node = parseJsonOperation(row);
     if (node) {
-      nodeMap.set(node.id, node);
       allNodes.push(node);
+      const position = getInt(row, 'position');
+      if (position !== undefined) positions.set(node, position);
     }
   }
 
   if (allNodes.length === 0) {
     return emptyPlan(source);
   }
+
+  // Exports may be sorted any way; plan IDs are the pre-order the tree and advisor rely on.
+  allNodes.sort((a, b) => a.id - b.id);
+  const nodeMap = new Map(allNodes.map(n => [n.id, n]));
 
   // Build parent-child relationships
   for (const node of allNodes) {
@@ -93,6 +98,12 @@ export function buildPlanFromRows(rows: Record<string, unknown>[], source: PlanS
       if (parent) {
         parent.children.push(node);
       }
+    }
+  }
+  // POSITION is the child's input order (build side first); without it, ID order stands.
+  for (const node of allNodes) {
+    if (node.children.length > 1 && node.children.every(c => positions.has(c))) {
+      node.children.sort((a, b) => positions.get(a)! - positions.get(b)!);
     }
   }
 
@@ -121,9 +132,6 @@ export function buildPlanFromRows(rows: Record<string, unknown>[], source: PlanS
   const maxActualRows = Math.max(...allNodes.map(n => n.actualRows || 0), 0);
   const maxStarts = Math.max(...allNodes.map(n => n.starts || 0), 0);
 
-  // Total elapsed time: root node's actualTime or sum heuristic
-  const totalElapsedTime = rootNode?.actualTime || 0;
-
   // Try to extract plan hash from the data (some scripts include it as metadata)
   const planHashValue = normalizePlanHash(
     getStr(normalized[0], 'plan_hash_value') || getStr(normalized[0], 'plan_hash'),
@@ -145,7 +153,7 @@ export function buildPlanFromRows(rows: Record<string, unknown>[], source: PlanS
     maxStarts: hasActualStats ? maxStarts : undefined,
     source,
     hasActualStats,
-    totalElapsedTime,
+    totalElapsedTime: rootNode?.actualTime,
   };
 }
 
@@ -265,6 +273,7 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
 
   // Object info
   const objectName = getStr(row, 'object_name');
+  const objectOwner = unquote(getStr(row, 'object_owner'));
   // V$SQL_PLAN quotes aliases ("P"@"SEL$1"); the other parsers store them without quotes
   const objectAlias = unquote(getStr(row, 'object_alias'));
 
@@ -281,8 +290,9 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
   // Workarea sizes (LAST_MEMORY_USED, ESTIMATED_*_SIZE) are bytes in these views,
   // although the Oracle reference says KB (verified on 19c against DBMS_XPLAN OMem/1Mem/Used-Mem).
   const memoryUsed = getInt(row, 'actual_memory_used', 'last_memory_used', 'max_memory', 'used_mem');
-  // LAST_TEMPSEG_SIZE is bytes.
-  const tempUsed = getInt(row, 'actual_tempseg_size', 'last_tempseg_size', 'max_tempseg_size', 'used_tmp');
+  // LAST_TEMPSEG_SIZE is bytes, null when the last execution stayed in memory. MAX_TEMPSEG_SIZE is the
+  // largest spill of any execution, so it never stands in for the last one.
+  const tempUsed = getInt(row, 'actual_tempseg_size', 'last_tempseg_size', 'used_tmp');
   const physicalReads = getInt(row, 'actual_disk_reads', 'last_disk_reads', 'physical_reads');
   const physicalWrites = getInt(row, 'actual_disk_writes', 'last_disk_writes', 'disk_writes', 'physical_writes');
   const logicalReads = getBufferGets(row);
@@ -331,6 +341,7 @@ function parseJsonOperation(row: Record<string, unknown>): PlanNode | null {
     depth,
     operation: fullOperation,
     objectName,
+    objectOwner,
     objectAlias,
     queryBlock,
     rows,

@@ -766,7 +766,7 @@ SQL&gt; @gather_plan_metadata.sql LIST "HR.EMPLOYEES,HR.DEPARTMENTS"</code></pre
       </p>
 
       <h3>2. Attach it</h3>
-      <p>Drop the JSON onto the input area, paste it there or into the gather dialog, or use <em>Attach metadata</em> in the input drawer. You can paste the whole terminal output: prompts, markers and status lines around the JSON are removed automatically, and line breaks the script or the terminal put inside the JSON are rejoined. A chip shows the bundle is paired with the plan (the pairing checks the SQL ID and plan hash, and warns on a mismatch).</p>
+      <p>Drop the JSON onto the input area, paste it there or into the gather dialog, or use <em>Attach metadata</em> in the input drawer. You can paste the whole terminal output: prompts, markers and status lines around the JSON are removed automatically, and line breaks the script or the terminal put inside the JSON are rejoined. A chip shows the bundle is paired with the plan: it goes to the tab with the bundle's SQL ID, preferring the one whose plan hash matches, and warns when none does. Plan lines find their objects by name, and by schema when the plan records it (V$SQL_PLAN JSON/CSV <code>OBJECT_OWNER</code>); a bare name that several schemas in the bundle share is left unmatched rather than guessed.</p>
 
       <h3>3. What changes</h3>
       <ul>

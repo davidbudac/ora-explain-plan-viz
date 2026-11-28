@@ -87,7 +87,7 @@ export function ruleCtx(plan: ParsedPlan, bundle: MetadataBundle | null = null):
     plan,
     bundle,
     thresholds: DEFAULT_THRESHOLDS,
-    findObject: (name) => (bundle ? findObjectInBundle(bundle, name) : null),
+    findObject: (name, owner) => (bundle ? findObjectInBundle(bundle, name, owner) : null),
     usedIndexKeys: bundle ? findUsedIndexKeys(bundle, plan.allNodes) : new Set(),
   };
 }

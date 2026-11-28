@@ -18,7 +18,7 @@ export const unusedIndexRule: AdvisorRule = {
       if (!FULL_SCAN_RE.test(node.operation.toUpperCase())) continue;
       if (!node.accessPredicates && !node.filterPredicates) continue;
 
-      const match = ctx.findObject(node.objectName);
+      const match = ctx.findObject(node.objectName, node.objectOwner);
       if (!match || match.object.type !== 'TABLE') continue;
 
       // Only columns of this operation's own alias that a predicate can drive an index with:

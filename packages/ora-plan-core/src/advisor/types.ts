@@ -13,7 +13,7 @@ export interface Finding {
   suggestion: string;
 }
 
-export type FindObjectFn = (objectName: string | undefined) => { key: string; object: MetadataObject } | null;
+export type FindObjectFn = (objectName: string | undefined, objectOwner?: string) => { key: string; object: MetadataObject } | null;
 
 export interface RuleContext {
   plan: ParsedPlan;

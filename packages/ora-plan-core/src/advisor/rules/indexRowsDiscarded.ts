@@ -46,7 +46,7 @@ export const indexRowsDiscardedRule: AdvisorRule = {
       .slice(0, maxFindingsPerRule);
 
     return hits.map(({ table, index, indexRows, tableRows, discarded }) => {
-      const indexMatch = ctx.findObject(index.objectName);
+      const indexMatch = ctx.findObject(index.objectName, index.objectOwner);
       const indexColumns = indexMatch && indexMatch.object.type === 'INDEX' ? indexMatch.object.columns : undefined;
       const filterColumns = extractQuotedColumns(table.filterPredicates).map((c) => c.column);
       const missing = indexColumns ? filterColumns.filter((c) => !indexColumns.includes(c)) : filterColumns;

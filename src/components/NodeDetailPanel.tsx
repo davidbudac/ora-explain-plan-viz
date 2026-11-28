@@ -839,7 +839,7 @@ export function NodeDetailBody() {
       <MetadataSection
         bundle={metadataBundle}
         bundleWarning={metadataBundleWarning}
-        match={metadataBundle ? findObjectInBundle(metadataBundle, node.objectName) : null}
+        match={metadataBundle ? findObjectInBundle(metadataBundle, node.objectName, node.objectOwner) : null}
         objectName={node.objectName}
         accessPredicates={node.accessPredicates}
         filterPredicates={node.filterPredicates}

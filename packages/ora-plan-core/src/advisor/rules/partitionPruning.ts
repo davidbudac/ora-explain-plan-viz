@@ -16,7 +16,7 @@ function scansUnder(node: PlanNode): PlanNode[] {
 
 /** Partition (and subpartition) key columns for the object a scan reads, from the metadata bundle. */
 function partitionKeyOf(ctx: RuleContext, scan: PlanNode): { key: string[]; tableName?: string } {
-  const match = ctx.findObject(scan.objectName);
+  const match = ctx.findObject(scan.objectName, scan.objectOwner);
   if (!match) return { key: [] };
   if (match.object.type === 'TABLE') {
     const { partition_key = [], subpartition_key = [] } = match.object.stats;

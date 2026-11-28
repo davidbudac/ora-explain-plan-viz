@@ -68,7 +68,7 @@ interface SelectedObjects {
 function selectObjects(bundle: MetadataBundle, plan: ParsedPlan): SelectedObjects {
   const keys = new Set<string>();
   for (const node of plan.allNodes) {
-    const found = findObjectInBundle(bundle, node.objectName);
+    const found = findObjectInBundle(bundle, node.objectName, node.objectOwner);
     if (found) keys.add(found.key);
   }
   for (const key of [...keys]) {

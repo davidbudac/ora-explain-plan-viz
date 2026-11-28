@@ -22,7 +22,7 @@ export const statsIssuesRule: AdvisorRule = {
     const groups = new Map<string, { object: MetadataObject; nodeIds: number[]; nodes: PlanNode[] }>();
 
     for (const node of ctx.plan.allNodes) {
-      const match = ctx.findObject(node.objectName);
+      const match = ctx.findObject(node.objectName, node.objectOwner);
       if (!match || match.object.type !== 'TABLE') continue;
       const group = groups.get(match.key);
       if (group) {

@@ -22,11 +22,11 @@ const CACHE = new WeakMap<ParsedPlan, CacheEntry>();
 
 function buildFindObject(bundle: MetadataBundle | null): FindObjectFn {
   const memo = new Map<string, ReturnType<typeof findObjectInBundle>>();
-  return (objectName: string | undefined) => {
+  return (objectName: string | undefined, objectOwner?: string) => {
     if (!bundle) return null;
-    const key = objectName ?? '';
+    const key = `${objectOwner ?? ''}.${objectName ?? ''}`;
     if (memo.has(key)) return memo.get(key) ?? null;
-    const result = findObjectInBundle(bundle, objectName);
+    const result = findObjectInBundle(bundle, objectName, objectOwner);
     memo.set(key, result);
     return result;
   };
