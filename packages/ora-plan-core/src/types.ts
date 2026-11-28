@@ -129,7 +129,12 @@ export interface ParsedPlan {
   sqlId?: string;
   childNumber?: number;       // cursor child number (DISPLAY_CURSOR header "SQL_ID x, child number N")
   sqlText?: string;
-  totalElapsedTime?: number;  // total execution time in milliseconds
+  /**
+   * Elapsed time in milliseconds. SQL Monitor: summed over the query coordinator and every PX server
+   * (Global Stats / <stats type="monitor"> elapsed_time), so a parallel statement's exceeds its
+   * wall clock, which is `monitorMetadata.duration`. Other sources: the root's cumulative A-Time.
+   */
+  totalElapsedTime?: number;
   /**
    * True when each operation's `actualTime` is SQL Monitor's active WINDOW (whole seconds from its
    * first to its last activity, minimum 1 s) instead of a measured, cumulative A-Time. Windows of a
@@ -207,7 +212,7 @@ export interface ParallelServer {
 export interface SqlMonitorMetadata {
   // Execution summary
   status?: string;
-  duration?: number;            // wall clock seconds
+  duration?: number;            // wall clock seconds (the report's Duration)
   sqlExecStart?: string;
   sqlExecId?: string;
 

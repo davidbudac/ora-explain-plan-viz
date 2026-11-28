@@ -97,8 +97,11 @@ export const sqlMonitorTextParser: PlanParser = {
     const maxStarts = Math.max(...activeNodes.map(node => node.starts || 0), 0);
     const hasActualStats = allNodes.some(node => node.actualRows !== undefined);
 
-    // A-Time is cumulative: root node's actualTime is the total elapsed time
-    const totalElapsedTime = rootNode?.actualTime || 0;
+    // A report's per-operation time is an active window, so its elapsed time comes from Global Stats.
+    // A bare A-Rows table carries a cumulative A-Time: the root's is the total.
+    const isReport = SQL_MONITOR_MARKERS.test(input);
+    const totalElapsedTime = isReport ? parseGlobalStatsElapsedMs(lines) : rootNode?.actualTime;
+    const monitorMetadata = isReport ? parseGlobalInformation(lines) : undefined;
 
     // Parse the trailing "Note" section, if present.
     const notes = parseNoteSection(lines);
@@ -136,9 +139,10 @@ export const sqlMonitorTextParser: PlanParser = {
       source: 'sql_monitor_text',
       hasActualStats,
       totalElapsedTime,
+      monitorMetadata,
       // A real SQL Monitor report's time column is "Time Active(s)". A bare A-Rows table (no
       // report markers) carries a true, cumulative A-Time instead.
-      timeIsActiveWindow: SQL_MONITOR_MARKERS.test(input) || undefined,
+      timeIsActiveWindow: isReport || undefined,
       notes,
     };
   },
@@ -220,6 +224,8 @@ interface RawSqlMonitorRow {
   ioWriteRequests?: number;
   ioWriteBytes?: number;
   activityPercent?: number;
+  /** "Start Active": seconds from the start of the execution to the operation's first activity. */
+  startActive?: number;
   depth: number;
   /** Adaptive-plan row marked '-' in the Id column. */
   inactive: boolean;
@@ -269,6 +275,7 @@ interface SqlMonitorColumnPositions {
   cost?: { start: number; end: number };
   aRows?: { start: number; end: number };
   aTime?: { start: number; end: number };
+  startActive?: { start: number; end: number };
   starts?: { start: number; end: number };
   memory?: { start: number; end: number };
   temp?: { start: number; end: number };
@@ -421,8 +428,9 @@ function parseSqlMonitorColumnPositions(
       if (segment === 'starts' || segment === 'execs') {
         cols.starts = { start, end };
         startsSeen = true;
+      } else {
+        cols.startActive = { start, end };
       }
-      // "Start Active" is a start-time marker, not a count — ignore
     } else if (segment === 'start' && !startsSeen && !sub) {
       cols.starts = { start, end };
       startsSeen = true;
@@ -511,6 +519,11 @@ function parseSqlMonitorDataRow(line: string, columns: SqlMonitorColumnPositions
     if (val !== null) row.starts = val;
   }
 
+  if (columns.startActive) {
+    const match = line.substring(columns.startActive.start, columns.startActive.end).trim().match(/^\+?(\d+)$/);
+    if (match) row.startActive = parseInt(match[1], 10);
+  }
+
   if (columns.memory) {
     // Used-Mem may carry its pass count ("1385K (0)"); the count is ignored here
     const val = parseUsedMem(line.substring(columns.memory.start, columns.memory.end));
@@ -571,6 +584,45 @@ function calculateDepth(operationStr: string): number {
   return Math.floor(spaces / 1);
 }
 
+/** "Global Information" fields (" Status : DONE (ALL ROWS)", " Duration : 13s"): the statement's wall clock. */
+function parseGlobalInformation(lines: string[]): SqlMonitorMetadata | undefined {
+  const start = lines.findIndex((line) => /^\s*Global Information\s*$/i.test(line));
+  if (start < 0) return undefined;
+  const fields = new Map<string, string>();
+  for (let i = start + 1; i < lines.length; i++) {
+    if (/^\s*-+\s*$/.test(lines[i])) continue;
+    const match = lines[i].match(/^\s*([A-Za-z][\w /]*?)\s*:\s*(.*?)\s*$/);
+    if (!match) break;
+    fields.set(match[1].toLowerCase(), match[2]);
+  }
+  const meta: SqlMonitorMetadata = {};
+  const status = fields.get('status');
+  if (status) meta.status = status;
+  const duration = fields.get('duration')?.match(/^(\d+(?:\.\d+)?|\.\d+)\s*s$/i);
+  if (duration) meta.duration = parseFloat(duration[1]);
+  return Object.keys(meta).length > 0 ? meta : undefined;
+}
+
+/**
+ * "Global Stats" Elapsed Time(s) in ms: the statement's elapsed time summed over every process
+ * (query coordinator and PX servers), so more than its Duration when it ran in parallel.
+ */
+function parseGlobalStatsElapsedMs(lines: string[]): number | undefined {
+  const start = lines.findIndex((line) => /^\s*Global Stats\s*$/i.test(line));
+  if (start < 0) return undefined;
+  const rows: string[][] = [];
+  for (let i = start + 1; i < lines.length && rows.length < 3; i++) {
+    const line = lines[i].trim();
+    if (line.startsWith('|')) rows.push(line.split('|').map((cell) => cell.trim()));
+    else if (!/^=+$/.test(line)) break;
+  }
+  if (rows.length < 3) return undefined;
+  const [names, units, values] = rows;
+  const col = names.findIndex((name, i) => /^elapsed$/i.test(name) && /^time\(s\)$/i.test(units[i] ?? ''));
+  const cell = col >= 0 ? values[col] : undefined;
+  return cell && /^(\d+(?:\.\d+)?|\.\d+)$/.test(cell) ? parseFloat(cell) * 1000 : undefined;
+}
+
 function buildTree(
   rows: RawSqlMonitorRow[],
   predicates: Map<number, NodePredicates>,
@@ -606,6 +658,11 @@ function buildTree(
       ioWriteRequests: row.ioWriteRequests,
       ioWriteBytes: row.ioWriteBytes,
       activityPercent: row.activityPercent,
+      // Time Active(s) counts the seconds from first to last activity, both included (as XML's "duration").
+      firstActiveOffset: row.startActive,
+      lastActiveOffset: row.startActive !== undefined && row.actualTime !== undefined
+        ? row.startActive + Math.max(1, Math.round(row.actualTime / 1000)) - 1
+        : undefined,
       accessPredicates: preds?.access,
       filterPredicates: preds?.filter,
       storagePredicates: preds?.storage,
@@ -767,10 +824,11 @@ function parseRealOracleXml(doc: Document): ParsedPlan {
   const maxActualRows = Math.max(...activeNodes.map(node => node.actualRows || 0), 0);
   const maxStarts = Math.max(...activeNodes.map(node => node.starts || 0), 0);
   const hasActualStats = allNodes.some(node => node.actualRows !== undefined);
-  // Global elapsed time in milliseconds (Oracle stores in microseconds)
-  const totalElapsedTime = globalElapsedTimeUs
+  // Global elapsed time in milliseconds (Oracle stores microseconds), summed over the QC and every
+  // PX server. The statement's wall clock is the target <duration>.
+  const totalElapsedTime = globalElapsedTimeUs !== undefined
     ? globalElapsedTimeUs / 1000
-    : (rootNode?.actualTime || 0);
+    : (timeIsActiveWindow ? undefined : rootNode?.actualTime);
 
   // Parse bind variables
   const bindVariables = parseBindVariables(doc);

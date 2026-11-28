@@ -16,7 +16,7 @@
 // children one after the other.
 
 import type { ActivitySample, ParsedPlan, PlanNode } from './types.ts';
-import { effectiveChildren } from './analysis.ts';
+import { computeHottestNodeId, effectiveChildren, usesActivityRanking } from './analysis.ts';
 import {
   cardinalityRatioSeverity,
   formatBytes,
@@ -110,13 +110,17 @@ export interface ReplayScript {
   chapters: ReplayChapter[];
   ash?: ReplayAshIndex;
   hotspotId?: number;
-  elapsedMs?: number;
+  /** Wall-clock duration of the statement (SQL Monitor's Duration, else the root's A-Time). */
+  durationMs?: number;
+  /** SQL Monitor took the report before the statement finished (status other than DONE…). */
+  stillRunning?: boolean;
 }
 
 // ---------------------------------------------------------------------------
 // Curves and state
 // ---------------------------------------------------------------------------
 
+/** Value at t; at a step (two points at the same t) the value after it. */
 export function curveValueAt(curve: ReplayCurve, t: number): number {
   if (curve.length === 0) return 0;
   if (t <= curve[0][0]) return curve[0][1];
@@ -124,9 +128,8 @@ export function curveValueAt(curve: ReplayCurve, t: number): number {
   if (t >= last[0]) return last[1];
   for (let i = 1; i < curve.length; i++) {
     const [t1, v1] = curve[i];
-    if (t <= t1) {
+    if (t < t1) {
       const [t0, v0] = curve[i - 1];
-      if (t1 === t0) return v1;
       return v0 + ((v1 - v0) * (t - t0)) / (t1 - t0);
     }
   }
@@ -211,8 +214,18 @@ function driverIndex(node: PlanNode, kind: ReplayOpKind, kids: PlanNode[]): numb
 // Tier detection
 // ---------------------------------------------------------------------------
 
+/** Whole seconds stay whole: SQL Monitor's Duration has no more precision than that. */
 function formatMs(ms: number): string {
-  return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`;
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  const s = ms / 1000;
+  return Number.isInteger(s) ? `${s} s` : `${s.toFixed(1)} s`;
+}
+
+/** SQL Monitor reports carry the statement's wall clock separately from their per-process elapsed time. */
+function statementDurationMs(plan: ParsedPlan): number | undefined {
+  if (!plan.timeIsActiveWindow && !plan.monitorMetadata) return plan.totalElapsedTime;
+  const seconds = plan.monitorMetadata?.duration;
+  return seconds === undefined ? undefined : seconds * 1000;
 }
 
 function detectTier(plan: ParsedPlan, nodes: PlanNode[]): { tier: ReplayTier; reason: string } {
@@ -232,7 +245,7 @@ function detectTier(plan: ParsedPlan, nodes: PlanNode[]): { tier: ReplayTier; re
         reason: `Real time: SQL Monitor active windows (1 s granularity)${samples ? ` and ${samples} ASH samples` : ''}.`,
       };
     }
-    const ms = plan.totalElapsedTime;
+    const ms = statementDurationMs(plan);
     return {
       tier: 'weighted',
       reason: `Order from Oracle's row-source semantics; durations from A-Rows and Starts. The report is too short for real timing${ms !== undefined ? ` (${formatMs(ms)})` : ''}.`,
@@ -400,13 +413,15 @@ export function buildReplayScript(plan: ParsedPlan): ReplayScript | null {
     ? scheduleMeasured(root, kidsOf, tracks)
     : schedulePhases(root, kidsOf, tracks, rawWork);
 
-  // Work share.
-  if (tier === 'measured') {
-    const sum = nodes.reduce((a, n) => a + (n.activityPercent ?? 0), 0);
+  // Work share. ASH activity says where the time went, however the animation is paced.
+  const byActivity = usesActivityRanking(plan);
+  if (byActivity) {
+    for (const n of nodes) tracks.get(n.id)!.work = (n.activityPercent ?? 0) / 100;
+  } else if (tier === 'measured') {
     for (const n of nodes) {
       const tr = tracks.get(n.id)!;
       const win = tr.spans.length ? tr.spans[tr.spans.length - 1].to - tr.spans[0].from : 0;
-      tr.work = sum > 0 ? (n.activityPercent ?? 0) / sum : win / Math.max(1, duration);
+      tr.work = win / Math.max(1, duration);
     }
   } else {
     const total = [...rawWork.values()].reduce((a, b) => a + b, 0) || 1;
@@ -417,11 +432,16 @@ export function buildReplayScript(plan: ParsedPlan): ReplayScript | null {
 
   const order = nodes.map((n) => tracks.get(n.id)!);
   let hotspotId: number | undefined;
-  let best = -1;
-  for (const tr of order) {
-    if (tr.work > best) {
-      best = tr.work;
-      hotspotId = tr.id;
+  if (byActivity) {
+    const hottest = computeHottestNodeId(plan);
+    if (hottest !== null && tracks.has(hottest)) hotspotId = hottest;
+  } else {
+    let best = -1;
+    for (const tr of order) {
+      if (tr.work > best) {
+        best = tr.work;
+        hotspotId = tr.id;
+      }
     }
   }
 
@@ -435,7 +455,8 @@ export function buildReplayScript(plan: ParsedPlan): ReplayScript | null {
     tracks,
     chapters: [],
     hotspotId,
-    elapsedMs: plan.totalElapsedTime,
+    durationMs: statementDurationMs(plan),
+    stillRunning: plan.monitorMetadata?.status !== undefined && !/^DONE/i.test(plan.monitorMetadata.status),
   };
   if (tier === 'measured' && plan.activityTimeline) script.ash = indexAsh(plan);
   script.chapters = buildChapters(script, hasActual);
@@ -624,14 +645,19 @@ function buildCurves(tr: ReplayTrack, hasActual: boolean) {
   tr.firstActive = spans[0].from;
   tr.lastActive = spans[spans.length - 1].to;
 
-  // Rows: spread over the emitting spans by duration.
+  // Rows: the first one leaves as the operation starts emitting, the rest spread over the emitting spans.
   const out = spans.filter((s) => s.role === 'emit' || s.role === 'drain');
   const outDur = out.reduce((a, s) => a + (s.to - s.from), 0) || 1;
+  const firstRow = Math.min(1, tr.rowsTotal);
   const emit: ReplayCurve = [[0, 0]];
   let acc = 0;
   for (const s of out) {
     emit.push([s.from, acc]);
-    acc += (tr.rowsTotal * (s.to - s.from)) / outDur;
+    if (acc === 0 && firstRow > 0) {
+      acc = firstRow;
+      emit.push([s.from, acc]);
+    }
+    acc += ((tr.rowsTotal - firstRow) * (s.to - s.from)) / outDur;
     emit.push([s.to, acc]);
   }
   tr.emit = emit;
@@ -760,7 +786,6 @@ const CHAPTER_ORDER: Record<ReplayChapterKind, number> = {
 function buildChapters(script: ReplayScript, hasActual: boolean): ReplayChapter[] {
   const chapters: ReplayChapter[] = [];
   const { tracks, duration } = script;
-  const fmtT = (t: number) => (script.unit === 's' ? `${t.toFixed(1)} s` : `${Math.round(t)}% of the work`);
   const root = tracks.get(script.rootId)!;
   const parentFocus = (tr: ReplayTrack) => (tr.parentId !== undefined ? [tr.parentId] : []);
 
@@ -863,25 +888,35 @@ function buildChapters(script: ReplayScript, hasActual: boolean): ReplayChapter[
     });
   });
 
-  // First row to the client.
+  // First row to the client. SQL Monitor times are whole seconds: script time [n, n + 1) is second +n.
   const firstRowT = curveTimeWhen(root.emit, 1);
   if (firstRowT !== undefined) {
+    const recorded = script.unit === 's' ? root.node.firstRowOffset : undefined;
+    const when = recorded !== undefined
+      ? `${Math.round(recorded)} s after the start (SQL Monitor records it to the second)`
+      : script.unit === 's'
+        ? `about ${Math.floor(firstRowT)} s after the start (inferred: the report has no first-row time)`
+        : `at about ${Math.round(firstRowT)}% of the work (inferred from the row-source order)`;
     chapters.push({
       t: firstRowT,
       kind: 'first-row',
       title: 'First row to the client',
-      caption: `The first row reaches the client at ${fmtT(firstRowT)}${firstRowT > duration * 0.5 ? '. Late: something below had to finish first' : ''}.`,
+      caption: `The first row reaches the client ${when}${firstRowT > duration * 0.5 ? '. Late: something below had to finish first' : ''}.`,
       focus: [root.id, ...root.childIds],
     });
   }
 
   const hot = script.hotspotId !== undefined ? tracks.get(script.hotspotId) : undefined;
-  const elapsed = script.elapsedMs;
+  const rows = `${n0(root.rowsTotal)} row${root.rowsTotal === 1 ? '' : 's'}`;
+  const took = script.durationMs !== undefined ? formatMs(script.durationMs) : undefined;
+  const outcome = script.stillRunning
+    ? `Still executing when the report was taken${took ? `, ${took} in` : ''}: ${rows} so far.`
+    : `${rows} returned${took ? ` in ${took}` : ''}.`;
   chapters.push({
     t: duration,
     kind: 'done',
-    title: 'Done',
-    caption: `${n0(root.rowsTotal)} row${root.rowsTotal === 1 ? '' : 's'} returned${elapsed ? ` in ${formatMs(elapsed)}` : ''}.${hot ? ` Most of the work: #${hot.id} ${hot.label} (${Math.round(hot.work * 100)}%).` : ''}`,
+    title: script.stillRunning ? 'End of the report' : 'Done',
+    caption: `${outcome}${hot ? ` Most of the work: #${hot.id} ${hot.label} (${Math.round(hot.work * 100)}%).` : ''}`,
     focus: hot ? [hot.id] : [root.id],
   });
 

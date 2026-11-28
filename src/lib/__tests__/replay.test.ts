@@ -180,6 +180,101 @@ describe('buildReplayScript: what is replayed', () => {
   });
 });
 
+describe('buildReplayScript: SQL Monitor statement duration', () => {
+  const example = (name: string) => script(parsePlan(SAMPLE_PLANS.find((x) => x.name.includes(name))!.data));
+  const done = (s: ReplayScript) => s.chapters.find((c) => c.kind === 'done')!;
+
+  it('ends a text report with its Global Information Duration, not the root active window', () => {
+    // Duration : 13s; the root's Time Active(s) is 1.
+    expect(done(example('Exadata Cell Offload')).caption).toMatch(/^1 row returned in 13 s\./);
+  });
+
+  it('ends an XML report with its target duration, not the elapsed time summed over PX processes', () => {
+    // <duration>.0861</duration>; the global elapsed_time of 325716 µs adds up the QC and 8 PX servers.
+    const s = example('Partitioned Star Query');
+    expect(done(s).caption).toMatch(/^120 rows returned in 86 ms\./);
+    expect(s.tierReason).toContain('(86 ms)');
+  });
+
+  it('does not report a completion for a statement still executing when the report was taken', () => {
+    // Status : EXECUTING, Duration : 221s.
+    const caption = done(example('Skewed Parallel')).caption;
+    expect(caption).toMatch(/still executing/i);
+    expect(caption).toContain('221 s');
+    expect(caption).not.toMatch(/returned in/);
+  });
+
+  it('names no duration when the report has none', () => {
+    const text = SAMPLE_PLANS.find((x) => x.name.includes('Exadata Cell Offload'))!.data;
+    const lines = text.split('\n');
+    const from = lines.findIndex((l) => l.startsWith('Global Information'));
+    const to = lines.findIndex((l) => l.startsWith('Parallel Execution Details'));
+    const s = script(parsePlan([...lines.slice(0, from), ...lines.slice(to)].join('\n')));
+    expect(done(s).caption).toMatch(/^1 row returned\./);
+  });
+});
+
+describe('buildReplayScript: hotspot from measured activity', () => {
+  const example = (name: string) => script(parsePlan(SAMPLE_PLANS.find((x) => x.name.includes(name))!.data));
+  const done = (s: ReplayScript) => s.chapters.find((c) => c.kind === 'done')!;
+
+  it('names the operation with the most ASH activity, at its Activity %', () => {
+    // Activity (%): #4 SORT AGGREGATE 50.52, #5 PX BLOCK ITERATOR 45.36, #6 TABLE ACCESS STORAGE FULL 3.09.
+    const s = example('Exadata Cell Offload');
+    expect(s.hotspotId).toBe(4);
+    expect(done(s).caption).toContain('Most of the work: #4 SORT AGGREGATE (51%).');
+  });
+
+  it('places a text report on the timeline from its Start Active offsets', () => {
+    // | 4 | SORT AGGREGATE | ... | 13 | +1 |   | 0 | SELECT STATEMENT | ... | 1 | +13 |
+    const s = example('Exadata Cell Offload');
+    expect(s.tier).toBe('measured');
+    expect(s.unit).toBe('s');
+    expect(track(s, 4).firstActive).toBe(1);
+    expect(track(s, 0).firstActive).toBe(13);
+  });
+
+  it('takes the hotspot from activity even when the animation is paced by rows', () => {
+    const s = script(buildPlan({
+      id: 0, op: 'SELECT STATEMENT', actualRows: 10, starts: 1,
+      kids: [{
+        id: 1, op: 'HASH JOIN', rows: 10, actualRows: 10, starts: 1, activityPercent: 5,
+        kids: [
+          { id: 2, op: 'TABLE ACCESS FULL', objectName: 'DIM', rows: 100, actualRows: 100, starts: 1, activityPercent: 80 },
+          { id: 3, op: 'TABLE ACCESS FULL', objectName: 'FACT', rows: 1_000_000, actualRows: 1_000_000, starts: 1, activityPercent: 15 },
+        ],
+      }],
+    }));
+    expect(s.tier).toBe('weighted');
+    expect(s.hotspotId).toBe(2);
+    expect(done(s).caption).toContain('Most of the work: #2 TABLE ACCESS FULL DIM (80%).');
+  });
+});
+
+describe('buildReplayScript: first row to the client', () => {
+  const example = (name: string) => script(parsePlan(SAMPLE_PLANS.find((x) => x.name.includes(name))!.data));
+  const chapter = (s: ReplayScript, kind: string) => s.chapters.find((c) => c.kind === kind)!;
+
+  it('announces the recorded first-row time, inside the second SQL Monitor recorded it in', () => {
+    // sql_exec_start 18:51:54, root first_row 18:52:03: +9 s, to the second. Replay time [9, 10) is that second.
+    const s = example('Window Sort Spill');
+    const firstRow = chapter(s, 'first-row');
+    expect(firstRow.caption).toContain('9 s after the start');
+    expect(firstRow.caption).not.toMatch(/inferred/);
+    expect(firstRow.t).toBeGreaterThanOrEqual(9);
+    expect(firstRow.t).toBeLessThan(10);
+    expect(replayStateAt(track(s, 0), firstRow.t).rows).toBe(1);
+    expect(chapter(s, 'done').caption).toMatch(/^1 row returned in 9 s\./);
+  });
+
+  it('labels the first-row time inferred when the report did not record one', () => {
+    // Text report: the root is active in second +13 only, and the Duration is 13 s.
+    const firstRow = chapter(example('Exadata Cell Offload'), 'first-row');
+    expect(firstRow.caption).toContain('about 13 s after the start');
+    expect(firstRow.caption).toMatch(/inferred/);
+  });
+});
+
 describe('buildReplayScript on the bundled examples', () => {
   const scripts = SAMPLE_PLANS.map((sample) => ({ name: sample.name, s: buildReplayScript(parsePlan(sample.data)) }));
 
