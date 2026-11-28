@@ -164,20 +164,23 @@ export const dbmsXplanParser: PlanParser = {
       };
     }
 
+    // The section readers end a section at its first blank line, which a page heading would fake.
+    const sectionLines = dropPageBreaks(lines);
+
     // Parse predicate information
-    const predicates = parsePredicateSection(lines);
+    const predicates = parsePredicateSection(sectionLines);
 
     // Parse query block information
-    const queryBlocks = parseQueryBlockSection(lines);
+    const queryBlocks = parseQueryBlockSection(sectionLines);
 
     // ADVANCED sections: projection, remote SQL, hint report, outline, peeked binds
     const advanced: AdvancedNodeData = {
-      projection: parseProjectionSection(lines),
-      remoteSql: parseRemoteSqlSection(lines),
-      hintReport: parseHintReport(lines),
+      projection: parseProjectionSection(sectionLines),
+      remoteSql: parseRemoteSqlSection(sectionLines),
+      hintReport: parseHintReport(sectionLines),
     };
-    const outlineHints = parseOutlineSection(lines);
-    const peekedBinds = parsePeekedBinds(lines);
+    const outlineHints = parseOutlineSection(sectionLines);
+    const peekedBinds = parsePeekedBinds(sectionLines);
 
     // Build tree structure
     const { rootNode, allNodes } = buildTree(tableData, predicates, queryBlocks, advanced);
@@ -194,7 +197,7 @@ export const dbmsXplanParser: PlanParser = {
     const maxStarts = Math.max(...activeNodes.map(node => node.starts || 0), 0);
 
     // Parse the trailing "Note" section, if present.
-    const notes = parseNoteSection(lines);
+    const notes = parseNoteSection(sectionLines);
 
     const warnings: PlanWarning[] = textTableWarnings({
       lines,

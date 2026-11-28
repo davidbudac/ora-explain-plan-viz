@@ -79,6 +79,51 @@ describe('ADVANCED fixture (DISPLAY_CURSOR, 19c)', () => {
   });
 });
 
+describe('SQL*Plus page heading inside an ADVANCED section (19c fixture)', () => {
+  const PAGE_HEADING = ['', 'PLAN_TABLE_OUTPUT', '--------------------------------------------------------------------------------'];
+  const paginatedAfter = (lineNo: number): string => {
+    const out = ADVANCED.split('\n');
+    out.splice(lineNo, 0, ...PAGE_HEADING);
+    return out.join('\n');
+  };
+  const unpaginated = parsePlan(ADVANCED);
+  const perNode = (plan: ReturnType<typeof parsePlan>) =>
+    plan.allNodes.map((n) => ({
+      id: n.id,
+      operation: n.operation,
+      projection: n.projection,
+      hints: n.hints,
+      queryBlock: n.queryBlock,
+      objectAlias: n.objectAlias,
+      accessPredicates: n.accessPredicates,
+      filterPredicates: n.filterPredicates,
+    }));
+
+  it('keeps every outline hint when the heading falls inside Outline Data', () => {
+    expect(ADVANCED.split('\n')[89].trim()).toBe('OUTLINE_LEAF(@"SEL$11")');
+    const plan = parsePlan(paginatedAfter(90));
+    expect(plan.allNodes).toHaveLength(33);
+    expect(plan.warnings).toBeUndefined();
+    expect(plan.outlineHints).toHaveLength(58);
+    expect(plan.outlineHints).toEqual(unpaginated.outlineHints);
+  });
+
+  it.each([
+    ['Query Block Name / Object Alias', 60],
+    ['Peeked Binds', 148],
+    ['Predicate Information', 160],
+    ['Column Projection Information', 190],
+    ['Hint Report', 215],
+  ])('reads %s identically when the heading falls inside it', (_section, lineNo) => {
+    const plan = parsePlan(paginatedAfter(lineNo));
+    expect(plan.warnings).toBeUndefined();
+    expect(perNode(plan)).toEqual(perNode(unpaginated));
+    expect(plan.bindVariables).toEqual(unpaginated.bindVariables);
+    expect(plan.hintSummary).toEqual(unpaginated.hintSummary);
+    expect(plan.outlineHints).toEqual(unpaginated.outlineHints);
+  });
+});
+
 describe('plans without ADVANCED sections', () => {
   it('leave the new fields unset', () => {
     const plan = parsePlan(`Plan hash value: 1
