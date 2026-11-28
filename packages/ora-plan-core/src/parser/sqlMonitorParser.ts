@@ -56,6 +56,7 @@ export const sqlMonitorTextParser: PlanParser = {
 
     // Extract SQL ID if present
     const sqlId = extractSqlId(lines);
+    const sqlText = extractSqlText(lines);
     const childNumber = extractChildNumber(lines);
     const planHashValue = extractPlanHashValue(lines);
 
@@ -70,6 +71,7 @@ export const sqlMonitorTextParser: PlanParser = {
       return {
         planHashValue,
         sqlId,
+        sqlText,
         childNumber,
         warnings: emptyWarnings.length > 0 ? emptyWarnings : undefined,
         rootNode: null,
@@ -128,6 +130,7 @@ export const sqlMonitorTextParser: PlanParser = {
     return {
       planHashValue,
       sqlId,
+      sqlText,
       childNumber,
       rootNode,
       allNodes,
@@ -246,6 +249,24 @@ function extractSqlId(lines: string[]): string | undefined {
     if (match) return normalizeSqlId(match[1]);
   }
   return undefined;
+}
+
+const UNDERLINE = /^\s*[-=]{5,}\s*$/;
+
+/**
+ * The statement under the report's "SQL Text" heading. It runs up to the next heading (a line
+ * after a blank line, underlined with dashes or equals signs), so blank lines inside it stay.
+ */
+function extractSqlText(lines: string[]): string | undefined {
+  const start = lines.findIndex((line, i) => /^\s*SQL Text\s*$/i.test(line) && UNDERLINE.test(lines[i + 1] ?? ''));
+  if (start === -1) return undefined;
+  const body: string[] = [];
+  for (let i = start + 2; i < lines.length; i++) {
+    const isHeading = lines[i - 1].trim() === '' && lines[i].trim() !== '' && UNDERLINE.test(lines[i + 1] ?? '');
+    if (isHeading) break;
+    body.push(lines[i].trimEnd());
+  }
+  return body.join('\n').replace(/^\n+/, '').trimEnd() || undefined;
 }
 
 /** Cursor child number from a DISPLAY_CURSOR header ("SQL_ID  7ch0an9vx5ysp, child number 1"). */
@@ -706,6 +727,7 @@ interface PlanEstimates {
   rows?: number;
   bytes?: number;
   cost?: number;
+  tempSpace?: number;
   objectName?: string;
   objectAlias?: string;
   queryBlock?: string;
@@ -965,6 +987,11 @@ function parsePlanSection(doc: Document): Map<number, PlanEstimates> {
       estimates.cost = parseIntText(cost.textContent);
     }
 
+    const tempSpace = op.querySelector(':scope > temp_space');
+    if (tempSpace?.textContent) {
+      estimates.tempSpace = parseIntText(tempSpace.textContent);
+    }
+
     // Object name (simple text in <plan> section)
     const obj = op.querySelector(':scope > object');
     if (obj?.textContent && !obj.querySelector('name')) {
@@ -1144,6 +1171,7 @@ function parseMonitorOperation(
     actualTime: actualTimeMs,
     starts,
     memoryUsed: maxMemory,
+    tempSpace: estimates?.tempSpace,
     tempUsed: maxTempSeg,
     physicalReads: readReqs,
     logicalReads: bufferGets,
@@ -1202,6 +1230,7 @@ function parsePlanOnlyOperation(op: Element): PlanNode | null {
     rows: getDirectChildInt(op, 'card'),
     bytes: getDirectChildInt(op, 'bytes'),
     cost: getDirectChildInt(op, 'cost'),
+    tempSpace: getDirectChildInt(op, 'temp_space'),
     pstart: op.querySelector(':scope > partition')?.getAttribute('start') || undefined,
     pstop: op.querySelector(':scope > partition')?.getAttribute('stop') || undefined,
     children: [],

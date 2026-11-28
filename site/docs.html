@@ -505,7 +505,7 @@ SPOOL OFF</code></pre>
       <p>The raw input, kept verbatim, with the selected node's line highlighted. Handy for quoting in a ticket. It has its own search (<kbd>Enter</kbd> / <kbd>Shift</kbd>+<kbd>Enter</kbd> step through matches; the Filters search is highlighted too), line-number and wrap-lines toggles (persisted), a copy button, and clicking a line selects its operation in the other views.</p>
 
       <h3>SQL</h3>
-      <p>The full SQL statement with syntax highlighting and a copy button. Available when the input carries the SQL text (SQL Monitor XML, some JSON exports, metadata bundles).</p>
+      <p>The full SQL statement with syntax highlighting and a copy button. Available when the input carries the SQL text (SQL Monitor XML and text reports, some JSON exports, metadata bundles).</p>
       <p>With a 19c Hint Report, each hint in the <code>/*+ … */</code> comment is marked used, not used or syntax error (hover for Oracle's reason) and clicking it selects the operation Oracle reported it on. Below the statement, <em>Plan decisions</em> lists every decision in the outline (access path, join method, join order, transformations) and credits the ones your hints settled, so "3 of 5 decisions hinted" answers how much of the plan the hints pinned. In DB-connector builds, <em>Explain without hints</em> runs <code>EXPLAIN PLAN</code> for the statement with its hint comments removed on the test connection and loads the result as the second plan, so the Compare tab shows what the hints changed (indicative: EXPLAIN PLAN peeks no binds).</p>
 
       <h3>Metadata</h3>
