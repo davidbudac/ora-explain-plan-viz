@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useCallback, useState } from 'react';
 import { usePlan } from '../../hooks/usePlanContext';
 import { getCategoryPaint, getOperationCategory } from '../../lib/types';
 import type { PlanNode } from '../../lib/types';
-import { computeFlameLayout, getEffectiveFlameMetric } from '../../lib/flameLayout';
+import { computeFlameLayout, flameTimeMetric, getEffectiveFlameMetric } from '../../lib/flameLayout';
 import type { FlameRect } from '../../lib/flameLayout';
 import { formatNumberShort, formatTimeCompact } from '../../lib/format';
 import { matchesSearch } from '../../lib/filtering';
@@ -183,8 +183,10 @@ export function FlameView() {
   }
 
   const effectiveMetric = useMemo(
-    () => getEffectiveFlameMetric(flameMetric, parsedPlan?.hasActualStats ?? false),
-    [flameMetric, parsedPlan?.hasActualStats]
+    () => (parsedPlan
+      ? getEffectiveFlameMetric(flameMetric, parsedPlan.hasActualStats, flameTimeMetric(parsedPlan))
+      : 'cost'),
+    [flameMetric, parsedPlan]
   );
 
   const zoomRoot = useMemo(() => {
@@ -268,6 +270,9 @@ export function FlameView() {
       if (effectiveMetric === 'actualTime') {
         lines.push(`A-Time: ${formatTimeCompact(rect.value) ?? '—'}`);
         lines.push(`Self: ${formatTimeCompact(rect.selfValue) ?? '—'}`);
+      } else if (effectiveMetric === 'activity') {
+        lines.push(`Activity: ${rect.value.toFixed(1)}%`);
+        lines.push(`Own: ${rect.selfValue.toFixed(1)}%`);
       } else if (effectiveMetric === 'cost') {
         lines.push(`Cost: ${formatNumberShort(rect.value, { empty: '—' })}`);
         lines.push(`Self: ${formatNumberShort(rect.selfValue, { empty: '—' })}`);

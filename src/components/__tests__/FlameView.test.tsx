@@ -1,6 +1,9 @@
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PlanNode } from '../../lib/types';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import type { FlameMetric, PlanNode } from '../../lib/types';
+import { parsePlan } from '../../lib/parser';
 
 function node(id: number, cost: number, children: PlanNode[] = [], objectName?: string): PlanNode {
   return { id, depth: 0, operation: id === 0 ? 'SELECT STATEMENT' : 'TABLE ACCESS FULL', cost, objectName, children };
@@ -12,6 +15,7 @@ const ctx = vi.hoisted(() => ({
   selectedNodeIds: [] as number[],
   filteredNodeIds: new Set<number>(),
   filters: { searchText: '' },
+  flameMetric: 'cost' as FlameMetric,
 }));
 
 vi.mock('../../hooks/usePlanContext', () => ({
@@ -23,7 +27,7 @@ vi.mock('../../hooks/usePlanContext', () => ({
     theme: 'light',
     colorScheme: 'semantic',
     filters: ctx.filters,
-    flameMetric: 'cost',
+    flameMetric: ctx.flameMetric,
   }),
 }));
 
@@ -41,6 +45,7 @@ function setPlan(root: PlanNode, ids: number[]) {
 beforeEach(() => {
   setPlan(node(0, 100, [node(1, 60, [], 'ORDERS'), node(2, 40, [], 'ITEMS')]), [0, 1, 2]);
   ctx.selectedNodeIds = [];
+  ctx.flameMetric = 'cost';
   ctx.selectNode.mockReset();
   localStorage.removeItem(HINT_KEY);
 
@@ -180,5 +185,35 @@ describe('FlameView zoom reset button', () => {
       click(buttonByText('Reset zoom'));
     });
     expect(document.body.textContent).not.toContain('Reset zoom');
+  });
+});
+
+describe('FlameView time metric on SQL Monitor active windows', () => {
+  const loadExample = (file: string) => {
+    const plan = parsePlan(readFileSync(join(__dirname, '../../examples', file), 'utf8'));
+    ctx.parsedPlan = plan;
+    ctx.filteredNodeIds = new Set(plan.allNodes.map((n) => n.id));
+    ctx.flameMetric = 'actualTime';
+  };
+  const label = (id: number) => bar(id).getAttribute('aria-label')!;
+
+  it('sizes bars by ASH activity, not by summed overlapping windows', async () => {
+    loadExample('17-sql_monitor-Exadata Cell Offload (K. Osborne).txt');
+    await draw();
+    expect(label(0)).toContain('Activity: 99.0%');
+    expect(label(4)).toContain('Own: 50.5%');
+    expect(label(6)).toContain('% of total: 3.1%');
+    for (const b of bars()) {
+      expect(b.getAttribute('aria-label')).not.toMatch(/A-Time|Self/);
+    }
+  });
+
+  it('falls back to cost when the report has no activity samples', async () => {
+    loadExample('21-sql_monitor-Star Schema Rollup.txt');
+    await draw();
+    for (const b of bars()) {
+      expect(b.getAttribute('aria-label')).toContain('Cost:');
+      expect(b.getAttribute('aria-label')).not.toContain('A-Time');
+    }
   });
 });

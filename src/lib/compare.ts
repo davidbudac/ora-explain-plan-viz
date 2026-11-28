@@ -23,7 +23,8 @@ export interface PlanSlot {
   metadataBundleWarning: string | null;
 }
 
-export type CompareMetric = 'cost' | 'rows' | 'bytes' | 'actualRows' | 'actualTime' | 'selfTime' | 'starts' | 'tempSpace' | 'memoryUsed';
+/** `tempSpace` is the optimizer's estimate, `tempUsed` the measured spill; they are never compared with each other. */
+export type CompareMetric = 'cost' | 'rows' | 'bytes' | 'actualRows' | 'actualTime' | 'selfTime' | 'starts' | 'tempSpace' | 'tempUsed' | 'memoryUsed';
 
 export type MatchType = 'exact-id' | 'heuristic' | 'access-changed' | 'unmatched';
 
@@ -63,10 +64,16 @@ function getNodeSignature(node: PlanNode): string {
   return `${normalizeOperation(node)}|${normalizeObject(node)}`;
 }
 
-/** 0 when both nodes carry the same alias (e.g. E@SEL$1), 1 otherwise. */
-function aliasPenalty(a: PlanNode, b: PlanNode): number {
+function sameAlias(a: PlanNode, b: PlanNode): boolean {
   const aliasA = normalizeAlias(a);
-  return aliasA !== '' && aliasA === normalizeAlias(b) ? 0 : 1;
+  return aliasA !== '' && aliasA === normalizeAlias(b);
+}
+
+/** Both aliases are known and differ: different row sources even when id, operation and object agree (self-joins). */
+function aliasesConflict(a: PlanNode, b: PlanNode): boolean {
+  const aliasA = normalizeAlias(a);
+  const aliasB = normalizeAlias(b);
+  return aliasA !== '' && aliasB !== '' && aliasA !== aliasB;
 }
 
 /**
@@ -109,10 +116,10 @@ export function matchNodes(planA: ParsedPlan, planB: ParsedPlan): NodeMatch[] {
 
   const bNodesById = new Map(planB.allNodes.map(n => [n.id, n]));
 
-  // Pass 1: same id AND same operation AND same object
+  // Pass 1: same id AND same operation AND same object, aliases not in conflict
   for (const aNode of planA.allNodes) {
     const bNode = bNodesById.get(aNode.id);
-    if (bNode && !matchedBIds.has(bNode.id) && getNodeSignature(aNode) === getNodeSignature(bNode)) {
+    if (bNode && !matchedBIds.has(bNode.id) && getNodeSignature(aNode) === getNodeSignature(bNode) && !aliasesConflict(aNode, bNode)) {
       matches.push({ matchType: 'exact-id', planANode: aNode, planBNode: bNode });
       matchedAIds.add(aNode.id);
       matchedBIds.add(bNode.id);
@@ -129,17 +136,20 @@ export function matchNodes(planA: ParsedPlan, planB: ParsedPlan): NodeMatch[] {
     sigMapB.set(sig, list);
   }
 
-  for (const aNode of planA.allNodes) {
-    if (matchedAIds.has(aNode.id)) continue;
-    const candidates = sigMapB.get(getNodeSignature(aNode));
-    if (!candidates || candidates.length === 0) continue;
+  // Same-alias pairs go first so an earlier node cannot take another node's alias partner by depth.
+  for (const aliasOnly of [true, false]) {
+    for (const aNode of planA.allNodes) {
+      if (matchedAIds.has(aNode.id)) continue;
+      const candidates = sigMapB.get(getNodeSignature(aNode))?.filter(c => !aliasOnly || sameAlias(aNode, c));
+      if (!candidates || candidates.length === 0) continue;
 
-    const bestIdx = pickBest(candidates, c => [aliasPenalty(aNode, c), Math.abs(c.depth - aNode.depth)]);
-    const bestMatch = candidates[bestIdx];
-    matches.push({ matchType: 'heuristic', planANode: aNode, planBNode: bestMatch });
-    matchedAIds.add(aNode.id);
-    matchedBIds.add(bestMatch.id);
-    candidates.splice(bestIdx, 1);
+      const bestMatch = candidates[pickBest(candidates, c => [Math.abs(c.depth - aNode.depth)])];
+      matches.push({ matchType: 'heuristic', planANode: aNode, planBNode: bestMatch });
+      matchedAIds.add(aNode.id);
+      matchedBIds.add(bestMatch.id);
+      const list = sigMapB.get(getNodeSignature(aNode))!;
+      list.splice(list.indexOf(bestMatch), 1);
+    }
   }
 
   // Pass 3: same object, changed operation (e.g. FULL scan -> INDEX access)
@@ -242,7 +252,8 @@ export function getNodeMetricValue(node: PlanNode, metric: CompareMetric): numbe
     case 'actualTime': return node.actualTime;
     case 'selfTime': return node.selfTime;
     case 'starts': return node.starts;
-    case 'tempSpace': return node.tempUsed ?? node.tempSpace;
+    case 'tempSpace': return node.tempSpace;
+    case 'tempUsed': return node.tempUsed;
     case 'memoryUsed': return node.memoryUsed;
   }
 }
@@ -257,17 +268,22 @@ export function getMetricLabel(metric: CompareMetric): string {
     case 'selfTime': return 'Self time';
     case 'starts': return 'Starts';
     case 'tempSpace': return 'Temp space';
+    case 'tempUsed': return 'Temp used';
     case 'memoryUsed': return 'Memory';
   }
 }
 
 export const ALL_COMPARE_METRICS: CompareMetric[] = [
-  'cost', 'rows', 'bytes', 'actualRows', 'actualTime', 'selfTime', 'starts', 'tempSpace', 'memoryUsed',
+  'cost', 'rows', 'bytes', 'actualRows', 'actualTime', 'selfTime', 'starts', 'tempSpace', 'tempUsed', 'memoryUsed',
 ];
 
-/** Metrics where a negative B−A delta is an improvement. */
+/**
+ * Metrics where a negative B−A delta is an improvement. The rest (Starts, rows,
+ * bytes) can rightly move either way with plan shape and result size, so their
+ * deltas carry no verdict.
+ */
 export const LOWER_IS_BETTER: ReadonlySet<CompareMetric> = new Set([
-  'cost', 'actualTime', 'selfTime', 'tempSpace', 'memoryUsed',
+  'cost', 'actualTime', 'selfTime', 'tempSpace', 'tempUsed', 'memoryUsed',
 ]);
 
 export interface MetricDelta {

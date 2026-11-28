@@ -504,7 +504,7 @@ SPOOL OFF</code></pre>
 
       <h3>Flame graph (Experimental)</h3>
       <div class="shot"><img src="assets/flame.png" alt="Flame graph of an execution plan" loading="lazy" /></div>
-      <p>Under the Experimental tab's <em>Flame</em> switch: the plan as a flame graph, bars sized by each operation's <em>self</em> value (the metric minus its children's). Metric toggle: Cost, A-Time, A-Rows. Click a bar to select it and double-click (or <kbd>Shift</kbd>+<kbd>Enter</kbd> on a focused bar) to zoom into that subtree; click an ancestor bar above the graph or press Esc to zoom out.</p>
+      <p>Under the Experimental tab's <em>Flame</em> switch: the plan as a flame graph, bars sized by each operation's <em>self</em> value (the metric minus its children's). Metric toggle: Cost, A-Time, A-Rows. A SQL Monitor report gives each operation's time as an active window, and a parent's window overlaps its children's, so adding the windows up is not elapsed time. For these reports the time choice is <em>Activity</em>, each operation's share of ASH samples; a report without samples offers no time choice and the graph falls back to Cost. Click a bar to select it and double-click (or <kbd>Shift</kbd>+<kbd>Enter</kbd> on a focused bar) to zoom into that subtree; click an ancestor bar above the graph or press Esc to zoom out.</p>
 
       <h3>Plan text</h3>
       <p>The raw input, kept verbatim, with the selected node's line highlighted. Handy for quoting in a ticket. It has its own search (<kbd>Enter</kbd> / <kbd>Shift</kbd>+<kbd>Enter</kbd> step through matches; the Filters search is highlighted too), line-number and wrap-lines toggles (persisted), a copy button, and clicking a line selects its operation in the other views.</p>
@@ -653,11 +653,11 @@ SPOOL OFF</code></pre>
       <h3>How nodes are matched</h3>
       <p>A three-pass matcher lines up equivalent steps:</p>
       <ol>
-        <li><strong>Exact ID</strong>: same node ID with a similar operation.</li>
-        <li><strong>Heuristic</strong>: same operation + object signature, closest depth wins.</li>
+        <li><strong>Exact ID</strong>: same node ID, operation and object. Two different known aliases (the two sides of a self-join) are never an exact match.</li>
+        <li><strong>Heuristic</strong>: same operation + object signature. Nodes with the same alias pair first, then the closest depth wins.</li>
         <li><strong>Unmatched</strong>: leftovers from either side are listed as added or removed.</li>
       </ol>
-      <p>Deltas are computed across nine metrics: cost, rows, bytes, A-Rows, A-Time, self time, starts, temp space and memory. Each is flagged as an improvement or a regression, and the metric pills at the top of the dashboard choose which ones are shown.</p>
+      <p>Deltas are computed across ten metrics: cost, rows, bytes, A-Rows, A-Time, self time, starts, temp space (the optimizer's estimate), temp used (the measured spill) and memory. An estimate is never subtracted from a measurement: when one side lacks the matching value, the delta is left blank. Cost, time, temp and memory deltas are flagged as an improvement or a regression. Starts, rows and bytes deltas stay neutral: more or fewer of them can be right or wrong depending on the plan shape and the result size. The metric pills at the top of the dashboard choose which ones are shown.</p>
     </section>
 
     <!-- ---------- Annotations ---------- -->

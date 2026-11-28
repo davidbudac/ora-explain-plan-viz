@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { matchNodes, computeComparisonSummary, getNodeMetricValue, createEmptySlot, buildComparisonRows, rowHasVisibleChange } from '../compare';
 import type { ParsedPlan, PlanNode } from '../types';
+import { buildPlan } from './fixtures/buildPlan';
 
 function makeNode(overrides: Partial<PlanNode> & { id: number; operation: string }): PlanNode {
   return {
@@ -284,6 +285,47 @@ describe('matchNodes: object-aware matching', () => {
   });
 });
 
+describe('matchNodes: self-join sides', () => {
+  const selfJoin = (mgrId: number, staffId: number) =>
+    buildPlan({
+      id: 0, op: 'SELECT STATEMENT', kids: [{
+        id: 1, op: 'HASH JOIN', kids: [
+          { id: mgrId, op: 'TABLE ACCESS FULL', objectName: 'EMP', objectAlias: 'MGR@SEL$1', actualRows: 1 },
+          { id: staffId, op: 'TABLE ACCESS FULL', objectName: 'EMP', objectAlias: 'STAFF@SEL$1', actualRows: 1000 },
+        ],
+      }],
+    });
+
+  it('pairs each alias with itself when the line ids are swapped', () => {
+    const rows = buildComparisonRows(matchNodes(selfJoin(2, 3), selfJoin(3, 2)));
+    const scans = rows
+      .filter((r) => r.match.planANode?.objectName === 'EMP')
+      .map((r) => [r.match.planANode?.objectAlias, r.match.planBNode?.objectAlias, r.deltas.actualRows?.delta]);
+
+    expect(scans).toEqual([
+      ['MGR@SEL$1', 'MGR@SEL$1', 0],
+      ['STAFF@SEL$1', 'STAFF@SEL$1', 0],
+    ]);
+  });
+
+  it('gives a same-alias candidate priority over an earlier closer-depth one', () => {
+    const planA = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 1, operation: 'TABLE ACCESS FULL', objectName: 'EMP', objectAlias: 'X@SEL$1', depth: 1 }),
+      makeNode({ id: 2, operation: 'TABLE ACCESS FULL', objectName: 'EMP', objectAlias: 'STAFF@SEL$1', depth: 3 }),
+    ]);
+    const planB = makePlan([
+      makeNode({ id: 0, operation: 'SELECT STATEMENT', depth: 0 }),
+      makeNode({ id: 5, operation: 'TABLE ACCESS FULL', objectName: 'EMP', objectAlias: 'STAFF@SEL$1', depth: 1 }),
+      makeNode({ id: 6, operation: 'TABLE ACCESS FULL', objectName: 'EMP', objectAlias: 'Y@SEL$1', depth: 3 }),
+    ]);
+    const heuristic = matchNodes(planA, planB)
+      .filter((m) => m.matchType === 'heuristic')
+      .map((m) => [m.planANode?.id, m.planBNode?.id]);
+    expect(heuristic).toEqual([[1, 6], [2, 5]]);
+  });
+});
+
 describe('computeComparisonSummary', () => {
   it('computes cost deltas', () => {
     const planA = makePlan([
@@ -372,7 +414,8 @@ describe('getNodeMetricValue', () => {
     expect(getNodeMetricValue(node, 'actualRows')).toBe(600);
     expect(getNodeMetricValue(node, 'actualTime')).toBe(250);
     expect(getNodeMetricValue(node, 'starts')).toBe(3);
-    expect(getNodeMetricValue(node, 'tempSpace')).toBe(4096);
+    expect(getNodeMetricValue(node, 'tempUsed')).toBe(4096);
+    expect(getNodeMetricValue(node, 'tempSpace')).toBeUndefined();
     expect(getNodeMetricValue(node, 'memoryUsed')).toBe(8192);
   });
 
@@ -461,6 +504,30 @@ describe('buildComparisonRows', () => {
 
     expect(rows[0].deltas.selfTime!.delta).toBe(-300);
     expect(getNodeMetricValue(nodeA, 'selfTime')).toBe(400);
+  });
+});
+
+describe('buildComparisonRows: temp space', () => {
+  const MiB = 1024 * 1024;
+  const tempRow = (a: Partial<PlanNode>, b: Partial<PlanNode>) =>
+    buildComparisonRows(matchNodes(
+      makePlan([makeNode({ id: 0, operation: 'SORT ORDER BY', ...a })]),
+      makePlan([makeNode({ id: 0, operation: 'SORT ORDER BY', ...b })]),
+    ))[0];
+
+  it('shows no delta between an estimate in A and a measured spill in B', () => {
+    const row = tempRow({ tempSpace: 100 * MiB }, { tempUsed: 10 * MiB });
+    expect(row.deltas.tempSpace?.delta).toBeUndefined();
+    expect(row.deltas.tempUsed?.delta).toBeUndefined();
+  });
+
+  it('compares estimate with estimate and spill with spill', () => {
+    const row = tempRow(
+      { tempSpace: 100 * MiB, tempUsed: 40 * MiB },
+      { tempSpace: 50 * MiB, tempUsed: 10 * MiB },
+    );
+    expect(row.deltas.tempSpace?.delta).toBe(-50 * MiB);
+    expect(row.deltas.tempUsed?.delta).toBe(-30 * MiB);
   });
 });
 

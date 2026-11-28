@@ -9,6 +9,7 @@ import { CustomizeViewMenu } from './CustomizeViewMenu';
 import { TreeLayoutControls } from './views/TreeLayoutControls';
 import { FOCUS_RING } from './ui';
 import { planHasHints } from '../lib/hints';
+import { flameTimeMetric, getEffectiveFlameMetric } from '../lib/flameLayout';
 
 const CONTROL_BASE = `min-h-8 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 ${FOCUS_RING}`;
 const CONTROL = `${CONTROL_BASE} px-2.5`;
@@ -186,18 +187,21 @@ export function ViewControls({ includeTreeLayout = true, labelled = false }: { i
   }
 
   if (viewMode === 'experimental' && experimentalSubView === 'flame') {
+    const timeMetric = flameTimeMetric(parsedPlan);
     const options: SegmentOption<FlameMetric>[] = [
       { value: 'cost', label: 'Cost' },
       ...(hasActualStats
         ? ([
-            { value: 'actualTime', label: 'A-Time' },
+            ...(timeMetric === 'actualTime' ? [{ value: 'actualTime', label: 'A-Time' }] : []),
+            ...(timeMetric === 'activity' ? [{ value: 'activity', label: 'Activity', title: 'Share of ASH samples' }] : []),
             { value: 'actualRows', label: 'A-Rows' },
           ] as SegmentOption<FlameMetric>[])
         : []),
     ];
-    // Without runtime stats the flame graph falls back to cost.
-    const effective: FlameMetric = hasActualStats ? flameMetric : 'cost';
-    return <MetricSelect label="Metric" title="Flame graph metric — what the bar widths represent" value={effective} options={options} onChange={setFlameMetric} labelled />;
+    const effective = getEffectiveFlameMetric(flameMetric, hasActualStats, timeMetric);
+    // Activity is how SQL Monitor plans show the time choice, so it is saved as that choice.
+    const onChange = (metric: FlameMetric) => setFlameMetric(metric === 'activity' ? 'actualTime' : metric);
+    return <MetricSelect label="Metric" title="Flame graph metric — what the bar widths represent" value={effective} options={options} onChange={onChange} labelled />;
   }
 
   return null;
