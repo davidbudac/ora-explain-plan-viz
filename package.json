@@ -35,7 +35,7 @@
     "highlight.js": "^11.12.0",
     "html-to-image": "^1.11.13",
     "lz-string": "^1.5.0",
-    "marked": "^18.2.0",
+    "marked": "^18.2.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
@@ -56,7 +56,7 @@
     "tailwindcss": "^4.1.18",
     "tsx": "^4.23.15",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.72.2",
+    "typescript-eslint": "^8.73.0",
     "vite": "^7.3.8",
     "vite-plugin-singlefile": "^2.3.4",
     "vitest": "^4.0.18"
